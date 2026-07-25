@@ -1,0 +1,6 @@
+# Plaintext secrets — produced at deploy time by decrypting prod.enc.env. NEVER commit these.
+.env
+.env.*
+
+# ...but the SOPS-encrypted secrets ARE committed (values are AES-256-GCM encrypted):
+!prod.enc.env

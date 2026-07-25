@@ -1,0 +1,50 @@
+@page
+@model Mabhas19.Auth.Pages.Account.OtpModel
+@{
+    ViewData["Title"] = "ورود با کد یکبار مصرف";
+    var returnUrl = ViewData["ReturnUrl"] as string;
+    var loginHref = "/Account/Login" + (returnUrl is not null ? "?returnUrl=" + Uri.EscapeDataString(returnUrl) : "");
+}
+
+<h1>ورود با کد یکبار مصرف</h1>
+@if (!Model.CodeSent)
+{
+    <p class="subtitle">شماره موبایل خود را وارد کنید تا کد ورود برایتان پیامک شود.</p>
+}
+else
+{
+    <p class="subtitle">کد ۵ رقمی ارسال‌شده را وارد کنید.</p>
+}
+
+@if (Model.ErrorMessage is not null)
+{
+    <div class="error" role="alert">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span>@Model.ErrorMessage</span>
+    </div>
+}
+
+@if (!Model.CodeSent)
+{
+    <form method="post" asp-page-handler="Request">
+        <input type="hidden" name="returnUrl" value="@returnUrl" />
+        <label for="Phone">شماره موبایل</label>
+        <input asp-for="Phone" type="tel" id="Phone" placeholder="09xxxxxxxxx" autocomplete="tel" inputmode="numeric" />
+        <button type="submit">ارسال کد</button>
+    </form>
+}
+else
+{
+    <form method="post" asp-page-handler="Verify">
+        <input type="hidden" name="returnUrl" value="@returnUrl" />
+        <input type="hidden" asp-for="Phone" />
+        <p class="hint">کد ارسال‌شده به <strong>@Model.Phone</strong> را وارد کنید:</p>
+        <label for="Code">کد تأیید</label>
+        <input asp-for="Code" type="text" id="Code" class="otp-code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="—————" />
+        <button type="submit">تأیید و ورود</button>
+    </form>
+}
+
+<div class="link-row">
+    <a href="@loginHref">بازگشت به صفحه ورود</a>
+</div>

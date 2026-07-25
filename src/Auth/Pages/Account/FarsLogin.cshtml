@@ -1,0 +1,19 @@
+@page
+@model Mabhas19.Auth.Pages.Account.FarsLoginModel
+@{
+    ViewData["Title"] = "ورود از سامانه نظام مهندسی فارس";
+}
+
+<h1>ورود خودکار</h1>
+
+@if (Model.ErrorMessage is not null)
+{
+    <div class="error">@Model.ErrorMessage</div>
+    <div class="link-row">
+        <a href="/Account/Login">ورود از طریق صفحه اصلی</a>
+    </div>
+}
+else
+{
+    <p>در حال ورود…</p>
+}

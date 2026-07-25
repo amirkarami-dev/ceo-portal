@@ -1,0 +1,115 @@
+@import "tailwindcss";
+
+@theme {
+  /* ── Palette: engineering petrol + copper ─────────────── */
+  --color-ink: #0c2233;
+  --color-deep: #123a52;
+  --color-deeper: #0a1a29;
+  --color-steel: #5e7a8e;
+  --color-mist: #a9bfcc;
+  --color-paper: #f4f7f9;
+  --color-line: #dce4ea;
+  --color-copper: #c56a2b;
+  --color-copper-dark: #a85423;
+  --color-copper-soft: #f6e8dc;
+  --color-gold: #d9a441;
+
+  /* Vazirmatn variable (100–900) is the default typeface;
+     IranSans stays as fallback */
+  --font-body: var(--font-vazirmatn), var(--font-iransans), system-ui,
+    sans-serif;
+  --font-display: var(--font-vazirmatn), var(--font-iransans), system-ui,
+    sans-serif;
+
+  --shadow-card: 0 1px 2px rgb(12 34 51 / 0.06), 0 8px 24px -12px rgb(12 34 51 / 0.18);
+  --shadow-lift: 0 2px 4px rgb(12 34 51 / 0.08), 0 16px 40px -12px rgb(12 34 51 / 0.28);
+
+  --animate-ticker: ticker 36s linear infinite;
+  --animate-shimmer: shimmer 5s linear infinite;
+
+  @keyframes shimmer {
+    to { background-position: -200% 0; }
+  }
+
+  /* content is duplicated once, so -50% → 0 loops seamlessly
+     while scrolling to the right (natural RTL reading direction) */
+  @keyframes ticker {
+    from { transform: translateX(-50%); }
+    to { transform: translateX(0); }
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--color-paper);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-display {
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+
+/* Blueprint grid backdrop — the site signature */
+.blueprint {
+  background-color: var(--color-ink);
+  background-image:
+    linear-gradient(rgb(255 255 255 / 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.045) 1px, transparent 1px),
+    linear-gradient(rgb(255 255 255 / 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.02) 1px, transparent 1px);
+  background-size: 96px 96px, 96px 96px, 24px 24px, 24px 24px;
+}
+
+/* animated gold-copper gradient text (hero headline) */
+.text-shimmer {
+  background: linear-gradient(
+    90deg,
+    #d9a441,
+    #c56a2b 35%,
+    #f0c975 55%,
+    #d9a441 80%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: var(--animate-shimmer);
+}
+
+::selection {
+  background: var(--color-copper);
+  color: white;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-copper);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Prose for article bodies */
+.article-body p {
+  margin-bottom: 1rem;
+  line-height: 2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  html { scroll-behavior: auto; }
+
+  /* keep the news marquee running (slower); it pauses on hover
+     and the same headlines are reachable on the news page */
+  .animate-ticker {
+    animation: ticker 72s linear infinite !important;
+  }
+}

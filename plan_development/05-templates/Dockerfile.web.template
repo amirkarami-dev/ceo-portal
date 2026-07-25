@@ -1,0 +1,49 @@
+# Web Dockerfile (Next.js, standalone) — build context is the repository ROOT (monorepo).
+# Copy to deploy/Dockerfile.web and replace every <PLACEHOLDER>.
+#
+# Replace:
+#   <CORE_PACKAGE>  — the shared TS workspace package dir under packages/ (e.g. assessment-core)
+#   <API_DOMAIN>    — the production API host, baked as the default NEXT_PUBLIC_API_BASE
+#
+# Consumes the @<SCOPE>/<CORE_PACKAGE> workspace package. `next.config.ts` MUST set
+# `output: "standalone"` + `outputFileTracingRoot` to the repo root, so the standalone server
+# entry lands at web/server.js.
+FROM node:24-alpine AS build
+WORKDIR /app
+
+# Root manifest, but DROP the Expo `mobile` workspace: it isn't needed for the web image and
+# its react/react-native peer set conflicts during resolution.
+COPY package.json ./
+RUN node -e "const p=require('./package.json'); p.workspaces=(p.workspaces||[]).filter(w=>w!=='mobile'); require('fs').writeFileSync('package.json', JSON.stringify(p,null,2))"
+COPY packages/<CORE_PACKAGE>/package.json packages/<CORE_PACKAGE>/package.json
+COPY web/package.json web/package.json
+# Resolve fresh (no host-generated lock) so Linux-musl native optional deps such as
+# @parcel/watcher — needed by Next to load next.config.ts — are installed.
+RUN npm install --no-audit --no-fund
+
+# Sources, then build in the same stage so the full node_modules tree is present.
+COPY packages/<CORE_PACKAGE>/ ./packages/<CORE_PACKAGE>/
+COPY web/ ./web/
+ENV NEXT_TELEMETRY_DISABLED=1
+# NEXT_PUBLIC_API_BASE is baked at BUILD time — pass the prod API host or the app calls the wrong API.
+ARG NEXT_PUBLIC_API_BASE=https://<API_DOMAIN>
+ENV NEXT_PUBLIC_API_BASE=$NEXT_PUBLIC_API_BASE
+RUN npm run build -w web
+
+FROM node:24-alpine AS final
+WORKDIR /app
+# HOSTNAME=0.0.0.0 so the standalone server binds all interfaces (not the container hostname),
+# making the published/proxied port reachable.
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
+# Standalone output (monorepo layout): server.js + node_modules under web/.
+# Copy as the non-root `node` user (built into the base image).
+COPY --from=build --chown=node:node /app/web/.next/standalone ./
+COPY --from=build --chown=node:node /app/web/.next/static ./web/.next/static
+COPY --from=build --chown=node:node /app/web/public ./web/public
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD wget -q -O /dev/null http://127.0.0.1:3000/ || exit 1
+
+USER node
+CMD ["node", "web/server.js"]

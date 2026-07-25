@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Login Flow Diagram — mun-sanandaj-web</title>
+<style>
+  :root {
+    --bg: #f4f6fb;
+    --panel: #ffffff;
+    --ink: #0b1220;
+    --muted: #5b6478;
+    --line: #d6dbe6;
+    --primary: #2563eb;
+    --primary-soft: #e8eefc;
+    --app: #2563eb;
+    --idp: #7c3aed;
+    --guard: #d97706;
+    --success: #16a34a;
+    --danger: #dc2626;
+    --shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b1220;
+      --panel: #131c30;
+      --ink: #e6eaf2;
+      --muted: #93a0b8;
+      --line: #263149;
+      --primary: #60a5fa;
+      --primary-soft: #17233d;
+      --app: #3b82f6;
+      --idp: #a78bfa;
+      --guard: #f59e0b;
+      --success: #34d399;
+      --danger: #f87171;
+      --shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.5;
+    padding: 32px 16px 64px;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  header h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  header p { color: var(--muted); margin: 0 0 28px; }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 14px;
+    margin-bottom: 28px; font-size: .85rem;
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+  .dot { width: 12px; height: 12px; border-radius: 4px; display: inline-block; }
+  .dot.app { background: var(--app); }
+  .dot.idp { background: var(--idp); }
+  .dot.guard { background: var(--guard); }
+
+  .flow { display: flex; flex-direction: column; align-items: center; }
+
+  .node {
+    width: 100%;
+    max-width: 560px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--app);
+    border-radius: 12px;
+    padding: 14px 18px;
+    box-shadow: var(--shadow);
+    cursor: default;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .node:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(37,99,235,.18); }
+  .node .tag {
+    font-size: .68rem; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--muted); font-weight: 700;
+  }
+  .node .title { font-weight: 700; margin: 2px 0 3px; font-size: 1.02rem; }
+  .node .desc { color: var(--muted); font-size: .9rem; }
+  .node code {
+    background: var(--primary-soft); color: var(--primary);
+    padding: 1px 6px; border-radius: 5px; font-size: .82em;
+  }
+  .node.idp { border-left-color: var(--idp); }
+  .node.guard { border-left-color: var(--guard); }
+  .node.success { border-left-color: var(--success); }
+
+  .arrow {
+    width: 2px; height: 26px; background: var(--line); position: relative;
+  }
+  .arrow::after {
+    content: ""; position: absolute; bottom: -1px; left: 50%; transform: translateX(-50%);
+    border-left: 6px solid transparent; border-right: 6px solid transparent;
+    border-top: 8px solid var(--line);
+  }
+  .arrow .lbl {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    white-space: nowrap; font-size: .78rem; color: var(--muted);
+    background: var(--bg); padding: 0 6px;
+  }
+
+  .idp-zone {
+    width: 100%; max-width: 560px;
+    border: 1.5px dashed var(--idp); border-radius: 14px;
+    padding: 14px; margin: 4px 0;
+    background: color-mix(in srgb, var(--idp) 7%, transparent);
+  }
+  .idp-zone .zone-title {
+    font-size: .72rem; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--idp); font-weight: 800; margin-bottom: 10px; text-align: center;
+  }
+
+  .branch {
+    width: 100%; max-width: 560px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px;
+  }
+  .branch .node { max-width: none; }
+  @media (max-width: 560px) { .branch { grid-template-columns: 1fr; } }
+
+  footer { text-align: center; color: var(--muted); font-size: .82rem; margin-top: 40px; }
+  footer a { color: var(--primary); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🔐 Login Flow — mun-sanandaj-web</h1>
+    <p>How a visitor goes from a locked page to the Dashboard, using OIDC. Hover a step to highlight it.</p>
+  </header>
+
+  <div class="legend">
+    <span><i class="dot app"></i> Our app (React)</span>
+    <span><i class="dot idp"></i> Central login server (IdP)</span>
+    <span><i class="dot guard"></i> Guard / redirect</span>
+  </div>
+
+  <div class="flow">
+
+    <div class="node">
+      <div class="tag">Step 1 · Browser</div>
+      <div class="title">Visitor opens <code>/</code></div>
+      <div class="desc">Home is a protected page — it is wrapped in the <code>&lt;RequireAuth&gt;</code> guard.</div>
+    </div>
+
+    <div class="arrow"></div>
+
+    <div class="node guard">
+      <div class="tag">Step 2 · Guard</div>
+      <div class="title">RequireAuth checks for a user</div>
+      <div class="desc">No logged-in user found → redirect to <code>/login</code>. <br>(While still checking, it shows a spinner because <code>ready</code> is false.)</div>
+    </div>
+
+    <div class="arrow"><span class="lbl">no user</span></div>
+
+    <div class="node">
+      <div class="tag">Step 3 · Screen</div>
+      <div class="title">LoginScreen — click “ورود”</div>
+      <div class="desc">One button. It calls <code>login()</code>, which runs <code>signinRedirect()</code>.</div>
+    </div>
+
+    <div class="arrow"><span class="lbl">signinRedirect()</span></div>
+
+    <div class="idp-zone">
+      <div class="zone-title">↓ browser leaves our app ↓</div>
+      <div class="node idp" style="max-width:none">
+        <div class="tag">Steps 4–5 · IdP</div>
+        <div class="title">User signs in on the login server</div>
+        <div class="desc">Username / password / OTP — handled entirely by the IdP. Our app never sees the password. On success the IdP sends the browser back to <code>redirect_uri</code>.</div>
+      </div>
+    </div>
+
+    <div class="arrow"><span class="lbl">redirect to /auth/callback</span></div>
+
+    <div class="node">
+      <div class="tag">Step 6 · Screen</div>
+      <div class="title">OidcCallback saves the token</div>
+      <div class="desc"><code>signinRedirectCallback()</code> reads the code from the URL, swaps it for a <b>token</b>, and stores it in <code>localStorage</code>. Then navigates to <code>/</code>.</div>
+    </div>
+
+    <div class="arrow"><span class="lbl">userLoaded event</span></div>
+
+    <div class="node">
+      <div class="tag">Step 7 · State</div>
+      <div class="title">AuthProvider sets the user</div>
+      <div class="desc">It hears the <code>userLoaded</code> event and updates its state. Now <code>useAuth()</code> returns a real user.</div>
+    </div>
+
+    <div class="arrow"><span class="lbl">has user ✓</span></div>
+
+    <div class="node guard">
+      <div class="tag">Step 8 · Guard</div>
+      <div class="title">RequireAdmin checks the role</div>
+      <div class="desc">Is <code>isAdmin</code> true? The answer splits the flow in two:</div>
+    </div>
+
+    <div class="branch">
+      <div class="node success">
+        <div class="tag">Admin ✓</div>
+        <div class="title">Dashboard</div>
+        <div class="desc">Login complete. User sees the app.</div>
+      </div>
+      <div class="node" style="border-left-color: var(--danger)">
+        <div class="tag">Not admin ✗</div>
+        <div class="title">/403 — Forbidden</div>
+        <div class="desc">ForbiddenScreen is shown.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    Companion to <a href="01-login-flow.md">01-login-flow.md</a> ·
+    Files: <code>routes.tsx</code>, <code>oidc.ts</code>, <code>AuthProvider.tsx</code>, <code>useAuth.ts</code>, <code>router.tsx</code>
+  </footer>
+</div>
+</body>
+</html>

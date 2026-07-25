@@ -1,0 +1,41 @@
+{
+  "//": "EAS build profiles — copy to mobile/eas.json and replace <API_DOMAIN>.",
+  "//env": "EXPO_NO_METRO_WORKSPACE_ROOT=1 pins Metro to mobile/ (NOT the monorepo root) so the",
+  "//env2": "hoisted workspace doesn't break resolution. EXPO_PUBLIC_API_BASE is the prod API host.",
+  "//note": "JSON has no comments; the keys starting with // are inert and can be deleted.",
+  "cli": {
+    "version": ">= 12.0.0",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_NO_METRO_WORKSPACE_ROOT": "1"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_BASE": "https://<API_DOMAIN>",
+        "EXPO_NO_METRO_WORKSPACE_ROOT": "1"
+      }
+    },
+    "production": {
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_BASE": "https://<API_DOMAIN>",
+        "EXPO_NO_METRO_WORKSPACE_ROOT": "1"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

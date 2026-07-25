@@ -1,0 +1,40 @@
+import type { SemanticModel } from "../../contracts/semantic";
+
+export const financeModel: SemanticModel = {
+  id: "model-finance",
+  tenantId: "global",
+  version: 1,
+  defaultLocale: "fa-IR",
+  name: { "fa-IR": "مالی", "en-US": "Finance" },
+  entities: [
+    {
+      id: "finance",
+      source: "finance",
+      name: { "fa-IR": "تراکنش مالی", "en-US": "Financial Transaction" },
+      description: { "fa-IR": "تراکنش‌های مالی", "en-US": "Financial transactions" },
+      defaultDateField: "txnDate",
+      fields: [
+        { id: "txnId", column: "txnId", type: "string", role: "dimension", hidden: true,
+          label: { "fa-IR": "شناسه تراکنش", "en-US": "Transaction ID" },
+          defaultAggregation: "countDistinct", allowedAggregations: ["count", "countDistinct"] },
+        { id: "account", column: "account", type: "string", role: "dimension",
+          label: { "fa-IR": "حساب", "en-US": "Account" }, synonyms: ["سرفصل", "حساب کل"] },
+        { id: "costCenter", column: "costCenter", type: "string", role: "dimension",
+          label: { "fa-IR": "مرکز هزینه", "en-US": "Cost Center" }, synonyms: ["دپارتمان", "واحد"] },
+        { id: "type", column: "type", type: "string", role: "dimension",
+          label: { "fa-IR": "نوع", "en-US": "Type" }, synonyms: ["درآمد/هزینه", "debit", "credit"] },
+        { id: "amount", column: "amount", type: "number", role: "measure",
+          label: { "fa-IR": "مبلغ", "en-US": "Amount" }, synonyms: ["مبلغ کل", "هزینه", "درآمد", "amount"],
+          defaultAggregation: "sum", allowedAggregations: ["sum", "avg", "min", "max"],
+          format: { kind: "currency", currency: "IRR", decimals: 0, grouping: true } },
+        { id: "marginPct", column: "marginPct", type: "number", role: "measure",
+          label: { "fa-IR": "حاشیه سود", "en-US": "Margin %" }, synonyms: ["درصد سود", "margin"],
+          defaultAggregation: "avg", allowedAggregations: ["avg", "min", "max"],
+          format: { kind: "percent", decimals: 1 } },
+        { id: "txnDate", column: "txnDate", type: "date", role: "date",
+          label: { "fa-IR": "تاریخ", "en-US": "Date" }, synonyms: ["ماه", "سال", "فصل", "quarterly"],
+          format: { kind: "date", pattern: "yyyy/MM" } },
+      ],
+    },
+  ],
+};

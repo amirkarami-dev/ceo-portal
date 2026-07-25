@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="fa-IR" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="مرکز راهنمای سامانه مبحث ۱۹ — آموزش کار با سامانه و مفاهیم مقررات ملی ساختمان مبحث ۱۹ (ضمیمه ۵)" />
+  <title>مرکز راهنما | سامانه مبحث ۱۹</title>
+  <style>
+    /* ============================================================
+       Design tokens — copied from the app's globals.css (emerald
+       primary + zinc neutrals) so the help center matches the app.
+       Self-contained: no external CSS/JS/font requests.
+       ============================================================ */
+    :root {
+      --radius: 0.65rem;
+      --background: oklch(1 0 0);
+      --foreground: oklch(0.141 0.005 285.823);
+      --card: oklch(1 0 0);
+      --muted: oklch(0.967 0.001 286.375);
+      --muted-foreground: oklch(0.552 0.016 285.938);
+      --primary: oklch(0.627 0.149 162.5);
+      --primary-foreground: oklch(0.985 0 0);
+      --primary-soft: oklch(0.95 0.04 162.5);
+      --accent: oklch(0.967 0.001 286.375);
+      --border: oklch(0.92 0.004 286.32);
+      --success: oklch(0.59 0.13 163);
+      --warning: oklch(0.73 0.16 70);
+      --destructive: oklch(0.577 0.245 27.325);
+      --shadow: 0 1px 2px oklch(0 0 0 / 0.06), 0 4px 16px oklch(0 0 0 / 0.04);
+    }
+    html.dark {
+      --background: oklch(0.141 0.005 285.823);
+      --foreground: oklch(0.985 0 0);
+      --card: oklch(0.21 0.006 285.885);
+      --muted: oklch(0.274 0.006 286.033);
+      --muted-foreground: oklch(0.705 0.015 286.067);
+      --primary: oklch(0.696 0.16 162.5);
+      --primary-foreground: oklch(0.985 0 0);
+      --primary-soft: oklch(0.3 0.06 162.5);
+      --accent: oklch(0.274 0.006 286.033);
+      --border: oklch(1 0 0 / 12%);
+      --success: oklch(0.7 0.14 163);
+      --warning: oklch(0.79 0.16 75);
+      --destructive: oklch(0.704 0.191 22.216);
+      --shadow: 0 1px 2px oklch(0 0 0 / 0.4), 0 4px 20px oklch(0 0 0 / 0.3);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Vazirmatn, "Segoe UI", system-ui, Tahoma, sans-serif;
+      background: var(--background);
+      color: var(--foreground);
+      line-height: 1.85;
+      font-size: 16px;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--primary); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ---- Top bar ---- */
+    .topbar {
+      position: sticky; top: 0; z-index: 30;
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 20px;
+      background: color-mix(in oklab, var(--background) 85%, transparent);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.05rem; }
+    .brand .logo {
+      width: 34px; height: 34px; border-radius: 9px;
+      background: var(--primary); color: var(--primary-foreground);
+      display: grid; place-items: center; font-weight: 800; font-size: 0.95rem;
+    }
+    .topbar .spacer { flex: 1; }
+    .icon-btn {
+      display: inline-grid; place-items: center;
+      width: 38px; height: 38px; border-radius: 9px;
+      border: 1px solid var(--border); background: var(--card); color: var(--foreground);
+      cursor: pointer; font-size: 1.1rem; transition: background .15s;
+    }
+    .icon-btn:hover { background: var(--muted); }
+    .topbar .back-link {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 14px; border-radius: 9px; font-size: .9rem; font-weight: 500;
+      border: 1px solid var(--border); background: var(--card); color: var(--foreground);
+    }
+    .topbar .back-link:hover { background: var(--muted); text-decoration: none; }
+
+    /* ---- Layout ---- */
+    .layout { display: flex; gap: 0; max-width: 1240px; margin: 0 auto; }
+    .sidebar {
+      position: sticky; top: 63px; align-self: flex-start;
+      width: 280px; flex: none; height: calc(100vh - 63px);
+      overflow-y: auto; padding: 20px 16px;
+      border-inline-start: 1px solid var(--border);
+    }
+    .search-wrap { position: relative; margin-bottom: 14px; }
+    .search-wrap input {
+      width: 100%; padding: 10px 38px 10px 12px; border-radius: 10px;
+      border: 1px solid var(--border); background: var(--card); color: var(--foreground);
+      font-family: inherit; font-size: .9rem;
+    }
+    .search-wrap input:focus { outline: 2px solid var(--primary); outline-offset: 1px; border-color: var(--primary); }
+    .search-wrap::before {
+      content: "🔍"; position: absolute; inset-inline-end: 12px; top: 50%;
+      transform: translateY(-50%); font-size: .9rem; opacity: .6; pointer-events: none;
+    }
+    .nav-group-title {
+      font-size: .72rem; font-weight: 700; letter-spacing: .04em;
+      color: var(--muted-foreground); text-transform: uppercase;
+      margin: 16px 8px 6px;
+    }
+    .nav a {
+      display: block; padding: 8px 12px; border-radius: 8px;
+      color: var(--muted-foreground); font-size: .9rem; font-weight: 500;
+      border-inline-start: 2px solid transparent;
+    }
+    .nav a:hover { background: var(--muted); color: var(--foreground); text-decoration: none; }
+    .nav a.active {
+      background: var(--primary-soft); color: var(--primary);
+      border-inline-start-color: var(--primary); font-weight: 600;
+    }
+    .nav a.hidden, .nav .nav-group-title.hidden { display: none; }
+
+    /* ---- Content ---- */
+    .content { flex: 1; min-width: 0; padding: 28px 36px 96px; }
+    .hero {
+      background: linear-gradient(135deg, var(--primary), color-mix(in oklab, var(--primary) 60%, oklch(0.6 0.118 184.704)));
+      color: var(--primary-foreground);
+      border-radius: 18px; padding: 34px 32px; margin-bottom: 28px;
+      box-shadow: var(--shadow);
+    }
+    .hero h1 { margin: 0 0 8px; font-size: 1.9rem; }
+    .hero p { margin: 0; opacity: .92; max-width: 60ch; }
+
+    section.doc { scroll-margin-top: 80px; margin-bottom: 38px; }
+    section.doc.filtered-out { display: none; }
+    h2 {
+      font-size: 1.45rem; margin: 8px 0 14px; padding-bottom: 8px;
+      border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px;
+    }
+    h2 .num {
+      display: inline-grid; place-items: center; width: 30px; height: 30px;
+      border-radius: 8px; background: var(--primary-soft); color: var(--primary);
+      font-size: .85rem; font-weight: 700; flex: none;
+    }
+    h3 { font-size: 1.1rem; margin: 22px 0 8px; }
+    p, li { color: var(--foreground); }
+    ul, ol { padding-inline-start: 22px; }
+    li { margin: 5px 0; }
+
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 18px 20px; margin: 14px 0;
+      box-shadow: var(--shadow);
+    }
+    .steps { counter-reset: step; list-style: none; padding: 0; margin: 14px 0; }
+    .steps > li {
+      position: relative; padding: 12px 52px 12px 16px; margin: 10px 0;
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    }
+    .steps > li::before {
+      counter-increment: step; content: counter(step);
+      position: absolute; inset-inline-end: 14px; top: 12px;
+      width: 26px; height: 26px; border-radius: 50%;
+      background: var(--primary); color: var(--primary-foreground);
+      display: grid; place-items: center; font-size: .85rem; font-weight: 700;
+    }
+
+    .callout {
+      border-inline-start: 4px solid var(--primary); border-radius: 10px;
+      padding: 12px 16px; margin: 14px 0; background: var(--muted);
+      display: flex; gap: 10px;
+    }
+    .callout .ic { font-size: 1.1rem; flex: none; }
+    .callout.tip { border-inline-start-color: var(--success); }
+    .callout.warn { border-inline-start-color: var(--warning); }
+    .callout.note { border-inline-start-color: var(--primary); }
+    .callout p { margin: 0; }
+
+    table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: .92rem; }
+    th, td { border: 1px solid var(--border); padding: 9px 12px; text-align: start; }
+    th { background: var(--muted); font-weight: 700; }
+    tbody tr:nth-child(even) { background: color-mix(in oklab, var(--muted) 45%, transparent); }
+    td.score { font-weight: 700; color: var(--primary); white-space: nowrap; }
+
+    .badge {
+      display: inline-block; padding: 2px 9px; border-radius: 999px;
+      font-size: .78rem; font-weight: 600;
+      background: var(--primary-soft); color: var(--primary);
+    }
+    .badge.admin { background: color-mix(in oklab, var(--warning) 25%, transparent); color: var(--warning); }
+
+    details.faq {
+      border: 1px solid var(--border); border-radius: 12px;
+      padding: 4px 16px; margin: 8px 0; background: var(--card);
+    }
+    details.faq[open] { border-color: color-mix(in oklab, var(--primary) 40%, var(--border)); }
+    details.faq summary {
+      cursor: pointer; font-weight: 600; padding: 12px 0; list-style: none;
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    }
+    details.faq summary::-webkit-details-marker { display: none; }
+    details.faq summary::after { content: "⌄"; font-size: 1.3rem; transition: transform .2s; opacity: .6; }
+    details.faq[open] summary::after { transform: rotate(180deg); }
+    details.faq p { margin: 0 0 12px; color: var(--muted-foreground); }
+
+    .no-results {
+      display: none; text-align: center; padding: 50px 20px;
+      color: var(--muted-foreground);
+    }
+    .no-results.show { display: block; }
+
+    .footer {
+      max-width: 1240px; margin: 0 auto; padding: 22px 36px;
+      border-top: 1px solid var(--border); color: var(--muted-foreground); font-size: .85rem;
+      text-align: center;
+    }
+
+    .mobile-toggle { display: none; }
+
+    /* ---- Responsive ---- */
+    @media (max-width: 920px) {
+      .layout { flex-direction: column; }
+      .sidebar {
+        position: static; width: auto; height: auto;
+        border: 1px solid var(--border); border-radius: 14px;
+        margin: 16px 20px 0; display: none;
+      }
+      .sidebar.open { display: block; }
+      .content { padding: 20px; }
+      .mobile-toggle { display: inline-grid; }
+      .hero h1 { font-size: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <!-- ============================ Top bar ============================ -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">۱۹</span>
+      <span>مرکز راهنما</span>
+    </div>
+    <button class="icon-btn mobile-toggle" id="menuBtn" aria-label="فهرست" title="فهرست">☰</button>
+    <div class="spacer"></div>
+    <a class="back-link" href="/">→ بازگشت به سامانه</a>
+    <button class="icon-btn" id="themeBtn" aria-label="تغییر حالت روشن/تیره" title="حالت روشن/تیره">🌙</button>
+  </header>
+
+  <div class="layout">
+    <!-- ============================ Sidebar ============================ -->
+    <aside class="sidebar" id="sidebar">
+      <div class="search-wrap">
+        <input id="search" type="search" placeholder="جستجو در راهنما…" autocomplete="off" />
+      </div>
+      <nav class="nav" id="nav">
+        <div class="nav-group-title">کار با سامانه</div>
+        <a href="#about">۱. درباره سامانه</a>
+        <a href="#signin">۲. ثبت‌نام و ورود</a>
+        <a href="#dashboard">۳. داشبورد</a>
+        <a href="#projects">۴. مدیریت پروژه‌ها</a>
+        <a href="#import">۵. وارد کردن از نظام مهندسی</a>
+        <a href="#assessment">۶. انجام ارزیابی</a>
+        <a href="#climate">۷. پهنه اقلیمی</a>
+        <a href="#report">۸. گزارش PDF</a>
+        <a href="#admin">۹. بخش مدیریت</a>
+        <div class="nav-group-title">مفاهیم مبحث ۱۹</div>
+        <a href="#section19">۱۰. مبحث ۱۹ چیست</a>
+        <a href="#zones">۱۱. شش پهنه اقلیمی</a>
+        <a href="#scoring">۱۲. جدول امتیازدهی</a>
+        <div class="nav-group-title">بیشتر</div>
+        <a href="#faq">۱۳. سوالات متداول</a>
+        <a href="#support">۱۴. پشتیبانی</a>
+      </nav>
+    </aside>
+
+    <!-- ============================ Content ============================ -->
+    <main class="content">
+      <div class="hero">
+        <h1>به مرکز راهنمای سامانهٔ مبحث ۱۹ خوش آمدید</h1>
+        <p>در این راهنما، هم نحوهٔ کار با سامانه را گام‌به‌گام یاد می‌گیرید و هم با مفاهیم پایهٔ مقررات ملی ساختمان مبحث ۱۹ (ضمیمهٔ ۵، ویرایش پنجم) آشنا می‌شوید.</p>
+      </div>
+
+      <!-- ===== 1. About ===== -->
+      <section class="doc" id="about" data-keywords="درباره سامانه مبحث ۱۹ معرفی انرژی ساختمان">
+        <h2><span class="num">۱</span> درباره سامانه</h2>
+        <p>«سامانهٔ مبحث ۱۹» ابزاری آنلاین برای ارزیابی عملکرد انرژی ساختمان بر اساس <strong>مبحث نوزدهم مقررات ملی ساختمان ایران (ضمیمهٔ ۵، ویرایش ۵)</strong> است. شما پروژهٔ خود را تعریف می‌کنید، شش چک‌لیست ارزیابی را تکمیل می‌کنید و در پایان یک <strong>گزارش رسمی PDF فارسی</strong> دریافت می‌کنید که قابل ارائه به مراجع است.</p>
+        <div class="card">
+          <h3>سامانه برای چه کسانی است؟</h3>
+          <ul>
+            <li>مهندسان طراح و ناظر (معماری، مکانیک، برق)</li>
+            <li>دفاتر مهندسی و شرکت‌های ساختمانی</li>
+            <li>کارشناسان کنترل و انرژی ساختمان</li>
+          </ul>
+        </div>
+        <div class="callout note"><span class="ic">ℹ️</span><p>تمام محاسبات امتیازدهی دقیقاً مطابق فرمول‌های مبحث ۱۹ انجام می‌شود؛ سامانه صرفاً ورودی‌های شما را جمع‌بندی و امتیاز نهایی را محاسبه می‌کند.</p></div>
+      </section>
+
+      <!-- ===== 2. Sign in ===== -->
+      <section class="doc" id="signin" data-keywords="ثبت نام ورود لاگین موبایل کد یکبار مصرف otp گوگل google نظام مهندسی رمز عبور">
+        <h2><span class="num">۲</span> ثبت‌نام و ورود</h2>
+        <p>برای استفاده از سامانه باید وارد حساب کاربری شوید. سه روش ورود پشتیبانی می‌شود:</p>
+        <div class="card">
+          <h3>روش‌های ورود</h3>
+          <ul>
+            <li><strong>شمارهٔ موبایل (کد یک‌بارمصرف):</strong> شمارهٔ موبایل خود را وارد کنید، کد پیامک‌شده را تأیید کنید و وارد شوید. سریع‌ترین روش بدون نیاز به رمز عبور.</li>
+            <li><strong>حساب گوگل:</strong> با یک کلیک از طریق حساب Google خود وارد شوید.</li>
+            <li><strong>نام کاربری و رمز عبور:</strong> ثبت‌نام معمولی با ایمیل/نام کاربری و رمز عبور.</li>
+          </ul>
+        </div>
+        <ol class="steps">
+          <li>در صفحهٔ ورود، روش دلخواه خود را انتخاب کنید.</li>
+          <li>در روش موبایل، شماره را وارد کرده و کد پیامک‌شده را تأیید کنید.</li>
+          <li>پس از ورود موفق، به‌صورت خودکار به داشبورد منتقل می‌شوید.</li>
+        </ol>
+        <div class="callout tip"><span class="ic">💡</span><p>کد یک‌بارمصرف فقط برای مدت کوتاهی معتبر است. اگر کد را دریافت نکردید، چند لحظه صبر کنید و سپس دوباره درخواست ارسال کد بزنید.</p></div>
+      </section>
+
+      <!-- ===== 3. Dashboard ===== -->
+      <section class="doc" id="dashboard" data-keywords="داشبورد خانه نمای کلی صفحه اصلی">
+        <h2><span class="num">۳</span> داشبورد</h2>
+        <p>داشبورد نخستین صفحه‌ای است که پس از ورود می‌بینید. این صفحه نمای کلی از پروژه‌ها و دسترسی سریع به بخش‌های اصلی سامانه را در اختیار شما می‌گذارد.</p>
+        <ul>
+          <li>تعداد پروژه‌های ساخته‌شده</li>
+          <li>دسترسی سریع به ساخت پروژهٔ جدید و فهرست پروژه‌ها</li>
+          <li>(برای مدیران) میان‌بُر به بخش مدیریت کاربران</li>
+        </ul>
+      </section>
+
+      <!-- ===== 4. Projects ===== -->
+      <section class="doc" id="projects" data-keywords="پروژه ساخت ویرایش حذف فهرست محدودیت تعداد پروژه">
+        <h2><span class="num">۴</span> مدیریت پروژه‌ها</h2>
+        <p>هر ارزیابی به یک «پروژه» تعلق دارد. در بخش پروژه‌ها می‌توانید پروژه بسازید، اطلاعات آن را ویرایش کنید و به ارزیابی هر پروژه دسترسی داشته باشید.</p>
+        <ol class="steps">
+          <li>روی «پروژهٔ جدید» کلیک کنید.</li>
+          <li>نام پروژه و اطلاعات پایه (موقعیت/شهر) را وارد کنید.</li>
+          <li>پروژه ذخیره می‌شود و وارد صفحهٔ جزئیات پروژه می‌شوید.</li>
+          <li>از صفحهٔ جزئیات، وارد بخش «ارزیابی» شوید تا چک‌لیست‌ها را تکمیل کنید.</li>
+        </ol>
+      </section>
+
+      <!-- ===== 5. Import ===== -->
+      <section class="doc" id="import" data-keywords="وارد کردن import نظام مهندسی ساختمان دریافت پروژه">
+        <h2><span class="num">۵</span> وارد کردن پروژه از نظام مهندسی</h2>
+        <p>اگر پروژهٔ شما در سامانهٔ نظام مهندسی ساختمان ثبت شده باشد، می‌توانید اطلاعات آن را به‌جای ورود دستی، مستقیماً وارد سامانه کنید تا در زمان صرفه‌جویی شود.</p>
+        <ol class="steps">
+          <li>به بخش «وارد کردن» (Import) بروید.</li>
+          <li>اطلاعات/شناسهٔ پروژهٔ نظام مهندسی را وارد کنید.</li>
+          <li>پروژه به فهرست پروژه‌های شما افزوده می‌شود و آمادهٔ ارزیابی است.</li>
+        </ol>
+      </section>
+
+      <!-- ===== 6. Assessment ===== -->
+      <section class="doc" id="assessment" data-keywords="ارزیابی چک لیست امتیاز پوسته معماری مکانیک برق پایش مدیریت یکپارچه ذخیره">
+        <h2><span class="num">۶</span> انجام ارزیابی (شش چک‌لیست)</h2>
+        <p>قلب سامانه، بخش ارزیابی است. ارزیابی هر پروژه از <strong>شش چک‌لیست</strong> تشکیل شده که در سه گروه دسته‌بندی می‌شوند. با تکمیل هر چک‌لیست، امتیاز آن به‌صورت زنده محاسبه و در امتیاز کل پروژه جمع می‌شود.</p>
+        <div class="card">
+          <h3>گروه‌ها و چک‌لیست‌ها</h3>
+          <ul>
+            <li><strong>پوستهٔ خارجی (معماری):</strong> پوستهٔ غیرنورگذر (دیوار/سقف) + پوستهٔ نورگذر (پنجره/نما)</li>
+            <li><strong>تأسیسات:</strong> چک‌لیست جامع مکانیکی + چک‌لیست جامع برقی</li>
+            <li><strong>پایش و مدیریت:</strong> سامانهٔ پایش و زیرپایش + مدیریت یکپارچه</li>
+          </ul>
+        </div>
+        <ol class="steps">
+          <li>در صفحهٔ پروژه روی «ارزیابی» کلیک کنید.</li>
+          <li>هر چک‌لیست را باز کنید و گزینه‌ها/مقادیر را تکمیل کنید.</li>
+          <li>امتیاز هر بخش بلافاصله در بالای صفحه و کنار عنوان چک‌لیست نمایش داده می‌شود.</li>
+          <li>پس از تکمیل، روی «ذخیره» کلیک کنید تا نتیجه ثبت شود.</li>
+        </ol>
+        <div class="callout tip"><span class="ic">💡</span><p>لازم نیست همهٔ چک‌لیست‌ها را یک‌جا کامل کنید؛ می‌توانید ذخیره کنید و بعداً ادامه دهید. تا زمانی که امتیازی ثبت نشده باشد، وضعیت ارزیابی «پیش‌نویس» است و پس از ثبت امتیاز به «تکمیل‌شده» تغییر می‌کند.</p></div>
+        <div class="callout note"><span class="ic">📌</span><p>چک‌لیست‌های سامانهٔ پایش و مدیریت هوشمند بهتر است برای کنترل توسط مهندسان برق و مکانیک ارسال شوند.</p></div>
+      </section>
+
+      <!-- ===== 7. Climate ===== -->
+      <section class="doc" id="climate" data-keywords="پهنه اقلیمی شهر استان تشخیص خودکار اقلیم">
+        <h2><span class="num">۷</span> پهنه اقلیمی</h2>
+        <p>الزامات حرارتی مبحث ۱۹ به پهنهٔ اقلیمی محل ساخت‌وساز بستگی دارد. سامانه با انتخاب شهر/موقعیت پروژه، <strong>پهنهٔ اقلیمی مناسب را به‌صورت خودکار</strong> از میان شش پهنهٔ کشور پیشنهاد می‌دهد و بر همان اساس، مقادیر مرجع (مانند مقاومت حرارتی پایه) در محاسبات اعمال می‌شود.</p>
+        <div class="callout tip"><span class="ic">💡</span><p>برای آشنایی با شش پهنهٔ اقلیمی و تعریف هرکدام، به بخش «شش پهنهٔ اقلیمی» در ادامهٔ همین راهنما مراجعه کنید.</p></div>
+      </section>
+
+      <!-- ===== 8. Report ===== -->
+      <section class="doc" id="report" data-keywords="گزارش pdf خروجی دانلود فارسی چاپ مرجع">
+        <h2><span class="num">۸</span> تولید و دانلود گزارش PDF</h2>
+        <p>پس از تکمیل ارزیابی، می‌توانید یک گزارش رسمی به‌صورت فایل <strong>PDF فارسی با چیدمان راست‌به‌چپ</strong> تولید کنید. این گزارش بر اساس نتایج ذخیره‌شدهٔ همان پروژه ساخته می‌شود و قابل ارائه به مراجع رسمی است.</p>
+        <ol class="steps">
+          <li>ارزیابی پروژه را تکمیل و ذخیره کنید.</li>
+          <li>گزینهٔ تولید گزارش را انتخاب کنید.</li>
+          <li>پس از آماده‌شدن، فایل PDF را دانلود کنید.</li>
+        </ol>
+        <div class="callout note"><span class="ic">ℹ️</span><p>گزارش از روی نتیجهٔ <em>ذخیره‌شده</em> ساخته می‌شود؛ اگر تغییری در چک‌لیست‌ها دادید، ابتدا ذخیره کنید و سپس گزارش بگیرید.</p></div>
+      </section>
+
+      <!-- ===== 9. Admin ===== -->
+      <section class="doc" id="admin" data-keywords="مدیریت ادمین administrator کاربران نقش دسترسی">
+        <h2><span class="num">۹</span> بخش مدیریت <span class="badge admin">ویژهٔ مدیران</span></h2>
+        <p>این بخش فقط برای کاربران دارای نقش <strong>مدیر (Administrator)</strong> نمایش داده می‌شود. کاربران عادی به این بخش دسترسی ندارند.</p>
+        <div class="card">
+          <h3>قابلیت‌های بخش مدیریت</h3>
+          <ul>
+            <li>مشاهده و مدیریت فهرست کاربران</li>
+            <li>مدیریت اشتراک کاربران</li>
+            <li>تخصیص یا حذف نقش‌ها</li>
+          </ul>
+        </div>
+        <div class="callout warn"><span class="ic">⚠️</span><p>اگر گزینهٔ «مدیریت» را در منو نمی‌بینید، یعنی حساب شما نقش مدیر ندارد. برای دریافت دسترسی با مدیر سامانه تماس بگیرید.</p></div>
+      </section>
+
+      <!-- ===== 10. Section 19 ===== -->
+      <section class="doc" id="section19" data-keywords="مبحث 19 نوزدهم ضمیمه 5 مقررات ملی ساختمان صرفه جویی انرژی">
+        <h2><span class="num">۱۰</span> مبحث ۱۹ چیست؟</h2>
+        <p><strong>مبحث ۱۹ مقررات ملی ساختمان</strong> به «صرفه‌جویی در مصرف انرژی» اختصاص دارد و الزامات حرارتی پوستهٔ ساختمان و تأسیسات آن را تعیین می‌کند. هدف آن، کاهش مصرف انرژی ساختمان‌ها از طریق طراحی و اجرای مناسب عایق‌کاری، پنجره‌ها، سامانه‌های مکانیکی و برقی است.</p>
+        <p>این سامانه بر اساس <strong>ضمیمهٔ ۵ (ویرایش پنجم)</strong> کار می‌کند که روش امتیازدهی به عملکرد انرژی ساختمان را ارائه می‌دهد: هر بخش از ساختمان امتیازی می‌گیرد و مجموع امتیازها معیار ارزیابی است.</p>
+      </section>
+
+      <!-- ===== 11. Zones ===== -->
+      <section class="doc" id="zones" data-keywords="پهنه اقلیمی گرم خشک مرطوب معتدل سرد خیلی سرد چهارفصل اقلیم">
+        <h2><span class="num">۱۱</span> شش پهنهٔ اقلیمی کشور</h2>
+        <p>مبحث ۱۹ ایران را به شش پهنهٔ اقلیمی تقسیم می‌کند. الزامات و مقادیر مرجع در هر پهنه متفاوت است:</p>
+        <table>
+          <thead>
+            <tr><th>کد پهنه</th><th>تعریف</th><th>نمونه شهرها</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="score">۱</td><td>گرم و خشک (زمستان گرم)</td><td>اهواز، کرمان، یزد</td></tr>
+            <tr><td class="score">۲</td><td>گرم و مرطوب</td><td>بوشهر، بندرعباس</td></tr>
+            <tr><td class="score">3A</td><td>معتدل و مرطوب</td><td>رشت، ساری، گرگان</td></tr>
+            <tr><td class="score">3B</td><td>چهارفصل و کم‌باران</td><td>تهران، اصفهان، شیراز</td></tr>
+            <tr><td class="score">۴</td><td>سرد</td><td>مشهد، اراک، همدان*</td></tr>
+            <tr><td class="score">۵</td><td>خیلی سرد</td><td>تبریز، اردبیل، ارومیه</td></tr>
+          </tbody>
+        </table>
+        <div class="callout note"><span class="ic">ℹ️</span><p>پهنهٔ هر شهر در سامانه از پیش تعریف شده است؛ با انتخاب شهر پروژه، پهنه به‌صورت خودکار انتخاب می‌شود. (همدان در پهنهٔ خیلی سرد قرار دارد؛ ستون نمونه‌شهرها صرفاً جنبهٔ راهنما دارد.)</p></div>
+      </section>
+
+      <!-- ===== 12. Scoring ===== -->
+      <section class="doc" id="scoring" data-keywords="امتیاز امتیازدهی سقف 831 جدول چک لیست حداکثر">
+        <h2><span class="num">۱۲</span> جدول امتیازدهی شش چک‌لیست</h2>
+        <p>هر چک‌لیست سقف امتیاز مشخصی دارد. مجموع سقف امتیاز همهٔ بخش‌ها <strong>۸۳۱ امتیاز</strong> است. امتیاز کل پروژهٔ شما برابر با مجموع امتیازهای کسب‌شده در شش بخش است.</p>
+        <table>
+          <thead>
+            <tr><th>گروه</th><th>چک‌لیست</th><th>حداکثر امتیاز</th></tr>
+          </thead>
+          <tbody>
+            <tr><td rowspan="2">پوستهٔ خارجی (معماری)</td><td>پوستهٔ غیرنورگذر (دیوار/سقف)</td><td class="score">۱۰۵</td></tr>
+            <tr><td>پوستهٔ نورگذر (پنجره/نما)</td><td class="score">۹۳</td></tr>
+            <tr><td>تأسیسات مکانیکی</td><td>چک‌لیست جامع تأسیسات مکانیکی</td><td class="score">۲۴۰</td></tr>
+            <tr><td>تأسیسات الکتریکی</td><td>چک‌لیست جامع تأسیسات برقی</td><td class="score">۱۹۶</td></tr>
+            <tr><td>سامانهٔ پایش</td><td>چک‌لیست پایش و زیرپایش</td><td class="score">۱۲۰</td></tr>
+            <tr><td>مدیریت یکپارچه</td><td>چک‌لیست مدیریت یکپارچه</td><td class="score">۷۷</td></tr>
+            <tr><th colspan="2" style="text-align:end">مجموع کل</th><td class="score">۸۳۱</td></tr>
+          </tbody>
+        </table>
+
+        <div class="card">
+          <h3>مثال عملی: یک پروژهٔ نمونه</h3>
+          <p>فرض کنید یک ساختمان مسکونی را ارزیابی کرده‌اید و در هر بخش امتیازهای زیر را کسب کرده است. سامانه امتیازها را جمع می‌زند و امتیاز کل و درصد را محاسبه می‌کند:</p>
+          <table>
+            <thead>
+              <tr><th>چک‌لیست</th><th>امتیاز کسب‌شده</th><th>حداکثر امتیاز</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>پوستهٔ غیرنورگذر (دیوار/سقف)</td><td class="score">۸۰</td><td>۱۰۵</td></tr>
+              <tr><td>پوستهٔ نورگذر (پنجره/نما)</td><td class="score">۶۰</td><td>۹۳</td></tr>
+              <tr><td>تأسیسات مکانیکی</td><td class="score">۱۸۰</td><td>۲۴۰</td></tr>
+              <tr><td>تأسیسات الکتریکی</td><td class="score">۱۵۰</td><td>۱۹۶</td></tr>
+              <tr><td>پایش و زیرپایش</td><td class="score">۹۰</td><td>۱۲۰</td></tr>
+              <tr><td>مدیریت یکپارچه</td><td class="score">۵۵</td><td>۷۷</td></tr>
+              <tr><th style="text-align:end">امتیاز کل پروژه</th><td class="score">۶۱۵</td><td>۸۳۱</td></tr>
+            </tbody>
+          </table>
+          <p>در این مثال، امتیاز کل برابر <strong>۶۱۵ از ۸۳۱</strong> (حدود <strong>۷۴٪</strong>) است. همین عدد در بالای صفحهٔ ارزیابی و در گزارش PDF نهایی نمایش داده می‌شود.</p>
+        </div>
+        <div class="callout tip"><span class="ic">💡</span><p>لازم نیست همهٔ بخش‌ها امتیاز کامل بگیرند؛ امتیاز کل، مجموع امتیاز بخش‌هایی است که تکمیل کرده‌اید. می‌توانید بعداً بخش‌های دیگر را کامل کنید تا امتیاز افزایش یابد.</p></div>
+      </section>
+
+      <!-- ===== 13. FAQ ===== -->
+      <section class="doc" id="faq" data-keywords="سوالات متداول پرسش پاسخ faq رایگان pdf ورود اقلیم">
+        <h2><span class="num">۱۳</span> سوالات متداول</h2>
+        <details class="faq"><summary>مبحث ۱۹ چیست؟</summary><p>مبحث ۱۹ مقررات ملی ساختمان مربوط به صرفه‌جویی در مصرف انرژی است و الزامات حرارتی پوسته و تأسیسات ساختمان را تعیین می‌کند.</p></details>
+        <details class="faq"><summary>آیا استفاده از سامانه رایگان است؟</summary><p>بله، استفاده از سامانه رایگان است و به همهٔ چک‌لیست‌ها و خروجی PDF فارسی دسترسی دارید.</p></details>
+        <details class="faq"><summary>گزارش خروجی چه فرمتی دارد؟</summary><p>گزارش به‌صورت فایل PDF فارسی با چیدمان راست‌به‌چپ و قابل ارائه به مراجع رسمی تولید می‌شود.</p></details>
+        <details class="faq"><summary>چگونه وارد شوم؟</summary><p>می‌توانید با شمارهٔ موبایل (کد یک‌بارمصرف)، حساب گوگل یا از طریق سامانهٔ نظام مهندسی ساختمان وارد شوید.</p></details>
+        <details class="faq"><summary>آیا پهنهٔ اقلیمی به‌صورت خودکار تعیین می‌شود؟</summary><p>بله، با انتخاب موقعیت/شهر پروژه، پهنهٔ اقلیمی مناسب از میان ۶ پهنهٔ کشور پیشنهاد می‌شود.</p></details>
+        <details class="faq"><summary>اگر در میانهٔ کار ذخیره کنم، اطلاعاتم می‌ماند؟</summary><p>بله، می‌توانید ارزیابی را به‌صورت پیش‌نویس ذخیره کرده و بعداً ادامه دهید.</p></details>
+      </section>
+
+      <!-- ===== 14. Support ===== -->
+      <section class="doc" id="support" data-keywords="پشتیبانی تماس ارتباط ایمیل راهنمایی help">
+        <h2><span class="num">۱۴</span> پشتیبانی و تماس</h2>
+        <p>اگر سوالی دارید یا با مشکلی روبه‌رو شدید، از راه‌های زیر با ما در ارتباط باشید:</p>
+        <div class="card">
+          <ul>
+            <li>وب‌سایت: <a href="https://mabhas19.myceo.ir" target="_blank" rel="noopener">mabhas19.myceo.ir</a></li>
+          </ul>
+        </div>
+        <div class="callout tip"><span class="ic">💡</span><p>پیش از تماس، بخش «سوالات متداول» را بررسی کنید؛ پاسخ بسیاری از پرسش‌های رایج همان‌جا آمده است.</p></div>
+      </section>
+
+      <!-- No search results -->
+      <div class="no-results" id="noResults">
+        <p style="font-size:2rem;margin:0">🔍</p>
+        <p>نتیجه‌ای برای جستجوی شما یافت نشد.</p>
+      </div>
+    </main>
+  </div>
+
+  <footer class="footer">
+    سامانهٔ مبحث ۱۹ — مرکز راهنما · مقررات ملی ساختمان، مبحث نوزدهم (ضمیمهٔ ۵)
+  </footer>
+
+  <script>
+    "use strict";
+    (function () {
+      // ---- Theme (light/dark) with persistence + OS default ----
+      var root = document.documentElement;
+      var themeBtn = document.getElementById("themeBtn");
+      function applyTheme(dark) {
+        root.classList.toggle("dark", dark);
+        themeBtn.textContent = dark ? "☀️" : "🌙";
+      }
+      var stored = null;
+      try { stored = localStorage.getItem("mabhas19-help-theme"); } catch (e) {}
+      var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+      applyTheme(stored ? stored === "dark" : prefersDark);
+      themeBtn.addEventListener("click", function () {
+        var dark = !root.classList.contains("dark");
+        applyTheme(dark);
+        try { localStorage.setItem("mabhas19-help-theme", dark ? "dark" : "light"); } catch (e) {}
+      });
+
+      // ---- Mobile sidebar toggle ----
+      var sidebar = document.getElementById("sidebar");
+      var menuBtn = document.getElementById("menuBtn");
+      menuBtn.addEventListener("click", function () { sidebar.classList.toggle("open"); });
+
+      // ---- Live search / filter ----
+      var search = document.getElementById("search");
+      var sections = Array.prototype.slice.call(document.querySelectorAll("section.doc"));
+      var navLinks = Array.prototype.slice.call(document.querySelectorAll("#nav a"));
+      var groupTitles = Array.prototype.slice.call(document.querySelectorAll("#nav .nav-group-title"));
+      var noResults = document.getElementById("noResults");
+
+      function normalize(s) {
+        // normalize Persian/Arabic variants + digits for friendlier matching
+        return (s || "")
+          .replace(/ي/g, "ی").replace(/ك/g, "ک")
+          .replace(/[‌‏‎]/g, "")
+          .replace(/[۰-۹]/g, function (d) { return "0123456789"["۰۱۲۳۴۵۶۷۸۹".indexOf(d)]; })
+          .toLowerCase().trim();
+      }
+
+      search.addEventListener("input", function () {
+        var q = normalize(search.value);
+        var anyVisible = false;
+        sections.forEach(function (sec) {
+          var hay = normalize(sec.textContent + " " + (sec.getAttribute("data-keywords") || ""));
+          var match = q === "" || hay.indexOf(q) !== -1;
+          sec.classList.toggle("filtered-out", !match);
+          var link = document.querySelector('#nav a[href="#' + sec.id + '"]');
+          if (link) link.classList.toggle("hidden", !match && q !== "");
+          if (match) anyVisible = true;
+        });
+        noResults.classList.toggle("show", !anyVisible);
+      });
+
+      // ---- Scroll-spy: highlight current section in the nav ----
+      var byId = {};
+      navLinks.forEach(function (a) { byId[a.getAttribute("href").slice(1)] = a; });
+      var observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting) {
+            navLinks.forEach(function (a) { a.classList.remove("active"); });
+            var a = byId[entry.target.id];
+            if (a) a.classList.add("active");
+          }
+        });
+      }, { rootMargin: "-20% 0px -70% 0px", threshold: 0 });
+      sections.forEach(function (sec) { observer.observe(sec); });
+
+      // close mobile sidebar after picking a link
+      navLinks.forEach(function (a) {
+        a.addEventListener("click", function () {
+          if (window.innerWidth <= 920) sidebar.classList.remove("open");
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

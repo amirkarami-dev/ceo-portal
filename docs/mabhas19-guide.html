@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mabhas19 Platform — System & Developer Guide</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --accent: #059669;
+    --accent-dark: #047857;
+    --accent-light: #ecfdf5;
+    --bg: #ffffff;
+    --fg: #1f2937;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --code-bg: #f6f8fa;
+    --sidebar-bg: #f9fafb;
+    --table-head: #f3f4f6;
+  }
+  html.dark {
+    --accent: #34d399;
+    --accent-dark: #6ee7b7;
+    --accent-light: #064e3b;
+    --bg: #0f172a;
+    --fg: #e5e7eb;
+    --muted: #94a3b8;
+    --border: #334155;
+    --code-bg: #1e293b;
+    --sidebar-bg: #111827;
+    --table-head: #1e293b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--fg);
+    background: var(--bg);
+    line-height: 1.65;
+    font-size: 16px;
+  }
+  /* Sidebar */
+  #sidebar {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    width: 300px;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 24px 16px;
+  }
+  #sidebar .brand {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+  #sidebar .brand .fa { font-size: 14px; color: var(--muted); display:block; font-weight:400;}
+  #sidebar nav { margin-top: 16px; }
+  #sidebar nav a {
+    display: block;
+    color: var(--fg);
+    text-decoration: none;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 14px;
+  }
+  #sidebar nav a:hover { background: var(--accent-light); color: var(--accent-dark); }
+  #sidebar nav a.sub { padding-left: 22px; font-size: 13px; color: var(--muted); }
+  /* Content */
+  #content {
+    margin-left: 300px;
+    padding: 48px 56px;
+    max-width: 960px;
+  }
+  .wrap { max-width: 900px; }
+  h1 { font-size: 30px; border-bottom: 3px solid var(--accent); padding-bottom: 10px; }
+  h2 {
+    font-size: 24px; margin-top: 52px;
+    border-bottom: 1px solid var(--border); padding-bottom: 6px;
+    scroll-margin-top: 20px;
+  }
+  h3 { font-size: 19px; margin-top: 32px; color: var(--accent-dark); scroll-margin-top: 20px;}
+  h4 { font-size: 16px; margin-top: 22px; }
+  p, li { font-size: 15px; }
+  a { color: var(--accent-dark); }
+  code {
+    font-family: "SF Mono", "Cascadia Code", Consolas, monospace;
+    background: var(--code-bg);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 13px;
+  }
+  pre.code {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  pre.code code { background: none; padding: 0; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th { background: var(--table-head); font-weight: 600; }
+  tr:nth-child(even) td { background: rgba(0,0,0,0.015); }
+  html.dark tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+  .mermaid {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px;
+    margin: 20px 0;
+    text-align: center;
+    overflow-x: auto;
+  }
+  .note {
+    background: var(--accent-light);
+    border-left: 4px solid var(--accent);
+    padding: 10px 16px;
+    border-radius: 0 6px 6px 0;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+  .warn {
+    background: #fef3c7;
+    border-left: 4px solid #f59e0b;
+    padding: 10px 16px;
+    border-radius: 0 6px 6px 0;
+    margin: 16px 0;
+    font-size: 14px;
+    color: #78350f;
+  }
+  html.dark .warn { background: #422006; color: #fde68a; }
+  .badge {
+    display: inline-block;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 999px;
+    padding: 1px 9px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .badge.no { background: var(--muted); }
+  #toggle {
+    position: fixed; top: 14px; right: 20px;
+    z-index: 100;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--fg);
+    border-radius: 8px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .fa-label { color: var(--muted); font-size: 13px; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+  @media (max-width: 900px) {
+    #sidebar { display: none; }
+    #content { margin-left: 0; padding: 24px; }
+  }
+</style>
+</head>
+<body>
+<button id="toggle" onclick="toggleTheme()">Toggle dark</button>
+
+<aside id="sidebar">
+  <div class="brand">Mabhas19 <span class="fa">مبحث ۱۹ — Developer & System Guide</span></div>
+  <nav>
+    <a href="#overview">1. Overview</a>
+    <a href="#stack">2. Tech Stack</a>
+    <a href="#architecture">3. System Architecture</a>
+    <a href="#monorepo">4. Monorepo Layout</a>
+    <a href="#entities">5. Domain Entities & Database</a>
+    <a href="#backend">6. Backend (Clean Architecture)</a>
+    <a href="#scoring">7. Assessment Scoring Engine</a>
+    <a href="#api">8. API Reference</a>
+    <a href="#auth">9. Authentication & Roles</a>
+    <a href="#web">10. Web Frontend</a>
+    <a href="#mobile">11. Mobile App</a>
+    <a href="#workflow">12. Assessment Workflow</a>
+    <a href="#i18n">13. Internationalization</a>
+    <a href="#pdf">14. PDF Reports & File Storage</a>
+    <a href="#deploy">15. Deployment</a>
+    <a href="#localdev">16. Local Development Setup</a>
+    <a href="#glossary">17. Glossary</a>
+  </nav>
+</aside>
+
+<main id="content"><div class="wrap">
+
+<h1>Mabhas19 Platform — System & Developer Guide</h1>
+<p>This guide documents <strong>Mabhas19</strong> (<span dir="rtl">مبحث ۱۹</span>), a full-stack platform for building-energy assessment under Iran's National Building Code, <strong>Section 19, Appendix 5 (5th edition)</strong>. It is both a system workflow guide and a developer guide. The reader is the development team.</p>
+
+<!-- ============ 1 OVERVIEW ============ -->
+<h2 id="overview">1. Overview — What is Mabhas19</h2>
+<p>Section 19 (in Persian, "Mabhas 19") is the part of Iran's National Building Code that covers <strong>energy saving in buildings</strong>. Appendix 5 of its 5th edition defines a scoring method to check how energy-efficient a building is.</p>
+<p>The platform lets an engineer:</p>
+<ul>
+  <li>Create a building project (by hand or by importing from an external registry).</li>
+  <li>Run six checklists that score the building's energy design.</li>
+  <li>Get one total score (maximum <strong>831</strong> points) plus per-section scores.</li>
+  <li>Generate a Persian PDF report of the result.</li>
+</ul>
+<p>The platform has three parts that all share one scoring engine:</p>
+<ul>
+  <li>A <strong>web app</strong> (Next.js) for desktop use.</li>
+  <li>A <strong>mobile app</strong> (Expo / React Native) for phones.</li>
+  <li>A <strong>backend API</strong> (.NET) that stores all data and is the system of record.</li>
+</ul>
+<div class="note"><strong>Key idea:</strong> The six-checklist scoring runs in the <em>frontend</em> (web and mobile), using a shared TypeScript package. The backend stores inputs, results, and scores, and builds the PDF. Scoring rules change in the shared package, not in the backend.</div>
+
+<!-- ============ 2 TECH STACK ============ -->
+<h2 id="stack">2. Tech Stack</h2>
+<table>
+  <tr><th>Area</th><th>Technology</th><th>Notes</th></tr>
+  <tr><td>Backend</td><td>.NET 10, C#</td><td>Clean Architecture + .NET Aspire (Jason Taylor template)</td></tr>
+  <tr><td>Backend patterns</td><td>MediatR (CQRS), FluentValidation, AutoMapper</td><td>MediatR v14 needs a commercial license for production</td></tr>
+  <tr><td>Database</td><td>Microsoft SQL Server via EF Core</td><td>nvarchar(max) columns for assessment data</td></tr>
+  <tr><td>Object storage</td><td>MinIO (S3-compatible)</td><td>Stores generated PDF reports</td></tr>
+  <tr><td>PDF</td><td>QuestPDF (community license)</td><td>Persian / RTL reports</td></tr>
+  <tr><td>Web</td><td>Next.js 16.2.6, React 19.2.4, Tailwind CSS v4</td><td>App Router; standalone output</td></tr>
+  <tr><td>Web i18n / fonts</td><td>next-intl 4.13.0, Vazirmatn (via @fontsource)</td><td>fa-IR default (RTL) + en-US</td></tr>
+  <tr><td>Mobile</td><td>Expo SDK 54, React 19.1.0, React Native 0.81.5, expo-router 6</td><td>New Architecture enabled</td></tr>
+  <tr><td>Mobile storage</td><td>expo-secure-store 15</td><td>Secure token storage on device</td></tr>
+  <tr><td>Shared package</td><td><code>@mabhas19/assessment-core</code></td><td>Pure TypeScript scoring engine + data; no framework deps</td></tr>
+  <tr><td>SMS relay</td><td>Internal sms-service microservice (relay) or Kavenegar</td><td>For mobile OTP delivery</td></tr>
+  <tr><td>Reverse proxy</td><td>Traefik (existing, shared on server)</td><td>TLS via ArvanCloud DNS challenge (resolver <code>myresolver</code>)</td></tr>
+  <tr><td>Containers</td><td>Docker Compose (3 setups)</td><td>dev / local / server</td></tr>
+  <tr><td>Local DB image</td><td><code>mcr.microsoft.com/mssql/server:2022-latest</code></td><td>Developer edition; SA login on port 1433</td></tr>
+</table>
+
+<!-- ============ 3 ARCHITECTURE ============ -->
+<h2 id="architecture">3. System Architecture</h2>
+<p>The web and mobile clients both call the .NET API. The API talks to SQL Server and MinIO, and sends OTP codes through an SMS relay. Both clients import the same shared scoring package. On production, Traefik routes traffic to the web, API, and S3 domains.</p>
+<pre class="mermaid">
+graph TD
+  subgraph Clients
+    WEB["Web App<br/>Next.js 16"]
+    MOB["Mobile App<br/>Expo / React Native"]
+  end
+  PKG["@mabhas19/assessment-core<br/>(shared scoring engine)"]
+  TR["Traefik<br/>(reverse proxy + TLS)"]
+  API[".NET 10 API<br/>Clean Architecture"]
+  PG[("SQL Server<br/>EF Core")]
+  S3[("MinIO<br/>S3 object storage")]
+  SMS["SMS relay<br/>(sms-service / Kavenegar)"]
+
+  WEB -. imports .-> PKG
+  MOB -. imports .-> PKG
+  WEB --> TR
+  MOB --> TR
+  TR --> API
+  API --> PG
+  API --> S3
+  API --> SMS
+  TR --> S3
+</pre>
+
+<!-- ============ 4 MONOREPO ============ -->
+<h2 id="monorepo">4. Monorepo Layout</h2>
+<p>The repository is an npm workspace. The root <code>package.json</code> declares: <code>"workspaces": ["packages/*", "web", "mobile"]</code>.</p>
+<table>
+  <tr><th>Folder</th><th>What it holds</th></tr>
+  <tr><td><code>src/</code></td><td>.NET backend, split into Clean Architecture layers: <code>Domain</code>, <code>Application</code>, <code>Infrastructure</code>, <code>Web</code>.</td></tr>
+  <tr><td><code>web/</code></td><td>Next.js 16 web app (App Router).</td></tr>
+  <tr><td><code>mobile/</code></td><td>Expo / React Native app. (Excluded from the web Docker build to avoid React conflicts.)</td></tr>
+  <tr><td><code>packages/assessment-core/</code></td><td>Shared TypeScript scoring engine and reference data.</td></tr>
+  <tr><td><code>deploy/</code></td><td>Docker Compose files, Dockerfiles, fonts, and env templates.</td></tr>
+</table>
+<p>The solution file is <code>Mabhas19.slnx</code>. Build output goes to <code>./artifacts/</code> (not <code>bin/obj</code>).</p>
+
+<!-- ============ 5 ENTITIES ============ -->
+<h2 id="entities">5. Domain Entities & Database</h2>
+<p>The database is Microsoft SQL Server. The EF Core context is <code>ApplicationDbContext</code>, which extends <code>IdentityDbContext&lt;ApplicationUser&gt;</code> (so it includes the standard ASP.NET Identity tables for users, roles, and claims). Two interceptors run on save: <code>AuditableEntityInterceptor</code> (sets timestamps) and <code>DispatchDomainEventsInterceptor</code> (publishes domain events).</p>
+
+<pre class="mermaid">
+erDiagram
+  USER ||--o{ PROJECT : owns
+  USER ||--o| SUBSCRIPTION : has
+  PROJECT ||--o| ASSESSMENT : has
+  ASSESSMENT ||--o{ ASSESSMENT_REPORT : has
+  USER }o--o{ ROLE : "assigned"
+
+  USER {
+    string Id PK
+    string Email
+    string PhoneNumber
+  }
+  ROLE {
+    string Name "Administrator or User"
+  }
+  PROJECT {
+    int Id PK
+    string Title
+    string Client
+    string Address
+    string City
+    string ClimateCode "default 3B"
+    double TotalArea
+    int FloorCount
+    int UnitCount
+    string Usage
+    string Deed
+    string Parcel
+    string SystemId
+    string OwnerId FK
+    enum Source "Manual/NezamMohandesi/Other"
+    string ExternalId
+  }
+  ASSESSMENT {
+    int Id PK
+    string InputJson "nvarchar(max)"
+    string ResultJson "nvarchar(max)"
+    int TotalScore
+    int MaxScore
+    enum Status "Draft/Completed"
+    int ProjectId FK
+  }
+  ASSESSMENT_REPORT {
+    int Id PK
+    int AssessmentId FK
+    string StorageKey
+    string FileName
+    long Size
+    string ContentType "application/pdf"
+  }
+  SUBSCRIPTION {
+    int Id PK
+    string UserId FK
+    enum Plan "Free/Pro/Enterprise"
+    int MaxProjects "default 5"
+    datetime ValidFrom
+    datetime ValidTo
+    bool IsActive
+  }
+</pre>
+
+<h3>Base classes</h3>
+<p>All entities extend <code>BaseEntity</code> (<code>Id : int</code>). Most extend <code>BaseAuditableEntity</code>, which adds <code>Created</code>, <code>CreatedBy</code>, <code>LastModified</code>, and <code>LastModifiedBy</code>.</p>
+
+<h3>Project</h3>
+<table>
+  <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+  <tr><td>Title</td><td>string (required)</td><td>Project name</td></tr>
+  <tr><td>Client</td><td>string?</td><td>Customer name</td></tr>
+  <tr><td>Address</td><td>string?</td><td></td></tr>
+  <tr><td>City</td><td>string</td><td>Persian city name; drives climate zone lookup</td></tr>
+  <tr><td>ClimateCode</td><td>string</td><td>Default "3B"; codes: 1, 2, 3A, 3B, 4, 5</td></tr>
+  <tr><td>TotalArea</td><td>double</td><td>Square meters (m²)</td></tr>
+  <tr><td>FloorCount</td><td>int</td><td></td></tr>
+  <tr><td>UnitCount</td><td>int</td><td></td></tr>
+  <tr><td>Usage</td><td>string?</td><td>Building occupancy type (Persian label)</td></tr>
+  <tr><td>Deed / Parcel / SystemId</td><td>string?</td><td>Imported property identifiers</td></tr>
+  <tr><td>OwnerId</td><td>string (required)</td><td>Identity user id</td></tr>
+  <tr><td>Source</td><td>ProjectSource</td><td>Default Manual; or NezamMohandesi, Other</td></tr>
+  <tr><td>ExternalId</td><td>string?</td><td>External record id when imported</td></tr>
+  <tr><td>BuildingGroup</td><td>computed</td><td>Calculated from area/floors/units; <strong>not stored</strong></td></tr>
+</table>
+
+<h3>Assessment</h3>
+<table>
+  <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+  <tr><td>InputJson</td><td>string (nvarchar(max))</td><td>Default "{}"; raw inputs for all six checklists</td></tr>
+  <tr><td>ResultJson</td><td>string (nvarchar(max))</td><td>Default "{}"; <code>{ toolKey: { score, maxScore, details } }</code></td></tr>
+  <tr><td>TotalScore</td><td>int</td><td>Denormalized aggregate (for fast querying)</td></tr>
+  <tr><td>MaxScore</td><td>int</td><td>Denormalized aggregate</td></tr>
+  <tr><td>Status</td><td>AssessmentStatus</td><td>Default Draft; or Completed</td></tr>
+  <tr><td>ProjectId</td><td>int (FK)</td><td>One assessment per project</td></tr>
+  <tr><td>Reports</td><td>collection</td><td>Generated PDF reports</td></tr>
+</table>
+<div class="note"><strong>Why denormalize?</strong> <code>TotalScore</code> and <code>MaxScore</code> are stored as plain int columns so the database can filter, sort, and aggregate by score without parsing JSON.</div>
+
+<h3>AssessmentReport</h3>
+<table>
+  <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+  <tr><td>AssessmentId</td><td>int (FK)</td><td>Parent assessment</td></tr>
+  <tr><td>StorageKey</td><td>string (required)</td><td>Object key inside the MinIO bucket</td></tr>
+  <tr><td>FileName</td><td>string (required)</td><td>PDF file name</td></tr>
+  <tr><td>Size</td><td>long</td><td>File size in bytes</td></tr>
+  <tr><td>ContentType</td><td>string</td><td>Default "application/pdf"</td></tr>
+</table>
+
+<h3>Subscription</h3>
+<table>
+  <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+  <tr><td>UserId</td><td>string (required)</td><td>Identity user id</td></tr>
+  <tr><td>Plan</td><td>SubscriptionPlan</td><td>Default Free; or Pro, Enterprise</td></tr>
+  <tr><td>MaxProjects</td><td>int</td><td>Default 5 (<code>DefaultMaxProjects</code>)</td></tr>
+  <tr><td>ValidFrom / ValidTo</td><td>DateTimeOffset?</td><td>Validity window</td></tr>
+  <tr><td>IsActive</td><td>bool</td><td>Default true</td></tr>
+</table>
+
+<h3>Enums</h3>
+<table>
+  <tr><th>Enum</th><th>Values</th></tr>
+  <tr><td>ProjectSource</td><td>Manual (0), NezamMohandesi (1), Other (2)</td></tr>
+  <tr><td>AssessmentStatus</td><td>Draft (0), Completed (1)</td></tr>
+  <tr><td>SubscriptionPlan</td><td>Free (0), Pro (1), Enterprise (2)</td></tr>
+  <tr><td>BuildingGroup</td><td>A (0), B (1), B+ (2), C (3), C+ (4), C++ (5), D (6)</td></tr>
+</table>
+
+<h3>Roles</h3>
+<p>Defined in <code>src/Domain/Constants/Roles.cs</code>: <code>Administrator</code> (full access; manage users and subscriptions) and <code>User</code> (default role). <code>Roles.All</code> returns both names.</p>
+
+<!-- ============ 6 BACKEND ============ -->
+<h2 id="backend">6. Backend (Clean Architecture)</h2>
+<p>The backend follows Clean Architecture with four layers. Dependencies always point inward: outer layers depend on inner ones, never the reverse.</p>
+<pre class="mermaid">
+graph LR
+  WEB["Web<br/>(Minimal API endpoints)"] --> APP
+  INFRA["Infrastructure<br/>(EF Core, MinIO, SMS, Identity)"] --> APP
+  APP["Application<br/>(CQRS use cases, validators, mapping)"] --> DOM
+  DOM["Domain<br/>(entities, enums, calculators)"]
+  WEB --> INFRA
+</pre>
+<ul>
+  <li><strong>Domain</strong> — entities, enums, constants, and the Section 19 calculators (<code>BuildingGroupCalculator</code>, <code>ClimateData</code>). No dependencies on other layers.</li>
+  <li><strong>Application</strong> — CQRS (Command Query Responsibility Segregation) use cases via MediatR, FluentValidation validators, AutoMapper profiles, and service interfaces. Depends on Domain only.</li>
+  <li><strong>Infrastructure</strong> — concrete service implementations, EF Core/SQL Server, ASP.NET Identity. Depends on Application + Domain.</li>
+  <li><strong>Web</strong> — Minimal API endpoints. Each <code>IEndpointGroup</code> class is auto-mapped at <code>/api/{ClassName}</code>.</li>
+</ul>
+
+<h3>MediatR pipeline behaviors</h3>
+<p>Every request passes through these cross-cutting behaviors, in order:</p>
+<ol>
+  <li><code>LoggingBehaviour</code> — logs all requests.</li>
+  <li><code>UnhandledExceptionBehaviour</code> — catches and logs exceptions.</li>
+  <li><code>AuthorizationBehaviour</code> — enforces <code>[Authorize]</code> and role/policy checks.</li>
+  <li><code>ValidationBehaviour</code> — runs FluentValidation validators.</li>
+  <li><code>PerformanceBehaviour</code> — logs slow requests.</li>
+</ol>
+
+<h3>Use cases by feature</h3>
+<table>
+  <tr><th>Feature</th><th>Use cases</th></tr>
+  <tr><td>Projects</td><td>CreateProject, UpdateProject, DeleteProject, GetProjects, GetProjectById, ImportProject</td></tr>
+  <tr><td>Assessments</td><td>SaveAssessment, GetAssessment, GenerateReport</td></tr>
+  <tr><td>Subscriptions</td><td>GetMySubscription</td></tr>
+  <tr><td>Admin (Administrator role only)</td><td>GetUsers, GetUser, SetAdminRole, UpdateSubscription, CreateUser, DeleteUser</td></tr>
+</table>
+
+<h3>Service interfaces and implementations</h3>
+<table>
+  <tr><th>Interface</th><th>Implementation</th><th>Purpose</th></tr>
+  <tr><td>IFileStorage</td><td>MinioFileStorage</td><td>Upload/download/delete objects; build presigned URLs</td></tr>
+  <tr><td>IReportGenerator</td><td>QuestPdfReportGenerator</td><td>Build Persian (RTL) A4 PDF reports</td></tr>
+  <tr><td>ISmsSender</td><td>SmsSender</td><td>Send SMS via relay / Kavenegar / log mode</td></tr>
+  <tr><td>IOtpService</td><td>OtpService</td><td>Generate + verify one-time passwords</td></tr>
+  <tr><td>IGoogleTokenValidator</td><td>GoogleTokenValidator</td><td>Validate Google ID tokens</td></tr>
+  <tr><td>IExternalProjectProvider</td><td>NezamMohandesiProjectProvider</td><td>Fetch project data from external registry (mock mode supported)</td></tr>
+  <tr><td>ISubscriptionService</td><td>SubscriptionService</td><td>Manage quotas; enforce project limits</td></tr>
+  <tr><td>IUserAdminService</td><td>UserAdminService</td><td>Admin operations on users/subscriptions</td></tr>
+  <tr><td>IApplicationDbContext</td><td>ApplicationDbContext</td><td>EF Core SQL Server context</td></tr>
+</table>
+<p>All services are registered through <code>Infrastructure/DependencyInjection.cs</code> → <code>AddMabhas19Services</code>.</p>
+
+<h3>Section 19 domain calculators</h3>
+<p><strong>BuildingGroupCalculator.Calculate(area, floors, units)</strong> classifies a building into one of 7 groups (A, B, B+, C, C+, C++, D). It is a faithful port of the legacy JS <code>calcBuildingGroup</code> logic. Sequential rules:</p>
+<ol>
+  <li><strong>D</strong>: floors &gt; 10 OR area &gt; 5000.</li>
+  <li><strong>C / C+ / C++</strong>: floors 6–10 OR area 2001–5000. If units &gt; 30: C+ when area &lt; 3000, else C++; otherwise C.</li>
+  <li><strong>B / B+</strong>: floors 3–5 OR area 601–2000. If units &gt; 30: B+; otherwise B.</li>
+  <li><strong>A</strong>: floors ≤ 2 AND area ≤ 600.</li>
+  <li>Default: <strong>B</strong>.</li>
+</ol>
+<p>Persian labels: A→الف, B→ب, B+→ب+, C→ج, C+→ج+, C++→ج++, D→د.</p>
+<p><strong>ClimateData</strong> holds static reference data: 6 climate zones (1, 2, 3A, 3B, 4, 5), a city→climate map for 31 Iranian cities (<code>GetCityClimate</code> defaults to "4"), R-value (thermal resistance) targets per climate, U-value (transmittance) limits for transparent elements, and SHGC (Solar Heat Gain Coefficient) limits.</p>
+
+<h3>Database migrations & seeding</h3>
+<ul>
+  <li>Migrations are applied automatically on API startup by <code>ApplicationDbContextInitialiser.InitialiseAsync()</code> (calls <code>MigrateAsync()</code>).</li>
+  <li>Seeding ensures both roles exist (Administrator, User).</li>
+  <li>An admin user is created from config (<code>AdminUser:Email</code> default <code>admin@mabhas19.myceo.ir</code>, <code>AdminUser:Password</code>) with <code>EmailConfirmed = true</code> and the Administrator role.</li>
+  <li>The admin user gets an Enterprise subscription with <code>MaxProjects = 1000</code>.</li>
+</ul>
+<p>Add a migration with:</p>
+<pre class="code"><code>dotnet ef migrations add &lt;Name&gt; --project src/Infrastructure \
+  --startup-project src/Web --output-dir Data/Migrations</code></pre>
+
+<h3>Subscription quota</h3>
+<ul>
+  <li>Free plan default cap: <strong>5 projects</strong> (<code>DefaultMaxProjects = 5</code>).</li>
+  <li><code>ISubscriptionService.EnsureCanCreateProjectAsync(userId)</code> runs inside CreateProject and ImportProject.</li>
+  <li>It counts projects owned by the user. If <code>count &gt;= MaxProjects</code>, it throws a <code>ValidationException</code> on the <code>Subscription</code> field (Persian message: "به سقف تعداد پروژه‌های مجاز رسیده‌اید").</li>
+  <li>It also checks <code>IsActive</code>.</li>
+</ul>
+
+<!-- ============ 7 SCORING ============ -->
+<h2 id="scoring">7. The Assessment Scoring Engine</h2>
+<p>The shared package <code>@mabhas19/assessment-core</code> (in <code>packages/assessment-core/</code>) is the single source of truth for all scoring. It is pure TypeScript with no framework dependencies, so both the web and mobile apps import the exact same logic. This means scores never disagree between platforms.</p>
+
+<h3>The six checklists</h3>
+<table>
+  <tr><th>Checklist (Persian)</th><th>toolKey</th><th>Max score</th><th>Area</th></tr>
+  <tr><td>پوسته خارجی غیر نورگذر (دیوار/سقف)</td><td><code>env_opaque.html</code></td><td>105</td><td>Opaque envelope</td></tr>
+  <tr><td>پوسته خارجی نورگذر (پنجره/نما)</td><td><code>env_trans.html</code></td><td>93</td><td>Transparent envelope</td></tr>
+  <tr><td>چک‌لیست جامع تأسیسات مکانیکی</td><td><code>mech_checklist.html</code></td><td>240</td><td>Mechanical systems</td></tr>
+  <tr><td>چک‌لیست جامع تأسیسات برقی</td><td><code>elec_checklist.html</code></td><td>196</td><td>Electrical systems</td></tr>
+  <tr><td>چک‌لیست پایش و زیرپایش</td><td><code>monitoring_checklist.html</code></td><td>120</td><td>Monitoring</td></tr>
+  <tr><td>چک‌لیست مدیریت یکپارچه</td><td><code>integrated_mgmt.html</code></td><td>77</td><td>Integrated management</td></tr>
+</table>
+<p><strong>Total maximum score: 831 points</strong> (exported as <code>TOTAL_MAX_SCORE</code>).</p>
+
+<h3>Scoring functions</h3>
+<p>Each checklist has a pure function (signature roughly <code>score&lt;Checklist&gt;(input, climateCode?) → ToolScore</code>):</p>
+<ul>
+  <li><code>scoreEnvOpaque</code> — checks opaque R-values against climate targets; thermal bridges and shading. Returns extra flags like <code>envelopePass</code>, <code>bridgePass</code>.</li>
+  <li><code>scoreEnvTrans</code> — computes window U-values from glass/gas/frame layers; checks against climate U and SHGC limits.</li>
+  <li><code>scoreMech</code> — pass/fail logic over mechanical rows (HVAC, heating, cooling, hot water, controls).</li>
+  <li><code>scoreElec</code> — electrical scoring (lighting, PV, demand response, controls).</li>
+  <li><code>scoreMonitoring</code> — building monitoring and sub-metering.</li>
+  <li><code>scoreIntegrated</code> — integrated building management.</li>
+</ul>
+<p>A dispatcher <code>scoreTool(toolKey, input, climateCode)</code> routes input to the right function and returns <code>{ score, maxScore }</code> (zeros for an unknown toolKey).</p>
+
+<h3>Exported data</h3>
+<ul>
+  <li><code>src/data/climate</code> — zones, city map, R/U/SHGC targets.</li>
+  <li><code>src/data/sections</code> — the six checklists and their max scores (<code>ASSESSMENT_SECTIONS</code>, <code>ALL_TOOLS</code>).</li>
+  <li>Reference databases: <code>envOpaqueDb</code>, <code>envTransDb</code>, <code>mechDb</code>, <code>elecDb</code>, <code>monitoringDb</code>, <code>integratedDb</code>.</li>
+  <li>Helpers: <code>calcBuildingGroup({ area, floors, units })</code>, <code>getOpaqueTargetR</code>, <code>calcWindowU</code>, <code>getTransShgcLimit</code>, <code>getGroupIndex</code>.</li>
+</ul>
+<p>Key data types: <code>ToolScore</code> = <code>{ score, maxScore }</code>; <code>BuildingMeta</code> = <code>{ totalArea, floorCount, unitCount, city?, usage? }</code>; <code>ToolResult</code> = <code>{ toolKey, score, maxScore, details? }</code>.</p>
+
+<!-- ============ 8 API ============ -->
+<h2 id="api">8. API Reference</h2>
+<p>Base path is <code>/api/</code>. Port 5000 in development, 8080 in containers, behind Traefik on production. The Identity API (username/password) is mounted via <code>MapIdentityApi&lt;ApplicationUser&gt;()</code> under <code>/api/Users/*</code> with bearer tokens. Interactive docs (Scalar) live at <code>/scalar</code>.</p>
+
+<h3>Auth</h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Purpose</th><th>Auth</th></tr>
+  <tr><td>POST</td><td><code>/api/Auth/otp/request</code></td><td>Request an OTP code via SMS</td><td><span class="badge no">No</span></td></tr>
+  <tr><td>POST</td><td><code>/api/Auth/otp/verify</code></td><td>Verify OTP, create user if needed, issue token</td><td><span class="badge no">No</span></td></tr>
+  <tr><td>POST</td><td><code>/api/Auth/google</code></td><td>Sign in with Google ID token</td><td><span class="badge no">No</span></td></tr>
+</table>
+
+<h3>Users (Identity API + custom)</h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Purpose</th><th>Auth</th></tr>
+  <tr><td>POST</td><td><code>/api/Users/register</code></td><td>Register with email/password</td><td><span class="badge no">No</span></td></tr>
+  <tr><td>POST</td><td><code>/api/Users/login</code></td><td>Login with email/password</td><td><span class="badge no">No</span></td></tr>
+  <tr><td>POST</td><td><code>/api/Users/refresh</code></td><td>Refresh bearer token</td><td><span class="badge">Yes</span></td></tr>
+  <tr><td>GET</td><td><code>/api/Users/me</code></td><td>Current user + roles (<code>CurrentUserDto</code>)</td><td><span class="badge">Yes</span></td></tr>
+  <tr><td>POST</td><td><code>/api/Users/logout</code></td><td>Clear auth</td><td><span class="badge">Yes</span></td></tr>
+</table>
+<p><code>CurrentUserDto</code>: <code>{ id, email, phoneNumber, roles: string[], isAdmin: boolean }</code>.</p>
+
+<h3>Projects (bearer token required)</h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Purpose</th></tr>
+  <tr><td>GET</td><td><code>/api/Projects</code></td><td>List the user's projects</td></tr>
+  <tr><td>GET</td><td><code>/api/Projects/{id}</code></td><td>Fetch one project</td></tr>
+  <tr><td>POST</td><td><code>/api/Projects</code></td><td>Create a project (checks subscription limit)</td></tr>
+  <tr><td>POST</td><td><code>/api/Projects/import</code></td><td>Import a project from an external source</td></tr>
+  <tr><td>PUT</td><td><code>/api/Projects/{id}</code></td><td>Update a project</td></tr>
+  <tr><td>DELETE</td><td><code>/api/Projects/{id}</code></td><td>Delete a project</td></tr>
+  <tr><td>GET</td><td><code>/api/Projects/{id}/assessment</code></td><td>Fetch the assessment (or 404)</td></tr>
+  <tr><td>PUT</td><td><code>/api/Projects/{id}/assessment</code></td><td>Save assessment input + results + scores</td></tr>
+  <tr><td>POST</td><td><code>/api/Projects/{id}/report</code></td><td>Generate PDF; returns a presigned download URL</td></tr>
+</table>
+
+<h3>Subscriptions (bearer token required)</h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Purpose</th></tr>
+  <tr><td>GET</td><td><code>/api/Subscriptions/me</code></td><td>Current user's subscription (max projects, quota)</td></tr>
+</table>
+
+<h3>Admin (Administrator role only)</h3>
+<table>
+  <tr><th>Method</th><th>Path</th><th>Purpose</th></tr>
+  <tr><td>GET</td><td><code>/api/Admin/users</code></td><td>List all users with subscription info</td></tr>
+  <tr><td>GET</td><td><code>/api/Admin/users/{id}</code></td><td>Fetch one user (404 if missing)</td></tr>
+  <tr><td>POST</td><td><code>/api/Admin/users</code></td><td>Create a user</td></tr>
+  <tr><td>PUT</td><td><code>/api/Admin/users/{id}/subscription</code></td><td>Update a user's plan/quota</td></tr>
+  <tr><td>PUT</td><td><code>/api/Admin/users/{id}/role</code></td><td>Grant/revoke Administrator role</td></tr>
+  <tr><td>DELETE</td><td><code>/api/Admin/users/{id}</code></td><td>Delete a user</td></tr>
+</table>
+
+<!-- ============ 9 AUTH ============ -->
+<h2 id="auth">9. Authentication & Roles</h2>
+<p>There are three sign-in methods. All of them end with the API issuing an Identity <strong>bearer token</strong> (an access token plus a refresh token). The OTP and Google flows set <code>signInManager.AuthenticationScheme = IdentityConstants.BearerScheme</code> before calling <code>SignInAsync</code>.</p>
+<p>Roles: <strong>Administrator</strong> (manage users + subscriptions, access <code>/api/Admin/*</code>) and <strong>User</strong> (default). <code>GET /api/Users/me</code> returns <code>{ roles, isAdmin }</code>.</p>
+
+<h3>Password login</h3>
+<pre class="mermaid">
+sequenceDiagram
+  participant C as Client (web/mobile)
+  participant A as API (Identity)
+  C->>A: POST /api/Users/login (email, password)
+  A->>A: Validate credentials
+  A-->>C: { accessToken, refreshToken }
+  C->>A: GET /api/Users/me (Bearer accessToken)
+  A-->>C: CurrentUserDto { roles, isAdmin }
+</pre>
+
+<h3>Mobile OTP (one-time password)</h3>
+<pre class="mermaid">
+sequenceDiagram
+  participant C as Client
+  participant A as API
+  participant O as OtpService (cache)
+  participant S as SMS relay
+  C->>A: POST /api/Auth/otp/request (phoneNumber)
+  A->>O: Generate N-digit code, store key otp:{phone} (TTL)
+  A->>S: SendAsync(phone, "code: NNNN")
+  S-->>C: SMS delivered to phone
+  C->>A: POST /api/Auth/otp/verify (phone, code)
+  A->>O: FixedTimeEquals(code); delete on match
+  A->>A: Create user if new; SignInAsync (Bearer)
+  A-->>C: { accessToken, refreshToken }
+</pre>
+<p>OTP details: code length and time-to-live (TTL) come from <code>OtpOptions</code>. Codes are stored in <code>IDistributedMemoryCache</code> and compared with <code>CryptographicOperations.FixedTimeEquals</code> to stop timing attacks. <code>OtpOptions.LogCode</code> can log the code in development only.</p>
+
+<h3>SMS relay modes</h3>
+<table>
+  <tr><th>Mode</th><th>Behavior</th></tr>
+  <tr><td>relay</td><td>POSTs <code>{ phone, code }</code> to <code>{RelayBaseUrl}/send</code> with a Bearer token (internal sms-service). Code is extracted from the message via a <code>\d{4,8}</code> regex.</td></tr>
+  <tr><td>kavenegar</td><td>Direct GET to the Kavenegar API (Iranian SMS provider).</td></tr>
+  <tr><td>log</td><td>Logs the full SMS to <code>ILogger</code> (development only).</td></tr>
+</table>
+
+<h3>Google ID token</h3>
+<pre class="mermaid">
+sequenceDiagram
+  participant C as Client
+  participant G as Google Identity
+  participant A as API
+  participant V as GoogleTokenValidator
+  C->>G: User signs in with Google
+  G-->>C: idToken
+  C->>A: POST /api/Auth/google (idToken)
+  A->>V: ValidateAsync(idToken)
+  V-->>A: GoogleUserInfo { sub, email, name }
+  A->>A: Create user if new; SignInAsync (Bearer)
+  A-->>C: { accessToken, refreshToken }
+</pre>
+
+<!-- ============ 10 WEB ============ -->
+<h2 id="web">10. Web Frontend</h2>
+<p>The web app is Next.js 16 with the App Router. Routes live under <code>app/[locale]</code>. The locale layout (<code>app/[locale]/layout.tsx</code>) sets <code>&lt;html lang/dir&gt;</code> and wraps the providers.</p>
+
+<h3>Routing map</h3>
+<table>
+  <tr><th>Route</th><th>Group</th><th>Purpose</th><th>Auth</th></tr>
+  <tr><td><code>/</code></td><td>public</td><td>Landing page (hero, features, pricing, FAQ)</td><td><span class="badge no">No</span></td></tr>
+  <tr><td><code>/(auth)/login</code></td><td>auth</td><td>Login: password tab + OTP tab + Google</td><td><span class="badge no">No</span></td></tr>
+  <tr><td><code>/(auth)/register</code></td><td>auth</td><td>Email/password registration</td><td><span class="badge no">No</span></td></tr>
+  <tr><td><code>/auth/callback</code></td><td>auth</td><td>OAuth callback (reads tokens from query)</td><td><span class="badge no">No</span></td></tr>
+  <tr><td><code>/dashboard</code></td><td>dashboard</td><td>Overview: stats, recent projects, usage</td><td><span class="badge">Yes</span></td></tr>
+  <tr><td><code>/projects</code></td><td>dashboard</td><td>Project list with create/delete and score badges</td><td><span class="badge">Yes</span></td></tr>
+  <tr><td><code>/projects/[id]</code></td><td>dashboard</td><td>Project detail (info card)</td><td><span class="badge">Yes</span></td></tr>
+  <tr><td><code>/projects/[id]/assessment</code></td><td>dashboard</td><td>Six-checklist scoring workspace</td><td><span class="badge">Yes</span></td></tr>
+  <tr><td><code>/import</code></td><td>dashboard</td><td>Import a project from NezamMohandesi</td><td><span class="badge">Yes</span></td></tr>
+  <tr><td><code>/subscription</code></td><td>dashboard</td><td>Plan, max projects, usage bar</td><td><span class="badge">Yes</span></td></tr>
+  <tr><td><code>/admin/users</code></td><td>dashboard</td><td>Manage users (admin only)</td><td><span class="badge">Yes</span></td></tr>
+</table>
+<p>Protected routes are guarded by <code>&lt;RequireAuth&gt;</code> (<code>components/require-auth.tsx</code>), which waits for <code>auth.ready</code>, shows a spinner, and redirects to <code>/login</code> if not authenticated.</p>
+
+<h3>Client auth & API layer</h3>
+<ul>
+  <li>Tokens are kept in <code>localStorage</code> (<code>m19_accessToken</code>, <code>m19_refreshToken</code>) via <code>lib/tokens.ts</code>.</li>
+  <li><code>lib/auth-context.tsx</code> exposes <code>useAuth()</code> with <code>user</code>, <code>roles</code>, <code>isAdmin</code>, <code>ready</code>, <code>isAuthenticated</code>.</li>
+  <li><code>lib/api.ts</code> is a fetch wrapper that adds the bearer token and, on a 401, calls <code>POST /api/Users/refresh</code> once (deduplicated), then retries.</li>
+  <li>Endpoint groups in <code>lib/endpoints.ts</code>: <code>authApi</code>, <code>projectsApi</code>, <code>subscriptionApi</code>, <code>adminApi</code>.</li>
+</ul>
+
+<h3>Design tokens & dark mode</h3>
+<ul>
+  <li>shadcn-style CSS variables in <code>app/globals.css</code>, defined with the <strong>OKLCH</strong> color space. Primary is emerald/teal.</li>
+  <li>Dark mode via <code>components/theme-provider.tsx</code>; preference stored in <code>localStorage</code> key <code>m19_theme</code>. A no-flash inline script runs before paint.</li>
+  <li>A <code>ThemeToggle</code> (sun/moon) flips the <code>.dark</code> class.</li>
+  <li>Font: Vazirmatn. Checklist tables use <code>.m19-table</code> classes with token-based borders.</li>
+</ul>
+
+<h3>Admin area</h3>
+<p>The admin sidebar group only shows when <code>useAuth().isAdmin === true</code>. The <code>/admin/users</code> page can list users, create users, edit subscriptions, set the admin role, and delete users, all through <code>adminApi</code>.</p>
+
+<!-- ============ 11 MOBILE ============ -->
+<h2 id="mobile">11. Mobile App</h2>
+<p>The mobile app is Expo SDK 54 with expo-router (file-based navigation). Default locale is <code>fa</code> and RTL is forced via <code>I18nManager.forceRTL(true)</code> in the root layout. App name is <span dir="rtl">مبحث ۱۹</span>; package id is <code>ir.myceo.mabhas19</code>.</p>
+
+<h3>Screens</h3>
+<table>
+  <tr><th>File</th><th>Screen</th></tr>
+  <tr><td><code>app/_layout.tsx</code></td><td>Root layout: RTL setup, AuthProvider, Stack nav</td></tr>
+  <tr><td><code>app/index.tsx</code></td><td>Entry gate: redirect to projects or login</td></tr>
+  <tr><td><code>app/login.tsx</code></td><td>Password / OTP login</td></tr>
+  <tr><td><code>app/(app)/_layout.tsx</code></td><td>Protected layout (auth check, logout button)</td></tr>
+  <tr><td><code>app/(app)/projects/index.tsx</code></td><td>Project list (FlatList)</td></tr>
+  <tr><td><code>app/(app)/projects/new.tsx</code></td><td>Create project form</td></tr>
+  <tr><td><code>app/(app)/projects/[id].tsx</code></td><td>Project detail, per-tool scores, download PDF</td></tr>
+  <tr><td><code>app/(app)/projects/checklist.tsx</code></td><td>Assessment editor — routes to the six tool editors</td></tr>
+</table>
+
+<h3>Auth & secure storage</h3>
+<ul>
+  <li>Two login modes: password (<code>/api/Users/login</code>) and OTP (<code>/api/Auth/otp/request</code> then <code>/verify</code>).</li>
+  <li>Tokens stored with <strong>expo-secure-store</strong> (keys <code>m19_access_token</code>, <code>m19_refresh_token</code>) plus an in-memory cache.</li>
+  <li><code>apiFetch</code> does a one-shot 401 retry with <code>/api/Users/refresh</code>; on failure it clears tokens and the user returns to login.</li>
+  <li>API base URL: <code>EXPO_PUBLIC_API_BASE</code> → <code>app.json extra.apiBase</code> → fallback <code>https://api.mabhas19.myceo.ir</code>.</li>
+</ul>
+
+<h3>Shared scoring on mobile</h3>
+<p>A dispatcher component <code>ChecklistEditor</code> routes a <code>ToolKey</code> to one of six editors (EnvOpaque, EnvTrans, mech/elec via GroupChecklistEditor, Monitoring, Integrated). All editors share <code>EditorProps</code> (<code>input</code>, <code>setInput</code>, <code>climateCode</code>, <code>group</code>). Editors call the same <code>@mabhas19/assessment-core</code> functions (<code>scoreTool</code>, <code>calcBuildingGroup</code>, the DBs) so mobile scores match the web exactly.</p>
+
+<h3>Builds (EAS / local)</h3>
+<table>
+  <tr><th>Profile</th><th>Output</th><th>Notes</th></tr>
+  <tr><td>preview</td><td>APK (internal distribution)</td><td>Shareable link; API base <code>https://api.mabhas19.myceo.ir</code></td></tr>
+  <tr><td>production</td><td>App bundle (AAB)</td><td>For Google Play</td></tr>
+</table>
+<p>Local build: <code>npm run android</code> (<code>expo run:android</code>, needs Android SDK). Dev server: <code>npm run start</code>.</p>
+
+<!-- ============ 12 WORKFLOW ============ -->
+<h2 id="workflow">12. Assessment Workflow</h2>
+<p>The whole flow, from creating a project to a finished PDF:</p>
+<pre class="mermaid">
+flowchart TD
+  A["Create project (manual)<br/>or Import from NezamMohandesi"] --> B["Climate zone auto-set from city"]
+  B --> C["Open assessment<br/>/projects/{id}/assessment"]
+  C --> D["Fill the 6 checklists"]
+  D --> E["Live scoring via<br/>@mabhas19/assessment-core (scoreTool)"]
+  E --> F{"Edit more?"}
+  F -- yes --> D
+  F -- no --> G["Save: PUT /api/Projects/{id}/assessment<br/>inputJson + resultJson + totalScore + maxScore"]
+  G --> H["Generate report: POST /api/Projects/{id}/report"]
+  H --> I["QuestPDF builds Persian PDF"]
+  I --> J["Store PDF in MinIO (StorageKey)"]
+  J --> K["Return presigned download URL (valid 1 hour)"]
+</pre>
+<p>Step by step:</p>
+<ol>
+  <li>The user creates a project by hand, or imports one from the external registry. The subscription quota is checked first.</li>
+  <li>The climate zone is set automatically from the project's city.</li>
+  <li>The user opens the assessment workspace. The app loads the project meta and any saved <code>inputJson</code>/<code>resultJson</code>.</li>
+  <li>The user fills in the six checklists. Each one shows a live <code>score / maxScore</code> badge.</li>
+  <li>Scoring runs in the browser/app through <code>scoreTool</code> from the shared package. The total is shown out of 831.</li>
+  <li>On Save, the client posts <code>inputJson</code>, <code>resultJson</code>, <code>totalScore</code>, and <code>maxScore</code>. The backend stores them (nvarchar(max) plus denormalized score columns).</li>
+  <li>On report request, the backend renders a Persian PDF with QuestPDF, uploads it to MinIO, records an <code>AssessmentReport</code>, and returns a presigned URL valid for one hour.</li>
+</ol>
+
+<!-- ============ 13 I18N ============ -->
+<h2 id="i18n">13. Internationalization</h2>
+<ul>
+  <li>Two locales: <strong>fa-IR</strong> (Persian, default, RTL) and <strong>en-US</strong> (English, LTR).</li>
+  <li>Web uses next-intl with <code>localePrefix: "as-needed"</code>: fa is served at <code>/</code>, English at <code>/en/...</code>. <code>localeDetection</code> is off.</li>
+  <li>Message files: <code>web/messages/fa.json</code> and <code>web/messages/en.json</code>.</li>
+  <li>RTL: <code>dir="rtl"</code> when the locale is fa. A <code>.flip-x</code> utility mirrors SVGs; CSS logical properties (start/end) handle spacing in both directions.</li>
+  <li>Use the locale-aware <code>Link</code>/<code>useRouter</code> from <code>@/i18n/navigation</code>, not <code>next/link</code>.</li>
+  <li>Mobile hardcodes fa as default with an English fallback for non-Persian devices.</li>
+</ul>
+
+<!-- ============ 14 PDF ============ -->
+<h2 id="pdf">14. PDF Reports & File Storage</h2>
+<h3>PDF generation (QuestPDF)</h3>
+<ul>
+  <li><code>QuestPdfReportGenerator.GenerateAssessmentReport(model)</code> returns a <code>byte[]</code>.</li>
+  <li>A4 page, right-to-left layout, Persian fonts (Vazirmatn). Header: "گزارش ارزیابی جامع انرژی ساختمان" (Comprehensive Building Energy Assessment Report).</li>
+  <li>Content: a project metadata table, a per-section scoring table, and a total score box. Footer shows the timestamp and brand.</li>
+  <li>Sections covered: opaque envelope, transparent envelope, mechanical, electrical, monitoring, integrated management.</li>
+  <li>QuestPDF uses its free community license.</li>
+</ul>
+<h3>File storage (MinIO)</h3>
+<ul>
+  <li><code>MinioFileStorage</code> implements <code>IFileStorage</code>: <code>PutAsync</code>, <code>GetAsync</code>, <code>DeleteAsync</code>, <code>GetPresignedUrlAsync(key, expiry)</code>.</li>
+  <li>The presigned URL is time-limited (1 hour for reports). In production, the host is rewritten to the public endpoint so browsers can open it.</li>
+  <li>Config (<code>MinioOptions</code>): endpoint, access key, secret key, bucket, and a <code>PublicEndpoint</code> for proxy-behind deployments.</li>
+</ul>
+
+<!-- ============ 15 DEPLOY ============ -->
+<h2 id="deploy">15. Deployment</h2>
+<pre class="mermaid">
+flowchart LR
+  subgraph Build machine (mcr reachable)
+    B1["Build Dockerfile.api"] --> B2["docker save | gzip"]
+    B3["Build Dockerfile.web"] --> B2
+  end
+  B2 --> T["Transfer via pscp / rsync"]
+  T --> L["docker load on server (Iran)"]
+  subgraph Server 10.249.52.216
+    L --> API["mabhas19-api:deploy"]
+    L --> WEBI["mabhas19-web:deploy"]
+    L --> DB[(SQL Server)]
+    M["Pull minio<br/>via docker.arvancloud.ir"] --> S3[(minio)]
+    TR["Existing Traefik<br/>(external network, myresolver TLS)"]
+    TR --> WEBI
+    TR --> API
+    TR --> S3
+  end
+  D1["mabhas19.myceo.ir"] --> TR
+  D2["api.mabhas19.myceo.ir"] --> TR
+  D3["s3.mabhas19.myceo.ir"] --> TR
+</pre>
+
+<h3>Three Docker Compose files</h3>
+<table>
+  <tr><th>File</th><th>What runs</th><th>Use</th></tr>
+  <tr><td><code>docker-compose.dev.yml</code></td><td>SQL Server + MinIO only</td><td>Local dev; API/web run on host</td></tr>
+  <tr><td><code>docker-compose.local.yml</code></td><td>SQL Server + MinIO + API + web (all containers)</td><td>Full stack on localhost, no Traefik</td></tr>
+  <tr><td><code>docker-compose.server.yml</code></td><td>All four, attached to existing Traefik</td><td>Production</td></tr>
+</table>
+
+<div class="note"><strong>Database in production:</strong> The application now targets <strong>SQL Server</strong>. The live production server was <em>not</em> switched as part of this change — it still runs the database from the earlier deployment. To move production to SQL Server, transfer the <code>mcr.microsoft.com/mssql/server</code> image (docker save/load, because <code>mcr</code> is blocked on the server), give it ~2&nbsp;GB RAM, and migrate or recreate the data.</div>
+
+<h3>Production notes</h3>
+<ul>
+  <li>Uses the server's <strong>existing Traefik</strong> via the external network <code>traefik</code>. Cert resolver <code>myresolver</code> uses the ArvanCloud DNS challenge.</li>
+  <li>The S3 endpoint uses the public domain (<code>Minio__Endpoint=${MINIO_DOMAIN}</code>, <code>UseSSL=true</code>) so presigned URLs work in browsers.</li>
+  <li>SMS provider = "relay"; <code>Otp__LogCode=false</code>.</li>
+</ul>
+
+<h3>Live domains</h3>
+<table>
+  <tr><th>Domain</th><th>Purpose</th></tr>
+  <tr><td><code>mabhas19.myceo.ir</code></td><td>Web (Next.js)</td></tr>
+  <tr><td><code>api.mabhas19.myceo.ir</code></td><td>Backend API</td></tr>
+  <tr><td><code>s3.mabhas19.myceo.ir</code></td><td>MinIO S3 (presigned PDFs)</td></tr>
+  <tr><td><code>minio.mabhas19.myceo.ir</code></td><td>MinIO console (optional)</td></tr>
+</table>
+<p>All point to server IP <code>10.249.52.216</code> (under <code>/srv/mabhas19</code>). Turn off the ArvanCloud CDN ("orange cloud") for <code>api.*</code> and <code>s3.*</code>.</p>
+
+<div class="warn"><strong>Iran network constraints:</strong> Docker Hub's blob CDN and <code>mcr.microsoft.com</code> are blocked on the server. So build the <code>api</code>/<code>web</code> images locally (where <code>mcr</code> works), <code>docker save | gzip</code> → transfer → <code>docker load</code>; pull <code>minio</code> via the <code>docker.arvancloud.ir</code> mirror. The SQL Server image (<code>mcr.microsoft.com/mssql/server</code>) is also blocked, so transfer it the same way as the api/web images. <strong>Do not restart the shared Docker daemon</strong> — it runs other production stacks (mailcow, supabase). SSH uses PuTTY <code>plink</code>/<code>pscp -pw</code>.</div>
+
+<h3>Key environment variables</h3>
+<table>
+  <tr><th>Variable</th><th>Purpose</th><th>Production value</th></tr>
+  <tr><td><code>ASPNETCORE_ENVIRONMENT</code></td><td>ASP.NET mode</td><td>Production</td></tr>
+  <tr><td><code>ConnectionStrings__Mabhas19Db</code></td><td>SQL Server connection</td><td>Server=sqlserver,1433;Database=Mabhas19Db;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True</td></tr>
+  <tr><td><code>Minio__Endpoint</code></td><td>S3 endpoint</td><td>${MINIO_DOMAIN}</td></tr>
+  <tr><td><code>Minio__AccessKey / __SecretKey</code></td><td>S3 credentials</td><td>${MINIO_ROOT_USER/PASSWORD}</td></tr>
+  <tr><td><code>Minio__Bucket</code></td><td>Bucket name</td><td>${MINIO_BUCKET}</td></tr>
+  <tr><td><code>Minio__UseSSL</code></td><td>TLS for S3</td><td>true</td></tr>
+  <tr><td><code>Minio__PublicEndpoint</code></td><td>Public URL for presigned links</td><td>https://${MINIO_DOMAIN}</td></tr>
+  <tr><td><code>Sms__Provider</code></td><td>SMS backend</td><td>relay</td></tr>
+  <tr><td><code>Sms__RelayBaseUrl / __RelayToken</code></td><td>SMS relay endpoint + token</td><td>relay URL / ${SMS_RELAY_TOKEN}</td></tr>
+  <tr><td><code>Otp__LogCode</code></td><td>Log OTP code</td><td>false</td></tr>
+  <tr><td><code>Authentication__Google__ClientId</code></td><td>Google OAuth client</td><td>${GOOGLE_CLIENT_ID}</td></tr>
+  <tr><td><code>ExternalImport__NezamMohandesi__BaseUrl / __ApiKey</code></td><td>External registry</td><td>${NEZAM_BASE_URL} / ${NEZAM_API_KEY}</td></tr>
+  <tr><td><code>AdminUser__Email / __Password</code></td><td>Seed admin user</td><td>${ADMIN_EMAIL} / ${ADMIN_PASSWORD}</td></tr>
+  <tr><td><code>NEXT_PUBLIC_API_BASE</code></td><td>Web → backend URL (baked at build)</td><td>https://${API_DOMAIN}</td></tr>
+</table>
+
+<h3>Admin user seeding</h3>
+<p>On first startup, migrations run, roles are created, and an admin user is seeded from <code>AdminUser:Email</code>/<code>AdminUser:Password</code> with an Enterprise subscription (1000 projects).</p>
+<div class="warn"><strong>Change the admin password immediately in production.</strong></div>
+
+<!-- ============ 16 LOCAL DEV ============ -->
+<h2 id="localdev">16. Local Development Setup</h2>
+<h3>Backend (.NET 10)</h3>
+<pre class="code"><code># Start SQL Server (sa) + MinIO (minioadmin)
+docker compose -f deploy/docker-compose.dev.yml up -d
+
+dotnet build Mabhas19.slnx          # build all
+dotnet run --project src/Web         # API on http://localhost:5000 (docs at /scalar)
+dotnet test                          # all tests
+dotnet test tests/Domain.UnitTests/Domain.UnitTests.csproj   # one project
+dotnet test --filter "FullyQualifiedName~ClimateDataTests"   # one test/class</code></pre>
+<p>The <code>dotnet-ef</code> global tool must match EF Core 10: <code>dotnet tool update -g dotnet-ef --version "10.0.*"</code>.</p>
+
+<h3>Web (Next.js 16)</h3>
+<pre class="code"><code>cd web &amp;&amp; npm install
+npm run dev      # http://localhost:3000
+npm run build    # production build (must pass before deploy)
+npm run lint</code></pre>
+<p><code>web/.env.local</code> sets <code>NEXT_PUBLIC_API_BASE</code> (dev <code>http://localhost:5000</code>), baked at build time. Keep <code>output: "standalone"</code> in <code>next.config.ts</code>.</p>
+
+<h3>Mobile (Expo)</h3>
+<pre class="code"><code>npm run start      # expo start (Metro dev server + QR)
+npm run android    # expo run:android (needs Android SDK)
+npm run ios        # expo run:ios
+npm run typecheck  # tsc validation
+npm run lint       # expo lint</code></pre>
+
+<div class="note"><strong>Build is strict:</strong> <code>TreatWarningsAsErrors=true</code>. .NET 10 turns deprecations into errors (e.g. use <code>KnownIPNetworks</code>, not <code>KnownNetworks</code>). <code>ValidationException</code> is ambiguous — alias the app's <code>Application.Common.Exceptions.ValidationException</code>. Use <code>Guard.Against.NotFound(...)</code> for 404s.</div>
+
+<!-- ============ 17 GLOSSARY ============ -->
+<h2 id="glossary">17. Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Meaning</th></tr>
+  <tr><td>Section 19 (Mabhas 19)</td><td>The part of Iran's National Building Code that covers energy saving in buildings. Appendix 5 (5th ed.) defines the scoring method this platform implements.</td></tr>
+  <tr><td>OTP</td><td>One-Time Password. A short code sent by SMS to log in.</td></tr>
+  <tr><td>OKLCH</td><td>A modern CSS color space (Lightness, Chroma, Hue) used for the web design tokens.</td></tr>
+  <tr><td>nvarchar(max)</td><td>SQL Server's large variable-length text column type. Stores the assessment JSON (<code>InputJson</code> and <code>ResultJson</code>).</td></tr>
+  <tr><td>CQRS</td><td>Command Query Responsibility Segregation. Splits write operations (commands) from read operations (queries). Implemented with MediatR.</td></tr>
+  <tr><td>RTL</td><td>Right-To-Left text direction, used for Persian.</td></tr>
+  <tr><td>Presigned URL</td><td>A temporary, signed link to a file in object storage (MinIO) that works without login for a limited time.</td></tr>
+  <tr><td>Bearer token</td><td>An access token sent in the <code>Authorization: Bearer ...</code> header to prove who the user is.</td></tr>
+  <tr><td>Building group (A–D)</td><td>A Section 19 size class (A small to D large) computed from area, floor count, and unit count.</td></tr>
+  <tr><td>R-value</td><td>Thermal resistance. Higher means better insulation. Checked for opaque surfaces.</td></tr>
+  <tr><td>U-value</td><td>Thermal transmittance. Lower means less heat loss. Checked for windows/doors.</td></tr>
+  <tr><td>SHGC</td><td>Solar Heat Gain Coefficient. How much solar heat passes through glazing.</td></tr>
+  <tr><td>MinIO</td><td>An S3-compatible object storage server. Stores the generated PDF reports.</td></tr>
+  <tr><td>QuestPDF</td><td>A .NET library used to build the Persian PDF reports.</td></tr>
+  <tr><td>Traefik</td><td>A reverse proxy that routes traffic to the web, API, and S3 domains and handles TLS.</td></tr>
+  <tr><td>NezamMohandesi</td><td>Iran's Building Engineering System — the external registry projects can be imported from.</td></tr>
+  <tr><td>EAS</td><td>Expo Application Services — the cloud build service used to produce the mobile APK/AAB.</td></tr>
+  <tr><td>Denormalize</td><td>Storing a value (like TotalScore) in its own column even though it could be computed, so queries are faster.</td></tr>
+</table>
+
+<hr>
+<p class="fa-label">Mabhas19 — Iran National Building Code, Section 19 Appendix 5 (5th ed.) energy assessment. This document is generated from verified codebase findings.</p>
+
+</div></main>
+
+<script>
+  function toggleTheme() {
+    document.documentElement.classList.toggle('dark');
+    try { localStorage.setItem('m19_doc_theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light'); } catch(e){}
+  }
+  (function(){
+    try { if (localStorage.getItem('m19_doc_theme') === 'dark') document.documentElement.classList.add('dark'); } catch(e){}
+  })();
+  mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+</script>
+</body>
+</html>

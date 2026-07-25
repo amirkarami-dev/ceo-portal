@@ -1,0 +1,35 @@
+# syntax=docker/dockerfile:1
+# admin-web SPA -> static nginx. Build context = monorepo root (deploy/docker-compose.*.yml).
+# Every VITE_* is BAKED at build time (Vite inlines import.meta.env); nginx then serves static dist/.
+# Standalone install of just admin-web (NOT a full `npm ci` of the monorepo) so the build box
+# doesn't pull the web (Next.js) / mobile (expo) workspaces just to build this SPA.
+FROM node:24-alpine AS build
+WORKDIR /app/admin-web
+
+# Vite build-time config — PUBLIC values only (a static bundle has no server side; real backend
+# secrets never belong here). Defaults target the prod stack; compose overrides via build args.
+# The admin API is served by the IdP itself, so VITE_ADMIN_API_BASE defaults to the issuer.
+ARG VITE_AUTH_ISSUER=https://auth.myceo.ir
+ARG VITE_ADMIN_API_BASE=https://auth.myceo.ir
+ARG VITE_OIDC_CLIENT_ID=admin-web
+ARG VITE_AUTH_SCOPE="openid profile email roles mabhas19.api"
+ENV VITE_AUTH_ISSUER=$VITE_AUTH_ISSUER \
+    VITE_ADMIN_API_BASE=$VITE_ADMIN_API_BASE \
+    VITE_OIDC_CLIENT_ID=$VITE_OIDC_CLIENT_ID \
+    VITE_AUTH_SCOPE=$VITE_AUTH_SCOPE
+
+COPY admin-web/package.json ./
+RUN npm install
+
+# Copy the SPA source and build (tsc typecheck + vite build) -> /app/admin-web/dist.
+COPY admin-web/ ./
+RUN npm run build
+
+FROM nginx:1.27-alpine AS runtime
+RUN rm -rf /usr/share/nginx/html/*
+COPY --from=build /app/admin-web/dist /usr/share/nginx/html
+COPY admin-web/deploy/nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
+  CMD wget -qO- http://127.0.0.1/ >/dev/null 2>&1 || exit 1
+CMD ["nginx", "-g", "daemon off;"]

@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Full Work Flow — mun-sanandaj-web</title>
+<style>
+  :root {
+    --bg: #f4f6fb;
+    --panel: #ffffff;
+    --ink: #0b1220;
+    --muted: #5b6478;
+    --line: #d6dbe6;
+    --primary: #2563eb;
+    --primary-soft: #e8eefc;
+    --app: #2563eb;
+    --idp: #7c3aed;
+    --robot: #0891b2;
+    --db: #7c3aed;
+    --city: #d97706;
+    --guard: #d97706;
+    --success: #16a34a;
+    --danger: #dc2626;
+    --shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b1220;
+      --panel: #131c30;
+      --ink: #e6eaf2;
+      --muted: #93a0b8;
+      --line: #263149;
+      --primary: #60a5fa;
+      --primary-soft: #17233d;
+      --app: #3b82f6;
+      --idp: #a78bfa;
+      --robot: #22d3ee;
+      --db: #a78bfa;
+      --city: #f59e0b;
+      --guard: #f59e0b;
+      --success: #34d399;
+      --danger: #f87171;
+      --shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.55;
+    padding: 32px 16px 64px;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; }
+  header h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  header p { color: var(--muted); margin: 0 0 24px; }
+
+  h2 {
+    font-size: 1.15rem; margin: 40px 0 6px;
+    padding-bottom: 6px; border-bottom: 2px solid var(--line);
+  }
+  h2 .n {
+    display: inline-grid; place-items: center;
+    width: 24px; height: 24px; border-radius: 7px;
+    background: var(--primary); color: #fff; font-size: .8rem; margin-inline-end: 8px;
+    vertical-align: middle;
+  }
+  .lead { color: var(--muted); margin: 4px 0 18px; }
+
+  .one-line {
+    background: var(--primary-soft);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--primary);
+    border-radius: 12px; padding: 14px 18px; margin: 6px 0 8px;
+    font-size: 1.02rem;
+  }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 14px 0 8px; font-size: .85rem; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+  .dot { width: 12px; height: 12px; border-radius: 4px; display: inline-block; }
+  .dot.app { background: var(--app); }
+  .dot.robot { background: var(--robot); }
+  .dot.db { background: var(--db); }
+  .dot.city { background: var(--city); }
+
+  .parts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
+  @media (max-width: 620px) { .parts { grid-template-columns: 1fr; } }
+  .part {
+    background: var(--panel); border: 1px solid var(--line);
+    border-left: 4px solid var(--app); border-radius: 12px;
+    padding: 12px 16px; box-shadow: var(--shadow);
+  }
+  .part.robot { border-left-color: var(--robot); }
+  .part.db { border-left-color: var(--db); }
+  .part.city { border-left-color: var(--city); }
+  .part.idp { border-left-color: var(--idp); }
+  .part .name { font-weight: 700; margin-bottom: 2px; }
+  .part .what { color: var(--muted); font-size: .9rem; }
+
+  .flow { display: flex; flex-direction: column; align-items: center; margin-top: 8px; }
+  .node {
+    width: 100%; max-width: 620px;
+    background: var(--panel); border: 1px solid var(--line);
+    border-left: 4px solid var(--app); border-radius: 12px;
+    padding: 13px 18px; box-shadow: var(--shadow);
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .node:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(37,99,235,.18); }
+  .node .tag { font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; }
+  .node .title { font-weight: 700; margin: 2px 0 3px; font-size: 1.0rem; }
+  .node .desc { color: var(--muted); font-size: .9rem; }
+  .node.robot { border-left-color: var(--robot); }
+  .node.db { border-left-color: var(--db); }
+  .node.city { border-left-color: var(--city); }
+  .node.success { border-left-color: var(--success); }
+  .node.danger { border-left-color: var(--danger); }
+
+  code {
+    background: var(--primary-soft); color: var(--primary);
+    padding: 1px 6px; border-radius: 5px; font-size: .82em;
+    direction: ltr; unicode-bidi: embed;
+  }
+
+  .arrow { width: 2px; height: 24px; background: var(--line); position: relative; }
+  .arrow::after {
+    content: ""; position: absolute; bottom: -1px; left: 50%; transform: translateX(-50%);
+    border-left: 6px solid transparent; border-right: 6px solid transparent;
+    border-top: 8px solid var(--line);
+  }
+  .arrow .lbl {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    white-space: nowrap; font-size: .78rem; color: var(--muted);
+    background: var(--bg); padding: 0 6px;
+  }
+
+  .branch { width: 100%; max-width: 620px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+  .branch .node { max-width: none; }
+  @media (max-width: 560px) { .branch { grid-template-columns: 1fr; } }
+
+  .chip {
+    display: inline-block; padding: 1px 8px; border-radius: 999px;
+    font-size: .78rem; font-weight: 600;
+  }
+  .chip.ok { background: color-mix(in srgb, var(--success) 16%, transparent); color: var(--success); }
+  .chip.bad { background: color-mix(in srgb, var(--danger) 16%, transparent); color: var(--danger); }
+  .chip.run { background: color-mix(in srgb, var(--primary) 16%, transparent); color: var(--primary); }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: .9rem; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; }
+  td:first-child { font-weight: 600; white-space: nowrap; }
+
+  .note {
+    background: color-mix(in srgb, var(--city) 10%, transparent);
+    border: 1px solid var(--line); border-left: 4px solid var(--city);
+    border-radius: 12px; padding: 12px 16px; margin-top: 14px; font-size: .92rem;
+  }
+
+  footer { text-align: center; color: var(--muted); font-size: .82rem; margin-top: 44px; }
+  footer a { color: var(--primary); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Full Work Flow — mun-sanandaj-web</h1>
+    <p>How the whole service works, from start to end, in simple words.</p>
+  </header>
+
+  <!-- ONE LINE -->
+  <div class="one-line">
+    <b>In one line:</b> two small robots wake up on their own, read a list of building projects from
+    the city's database, and send each project's report and engineer map to the Sanandaj city system.
+    The web page just <i>shows</i> what the robots did.
+  </div>
+
+  <!-- PARTS -->
+  <h2><span class="n">1</span>The parts</h2>
+  <p class="lead">These are the pieces that work together. Each one has one job.</p>
+  <div class="legend">
+    <span><i class="dot app"></i> Web / API (ours)</span>
+    <span><i class="dot robot"></i> Robots (background jobs)</span>
+    <span><i class="dot db"></i> Databases</span>
+    <span><i class="dot city"></i> Outside systems</span>
+  </div>
+  <div class="parts">
+    <div class="part">
+      <div class="name">The web page (React app)</div>
+      <div class="what">What you open in the browser. It only reads and shows data. It does not send anything to the city itself.</div>
+    </div>
+    <div class="part idp">
+      <div class="name">Login server (IdP)</div>
+      <div class="what">Checks your user name and password. Only <b>admin</b> users may open the page. (See the login flow doc.)</div>
+    </div>
+    <div class="part">
+      <div class="name">The API (backend)</div>
+      <div class="what">The brain. It holds the robots, talks to the databases, and gives the web page its data.</div>
+    </div>
+    <div class="part robot">
+      <div class="name">Robot 1 — Engineer Report</div>
+      <div class="what">Sends the supervising engineer's PDF report to the city.</div>
+    </div>
+    <div class="part robot">
+      <div class="name">Robot 2 — Engineer Map</div>
+      <div class="what">Sends the list of engineers (the "map") for each project to the city.</div>
+    </div>
+    <div class="part db">
+      <div class="name">KurdNezam database</div>
+      <div class="what">The city's own database. We only <b>read</b> from it. It gives us the list of projects and the engineers.</div>
+    </div>
+    <div class="part city">
+      <div class="name">City system (mahyapardaz)</div>
+      <div class="what">The web service we send data to: <code>saveEngineerReport</code>, <code>saveEngMap</code>, and <code>addEngineer</code>.</div>
+    </div>
+    <div class="part city">
+      <div class="name">PDF server</div>
+      <div class="what">Holds the ready-made PDF file for each project. We download it and turn it into text (base64) before sending.</div>
+    </div>
+    <div class="part db">
+      <div class="name">Our database (logs)</div>
+      <div class="what">Where we write down every run and every try, so the web page can show the history.</div>
+    </div>
+  </div>
+
+  <!-- BIG PICTURE -->
+  <h2><span class="n">2</span>The big picture</h2>
+  <p class="lead">This loop runs on its own. Nobody has to press a button.</p>
+  <div class="flow">
+    <div class="node robot">
+      <div class="tag">Step 1 · Timer</div>
+      <div class="title">Every 12 hours the two robots wake up</div>
+      <div class="desc">They also run once right away each time the server starts (each new deploy). You can also press <b>Run now</b> on the page to start one at any time.</div>
+    </div>
+    <div class="arrow"></div>
+    <div class="node db">
+      <div class="tag">Step 2 · Read the list</div>
+      <div class="title">Ask the city database for the projects</div>
+      <div class="desc">Each robot calls the saved question <code>WebS_GetListRepToShahrdari</code>. It returns rows like <code>Peygiri</code> (tracking code), <code>ProjectNo</code>, and <code>ReqId</code>.</div>
+    </div>
+    <div class="arrow"><span class="lbl">for each row</span></div>
+    <div class="node city">
+      <div class="tag">Step 3 · Do the job</div>
+      <div class="title">Send each project to the city</div>
+      <div class="desc">The robot goes through the rows one by one and sends each one (see the two jobs below).</div>
+    </div>
+    <div class="arrow"></div>
+    <div class="node">
+      <div class="tag">Step 4 · Write it down</div>
+      <div class="title">Save the result of every try</div>
+      <div class="desc">For each project it writes one log row: <span class="chip ok">success</span> or <span class="chip bad">failed</span>, with the error text if it failed.</div>
+    </div>
+    <div class="arrow"><span class="lbl">later</span></div>
+    <div class="node app">
+      <div class="tag">Step 5 · Show it</div>
+      <div class="title">You open the page and see the results</div>
+      <div class="desc">The web page reads the saved rows and shows counts, a chart, and a table.</div>
+    </div>
+  </div>
+
+  <!-- JOB 1 -->
+  <h2><span class="n">3</span>Job 1 — send the Engineer Report</h2>
+  <p class="lead">What Robot 1 does with <b>one</b> project row.</p>
+  <div class="flow">
+    <div class="node">
+      <div class="tag">Step 1</div>
+      <div class="title">Was this project already sent OK before?</div>
+      <div class="desc">If the last try for this <code>Peygiri</code> was <span class="chip ok">success</span>, skip it. We do not send the same thing twice.</div>
+    </div>
+    <div class="arrow"><span class="lbl">not sent yet</span></div>
+    <div class="node city">
+      <div class="tag">Step 2</div>
+      <div class="title">Get the PDF and turn it into a picture</div>
+      <div class="desc">Download the PDF (named by the <b>tracking code</b> <code>Peygiri</code>, not the project number: <code>/sm/pdf/{Peygiri}.pdf</code>). The city's endpoint wants an <b>image</b>, not a PDF — so we render the first page to a JPG (with <code>pdftoppm</code>) and turn that JPG into text (base64).</div>
+    </div>
+    <div class="arrow"></div>
+    <div class="node danger">
+      <div class="tag">Step 3 · Check</div>
+      <div class="title">No PDF yet?</div>
+      <div class="desc">If the PDF is not ready (not found), mark <span class="chip bad">failed: pdf not found</span> and stop. The robot will try again on the next run.</div>
+    </div>
+    <div class="arrow"><span class="lbl">PDF is ready</span></div>
+    <div class="node city">
+      <div class="tag">Step 4 · Send</div>
+      <div class="title">Send the PDF to the city</div>
+      <div class="desc">Call <code>saveEngineerReport</code> with the project number and the PDF text.</div>
+    </div>
+    <div class="branch">
+      <div class="node success">
+        <div class="tag">City says OK ✓</div>
+        <div class="title"><span class="chip ok">success</span></div>
+        <div class="desc">Save the city's tracking number (<code>peigiri</code>) with the log row, then do Step 5.</div>
+      </div>
+      <div class="node danger">
+        <div class="tag">City says error ✗</div>
+        <div class="title"><span class="chip bad">failed</span></div>
+        <div class="desc">Save the error text. Try again on the next run.</div>
+      </div>
+    </div>
+
+    <div class="arrow"><span class="lbl">after a successful send</span></div>
+
+    <div class="node db">
+      <div class="tag">Step 5 · Mark it sent</div>
+      <div class="title">Tell the city database "this one is done"</div>
+      <div class="desc">
+        Call the saved question <code>WebS_AddSabtNoToReport</code> with
+        <code>@Rahgiri</code> = the tracking code from Step&nbsp;2 of the big picture (the <code>Peygiri</code> from the list),
+        and <code>@Sabt</code> = the city's tracking number we just got back.
+        Now the list (<code>WebS_GetListRepToShahrdari</code>) will not return this project again, so it is never sent twice.
+        <br>If this write fails, we still keep the row as <span class="chip ok">success</span> (the report <i>was</i> sent) and only write a warning — never a second send.
+      </div>
+    </div>
+  </div>
+
+  <!-- JOB 2 -->
+  <h2><span class="n">4</span>Job 2 — send the Engineer Map</h2>
+  <p class="lead">Robot 2 is like Robot 1, but it also has an extra "add the engineer first, then try again" step.</p>
+  <div class="flow">
+    <div class="node">
+      <div class="tag">Step 1</div>
+      <div class="title">Already sent OK before? → skip</div>
+      <div class="desc">Same rule as Job 1: do not send the same project twice.</div>
+    </div>
+    <div class="arrow"></div>
+    <div class="node db">
+      <div class="tag">Step 2 · Read engineers</div>
+      <div class="title">Ask the database who the engineers are</div>
+      <div class="desc">Call the saved question <code>WebS_GetReportFullInfo</code> with the project's <code>Peygiri</code>. It returns each engineer's name, national code, role, and so on.</div>
+    </div>
+    <div class="arrow"></div>
+    <div class="node city">
+      <div class="tag">Step 3 · Send map</div>
+      <div class="title">Send the engineers + PDF to the city</div>
+      <div class="desc">Call <code>saveEngMap</code> with the list of engineers and the PDF text (same PDF step as Job 1).</div>
+    </div>
+    <div class="arrow"><span class="lbl">read the answer</span></div>
+    <div class="node">
+      <div class="tag">Step 4 · What did the city say?</div>
+      <div class="title">Three possible answers</div>
+      <div class="desc">The next three boxes show each case.</div>
+    </div>
+    <div class="branch" style="grid-template-columns: 1fr;">
+      <div class="node success">
+        <div class="tag">Answer A · all good</div>
+        <div class="title"><span class="chip ok">success</span></div>
+        <div class="desc">The city accepted the map. Save the tracking number and finish.</div>
+      </div>
+      <div class="node city">
+        <div class="tag">Answer B · "engineer not found" (مهندس یافت نشد)</div>
+        <div class="title">Add the engineer first, then try one more time</div>
+        <div class="desc">
+          1) The city does not know this engineer yet.<br>
+          2) Call <code>addEngineer</code> to create that engineer in the city system.<br>
+          3) Call <code>saveEngMap</code> <b>again</b>, just once more.<br>
+          → If now OK → <span class="chip ok">success</span> (and we note which engineers we added).
+          Still not OK → <span class="chip bad">failed</span>, try again next run.
+        </div>
+      </div>
+      <div class="node danger">
+        <div class="tag">Answer C · a different error</div>
+        <div class="title"><span class="chip bad">failed</span></div>
+        <div class="desc">We do <b>not</b> add an engineer for this case. Save the error and try again on the next run.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WHAT YOU SEE -->
+  <h2><span class="n">5</span>What you see on the page</h2>
+  <p class="lead">Two screens. Both are read-only views of the saved rows.</p>
+  <div class="parts">
+    <div class="part app">
+      <div class="name">Dashboard (داشبورد)</div>
+      <div class="what">
+        Two cards, one per robot, each with <span class="chip ok">OK</span> / <span class="chip bad">failed</span> / total counts.
+        A chart of the last runs. A table of the last run's rows. A <b>Run now</b> (اجرای فوری) button per robot.
+        While a robot is working, a small blue dot pulses. The page refreshes itself every few seconds.
+      </div>
+    </div>
+    <div class="part app">
+      <div class="name">Logs (تاریخچه)</div>
+      <div class="what">
+        One big table of <b>every</b> try, with pages. You can filter by robot type, by
+        <span class="chip ok">success</span>/<span class="chip bad">failed</span>, or search by tracking code or project number.
+      </div>
+    </div>
+  </div>
+
+  <!-- WHAT WE SAVE -->
+  <h2><span class="n">6</span>What we save</h2>
+  <p class="lead">Two tables in our own database. We never change old rows — we only add new ones.</p>
+  <table>
+    <thead><tr><th>Table</th><th>One row means…</th><th>Holds</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>mun_sync_runs</td>
+        <td>one time a robot ran</td>
+        <td>which robot, start &amp; end time, <span class="chip run">running</span> / done / failed, and the OK / failed / total counts.</td>
+      </tr>
+      <tr>
+        <td>mun_report_logs</td>
+        <td>one try to send one project</td>
+        <td>the tracking code, the status, the try number, the city's tracking number, and the error text if any. Kept forever.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <b>Safe by default:</b> if the city database address is not set on the server, the robots do not start at all.
+    The feature is simply turned off, and the <b>Run now</b> button returns a clear message instead of an error.
+    A project that failed will be tried again on the next run — the robots keep trying until it works.
+  </div>
+
+  <footer>
+    Part of the mun-sanandaj-web docs · See also
+    <a href="auth/login-flow-diagram.html">Login flow</a> and
+    <a href="README.md">README</a>.<br>
+    Code: <code>SaveEngineerReportWorker.cs</code>, <code>SaveEngMapWorker.cs</code>,
+    <code>MunSanandajSyncService.cs</code>, <code>Dashboard.tsx</code>, <code>LogsPage.tsx</code>.
+  </footer>
+
+</div>
+</body>
+</html>

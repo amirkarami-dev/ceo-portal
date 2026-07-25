@@ -1,0 +1,3 @@
+# Drop Vazirmatn-Regular.ttf / Vazirmatn-Bold.ttf here to bundle a Persian font into
+# the API image for PDF report rendering. The Dockerfile also attempts to install
+# fonts-vazirmatn via apt. Download from: https://github.com/rastikerdar/vazirmatn/releases

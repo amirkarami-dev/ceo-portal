@@ -1,0 +1,14 @@
+{
+  "name": "mabhas19-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "workspaces": [
+    "packages/*",
+    "web",
+    "mobile",
+    "analytics-web"
+  ]
+}

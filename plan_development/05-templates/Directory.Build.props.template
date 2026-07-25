@@ -1,0 +1,20 @@
+<!-- Repo-root Directory.Build.props — shared build conventions for every .NET project.
+     Copy to the repository root as `Directory.Build.props` (no `.template` suffix).
+     No <PLACEHOLDER> tokens to replace here; this file is project-agnostic.
+
+     See https://aka.ms/dotnet/msbuild/customize for more details on customizing your build. -->
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- NU1608: transitive version conflicts from the template's preview packages.
+         NU1902/NU1903: NuGet audit advisories on transitive template/SDK packages
+         (OpenTelemetry, System.Security.Cryptography.Xml). Kept as warnings, not errors;
+         review and bump when fixed upstream versions are available. -->
+    <WarningsNotAsErrors>NU1608;NU1902;NU1903</WarningsNotAsErrors>
+    <!-- Build output goes to ./artifacts/ at the repo root, NOT per-project bin/obj. -->
+    <ArtifactsPath>$(MSBuildThisFileDirectory)artifacts</ArtifactsPath>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+</Project>

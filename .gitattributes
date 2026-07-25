@@ -1,0 +1,4 @@
+# Shell scripts must keep LF line endings — a CRLF shebang fails on Linux servers.
+*.sh text eol=lf
+# SOPS-encrypted dotenv files must stay LF — CRLF can corrupt sops parsing on decrypt.
+*.enc.env text eol=lf

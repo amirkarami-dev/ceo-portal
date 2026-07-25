@@ -1,0 +1,78 @@
+@import "@fontsource/vazirmatn/400.css";
+@import "@fontsource/vazirmatn/500.css";
+@import "@fontsource/vazirmatn/700.css";
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: "Vazirmatn", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--ant-color-border-secondary, #e2e8f0);
+  border-radius: 8px;
+}
+
+/* Persian digits read better with tabular alignment inside tables. */
+.ant-table-cell {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Tiptap editor body (RichTextEditor) ─────────────────────────────────────
+   AntD's reset strips list markers and heading sizes, so the editor would show
+   bullets/numbers and headings as plain paragraphs while typing. */
+.tiptap-body :where(p) {
+  margin: 0 0 0.75em;
+  line-height: 1.9;
+}
+.tiptap-body :where(p:last-child) {
+  margin-bottom: 0;
+}
+.tiptap-body :where(h2) {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 1em 0 0.5em;
+  line-height: 1.6;
+}
+.tiptap-body :where(ul, ol) {
+  margin: 0 0 0.75em;
+  padding-inline-start: 1.6em;
+}
+.tiptap-body :where(ul) { list-style: disc; }
+.tiptap-body :where(ol) { list-style: decimal; }
+.tiptap-body :where(li) { margin: 0.2em 0; }
+.tiptap-body :where(a) {
+  color: var(--ant-color-link, #1677ff);
+  text-decoration: underline;
+}
+.tiptap-body :where(blockquote) {
+  margin: 0 0 0.75em;
+  padding-inline-start: 1em;
+  border-inline-start: 3px solid var(--ant-color-border, #d9d9d9);
+  color: var(--ant-color-text-secondary, #666);
+}
+/* Placeholder for an empty document. */
+.tiptap-body p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: inline-start;
+  color: var(--ant-color-text-quaternary, #bfbfbf);
+  pointer-events: none;
+  height: 0;
+}

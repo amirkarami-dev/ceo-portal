@@ -1,0 +1,24 @@
+**/bin/
+**/obj/
+artifacts/
+**/.vs/
+**/.vscode/
+**/.idea/
+**/node_modules/
+web/.next/
+web/out/
+mobile/android/
+mobile/ios/
+mobile/.expo/
+mobile/dist*/
+**/*.tsbuildinfo
+**/*.user
+.git/
+.github/
+**/.env
+**/.env.local
+deploy/acme.json
+# Auth Data Protection key ring (bind-mounted at /keys, mode 700 owned by UID 1654). Docker
+# cannot read it as the build user, and secrets must never enter a build context anyway.
+deploy/authkeys/
+deploy/certs/

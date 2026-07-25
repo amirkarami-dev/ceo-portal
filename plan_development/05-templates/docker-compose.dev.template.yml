@@ -1,0 +1,38 @@
+# Local development dependencies ONLY (SQL Server + MinIO). The API/web run on your host.
+# Copy to deploy/docker-compose.dev.yml and replace every <PLACEHOLDER>.
+#
+# Replace:
+#   <PROJECT_NAME>   — lowercase project slug (compose project name + MinIO bucket), e.g. myapp
+#   <SA_PASSWORD>    — SQL Server `sa` password; must meet SQL complexity rules (e.g. MyApp_Sql#2026)
+#
+# Start:  docker compose -f deploy/docker-compose.dev.yml up -d
+# These defaults must match src/Web/appsettings.json (connection string + Minio section).
+name: <PROJECT_NAME>-dev
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "<SA_PASSWORD>"
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssqldata_dev:/var/opt/mssql
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata_dev:/data
+
+volumes:
+  mssqldata_dev:
+  miniodata_dev:

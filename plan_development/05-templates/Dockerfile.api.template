@@ -1,0 +1,44 @@
+# API Dockerfile (.NET 10, Clean Architecture) — build context is the repository ROOT.
+# Copy to deploy/Dockerfile.api and replace every <PLACEHOLDER>.
+#
+# Replace:
+#   <PROJECT_NAME>  — the assembly name of the Web project, so the entrypoint dll is
+#                     <PROJECT_NAME>.Web.dll (e.g. MyApp -> MyApp.Web.dll)
+#   <SCRIPT_FONT>   — (optional) an apt font package for non-Latin PDF text, e.g. fonts-vazirmatn
+#                     for Persian. Remove the second apt-get block entirely if your PDFs are Latin-only.
+#
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+COPY . .
+RUN dotnet restore src/Web/Web.csproj
+RUN dotnet publish src/Web/Web.csproj -c Release -o /app/publish --no-restore /p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+WORKDIR /app
+
+# Native deps for QuestPDF (SkiaSharp) PDF rendering. curl is used by the HEALTHCHECK below.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends fontconfig libfontconfig1 curl \
+ && rm -rf /var/lib/apt/lists/*
+# OPTIONAL: install a script-capable font for non-Latin PDF text (e.g. Persian via <SCRIPT_FONT>).
+# Remove this block if your reports are Latin-only.
+RUN apt-get update \
+ && (apt-get install -y --no-install-recommends <SCRIPT_FONT> || true) \
+ && mkdir -p /app/Fonts \
+ && (cp /usr/share/fonts/truetype/*/*.ttf /app/Fonts/ 2>/dev/null || true) \
+ && rm -rf /var/lib/apt/lists/*
+
+COPY --from=build /app/publish .
+# Any TTFs placed in deploy/fonts/ are bundled and auto-registered by the report font setup.
+COPY deploy/fonts/ /app/Fonts/
+
+ENV ASPNETCORE_HTTP_PORTS=8080 \
+    DOTNET_RUNNING_IN_CONTAINER=true
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+    CMD curl -fsS http://localhost:8080/alive || exit 1
+
+# Run as the non-root user provided by the aspnet base image.
+USER $APP_UID
+ENTRYPOINT ["dotnet", "<PROJECT_NAME>.Web.dll"]

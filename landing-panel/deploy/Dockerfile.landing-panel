@@ -1,0 +1,34 @@
+# syntax=docker/dockerfile:1
+# landing-panel SPA -> static nginx. Build context = monorepo root (deploy/docker-compose.*.yml).
+# Every VITE_* is BAKED at build time (Vite inlines import.meta.env); nginx then serves static dist/.
+# Standalone install of just landing-panel (NOT a full `npm ci` of the monorepo) so the build box
+# doesn't pull the web (Next.js) / mobile (expo) workspaces just to build this SPA.
+FROM node:24-alpine AS build
+WORKDIR /app/landing-panel
+
+# Vite build-time config — PUBLIC values only (a static bundle has no server side; real backend
+# secrets never belong here). Defaults target the prod stack; compose overrides via build args.
+ARG VITE_API_BASE=https://api.mabhas19.myceo.ir
+ARG VITE_AUTH_ISSUER=https://auth.myceo.ir
+ARG VITE_OIDC_CLIENT_ID=landing-panel
+ARG VITE_AUTH_SCOPE="openid profile email roles mabhas19.api"
+ENV VITE_API_BASE=$VITE_API_BASE \
+    VITE_AUTH_ISSUER=$VITE_AUTH_ISSUER \
+    VITE_OIDC_CLIENT_ID=$VITE_OIDC_CLIENT_ID \
+    VITE_AUTH_SCOPE=$VITE_AUTH_SCOPE
+
+COPY landing-panel/package.json ./
+RUN npm install
+
+# Copy the SPA source and build (tsc typecheck + vite build) -> /app/landing-panel/dist.
+COPY landing-panel/ ./
+RUN npm run build
+
+FROM nginx:1.27-alpine AS runtime
+RUN rm -rf /usr/share/nginx/html/*
+COPY --from=build /app/landing-panel/dist /usr/share/nginx/html
+COPY landing-panel/deploy/nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
+  CMD wget -qO- http://127.0.0.1/ >/dev/null 2>&1 || exit 1
+CMD ["nginx", "-g", "daemon off;"]

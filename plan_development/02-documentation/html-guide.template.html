@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  SELF-CONTAINED HTML DOCUMENTATION TEMPLATE
+  Modeled on the reference project guide (docs/mabhas19-guide.html).
+  Single file, no build step. Open directly in a browser.
+
+  HOW TO USE
+  - Replace every <PLACEHOLDER> token (project name, domain terms, domains, etc.).
+  - Fill each section's prose where you see <PLACEHOLDER> or guidance comments.
+  - Each <pre class="mermaid"> block holds a starter diagram — edit the nodes/labels.
+    See diagram-guide.md for how to author each diagram type.
+  - Add/remove sidebar <a> links to match the sections you keep.
+  - The emerald accent, sticky sidebar, ~900px content column, bordered tables,
+    note/warn boxes, badges, dark-mode toggle, and Mermaid loader are wired below.
+  ============================================================================
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title><PROJECT_NAME> — System &amp; Developer Guide</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --accent: #059669;
+    --accent-dark: #047857;
+    --accent-light: #ecfdf5;
+    --bg: #ffffff;
+    --fg: #1f2937;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --code-bg: #f6f8fa;
+    --sidebar-bg: #f9fafb;
+    --table-head: #f3f4f6;
+  }
+  html.dark {
+    --accent: #34d399;
+    --accent-dark: #6ee7b7;
+    --accent-light: #064e3b;
+    --bg: #0f172a;
+    --fg: #e5e7eb;
+    --muted: #94a3b8;
+    --border: #334155;
+    --code-bg: #1e293b;
+    --sidebar-bg: #111827;
+    --table-head: #1e293b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--fg);
+    background: var(--bg);
+    line-height: 1.65;
+    font-size: 16px;
+  }
+  /* Sidebar */
+  #sidebar {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    width: 300px;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 24px 16px;
+  }
+  #sidebar .brand {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+  #sidebar .brand .fa { font-size: 14px; color: var(--muted); display:block; font-weight:400;}
+  #sidebar nav { margin-top: 16px; }
+  #sidebar nav a {
+    display: block;
+    color: var(--fg);
+    text-decoration: none;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 14px;
+  }
+  #sidebar nav a:hover { background: var(--accent-light); color: var(--accent-dark); }
+  #sidebar nav a.sub { padding-left: 22px; font-size: 13px; color: var(--muted); }
+  /* Content */
+  #content {
+    margin-left: 300px;
+    padding: 48px 56px;
+    max-width: 960px;
+  }
+  .wrap { max-width: 900px; }
+  h1 { font-size: 30px; border-bottom: 3px solid var(--accent); padding-bottom: 10px; }
+  h2 {
+    font-size: 24px; margin-top: 52px;
+    border-bottom: 1px solid var(--border); padding-bottom: 6px;
+    scroll-margin-top: 20px;
+  }
+  h3 { font-size: 19px; margin-top: 32px; color: var(--accent-dark); scroll-margin-top: 20px;}
+  h4 { font-size: 16px; margin-top: 22px; }
+  p, li { font-size: 15px; }
+  a { color: var(--accent-dark); }
+  code {
+    font-family: "SF Mono", "Cascadia Code", Consolas, monospace;
+    background: var(--code-bg);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 13px;
+  }
+  pre.code {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  pre.code code { background: none; padding: 0; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th { background: var(--table-head); font-weight: 600; }
+  tr:nth-child(even) td { background: rgba(0,0,0,0.015); }
+  html.dark tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+  .mermaid {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px;
+    margin: 20px 0;
+    text-align: center;
+    overflow-x: auto;
+  }
+  .note {
+    background: var(--accent-light);
+    border-left: 4px solid var(--accent);
+    padding: 10px 16px;
+    border-radius: 0 6px 6px 0;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+  .warn {
+    background: #fef3c7;
+    border-left: 4px solid #f59e0b;
+    padding: 10px 16px;
+    border-radius: 0 6px 6px 0;
+    margin: 16px 0;
+    font-size: 14px;
+    color: #78350f;
+  }
+  html.dark .warn { background: #422006; color: #fde68a; }
+  .badge {
+    display: inline-block;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 999px;
+    padding: 1px 9px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .badge.no { background: var(--muted); }
+  #toggle {
+    position: fixed; top: 14px; right: 20px;
+    z-index: 100;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--fg);
+    border-radius: 8px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .fa-label { color: var(--muted); font-size: 13px; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+  @media (max-width: 900px) {
+    #sidebar { display: none; }
+    #content { margin-left: 0; padding: 24px; }
+  }
+</style>
+</head>
+<body>
+<button id="toggle" onclick="toggleTheme()">Toggle dark</button>
+
+<aside id="sidebar">
+  <div class="brand"><PROJECT_NAME> <span class="fa"><PROJECT_NAME_LOCALIZED> — Developer &amp; System Guide</span></div>
+  <nav>
+    <a href="#overview">1. Overview</a>
+    <a href="#stack">2. Tech Stack</a>
+    <a href="#architecture">3. System Architecture</a>
+    <a href="#monorepo">4. Monorepo Layout</a>
+    <a href="#entities">5. Domain Entities &amp; Database</a>
+    <a href="#backend">6. Backend (Clean Architecture)</a>
+    <a href="#engine">7. <DOMAIN_ENGINE_NAME></a>
+    <a href="#api">8. API Reference</a>
+    <a href="#auth">9. Authentication &amp; Roles</a>
+    <a href="#web">10. Web Frontend</a>
+    <a href="#mobile">11. Mobile App</a>
+    <a href="#workflow">12. <DOMAIN_WORKFLOW_NAME> Workflow</a>
+    <a href="#i18n">13. Internationalization</a>
+    <a href="#pdf">14. PDF Reports &amp; File Storage</a>
+    <a href="#deploy">15. Deployment</a>
+    <a href="#localdev">16. Local Development Setup</a>
+    <a href="#glossary">17. Glossary</a>
+  </nav>
+</aside>
+
+<main id="content"><div class="wrap">
+
+<h1><PROJECT_NAME> Platform — System &amp; Developer Guide</h1>
+<p>This guide documents <strong><PROJECT_NAME></strong> (<PROJECT_NAME_LOCALIZED>), <PLACEHOLDER: one-sentence description of the platform and the standard/domain it implements>. It is both a system workflow guide and a developer guide. The reader is the development team.</p>
+
+<!-- ============ 1 OVERVIEW ============ -->
+<h2 id="overview">1. Overview — What is <PROJECT_NAME></h2>
+<p><PLACEHOLDER: explain the domain in plain language — what real-world problem/standard this implements and for whom.></p>
+<p>The platform lets a <PLACEHOLDER: user role>:</p>
+<ul>
+  <li><PLACEHOLDER: core action 1, e.g. create a project by hand or import it.></li>
+  <li><PLACEHOLDER: core action 2, e.g. run the assessment/workflow.></li>
+  <li><PLACEHOLDER: core action 3, e.g. get a total result plus a breakdown.></li>
+  <li><PLACEHOLDER: core action 4, e.g. generate a PDF report.></li>
+</ul>
+<p>The platform has three parts that all share one domain engine:</p>
+<ul>
+  <li>A <strong>web app</strong> (Next.js) for desktop use.</li>
+  <li>A <strong>mobile app</strong> (Expo / React Native) for phones.</li>
+  <li>A <strong>backend API</strong> (.NET) that stores all data and is the system of record.</li>
+</ul>
+<div class="note"><strong>Key idea:</strong> The interactive domain logic runs in the <em>frontend</em> (web and mobile), using a shared TypeScript package <code>@<SCOPE>/<CORE_PACKAGE></code>. The backend stores inputs, results, and scores, and builds the PDF. Domain rules change in the shared package, not in the backend.</div>
+
+<!-- ============ 2 TECH STACK ============ -->
+<h2 id="stack">2. Tech Stack</h2>
+<table>
+  <tr><th>Area</th><th>Technology</th><th>Notes</th></tr>
+  <tr><td>Backend</td><td>.NET 10, C#</td><td>Clean Architecture + .NET Aspire (Jason Taylor template)</td></tr>
+  <tr><td>Backend patterns</td><td>MediatR (CQRS), FluentValidation, AutoMapper</td><td>MediatR 12.5.0 (Apache-2.0, free; pinned — ADR-002)</td></tr>
+  <tr><td>Auth</td><td>OIDC SSO via central OpenIddict IdP</td><td>web Auth.js v5 (Auth Code + PKCE), mobile expo-auth-session; API validates IdP JWTs</td></tr>
+  <tr><td>Database</td><td>Microsoft SQL Server via EF Core</td><td><code>nvarchar(max)</code> columns for the domain JSON</td></tr>
+  <tr><td>Object storage</td><td>MinIO (S3-compatible)</td><td>Stores generated PDF reports</td></tr>
+  <tr><td>PDF</td><td>QuestPDF (community license)</td><td><PLACEHOLDER: language / layout note></td></tr>
+  <tr><td>Web</td><td>Next.js 16, React 19, Tailwind CSS v4</td><td>App Router; standalone output</td></tr>
+  <tr><td>Web i18n / fonts</td><td>next-intl, <WEBFONT></td><td><PRIMARY_LOCALE> default + <SECONDARY_LOCALE></td></tr>
+  <tr><td>Mobile</td><td>Expo SDK 54, React Native, expo-router</td><td>New Architecture enabled</td></tr>
+  <tr><td>Mobile storage</td><td>expo-secure-store</td><td>Secure token storage on device</td></tr>
+  <tr><td>Shared package</td><td><code>@<SCOPE>/<CORE_PACKAGE></code></td><td>Pure TypeScript domain engine + data; no framework deps</td></tr>
+  <tr><td>SMS relay</td><td><PLACEHOLDER: relay microservice or provider></td><td>For mobile OTP delivery</td></tr>
+  <tr><td>Reverse proxy</td><td>Traefik (existing, shared on server)</td><td>TLS via cert resolver <code><CERT_RESOLVER></code></td></tr>
+  <tr><td>Containers</td><td>Docker Compose (3 setups)</td><td>dev / local / server</td></tr>
+</table>
+
+<!-- ============ 3 ARCHITECTURE ============ -->
+<h2 id="architecture">3. System Architecture</h2>
+<p>The web and mobile clients both call the .NET API. The API talks to SQL Server and MinIO, and sends OTP codes through an SMS relay. Both clients import the same shared domain package. On production, Traefik routes traffic to the web, API, and S3 domains.</p>
+<!-- DIAGRAM: high-level system architecture (graph). See diagram-guide.md §1. -->
+<pre class="mermaid">
+graph TD
+  subgraph Clients
+    WEB["Web App<br/>Next.js 16"]
+    MOB["Mobile App<br/>Expo / React Native"]
+  end
+  PKG["@<SCOPE>/<CORE_PACKAGE><br/>(shared domain engine)"]
+  TR["Traefik<br/>(reverse proxy + TLS)"]
+  API[".NET 10 API<br/>Clean Architecture"]
+  DB[("SQL Server<br/>EF Core")]
+  S3[("MinIO<br/>S3 object storage")]
+  SMS["SMS relay<br/>(<PLACEHOLDER>)"]
+
+  WEB -. imports .-> PKG
+  MOB -. imports .-> PKG
+  WEB --> TR
+  MOB --> TR
+  TR --> API
+  API --> DB
+  API --> S3
+  API --> SMS
+  TR --> S3
+</pre>
+
+<!-- ============ 4 MONOREPO ============ -->
+<h2 id="monorepo">4. Monorepo Layout</h2>
+<p>The repository is an npm workspace. The root <code>package.json</code> declares: <code>"workspaces": ["packages/*", "web", "mobile"]</code>.</p>
+<table>
+  <tr><th>Folder</th><th>What it holds</th></tr>
+  <tr><td><code>src/</code></td><td>.NET backend, split into Clean Architecture layers: <code>Domain</code>, <code>Application</code>, <code>Infrastructure</code>, <code>Web</code>.</td></tr>
+  <tr><td><code>web/</code></td><td>Next.js 16 web app (App Router).</td></tr>
+  <tr><td><code>mobile/</code></td><td>Expo / React Native app. (Excluded from the web Docker build to avoid React conflicts.)</td></tr>
+  <tr><td><code>packages/<CORE_PACKAGE>/</code></td><td>Shared TypeScript domain engine and reference data.</td></tr>
+  <tr><td><code>deploy/</code></td><td>Docker Compose files, Dockerfiles, fonts, and env templates.</td></tr>
+</table>
+<p>The solution file is <code><PROJECT_NAME>.slnx</code>. Build output goes to <code>./artifacts/</code> (not <code>bin/obj</code>).</p>
+
+<!-- ============ 5 ENTITIES ============ -->
+<h2 id="entities">5. Domain Entities &amp; Database</h2>
+<p>The database is Microsoft SQL Server. The EF Core context is <code>ApplicationDbContext</code>, which extends <code>IdentityDbContext&lt;ApplicationUser&gt;</code> (so it includes the standard ASP.NET Identity tables for users, roles, and claims). Two interceptors run on save: <code>AuditableEntityInterceptor</code> (sets timestamps) and <code>DispatchDomainEventsInterceptor</code> (publishes domain events).</p>
+
+<!-- DIAGRAM: entity-relationship model (erDiagram). See diagram-guide.md §2. -->
+<pre class="mermaid">
+erDiagram
+  USER ||--o{ <MAIN_ENTITY> : owns
+  USER ||--o| SUBSCRIPTION : has
+  <MAIN_ENTITY> ||--o| <CHILD_ENTITY> : has
+  <CHILD_ENTITY> ||--o{ <REPORT_ENTITY> : has
+  USER }o--o{ ROLE : "assigned"
+
+  USER {
+    string Id PK
+    string Email
+    string PhoneNumber
+  }
+  ROLE {
+    string Name "Administrator or User"
+  }
+  <MAIN_ENTITY> {
+    int Id PK
+    string Title
+    string OwnerId FK
+    enum Source "Manual/External/Other"
+  }
+  <CHILD_ENTITY> {
+    int Id PK
+    string InputJson "nvarchar(max)"
+    string ResultJson "nvarchar(max)"
+    int TotalScore
+    int MaxScore
+    enum Status "Draft/Completed"
+    int <MAIN_ENTITY>Id FK
+  }
+  <REPORT_ENTITY> {
+    int Id PK
+    int <CHILD_ENTITY>Id FK
+    string StorageKey
+    string FileName
+    long Size
+    string ContentType "application/pdf"
+  }
+  SUBSCRIPTION {
+    int Id PK
+    string UserId FK
+    enum Plan "Free/Pro/Enterprise"
+    int MaxProjects "default <FREE_QUOTA>"
+    bool IsActive
+  }
+</pre>
+
+<h3>Base classes</h3>
+<p>All entities extend <code>BaseEntity</code> (<code>Id : int</code>). Most extend <code>BaseAuditableEntity</code>, which adds <code>Created</code>, <code>CreatedBy</code>, <code>LastModified</code>, and <code>LastModifiedBy</code>.</p>
+
+<h3><MAIN_ENTITY></h3>
+<table>
+  <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+  <tr><td>Title</td><td>string (required)</td><td><PLACEHOLDER></td></tr>
+  <tr><td>OwnerId</td><td>string (required)</td><td>Identity user id</td></tr>
+  <tr><td>Source</td><td>enum</td><td>Default Manual; or imported / Other</td></tr>
+  <tr><td><PLACEHOLDER field></td><td><PLACEHOLDER type></td><td><PLACEHOLDER></td></tr>
+</table>
+
+<h3><CHILD_ENTITY></h3>
+<table>
+  <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+  <tr><td>InputJson</td><td>string (nvarchar(max))</td><td>Default "{}"; raw inputs</td></tr>
+  <tr><td>ResultJson</td><td>string (nvarchar(max))</td><td>Default "{}"; computed result</td></tr>
+  <tr><td>TotalScore</td><td>int</td><td>Denormalized aggregate (for fast querying)</td></tr>
+  <tr><td>MaxScore</td><td>int</td><td>Denormalized aggregate</td></tr>
+  <tr><td>Status</td><td>enum</td><td>Default Draft; or Completed</td></tr>
+</table>
+<div class="note"><strong>Why denormalize?</strong> <code>TotalScore</code> and <code>MaxScore</code> are stored as plain int columns so the database can filter, sort, and aggregate by score without parsing JSON.</div>
+
+<h3>Roles</h3>
+<p>Defined in <code>src/Domain/Constants/Roles.cs</code>: <code>Administrator</code> (full access; manage users and subscriptions) and <code>User</code> (default role). <code>Roles.All</code> returns both names.</p>
+
+<!-- ============ 6 BACKEND ============ -->
+<h2 id="backend">6. Backend (Clean Architecture)</h2>
+<p>The backend follows Clean Architecture with four layers. Dependencies always point inward: outer layers depend on inner ones, never the reverse.</p>
+<!-- DIAGRAM: Clean Architecture layer dependencies (graph LR). See diagram-guide.md §3. -->
+<pre class="mermaid">
+graph LR
+  WEB["Web<br/>(Minimal API endpoints)"] --> APP
+  INFRA["Infrastructure<br/>(EF Core, MinIO, SMS, Identity)"] --> APP
+  APP["Application<br/>(CQRS use cases, validators, mapping)"] --> DOM
+  DOM["Domain<br/>(entities, enums, calculators)"]
+  WEB --> INFRA
+</pre>
+<ul>
+  <li><strong>Domain</strong> — entities, enums, constants, and the domain calculators. No dependencies on other layers.</li>
+  <li><strong>Application</strong> — CQRS use cases via MediatR, FluentValidation validators, AutoMapper profiles, and service interfaces. Depends on Domain only.</li>
+  <li><strong>Infrastructure</strong> — concrete service implementations, EF Core/SQL Server, ASP.NET Identity. Depends on Application + Domain.</li>
+  <li><strong>Web</strong> — Minimal API endpoints. Each <code>IEndpointGroup</code> class is auto-mapped at <code>/api/{ClassName}</code>.</li>
+</ul>
+
+<h3>MediatR pipeline behaviors</h3>
+<p>Every request passes through these cross-cutting behaviors, in order: <code>LoggingBehaviour</code>, <code>UnhandledExceptionBehaviour</code>, <code>AuthorizationBehaviour</code>, <code>ValidationBehaviour</code>, <code>PerformanceBehaviour</code>.</p>
+
+<h3>Service interfaces and implementations</h3>
+<table>
+  <tr><th>Interface</th><th>Implementation</th><th>Purpose</th></tr>
+  <tr><td>IFileStorage</td><td>MinioFileStorage</td><td>Upload/download/delete objects; build presigned URLs</td></tr>
+  <tr><td>IReportGenerator</td><td>QuestPdfReportGenerator</td><td>Build PDF reports</td></tr>
+  <tr><td>ISmsSender</td><td>SmsSender</td><td>Send SMS via relay / provider / log mode</td></tr>
+  <tr><td>IOtpService</td><td>OtpService</td><td>Generate + verify one-time passwords</td></tr>
+  <tr><td>IGoogleTokenValidator</td><td>GoogleTokenValidator</td><td>Validate Google ID tokens</td></tr>
+  <tr><td>ISubscriptionService</td><td>SubscriptionService</td><td>Manage quotas; enforce project limits</td></tr>
+  <tr><td>IUserAdminService</td><td>UserAdminService</td><td>Admin operations on users/subscriptions</td></tr>
+</table>
+<p>All services are registered through <code>Infrastructure/DependencyInjection.cs</code> -> <code>Add<PROJECT_NAME>Services</code>.</p>
+
+<h3>Subscription quota</h3>
+<ul>
+  <li>Free plan default cap: <strong><FREE_QUOTA> projects</strong> (<code>DefaultMaxProjects</code>).</li>
+  <li><code>ISubscriptionService.EnsureCanCreateProjectAsync(userId)</code> runs inside CreateProject and ImportProject; if <code>count &gt;= MaxProjects</code> it throws a <code>ValidationException</code> on the <code>Subscription</code> field. It also checks <code>IsActive</code>.</li>
+</ul>
+
+<!-- ============ 7 DOMAIN ENGINE ============ -->
+<h2 id="engine">7. <DOMAIN_ENGINE_NAME></h2>
+<p>The shared package <code>@<SCOPE>/<CORE_PACKAGE></code> (in <code>packages/<CORE_PACKAGE>/</code>) is the single source of truth for all domain logic. It is pure TypeScript with no framework dependencies, so both the web and mobile apps import the exact same logic. This means results never disagree between platforms.</p>
+<p><PLACEHOLDER: describe the engine's inputs, the steps/sections it computes, and the output shape. If it scores something, give the max and the breakdown in a table like the one below.></p>
+<table>
+  <tr><th>Section</th><th>key</th><th>Max</th></tr>
+  <tr><td><PLACEHOLDER></td><td><code><PLACEHOLDER></code></td><td><PLACEHOLDER></td></tr>
+</table>
+<p>A dispatcher routes input to the right function and returns a result object. Key exports: <code><PLACEHOLDER fn1></code>, <code><PLACEHOLDER fn2></code>, reference data tables, and shared types.</p>
+
+<!-- ============ 8 API ============ -->
+<h2 id="api">8. API Reference</h2>
+<p>Base path is <code>/api/</code>. Port 5000 in development, 8080 in containers, behind Traefik on production. Auth is OIDC via the external IdP — the API is a resource server that <strong>validates</strong> the IdP's signed JWTs (it never issues tokens), so there is no <code>MapIdentityApi</code>. The only Users endpoint is <code>GET /api/Users/me</code> (current user's claims). Interactive docs (Scalar) live at <code>/scalar</code>.</p>
+<p>See <code>api-reference.template.md</code> for the full table. Summary of groups:</p>
+<table>
+  <tr><th>Group</th><th>Method</th><th>Path</th><th>Purpose</th><th>Auth</th></tr>
+  <tr><td>Users</td><td>GET</td><td><code>/api/Users/me</code></td><td>Current user's claims (from the validated OIDC JWT)</td><td><span class="badge">Yes</span></td></tr>
+  <tr><td><MAIN_ENTITY>s</td><td>GET</td><td><code>/api/<MAIN_ENTITY>s</code></td><td>List the user's records</td><td><span class="badge">Yes</span></td></tr>
+  <tr><td><MAIN_ENTITY>s</td><td>POST</td><td><code>/api/<MAIN_ENTITY>s</code></td><td>Create (checks quota)</td><td><span class="badge">Yes</span></td></tr>
+  <tr><td>Subscriptions</td><td>GET</td><td><code>/api/Subscriptions/me</code></td><td>Current subscription</td><td><span class="badge">Yes</span></td></tr>
+  <tr><td>Admin</td><td>GET</td><td><code>/api/Admin/users</code></td><td>List all users</td><td><span class="badge">Yes</span> (Admin)</td></tr>
+</table>
+
+<!-- ============ 9 AUTH ============ -->
+<h2 id="auth">9. Authentication &amp; Roles</h2>
+<p>Authentication is OIDC SSO via the external IdP (OpenIddict at <code>https://&lt;AUTH_DOMAIN&gt;</code>). All login factors — password, OTP, Google — live in the IdP, which is the sole token issuer. The API is a <strong>resource server</strong>: it <strong>validates</strong> the IdP's signed JWTs (<code>AddJwtBearer</code>, JWKS-verified, authority = the IdP, audience = <code>&lt;PROJECT&gt;.api</code>) and never issues tokens. Clients run the Authorization Code + PKCE flow against the IdP and then send <code>Authorization: Bearer &lt;jwt&gt;</code> to the API.</p>
+<p>Roles: <strong>Administrator</strong> (manage users + subscriptions, access <code>/api/Admin/*</code>) and <strong>User</strong> (default). <code>GET /api/Users/me</code> reads the validated JWT claims and returns <code>{ id, email, phoneNumber, roles, isAdmin }</code>.</p>
+
+<h3>OIDC Authorization Code + PKCE</h3>
+<!-- DIAGRAM: OIDC Authorization Code + PKCE sequence. See diagram-guide.md §4. -->
+<pre class="mermaid">
+sequenceDiagram
+  participant C as Client (web/mobile)
+  participant IDP as IdP (OpenIddict)
+  participant A as API (resource server)
+  C->>C: Generate PKCE code_verifier + code_challenge
+  C->>IDP: GET /authorize (client_id, redirect_uri, code_challenge, scope)
+  IDP->>IDP: Authenticate the user (one of several factors)
+  IDP-->>C: 302 redirect_uri?code=...
+  C->>IDP: POST /token (code, code_verifier)
+  IDP->>IDP: Verify PKCE; issue signed JWT
+  IDP-->>C: { access_token (JWT), id_token, expires_in }
+  C->>A: GET /api/Users/me (Bearer access_token)
+  A->>A: Validate JWT (signature via JWKS, issuer, audience)
+  A-->>C: CurrentUserDto { id, email, roles, isAdmin }
+</pre>
+<p>The IdP may offer several login factors internally (password, OTP, Google, …) and may change them over time — this does not alter the API contract. The API only ever sees a validated Bearer JWT; from its side the flow above is identical regardless of how the user authenticated.</p>
+
+<!-- ============ 10 WEB ============ -->
+<h2 id="web">10. Web Frontend</h2>
+<p>The web app is Next.js 16 with the App Router. Routes live under <code>app/[locale]</code>. The locale layout (<code>app/[locale]/layout.tsx</code>) sets <code>&lt;html lang/dir&gt;</code> and wraps the providers.</p>
+<h3>Routing map</h3>
+<table>
+  <tr><th>Route</th><th>Group</th><th>Purpose</th><th>Auth</th></tr>
+  <tr><td><code>/</code></td><td>public</td><td>Landing page</td><td><span class="badge no">No</span></td></tr>
+  <tr><td><code>/(auth)/login</code></td><td>auth</td><td>Redirects to the central OIDC IdP (password/OTP/Google live there)</td><td><span class="badge no">No</span></td></tr>
+  <tr><td><code>/dashboard</code></td><td>dashboard</td><td>Overview</td><td><span class="badge">Yes</span></td></tr>
+  <tr><td><code>/<MAIN_ENTITY_PLURAL></code></td><td>dashboard</td><td>List + create/delete</td><td><span class="badge">Yes</span></td></tr>
+  <tr><td><code>/admin/users</code></td><td>dashboard</td><td>Manage users (admin only)</td><td><span class="badge">Yes</span></td></tr>
+</table>
+<p>Auth is server-side: <code>middleware.ts</code> does a session-cookie-presence gate, then <code>(dashboard)/layout.tsx</code> (a Server Component) resolves identity via <code>auth()</code> and seeds <code>&lt;AuthProvider initialUser&gt;</code>; <code>/admin</code> is gated by the server <code>(dashboard)/admin/layout.tsx</code>. The session is an <strong>httpOnly cookie</strong> — no <code>localStorage</code> and no <code>lib/tokens.ts</code>. Data is fetched with TanStack Query plus RSC prefetch.</p>
+<h3>Design tokens &amp; dark mode</h3>
+<p>shadcn-style CSS variables in <code>app/globals.css</code> (<ACCENT> primary), dark mode via <code>components/theme-provider.tsx</code>, font <WEBFONT>.</p>
+
+<!-- ============ 11 MOBILE ============ -->
+<h2 id="mobile">11. Mobile App</h2>
+<p>The mobile app is Expo SDK 54 with expo-router (file-based navigation). Default locale is <code><PRIMARY_LOCALE></code>. App name is <PROJECT_NAME_LOCALIZED>; package id is <code><MOBILE_PACKAGE_ID></code>.</p>
+<ul>
+  <li>Sign-in via the central OIDC IdP (the IdP offers password/OTP/Google internally), using <strong>expo-auth-session</strong> (Authorization Code + PKCE).</li>
+  <li>Tokens stored with <strong>expo-secure-store</strong>; the access token is sent to the API as <code>Authorization: Bearer &lt;jwt&gt;</code>.</li>
+  <li>Imports the same <code>@<SCOPE>/<CORE_PACKAGE></code> functions as web, so results match exactly.</li>
+  <li>API base: <code>EXPO_PUBLIC_API_BASE</code> -> <code>app.json extra.apiBase</code> -> fallback <code>https://<API_DOMAIN></code>.</li>
+</ul>
+
+<!-- ============ 12 WORKFLOW ============ -->
+<h2 id="workflow">12. <DOMAIN_WORKFLOW_NAME> Workflow</h2>
+<p>The whole flow, from creating a record to a finished PDF:</p>
+<!-- DIAGRAM: end-to-end domain workflow (flowchart). See diagram-guide.md §5. -->
+<pre class="mermaid">
+flowchart TD
+  A["Create record (manual)<br/>or Import from <EXTERNAL_SOURCE>"] --> B["<PLACEHOLDER: setup/derive step>"]
+  B --> C["Open the workspace<br/>/<MAIN_ENTITY_PLURAL>/{id}/<CHILD_ENTITY>"]
+  C --> D["Fill the inputs"]
+  D --> E["Live result via<br/>@<SCOPE>/<CORE_PACKAGE>"]
+  E --> F{"Edit more?"}
+  F -- yes --> D
+  F -- no --> G["Save: PUT /api/<MAIN_ENTITY_PLURAL>/{id}/<CHILD_ENTITY><br/>inputJson + resultJson + scores"]
+  G --> H["Generate report: POST /api/<MAIN_ENTITY_PLURAL>/{id}/report"]
+  H --> I["QuestPDF builds the PDF"]
+  I --> J["Store PDF in MinIO (StorageKey)"]
+  J --> K["Return presigned download URL (valid 1 hour)"]
+</pre>
+
+<!-- ============ 13 I18N ============ -->
+<h2 id="i18n">13. Internationalization</h2>
+<ul>
+  <li>Two locales: <strong><PRIMARY_LOCALE></strong> (default, <RTL/LTR>) and <strong><SECONDARY_LOCALE></strong>.</li>
+  <li>Web uses next-intl with <code>localePrefix: "as-needed"</code>: the default locale is served at <code>/</code>, the other at <code>/&lt;code&gt;/...</code>. <code>localeDetection</code> is off.</li>
+  <li>Message files: <code>web/messages/<PRIMARY_LOCALE_CODE>.json</code> and <code>web/messages/<SECONDARY_LOCALE_CODE>.json</code>.</li>
+  <li>Use the locale-aware <code>Link</code>/<code>useRouter</code> from <code>@/i18n/navigation</code>, not <code>next/link</code>.</li>
+  <li>Mobile hardcodes the primary locale with a fallback for other devices.</li>
+</ul>
+
+<!-- ============ 14 PDF ============ -->
+<h2 id="pdf">14. PDF Reports &amp; File Storage</h2>
+<h3>PDF generation (QuestPDF)</h3>
+<ul>
+  <li><code>QuestPdfReportGenerator.GenerateReport(model)</code> returns a <code>byte[]</code>.</li>
+  <li><PLACEHOLDER: page size, layout direction, fonts, header title, content tables.></li>
+  <li>QuestPDF uses its free community license.</li>
+</ul>
+<h3>File storage (MinIO)</h3>
+<ul>
+  <li><code>MinioFileStorage</code> implements <code>IFileStorage</code>: <code>PutAsync</code>, <code>GetAsync</code>, <code>DeleteAsync</code>, <code>GetPresignedUrlAsync(key, expiry)</code>.</li>
+  <li>The presigned URL is time-limited (1 hour for reports). In production the host is rewritten to the public endpoint so browsers can open it.</li>
+</ul>
+
+<!-- ============ 15 DEPLOY ============ -->
+<h2 id="deploy">15. Deployment</h2>
+<!-- DIAGRAM: deployment / image-transfer pipeline (flowchart). See diagram-guide.md §6. -->
+<pre class="mermaid">
+flowchart LR
+  subgraph Build machine (registry reachable)
+    B1["Build Dockerfile.api"] --> B2["docker save | gzip"]
+    B3["Build Dockerfile.web"] --> B2
+  end
+  B2 --> T["Transfer via pscp / rsync"]
+  T --> L["docker load on server"]
+  subgraph Server <SERVER_IP>
+    L --> API["<PROJECT_NAME_LC>-api:deploy"]
+    L --> WEBI["<PROJECT_NAME_LC>-web:deploy"]
+    L --> DB[(SQL Server)]
+    M["Pull minio<br/>via <REGISTRY_MIRROR>"] --> S3[(minio)]
+    TR["Existing Traefik<br/>(external network, <CERT_RESOLVER> TLS)"]
+    TR --> WEBI
+    TR --> API
+    TR --> S3
+  end
+  D1["<WEB_DOMAIN>"] --> TR
+  D2["<API_DOMAIN>"] --> TR
+  D3["<S3_DOMAIN>"] --> TR
+</pre>
+
+<h3>Three Docker Compose files</h3>
+<table>
+  <tr><th>File</th><th>What runs</th><th>Use</th></tr>
+  <tr><td><code>docker-compose.dev.yml</code></td><td>SQL Server + MinIO only</td><td>Local dev; API/web run on host</td></tr>
+  <tr><td><code>docker-compose.local.yml</code></td><td>SQL Server + MinIO + API + web (all containers)</td><td>Full stack on localhost, no Traefik</td></tr>
+  <tr><td><code>docker-compose.server.yml</code></td><td>All four, attached to existing Traefik</td><td>Production</td></tr>
+</table>
+
+<div class="warn"><strong>Restricted-network constraints:</strong> if the server blocks the base-image registry, build the <code>api</code>/<code>web</code> images where it works, <code>docker save | gzip</code> -> transfer -> <code>docker load</code>; pull <code>minio</code> via the <code><REGISTRY_MIRROR></code> mirror. <strong>Do not restart a shared Docker daemon</strong> if it runs other production stacks.</div>
+
+<h3>Live domains</h3>
+<table>
+  <tr><th>Domain</th><th>Purpose</th></tr>
+  <tr><td><code><WEB_DOMAIN></code></td><td>Web (Next.js)</td></tr>
+  <tr><td><code><API_DOMAIN></code></td><td>Backend API</td></tr>
+  <tr><td><code><S3_DOMAIN></code></td><td>MinIO S3 (presigned PDFs)</td></tr>
+</table>
+
+<!-- ============ 16 LOCAL DEV ============ -->
+<h2 id="localdev">16. Local Development Setup</h2>
+<h3>Backend (.NET 10)</h3>
+<pre class="code"><code># Start SQL Server (sa) + MinIO (minioadmin)
+docker compose -f deploy/docker-compose.dev.yml up -d
+
+dotnet build <PROJECT_NAME>.slnx     # build all
+dotnet run --project src/Web         # API on http://localhost:5000 (docs at /scalar)
+dotnet test                          # all tests</code></pre>
+<p>The <code>dotnet-ef</code> global tool must match EF Core 10: <code>dotnet tool update -g dotnet-ef --version "10.0.*"</code>.</p>
+<h3>Web (Next.js 16)</h3>
+<pre class="code"><code>cd web &amp;&amp; npm install
+npm run dev      # http://localhost:3000
+npm run build    # production build (must pass before deploy)</code></pre>
+<p><code>web/.env.local</code> sets <code>NEXT_PUBLIC_API_BASE</code> (dev <code>http://localhost:5000</code>), baked at build time. Keep <code>output: "standalone"</code> in <code>next.config.ts</code>.</p>
+<h3>Mobile (Expo)</h3>
+<pre class="code"><code>npm run start      # expo start (Metro dev server + QR)
+npm run android    # expo run:android (needs Android SDK)
+npm run typecheck</code></pre>
+<div class="note"><strong>Build is strict:</strong> <code>TreatWarningsAsErrors=true</code>. .NET 10 turns deprecations into errors (e.g. use <code>KnownIPNetworks</code>, not <code>KnownNetworks</code>). <code>ValidationException</code> is ambiguous — alias the app's <code>Application.Common.Exceptions.ValidationException</code>. Use <code>Guard.Against.NotFound(...)</code> for 404s.</div>
+
+<!-- ============ 17 GLOSSARY ============ -->
+<h2 id="glossary">17. Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Meaning</th></tr>
+  <tr><td><DOMAIN_TERM></td><td><PLACEHOLDER: define the core domain term in plain language.></td></tr>
+  <tr><td>OTP</td><td>One-Time Password. A short code sent by SMS to log in.</td></tr>
+  <tr><td>nvarchar(max)</td><td>SQL Server's large variable-length text column type. Stores the domain JSON (<code>InputJson</code>/<code>ResultJson</code>).</td></tr>
+  <tr><td>CQRS</td><td>Command Query Responsibility Segregation. Splits writes (commands) from reads (queries). Implemented with MediatR.</td></tr>
+  <tr><td>Presigned URL</td><td>A temporary, signed link to a file in object storage (MinIO) that works without login for a limited time.</td></tr>
+  <tr><td>Bearer token</td><td>An access token sent in the <code>Authorization: Bearer ...</code> header to prove who the user is.</td></tr>
+  <tr><td>MinIO</td><td>An S3-compatible object storage server. Stores the generated PDF reports.</td></tr>
+  <tr><td>QuestPDF</td><td>A .NET library used to build the PDF reports.</td></tr>
+  <tr><td>Traefik</td><td>A reverse proxy that routes traffic to the web, API, and S3 domains and handles TLS.</td></tr>
+  <tr><td>Denormalize</td><td>Storing a value (like TotalScore) in its own column even though it could be computed, so queries are faster.</td></tr>
+</table>
+
+<hr>
+<p class="fa-label"><PROJECT_NAME> — <PLACEHOLDER: one-line footer about the domain>. This document is generated from verified codebase findings.</p>
+
+</div></main>
+
+<script>
+  function toggleTheme() {
+    document.documentElement.classList.toggle('dark');
+    try { localStorage.setItem('doc_theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light'); } catch(e){}
+  }
+  (function(){
+    try { if (localStorage.getItem('doc_theme') === 'dark') document.documentElement.classList.add('dark'); } catch(e){}
+  })();
+  mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+</script>
+</body>
+</html>

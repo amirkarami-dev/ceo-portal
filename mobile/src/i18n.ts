@@ -1,0 +1,113 @@
+// Minimal fa-IR (default, RTL) / en-US dictionary + a tiny translation hook.
+// Persian is the primary language; English is a fallback for non-Persian devices.
+
+export type Locale = "fa" | "en"
+
+const dict = {
+  fa: {
+    appName: "مبحث ۱۹",
+    tagline: "ارزیابی انرژی ساختمان",
+    // auth
+    login: "ورود",
+    logout: "خروج",
+    email: "ایمیل",
+    password: "گذرواژه",
+    phone: "شماره موبایل",
+    otpCode: "کد تأیید",
+    sendOtp: "ارسال کد",
+    verify: "تأیید",
+    loginWithPassword: "ورود با گذرواژه",
+    loginWithOtp: "ورود با رمز یک‌بارمصرف",
+    loginWithSso: "ورود با حساب مبحث ۱۹",
+    signingIn: "در حال ورود…",
+    loginFailed: "ورود ناموفق بود. لطفاً دوباره تلاش کنید.",
+    // projects
+    projects: "پروژه‌ها",
+    newProject: "پروژه جدید",
+    noProjects: "هنوز پروژه‌ای ندارید.",
+    createProject: "ایجاد پروژه",
+    title: "عنوان",
+    client: "کارفرما",
+    city: "شهر",
+    totalArea: "متراژ کل (m²)",
+    floorCount: "تعداد طبقات",
+    unitCount: "تعداد واحد",
+    climateCode: "کد اقلیم",
+    save: "ذخیره",
+    saving: "در حال ذخیره…",
+    cancel: "انصراف",
+    delete: "حذف",
+    // assessment
+    assessment: "ارزیابی",
+    totalScore: "امتیاز کل",
+    of: "از",
+    buildingGroup: "گروه ساختمان",
+    openTool: "باز کردن",
+    closeTool: "بستن",
+    score: "امتیاز",
+    downloadReport: "دریافت گزارش PDF",
+    generatingReport: "در حال تولید گزارش…",
+    saveSuccess: "با موفقیت ذخیره شد.",
+    saveError: "خطا در ذخیره‌سازی.",
+    yes: "بله",
+    no: "خیر",
+    loading: "در حال بارگذاری…",
+    retry: "تلاش مجدد",
+  },
+  en: {
+    appName: "Mabhas19",
+    tagline: "Building Energy Assessment",
+    login: "Sign in",
+    logout: "Sign out",
+    email: "Email",
+    password: "Password",
+    phone: "Mobile number",
+    otpCode: "Verification code",
+    sendOtp: "Send code",
+    verify: "Verify",
+    loginWithPassword: "Sign in with password",
+    loginWithOtp: "Sign in with OTP",
+    loginWithSso: "Sign in with Mabhas19 account",
+    signingIn: "Signing in…",
+    loginFailed: "Sign-in failed. Please try again.",
+    projects: "Projects",
+    newProject: "New project",
+    noProjects: "You have no projects yet.",
+    createProject: "Create project",
+    title: "Title",
+    client: "Client",
+    city: "City",
+    totalArea: "Total area (m²)",
+    floorCount: "Floors",
+    unitCount: "Units",
+    climateCode: "Climate code",
+    save: "Save",
+    saving: "Saving…",
+    cancel: "Cancel",
+    delete: "Delete",
+    assessment: "Assessment",
+    totalScore: "Total score",
+    of: "of",
+    buildingGroup: "Building group",
+    openTool: "Open",
+    closeTool: "Close",
+    score: "Score",
+    downloadReport: "Download PDF report",
+    generatingReport: "Generating report…",
+    saveSuccess: "Saved successfully.",
+    saveError: "Failed to save.",
+    yes: "Yes",
+    no: "No",
+    loading: "Loading…",
+    retry: "Retry",
+  },
+} as const
+
+export type TranslationKey = keyof (typeof dict)["fa"]
+
+export const locale: Locale = "fa"
+export const isRTL = locale === "fa"
+
+export function t(key: TranslationKey): string {
+  return dict[locale][key] ?? dict.fa[key] ?? key
+}

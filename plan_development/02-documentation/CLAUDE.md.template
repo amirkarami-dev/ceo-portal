@@ -1,0 +1,99 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+> Template for a new project built on the reference architecture (Mabhas19 blueprint).
+> Replace every `<PLACEHOLDER>`. Keep the section order — it mirrors the reference `CLAUDE.md`.
+> `<PROJECT_NAME>` = solution/app name, `@<SCOPE>/<CORE_PACKAGE>` = shared domain package.
+
+## What this is
+
+`<PROJECT_NAME>` (`<PROJECT_NAME_LOCALIZED>`) — `<one-line description, e.g. a full-stack web app for the X assessment/workflow>`. .NET 10 Clean Architecture backend + Next.js 16 frontend + Expo mobile, SQL Server, MinIO (S3), `<primary-language/RTL note if any>`. The interactive domain logic lives in a shared TypeScript package both clients import; the backend is the system of record.
+
+## Commands
+
+### Backend (.NET 10, solution `<PROJECT_NAME>.slnx`)
+```bash
+docker compose -f deploy/docker-compose.dev.yml up -d   # SQL Server (sa) + MinIO (minioadmin) — needed to run the API
+dotnet build <PROJECT_NAME>.slnx                        # build all
+dotnet run --project src/Web                            # API on http://localhost:5000  (Scalar docs at /scalar)
+dotnet test                                             # all tests
+dotnet test tests/Domain.UnitTests/Domain.UnitTests.csproj   # one project
+dotnet test --filter "FullyQualifiedName~<SomeTests>"        # one test/class
+```
+Build output goes to `./artifacts/` (not `bin/obj`, via `ArtifactsPath` in `Directory.Build.props`).
+
+EF Core migrations (the `dotnet-ef` global tool MUST match EF Core 10 — `dotnet tool update -g dotnet-ef --version "10.0.*"`):
+```bash
+dotnet ef migrations add <Name> --project src/Infrastructure --startup-project src/Web --output-dir Data/Migrations
+```
+Migrations are applied automatically on API startup (every environment) by `ApplicationDbContextInitialiser`, which also seeds the `Administrator`/`User` roles and an admin user from `AdminUser:Email`/`AdminUser:Password` config.
+
+### Frontend (`web/`, Next.js 16)
+```bash
+cd web && npm install
+npm run dev      # http://localhost:3000
+npm run build    # production build (must pass before deploy)
+npm run lint
+```
+`web/.env.local` sets `NEXT_PUBLIC_API_BASE` (dev `http://localhost:5000`). This is baked at build time. `next.config.ts` must keep `output: "standalone"` for the Docker image, and `transpilePackages: ["@<SCOPE>/<CORE_PACKAGE>"]` so the shared package compiles.
+
+### Mobile (`mobile/`, Expo SDK 54)
+```bash
+cd mobile
+npm run start      # Metro dev server (Expo Go / dev client)
+npm run android    # expo run:android (needs Android SDK)
+npm run typecheck
+npm run lint
+```
+API base resolves `EXPO_PUBLIC_API_BASE` -> `app.json extra.apiBase` -> a production fallback. Metro is configured (`metro.config.js`) to resolve `@<SCOPE>/<CORE_PACKAGE>` from the monorepo root.
+
+### Shared package & install
+```bash
+npm install                                   # repo root — npm workspaces hoists web/mobile/packages
+npm test -w packages/<CORE_PACKAGE>           # Vitest, asserts numeric parity of the domain engine
+```
+
+## Architecture
+
+### Backend layering (`src/`, from the Jason Taylor Clean Architecture template + .NET Aspire)
+- **Domain** — entities (`<Entity1>`, `<Entity2>`, `Subscription`, `<ReportEntity>`) and the domain calculators in `Domain/Services`: `<Calculator1>` and `<ReferenceData>`. **These are faithful ports of the legacy logic — keep them numerically identical to the shared TS package; they're covered by unit tests.**
+- **Application** — CQRS use cases (MediatR), FluentValidation validators, AutoMapper profiles (defined as nested `Mapping : Profile` classes inside DTOs). Service contracts live in `Application/Common/Interfaces`.
+- **Infrastructure** — EF Core + **Microsoft SQL Server**, ASP.NET Identity, and the implementations: `MinioFileStorage` (IFileStorage), `QuestPdfReportGenerator` (IReportGenerator), `SubscriptionService`, `UserAdminService`, `OtpService`/`SmsSender`, `GoogleTokenValidator`, `<ExternalProviderImpl>`.
+- **Web** — Minimal-API endpoints. Each `IEndpointGroup` class is auto-mapped at **`/api/{ClassName}`**. The API is a **JWT resource server** (`AddJwtBearer`, authority = the central OIDC IdP, audience = `<PROJECT>.api`, `RoleClaimType = "role"`, `NameClaimType = "name"`) — it **validates** IdP-issued JWTs and issues none. There is **no `MapIdentityApi`**; login lives in the IdP (a separate app, `src/Auth`). The API exposes only `GET /api/Users/me` (claims) and `/api/Admin/*`. The DI extension lives in `Infrastructure/DependencyInjection.cs` -> `Add<PROJECT_NAME>Services`.
+
+### Key architectural decision: where the domain logic lives
+The interactive **<domain engine, e.g. N-checklist scoring>** runs in the **FRONTEND**, in the shared package **`@<SCOPE>/<CORE_PACKAGE>`** (`packages/<CORE_PACKAGE>/`, pure TypeScript, no framework deps), so web and mobile compute identical results. The **backend is the system of record**: `<MainEntity>.InputJson`/`ResultJson` are stored as SQL Server **`nvarchar(max)`** plus denormalised `TotalScore`/`MaxScore`, and the PDF is generated from the stored result. So changes to the domain logic/inputs go in **`packages/<CORE_PACKAGE>/src/*`**, **not** the backend. (The `Domain/Services` calculators are a parallel port kept numerically in sync, locked by tests.)
+
+### Auth & roles
+- All three sign-in methods — username/password, **mobile OTP**, **Google ID-token** — live in the **central OIDC IdP** (`src/Auth`), the sole token issuer. The API has **no `/api/Auth/*` endpoints**; it only validates the IdP-issued JWTs. Web signs in via Auth.js v5 generic OIDC (Authorization Code + PKCE); mobile via expo-auth-session (PKCE).
+- Roles: **`Administrator`** (manage users + subscriptions) and **`User`** (default). `/api/Admin/*` is gated with `RequireRole(Administrator)`; `GET /api/Users/me` returns `{ roles, isAdmin }`.
+- **Subscriptions** cap projects per user (Free = **<FREE_QUOTA, e.g. 5>** by default), enforced in `ISubscriptionService.EnsureCanCreateProjectAsync` (throws a `ValidationException` surfaced under the `Subscription` field).
+
+### Frontend structure (`web/src`)
+- Next.js App Router under `app/[locale]`. **i18n via next-intl**: `<PRIMARY_LOCALE>` (default, **<RTL/LTR>**) + `<SECONDARY_LOCALE>`, `localePrefix: "as-needed"` -> the default locale is served at `/`, the other at `/<code>/...`. The real `<html lang/dir>` + providers are in `app/[locale]/layout.tsx`.
+- Route groups: **root `/` = public landing page** (`components/landing/*`); `(auth)` = public login/register; `(dashboard)` = protected by **`middleware.ts`** (session-cookie presence gate + redirect), with identity resolved **server-side** — `(dashboard)/layout.tsx` is a Server Component that calls `auth()` and seeds `<AuthProvider initialUser>`. The admin area (`admin/users`) is gated by `(dashboard)/admin/layout.tsx` (server). There is **no client `<RequireAuth>`**.
+- **Design system**: shadcn-style CSS variable tokens in `app/globals.css` (`<ACCENT, e.g. emerald>` primary) with light/dark via `components/theme-provider.tsx`. Shared UI primitives in `components/ui` — **keep its export surface stable (restyle, don't rename)** since every page imports from it.
+- **Auth.js v5 OIDC** manages tokens in an **httpOnly session cookie** (no `localStorage`); `lib/tokens.ts` is **retired**. API layer in `lib/`: `api.ts` (fetch wrapper that attaches the bearer from `getSession()`), `endpoints.ts` (`projectsApi`/`subscriptionApi`/`adminApi`), `auth-context.tsx` (`useAuth` exposing `user`/`isAdmin`, **server-seeded** via `<AuthProvider initialUser>`). The data layer is **TanStack Query + RSC prefetch**. Use locale-aware `Link`/`useRouter` from `@/i18n/navigation`, not `next/link`.
+
+### Mobile structure (`mobile/`)
+- Expo SDK 54 with **expo-router** (file-based nav). Default locale `<PRIMARY_LOCALE>`; RTL forced via `I18nManager.forceRTL(true)` in the root layout if the primary language is RTL.
+- Sign-in via the central OIDC IdP using **expo-auth-session** (Authorization Code + PKCE). Tokens stored with **expo-secure-store** (OS keystore), not localStorage; the access token is renewed against the **IdP's token endpoint** (refresh_token grant), not the API.
+- Imports the same `@<SCOPE>/<CORE_PACKAGE>` functions as web, so mobile results match exactly.
+
+## Gotchas
+
+- **Build is strict**: `TreatWarningsAsErrors=true`. NuGet-audit advisories on transitive template packages (`OpenTelemetry`, `System.Security.Cryptography.Xml`) are demoted to warnings via `WarningsNotAsErrors` (`NU1608;NU1902;NU1903`) in `Directory.Build.props`. `.NET 10` also turns deprecations into errors (e.g. use `KnownIPNetworks`, not `KnownNetworks`).
+- **`ValidationException` is ambiguous** between `FluentValidation.ValidationException` (a global using) and the app's `Application.Common.Exceptions.ValidationException` — alias the app one when using it.
+- **Aspire namespace clash**: a `<PROJECT_NAME>.Application.<Feature>` namespace can shadow Aspire's generated global `<Feature>` namespace in functional tests — qualify the generated one as `global::<Feature>.TestAppHost`.
+- **MediatR is pinned to `12.5.0`** (Apache-2.0, free — **not** 14.x, so no commercial license is needed) [ADR-002]. AutoMapper's license is **accepted as a non-blocker** and stays on 16.x [ADR-018].
+- Use `Guard.Against.NotFound(...)` (Ardalis) for 404s; `ForbiddenAccessException` -> 403 (see `ProblemDetailsExceptionHandler`).
+- **Do NOT wrap `next-intl` in Auth.js's `auth()` middleware**: behind Traefik it rebases the default-locale rewrite (e.g. `/`->`/<PRIMARY_LOCALE>`) to an absolute URL the standalone server then proxies (`EAI_AGAIN`), breaking the site. Use a plain session-cookie-presence check in `middleware.ts` and resolve roles server-side via `auth()`.
+- **Keep large JSON as `nvarchar(max)`** (provider-portable text), not a SQL JSON column type — so swapping the DB provider needs no entity-mapping change.
+
+## Deployment (`deploy/`)
+
+- `docker-compose.dev.yml` — local SQL Server + MinIO only. `docker-compose.local.yml` — full stack in containers. `docker-compose.server.yml` — production, **attaches to the server's existing Traefik** (external network `<TRAEFIK_NETWORK>`, cert resolver `<CERT_RESOLVER>`) instead of running its own.
+- **Live**: `<WEB_DOMAIN>` (web), `<API_DOMAIN>`, `<S3_DOMAIN>`, on server `<SERVER_IP>` under `<SERVER_PATH>`.
+- If the server's network blocks the base-image registry (e.g. `mcr.microsoft.com` and the Docker Hub blob CDN): build the `api`/`web` images where the registry works, `docker save | gzip` -> transfer -> `docker load`; pull `minio`/other backing images via the **`<REGISTRY_MIRROR>`** mirror (referenced directly in `docker-compose.server.yml`). **Do not restart a shared Docker daemon** if it runs other production stacks.
+- SSH/transfer may use PuTTY `plink`/`pscp -pw` (no `sshpass`). In production MinIO is reached via its public host (`Minio__Endpoint=<S3_DOMAIN>`, `UseSSL=true`) so presigned report URLs are valid for browsers.

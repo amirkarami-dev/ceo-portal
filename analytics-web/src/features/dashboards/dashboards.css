@@ -1,0 +1,221 @@
+/* ── Hero ───────────────────────────────────────────────────────────────── */
+.dash-hero {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 28px 28px 24px;
+  margin-bottom: 20px;
+  border-radius: 16px;
+  border: 1px solid var(--ant-color-border-secondary, #ebece9);
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--ant-color-primary, #0f6e56) 14%, var(--ant-color-bg-container, #fff)),
+      var(--ant-color-bg-container, #fff) 62%
+    );
+}
+
+.dash-hero__glow {
+  position: absolute;
+  inset-inline-end: -80px;
+  top: -80px;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--ant-color-primary, #0f6e56) 22%, transparent),
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+.dash-hero__title {
+  margin: 0 0 4px;
+  font-size: 24px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ant-color-text, #1c1c1a);
+}
+
+.dash-hero__title .anticon {
+  color: var(--ant-color-primary, #0f6e56);
+}
+
+.dash-hero__subtitle {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--ant-color-text-secondary, #888);
+  max-width: 46ch;
+}
+
+.dash-hero__stats {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dash-hero__stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: var(--ant-color-primary, #0f6e56);
+  background: color-mix(in srgb, var(--ant-color-primary, #0f6e56) 10%, transparent);
+}
+
+.dash-hero__actions {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ── List grid + cards ──────────────────────────────────────────────────── */
+.dash-list__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.dash-list__toolbar {
+  margin-bottom: 16px;
+}
+
+.dash-card {
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  border: 1px solid var(--ant-color-border-secondary, #ebece9);
+  border-radius: 14px;
+  background: var(--ant-color-bg-container, #fff);
+  padding: 16px 16px 14px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.dash-card:hover,
+.dash-card:focus-visible {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--ant-color-primary, #0f6e56) 45%, transparent);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--ant-color-primary, #0f6e56) 12%, transparent);
+  outline: none;
+}
+
+.dash-card__accent {
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(
+    180deg,
+    var(--ant-color-primary, #0f6e56),
+    color-mix(in srgb, var(--ant-color-primary, #0f6e56) 20%, transparent)
+  );
+}
+
+.dash-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.dash-card__name {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--ant-color-text, #1c1c1a);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-card__meta {
+  font-size: 12px;
+  color: var(--ant-color-text-secondary, #888);
+}
+
+/* ── Widget frame toolbar ───────────────────────────────────────────────── */
+.widget-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  /* buttons live inside the drag handle (card head) — keep them clickable */
+  cursor: default;
+}
+
+.widget-body {
+  height: 100%;
+}
+
+/* DashboardBuilder */
+.dash-builder {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+.dash-toolbar {
+  align-items: center;
+}
+
+/* Empty state placeholder */
+.dash-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  border: 2px dashed var(--ant-color-border, #d9d9d9);
+  border-radius: 8px;
+  min-height: 200px;
+  color: var(--ant-color-text-secondary, #888);
+  margin-top: 16px;
+}
+
+/* DashboardCanvas wrapper */
+.dashboard-canvas {
+  width: 100%;
+  min-height: 400px;
+}
+
+/* react-grid-layout: themed drag placeholder + visible resize handle */
+.dashboard-canvas .react-grid-placeholder {
+  background: color-mix(in srgb, var(--ant-color-primary, #0f6e56) 22%, transparent) !important;
+  border-radius: 12px;
+}
+
+.dashboard-canvas .react-grid-item > .react-resizable-handle::after {
+  border-color: var(--ant-color-primary, #0f6e56);
+}
+
+.dashboard-canvas .ant-card-head {
+  cursor: grab;
+}
+
+.dashboard-canvas .react-grid-item.react-draggable-dragging .ant-card-head {
+  cursor: grabbing;
+}
+
+/* Add widget list item hover */
+.add-widget-item {
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.add-widget-item:hover {
+  background: var(--ant-color-bg-text-hover, rgba(0, 0, 0, 0.04));
+}

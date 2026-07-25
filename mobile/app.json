@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "مبحث ۱۹",
+    "slug": "mabhas19",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "mabhas19",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "ir.myceo.mabhas19"
+    },
+    "android": {
+      "package": "ir.myceo.mabhas19",
+      "versionCode": 1,
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-localization"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "apiBase": "https://api.mabhas19.myceo.ir",
+      "authIssuer": "https://auth.myceo.ir"
+    }
+  }
+}

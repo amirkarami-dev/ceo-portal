@@ -1,0 +1,82 @@
+@import "@fontsource/vazirmatn/400.css";
+@import "@fontsource/vazirmatn/500.css";
+@import "@fontsource/vazirmatn/700.css";
+
+:root { --rw-primary: #10b981; --rw-accent: #0ea5e9; }
+
+html, body, #root { height: 100%; margin: 0; }
+body {
+  background: var(--rw-bg, #f8fafc);
+  color: var(--rw-text, #1f2937);
+  font-family: "Vazirmatn", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+*, *::before, *::after { box-sizing: border-box; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: var(--rw-border, #e2e8f0); border-radius: 8px; }
+
+/* ── Ambient animated backdrop (AmbientBackground.tsx) ───────────────────────
+   Brand-coloured blobs (--rw-primary emerald / --rw-accent sky) drifting behind
+   the app. transform/opacity only — no layout work per frame — and fully off
+   under prefers-reduced-motion. Opacities are low enough for BOTH themes. */
+.rw-ambient {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.rw-ambient-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(16, 185, 129, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(16, 185, 129, 0.05) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 30%, black 30%, transparent 75%);
+}
+.rw-ambient-blob {
+  position: absolute;
+  width: 46vw;
+  height: 46vw;
+  min-width: 420px;
+  min-height: 420px;
+  border-radius: 50%;
+  filter: blur(90px);
+  will-change: transform;
+}
+.rw-ambient-blob-a {
+  top: -18%;
+  inset-inline-start: -12%;
+  background: radial-gradient(circle at center, rgba(16, 185, 129, 0.16), transparent 65%);
+  animation: rw-drift-a 38s ease-in-out infinite alternate;
+}
+.rw-ambient-blob-b {
+  bottom: -22%;
+  inset-inline-end: -14%;
+  background: radial-gradient(circle at center, rgba(14, 165, 233, 0.14), transparent 65%);
+  animation: rw-drift-b 46s ease-in-out infinite alternate;
+}
+.rw-ambient-blob-c {
+  top: 30%;
+  inset-inline-start: 38%;
+  width: 34vw;
+  height: 34vw;
+  background: radial-gradient(circle at center, rgba(16, 185, 129, 0.09), transparent 65%);
+  animation: rw-drift-c 54s ease-in-out infinite alternate;
+}
+@keyframes rw-drift-a {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to   { transform: translate3d(9vw, 7vh, 0) scale(1.15); }
+}
+@keyframes rw-drift-b {
+  from { transform: translate3d(0, 0, 0) scale(1.1); }
+  to   { transform: translate3d(-8vw, -6vh, 0) scale(0.95); }
+}
+@keyframes rw-drift-c {
+  from { transform: translate3d(0, 0, 0) scale(0.9); }
+  to   { transform: translate3d(-6vw, 8vh, 0) scale(1.1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rw-ambient-blob { animation: none; }
+}

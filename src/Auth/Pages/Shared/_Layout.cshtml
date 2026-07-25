@@ -1,0 +1,378 @@
+@{
+    var title = ViewData["Title"] as string ?? "ورود";
+}
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#047857" />
+    <title>@title - سامانه جامع نظام مهندسی</title>
+    <style>
+        :root {
+            --brand-050: #ecfdf5;
+            --brand-100: #d1fae5;
+            --brand-400: #34d399;
+            --brand-500: #10b981;
+            --brand-600: #059669;
+            --brand-700: #047857;
+            --brand-800: #065f46;
+
+            --bg: #eef2f4;
+            --surface: #ffffff;
+            --text: #0f172a;
+            --muted: #64748b;
+            --border: #dbe2e8;
+            --input-bg: #f8fafc;
+            --ring: rgba(5, 150, 105, .28);
+            --danger: #dc2626;
+            --danger-bg: #fef2f2;
+            --danger-border: #fecaca;
+            --shadow: 0 18px 50px -18px rgba(2, 44, 34, .28);
+        }
+
+        @@media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #0b1220;
+                --surface: #111a2b;
+                --text: #e6edf3;
+                --muted: #94a3b8;
+                --border: #24304a;
+                --input-bg: #0e1728;
+                --ring: rgba(16, 185, 129, .35);
+                --danger: #f87171;
+                --danger-bg: #2a1416;
+                --danger-border: #5b2222;
+                --shadow: 0 20px 55px -20px rgba(0, 0, 0, .65);
+            }
+        }
+
+        *, *::before, *::after { box-sizing: border-box; }
+
+        html, body { height: 100%; }
+
+        body {
+            margin: 0;
+            font-family: "Vazirmatn", "IRANSans", "Segoe UI", Tahoma, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            -webkit-font-smoothing: antialiased;
+            line-height: 1.6;
+        }
+
+        .auth-shell {
+            min-height: 100dvh;
+            display: grid;
+            grid-template-columns: 1fr;
+            grid-template-rows: minmax(100dvh, auto);
+        }
+
+        /* ---------- form side ---------- */
+        .auth-main {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1.15rem;
+        }
+
+        .auth-card {
+            width: 100%;
+            max-width: 430px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 22px;
+            box-shadow: var(--shadow);
+            padding: 2.25rem 2rem 2rem;
+            animation: rise .5s cubic-bezier(.2, .7, .25, 1) both;
+        }
+
+        @@keyframes rise {
+            from { opacity: 0; transform: translateY(14px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* brand shown on top of the card (mobile only) */
+        .brand-compact {
+            display: flex;
+            align-items: center;
+            gap: .6rem;
+            margin-bottom: 1.4rem;
+        }
+        .brand-compact .logo { width: 42px; height: 42px; flex: none; }
+        .brand-compact b { font-size: 1rem; color: var(--brand-700); }
+        .brand-compact span { display: block; font-size: .74rem; color: var(--muted); font-weight: 400; }
+
+        h1 {
+            font-size: 1.45rem;
+            font-weight: 700;
+            margin: 0 0 .35rem;
+            color: var(--text);
+        }
+        .subtitle {
+            margin: 0 0 1.5rem;
+            color: var(--muted);
+            font-size: .92rem;
+        }
+
+        form { margin: 0; }
+
+        label {
+            display: block;
+            margin: 0 0 .4rem;
+            font-size: .86rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        input[type=text], input[type=password], input[type=tel] {
+            width: 100%;
+            height: 50px;
+            padding: 0 .9rem;
+            border: 1px solid var(--border);
+            border-radius: 13px;
+            background: var(--input-bg);
+            color: var(--text);
+            font-size: 1rem;
+            font-family: inherit;
+            margin-bottom: 1.05rem;
+            transition: border-color .15s, box-shadow .15s, background .15s;
+        }
+        input::placeholder { color: var(--muted); opacity: .8; }
+        input[type=text]:focus, input[type=password]:focus, input[type=tel]:focus {
+            outline: none;
+            border-color: var(--brand-500);
+            background: var(--surface);
+            box-shadow: 0 0 0 4px var(--ring);
+        }
+        /* latin/number inputs read left-to-right */
+        #UserName, #Phone, #Code, #Password { direction: ltr; text-align: left; }
+
+        /* password box + show/hide (eye) button */
+        .pw-field { position: relative; }
+        /* The eye button is pinned to the RIGHT edge (physical, not logical: the page is RTL and
+           #Password is direction:ltr, so inset-inline-* resolves the wrong way for one of them).
+           Reserve the matching space on the right or the typed password runs under the button. */
+        .pw-field input { padding-right: 3rem; }
+        .pw-toggle {
+            position: absolute;
+            right: .45rem;
+            top: 0;
+            height: 50px;
+            width: 2.4rem;
+            display: grid;
+            place-items: center;
+            padding: 0;
+            border: 0;
+            border-radius: 10px;
+            background: transparent;
+            color: var(--muted);
+            cursor: pointer;
+        }
+        .pw-toggle:hover { color: var(--text); }
+        .pw-toggle:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ring); }
+        .pw-toggle .eye-off { display: none; }
+        .pw-toggle[data-shown="true"] .eye-on { display: none; }
+        .pw-toggle[data-shown="true"] .eye-off { display: block; }
+
+        .otp-code {
+            height: 62px !important;
+            text-align: center !important;
+            font-size: 1.7rem !important;
+            font-weight: 700;
+            letter-spacing: .5rem;
+            padding-inline-start: .5rem !important;
+        }
+
+        button[type=submit] {
+            width: 100%;
+            height: 50px;
+            border: none;
+            border-radius: 13px;
+            background: linear-gradient(135deg, var(--brand-600), var(--brand-700));
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 700;
+            font-family: inherit;
+            cursor: pointer;
+            box-shadow: 0 12px 24px -12px rgba(5, 150, 105, .8);
+            transition: transform .12s ease, box-shadow .15s ease, filter .15s ease;
+        }
+        button[type=submit]:hover { filter: brightness(1.05); box-shadow: 0 16px 30px -12px rgba(5, 150, 105, .9); }
+        button[type=submit]:active { transform: translateY(1px) scale(.99); }
+        button[type=submit]:focus-visible { outline: none; box-shadow: 0 0 0 4px var(--ring); }
+
+        .error {
+            display: flex;
+            gap: .5rem;
+            align-items: flex-start;
+            background: var(--danger-bg);
+            border: 1px solid var(--danger-border);
+            color: var(--danger);
+            border-radius: 12px;
+            padding: .7rem .85rem;
+            margin-bottom: 1.15rem;
+            font-size: .88rem;
+        }
+        .error svg { flex: none; margin-top: .1rem; }
+
+        .hint {
+            font-size: .9rem;
+            color: var(--muted);
+            margin: 0 0 1rem;
+        }
+        .hint strong { color: var(--text); direction: ltr; display: inline-block; }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: .8rem;
+            margin: 1.4rem 0;
+            color: var(--muted);
+            font-size: .82rem;
+        }
+        .divider::before, .divider::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .link-row { text-align: center; margin-top: 1.35rem; font-size: .9rem; color: var(--muted); }
+        .link-row a { color: var(--brand-700); font-weight: 600; text-decoration: none; }
+        .link-row a:hover { text-decoration: underline; }
+
+        /* alternate sign-in button (OTP link styled as a button) */
+        .alt-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: .55rem;
+            width: 100%;
+            height: 50px;
+            border: 1px solid var(--border);
+            border-radius: 13px;
+            background: var(--surface);
+            color: var(--text);
+            font-size: .95rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: border-color .15s, background .15s;
+        }
+        .alt-btn:hover { border-color: var(--brand-400); background: var(--brand-050); }
+        @@media (prefers-color-scheme: dark) {
+            .alt-btn:hover { background: rgba(16, 185, 129, .08); }
+        }
+        .alt-btn svg { color: var(--brand-600); }
+
+        .g_id_signin { display: flex; justify-content: center; margin-top: .2rem; }
+
+        /* ---------- hero side ---------- */
+        .auth-hero { display: none; }
+
+        @@media (min-width: 900px) {
+            .auth-shell { grid-template-columns: 1.05fr .95fr; }
+            .brand-compact { display: none; }
+
+            .auth-hero {
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                position: relative;
+                overflow: hidden;
+                padding: 3.5rem clamp(2.5rem, 5vw, 5rem);
+                color: #eafff6;
+                background: linear-gradient(140deg, var(--brand-800) 0%, var(--brand-700) 45%, var(--brand-600) 100%);
+            }
+            .auth-hero::before, .auth-hero::after {
+                content: "";
+                position: absolute;
+                border-radius: 50%;
+                filter: blur(6px);
+                opacity: .5;
+            }
+            .auth-hero::before {
+                width: 460px; height: 460px;
+                top: -160px; left: -120px;
+                background: radial-gradient(circle at center, rgba(255,255,255,.22), transparent 62%);
+            }
+            .auth-hero::after {
+                width: 380px; height: 380px;
+                bottom: -140px; right: -80px;
+                background: radial-gradient(circle at center, rgba(52,211,153,.4), transparent 60%);
+            }
+            .hero-inner { position: relative; z-index: 1; max-width: 460px; }
+
+            .hero-brand { display: flex; align-items: center; gap: .8rem; margin-bottom: 2.5rem; }
+            .hero-brand .logo { width: 54px; height: 54px; }
+            .hero-brand b { font-size: 1.15rem; font-weight: 700; color: #fff; }
+            .hero-brand span { display: block; font-size: .82rem; color: rgba(255,255,255,.8); font-weight: 400; }
+
+            .hero-title { font-size: 2.05rem; font-weight: 800; line-height: 1.35; margin: 0 0 1rem; color: #fff; }
+            .hero-lead { font-size: 1rem; color: rgba(255,255,255,.85); margin: 0 0 2.2rem; }
+
+            .hero-features { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem; }
+            .hero-features li { display: flex; align-items: center; gap: .8rem; font-size: .96rem; color: #f0fff9; }
+            .hero-features .tick {
+                flex: none; width: 30px; height: 30px; border-radius: 9px;
+                display: grid; place-items: center;
+                background: rgba(255,255,255,.15);
+            }
+        }
+
+        @@media (prefers-reduced-motion: reduce) {
+            .auth-card { animation: none; }
+            * { transition: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-shell">
+        <main class="auth-main">
+            <div class="auth-card">
+                <div class="brand-compact">
+                    @await Html.PartialAsync("_BrandLogo")
+                    <div>
+                        <b>سامانه جامع نظام مهندسی</b>
+                        <span>مبحث ۱۹ — ارزیابی مصرف انرژی</span>
+                    </div>
+                </div>
+                @RenderBody()
+            </div>
+        </main>
+
+        <aside class="auth-hero">
+            <div class="hero-inner">
+                <div class="hero-brand">
+                    @await Html.PartialAsync("_BrandLogo")
+                    <div>
+                        <b>سامانه جامع نظام مهندسی</b>
+                    </div>
+                </div>
+                <h2 class="hero-title">ورود امن و یکپارچه به همه سرویس‌ها</h2>
+                <p class="hero-lead">با یک حساب کاربری به تمام سامانه‌های نظام مهندسی دسترسی داشته باشید؛ سریع، امن و بدون نیاز به ورود دوباره.</p>
+                <ul class="hero-features">
+                    <li>
+                        <span class="tick">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        </span>
+                        ورود یکپارچه (SSO) به همه سرویس‌ها
+                    </li>
+                    <li>
+                        <span class="tick">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        </span>
+                        ورود با رمز عبور، کد پیامکی یا حساب گوگل
+                    </li>
+                    <li>
+                        <span class="tick">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        </span>
+                        امنیت بالا و رمزنگاری اطلاعات
+                    </li>
+                </ul>
+            </div>
+        </aside>
+    </div>
+</body>
+</html>

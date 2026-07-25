@@ -1,0 +1,183 @@
+name: mabhas19
+
+# Self-contained production stack for a REBUILT, OFFLINE server (no public internet, no
+# pre-existing shared Traefik). Differs from docker-compose.server.yml:
+#   * Runs its OWN Traefik (not the shared one) on this same compose project.
+#   * TLS is terminated at the ArvanCloud edge -> origin is plain HTTP. Routers use the
+#     `web` (:80) entrypoint and there is NO ACME / cert resolver on the server. A
+#     customRequestHeaders middleware forces X-Forwarded-Proto=https so the apps (esp.
+#     OpenIddict, which refuses plain HTTP) treat requests as the edge-terminated HTTPS.
+#   * SQL Server 2022 + minio/minio:latest (the images transferred from local).
+# All images are loaded from transferred tarballs (the server cannot pull).
+#
+#   docker compose -f deploy/docker-compose.server.edge.yml --env-file deploy/.env up -d
+
+services:
+  traefik:
+    image: traefik:v2.11
+    restart: unless-stopped
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--log.level=INFO"
+      - "--accesslog=true"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [traefik]
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+      MSSQL_PID: "Express"
+    volumes:
+      - mssqldata:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    networks: [internal]
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - miniodata:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.m19s3.rule=Host(`${MINIO_DOMAIN}`)"
+      - "traefik.http.routers.m19s3.entrypoints=web,websecure"
+      - "traefik.http.routers.m19s3.tls=true"
+      - "traefik.http.routers.m19s3.service=m19s3"
+      - "traefik.http.services.m19s3.loadbalancer.server.port=9000"
+    networks: [internal, traefik]
+
+  auth:
+    image: mabhas19-auth:deploy
+    restart: unless-stopped
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Mabhas19AuthDb: "Server=sqlserver,1433;Database=Mabhas19AuthDb;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;"
+      # FarsNezam (نظام مهندسی فارس) external read-only DB — engineer auto-provisioning (empty = disabled).
+      ConnectionStrings__FarsNezamDb: "${FARSNEZAM_DB_CONN:-}"
+      OpenIddict__SigningCertificatePath: /certs/openiddict.pfx
+      OpenIddict__SigningCertificatePassword: ${OPENIDDICT_CERT_PASSWORD}
+      Sms__Provider: ${SMS_PROVIDER:-mihan}
+      Sms__MihanEndpoint: "http://www.mihansmscenter.com/webservice/index.php"
+      Sms__MihanUsername: ${MIHAN_SMS_USERNAME:-}
+      Sms__MihanPassword: ${MIHAN_SMS_PASSWORD:-}
+      Sms__MihanSender: ${MIHAN_SMS_SENDER:-}
+      # Direct msgway.com sending (set SMS_PROVIDER=direct to use these)
+      Sms__MsgwayApiKey: ${MSGWAY_API_KEY:-}
+      Sms__MsgwayProvider: ${MSGWAY_PROVIDER:-0}
+      Sms__MsgwayTemplateId: ${MSGWAY_TEMPLATE_ID:-0}
+      Authentication__Google__ClientId: ${GOOGLE_CLIENT_ID}
+      Otp__LogCode: "false"
+      AdminUser__Email: ${ADMIN_EMAIL}
+      AdminUser__Password: ${ADMIN_PASSWORD}
+      Clients__Mabhas19Web__Secret: ${MABHAS19_WEB_CLIENT_SECRET}
+      Clients__Mabhas19Web__Redirect: "https://mabhas19.myceo.ir/api/auth/callback/mabhas19"
+      Clients__Mabhas19Web__PostLogout: "https://mabhas19.myceo.ir"
+      Clients__Mabhas19Mobile__Redirect: "mabhas19://auth"
+      Clients__PlanWeb__Secret: ${PLAN_WEB_CLIENT_SECRET}
+      Clients__PlanWeb__Redirect: "https://plan.myceo.ir/api/auth/callback/plan"
+    volumes:
+      - /srv/mabhas19/certs:/certs:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.middlewares.xfphttps.headers.customrequestheaders.X-Forwarded-Proto=https"
+      - "traefik.http.routers.m19auth.rule=Host(`${AUTH_DOMAIN}`)"
+      - "traefik.http.routers.m19auth.entrypoints=web,websecure"
+      - "traefik.http.routers.m19auth.tls=true"
+      - "traefik.http.routers.m19auth.service=m19auth"
+      - "traefik.http.routers.m19auth.middlewares=xfphttps"
+      - "traefik.http.services.m19auth.loadbalancer.server.port=8080"
+    networks: [internal, traefik]
+
+  api:
+    image: mabhas19-api:deploy
+    restart: unless-stopped
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    # Server-side JWKS/metadata resolution for the IdP, via the ArvanCloud edge (reachable).
+    extra_hosts:
+      - "auth.myceo.ir:185.143.234.234"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Mabhas19Db: "Server=sqlserver,1433;Database=Mabhas19Db;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;"
+      # FarsNezam external read-only DB — project provisioning + typ list (empty = disabled).
+      ConnectionStrings__FarsNezamDb: "${FARSNEZAM_DB_CONN:-}"
+      Minio__Endpoint: ${MINIO_DOMAIN}
+      Minio__AccessKey: ${MINIO_ROOT_USER}
+      Minio__SecretKey: ${MINIO_ROOT_PASSWORD}
+      Minio__Bucket: ${MINIO_BUCKET}
+      Minio__UseSSL: "true"
+      Auth__Authority: "https://${AUTH_DOMAIN}"
+      ExternalImport__NezamMohandesi__BaseUrl: ${NEZAM_BASE_URL}
+      ExternalImport__NezamMohandesi__ApiKey: ${NEZAM_API_KEY}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.m19api.rule=Host(`${API_DOMAIN}`)"
+      - "traefik.http.routers.m19api.entrypoints=web,websecure"
+      - "traefik.http.routers.m19api.tls=true"
+      - "traefik.http.routers.m19api.service=m19api"
+      - "traefik.http.routers.m19api.middlewares=xfphttps"
+      - "traefik.http.services.m19api.loadbalancer.server.port=8080"
+    networks: [internal, traefik]
+
+  web:
+    image: mabhas19-web:deploy
+    restart: unless-stopped
+    depends_on: [api]
+    extra_hosts:
+      - "auth.myceo.ir:185.143.234.234"
+    environment:
+      NEXT_PUBLIC_API_BASE: "https://${API_DOMAIN}"
+      AUTH_SECRET: ${AUTH_SECRET}
+      AUTH_TRUST_HOST: "true"
+      AUTH_URL: "https://${WEB_DOMAIN}"
+      AUTH_MABHAS19_ISSUER: "https://${AUTH_DOMAIN}"
+      AUTH_MABHAS19_ID: "mabhas19-web"
+      AUTH_MABHAS19_SECRET: ${MABHAS19_WEB_CLIENT_SECRET}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.m19web.rule=Host(`${WEB_DOMAIN}`)"
+      - "traefik.http.routers.m19web.entrypoints=web,websecure"
+      - "traefik.http.routers.m19web.tls=true"
+      - "traefik.http.routers.m19web.service=m19web"
+      - "traefik.http.routers.m19web.middlewares=xfphttps"
+      - "traefik.http.services.m19web.loadbalancer.server.port=3000"
+    networks: [traefik, internal]
+
+volumes:
+  mssqldata:
+  miniodata:
+
+networks:
+  traefik:
+    name: traefik       # literal name (no compose project prefix) so the labels match
+  internal:
+    driver: bridge

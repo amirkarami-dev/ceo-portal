@@ -1,0 +1,349 @@
+@import "tailwindcss";
+@import "@fontsource/vazirmatn/400.css";
+@import "@fontsource/vazirmatn/500.css";
+@import "@fontsource/vazirmatn/700.css";
+
+/* Ensure Tailwind v4 scans the shared UI package so its classes are not purged. */
+@source "../../../packages/ui/src";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ------------------------------------------------------------------ *
+ * shadcn/ui style design tokens (clean-room, MIT design language).
+ * Neutral zinc base + a blue primary, light & dark.
+ * ------------------------------------------------------------------ */
+:root {
+  --radius: 0.65rem;
+
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.141 0.005 285.823);
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.141 0.005 285.823);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.141 0.005 285.823);
+
+  --primary: oklch(0.627 0.149 162.5);
+  --primary-foreground: oklch(0.985 0 0);
+
+  --secondary: oklch(0.967 0.001 286.375);
+  --secondary-foreground: oklch(0.21 0.006 285.885);
+
+  --muted: oklch(0.967 0.001 286.375);
+  --muted-foreground: oklch(0.552 0.016 285.938);
+
+  --accent: oklch(0.967 0.001 286.375);
+  --accent-foreground: oklch(0.21 0.006 285.885);
+
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+
+  --success: oklch(0.59 0.13 163);
+  --warning: oklch(0.73 0.16 70);
+
+  --border: oklch(0.92 0.004 286.32);
+  --input: oklch(0.92 0.004 286.32);
+  --ring: oklch(0.627 0.149 162.5);
+
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.141 0.005 285.823);
+  --sidebar-primary: oklch(0.627 0.149 162.5);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.967 0.001 286.375);
+  --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
+  --sidebar-border: oklch(0.92 0.004 286.32);
+
+  --chart-1: oklch(0.627 0.149 162.5);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+}
+
+.dark {
+  --background: oklch(0.141 0.005 285.823);
+  --foreground: oklch(0.985 0 0);
+
+  --card: oklch(0.21 0.006 285.885);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.21 0.006 285.885);
+  --popover-foreground: oklch(0.985 0 0);
+
+  --primary: oklch(0.696 0.16 162.5);
+  --primary-foreground: oklch(0.985 0 0);
+
+  --secondary: oklch(0.274 0.006 286.033);
+  --secondary-foreground: oklch(0.985 0 0);
+
+  --muted: oklch(0.274 0.006 286.033);
+  --muted-foreground: oklch(0.705 0.015 286.067);
+
+  --accent: oklch(0.274 0.006 286.033);
+  --accent-foreground: oklch(0.985 0 0);
+
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.985 0 0);
+
+  --success: oklch(0.7 0.14 163);
+  --warning: oklch(0.79 0.16 75);
+
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.696 0.16 162.5);
+
+  --sidebar: oklch(0.21 0.006 285.885);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.696 0.16 162.5);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.274 0.006 286.033);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* Backward-compat: legacy brand-* utilities follow the emerald primary.
+   * (Previously a mix of blue + emerald, which made text-brand-* render blue.) */
+  --color-brand-50: oklch(0.97 0.02 162.5);
+  --color-brand-100: oklch(0.94 0.04 162.5);
+  --color-brand-200: oklch(0.89 0.07 162.5);
+  --color-brand-300: oklch(0.81 0.1 162.5);
+  --color-brand-400: oklch(0.73 0.14 162.5);
+  --color-brand-500: oklch(0.696 0.16 162.5);
+  --color-brand-600: oklch(0.627 0.149 162.5);
+  --color-brand-700: oklch(0.54 0.13 162.5);
+  --color-brand-800: oklch(0.45 0.11 162.5);
+  --color-brand-900: oklch(0.38 0.09 162.5);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --font-sans: "Vazirmatn", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  html {
+    font-family: var(--font-sans);
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* RTL/LTR helper driven by the <html dir> attribute. */
+[dir="rtl"] .flip-x {
+  transform: scaleX(-1);
+}
+
+/* ---- m19 checklist tables (token-themed, dark-mode aware) ---- */
+.m19-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.m19-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 640px;
+}
+.m19-table th,
+.m19-table td {
+  border-bottom: 1px solid var(--border);
+  padding: 10px 12px;
+  vertical-align: top;
+  text-align: start;
+  font-size: 0.875rem;
+}
+.m19-table th {
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-weight: 600;
+}
+.m19-row-disabled {
+  opacity: 0.45;
+  background: var(--muted);
+}
+.m19-sub-header td {
+  background: color-mix(in oklch, var(--primary) 10%, transparent);
+  font-weight: 700;
+  color: var(--primary);
+}
+
+/* Thin, modern scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+/* ------------------------------------------------------------------ *
+ * Dark-mode compatibility for legacy fixed-color utilities.
+ * Several components were ported with hardcoded slate/white/brand classes
+ * that don't adapt to dark mode (dark text on a dark surface, blue brand
+ * text). Remap the ones actually in use to theme tokens — ONLY under .dark,
+ * so light mode is unchanged. The two-class `.dark .text-*` selector
+ * outranks Tailwind's single-class utility, so no !important is needed.
+ * ------------------------------------------------------------------ */
+.dark .text-slate-900,
+.dark .text-slate-800,
+.dark .text-slate-700,
+.dark .text-slate-600 {
+  color: var(--foreground);
+}
+.dark .text-slate-500,
+.dark .text-slate-400 {
+  color: var(--muted-foreground);
+}
+.dark .text-brand-700,
+.dark .text-brand-800 {
+  color: var(--primary);
+}
+
+.dark .bg-white {
+  background-color: var(--card);
+}
+.dark .bg-slate-50,
+.dark .bg-slate-100 {
+  background-color: var(--muted);
+}
+
+.dark .border-slate-50,
+.dark .border-slate-100,
+.dark .border-slate-200,
+.dark .border-slate-300 {
+  border-color: var(--border);
+}
+
+/* Light tinted backgrounds (50/100 pills, soft alerts) → token-based dark tints
+ * so they don't render as bright light blocks on a dark surface. */
+.dark .bg-brand-50 {
+  background-color: color-mix(in oklch, var(--primary) 15%, transparent);
+}
+.dark .bg-emerald-100 {
+  background-color: color-mix(in oklch, var(--success) 18%, transparent);
+}
+.dark .bg-red-50,
+.dark .bg-red-100 {
+  background-color: color-mix(in oklch, var(--destructive) 15%, transparent);
+}
+.dark .bg-amber-50 {
+  background-color: color-mix(in oklch, var(--warning) 15%, transparent);
+}
+
+/* Status text + borders → semantic tokens (light enough for a dark surface). */
+.dark .text-red-700,
+.dark .text-red-600 {
+  color: var(--destructive);
+}
+.dark .text-emerald-800,
+.dark .text-emerald-700,
+.dark .text-emerald-600 {
+  color: var(--success);
+}
+.dark .text-amber-900,
+.dark .text-amber-700 {
+  color: var(--warning);
+}
+.dark .border-amber-200 {
+  border-color: color-mix(in oklch, var(--warning) 35%, transparent);
+}
+
+/* ------------------------------------------------------------------ *
+ * Report document — ALWAYS light/white, even in dark mode.
+ * The printable report (.report-page) is a paper artifact: it must read
+ * the same on screen, in dark mode, and on paper. Re-assert the fixed
+ * colors for the utilities it uses, outranking the legacy `.dark .x`
+ * remaps above (`.dark .report-page .x` = 3 classes beats 2).
+ * ------------------------------------------------------------------ */
+.dark .report-page,
+.dark .report-page.bg-white {
+  background-color: #fff;
+  color: #0f172a;
+}
+.dark .report-page .bg-white { background-color: #fff; }
+.dark .report-page .bg-slate-50 { background-color: #f8fafc; }
+.dark .report-page .bg-slate-100 { background-color: #f1f5f9; }
+.dark .report-page .bg-slate-700 { background-color: #334155; }
+.dark .report-page .bg-emerald-50 { background-color: #ecfdf5; }
+.dark .report-page .bg-red-50 { background-color: #fef2f2; }
+.dark .report-page .bg-amber-50 { background-color: #fffbeb; }
+.dark .report-page .text-slate-900 { color: #0f172a; }
+.dark .report-page .text-slate-800 { color: #1e293b; }
+.dark .report-page .text-slate-700 { color: #334155; }
+.dark .report-page .text-slate-600 { color: #475569; }
+.dark .report-page .text-slate-500 { color: #64748b; }
+.dark .report-page .text-slate-400 { color: #94a3b8; }
+.dark .report-page .text-emerald-700 { color: #047857; }
+.dark .report-page .text-red-600 { color: #dc2626; }
+.dark .report-page .text-white,
+.dark .report-page .text-white\/95 { color: #fff; }
+.dark .report-page .border-slate-200 { border-color: #e2e8f0; }
+.dark .report-page .border-slate-300 { border-color: #cbd5e1; }
+.dark .report-page .border-emerald-200 { border-color: #a7f3d0; }
+
+/* ---- print: export the report as a clean A4 PDF ---- */
+@media print {
+  .report-no-print { display: none !important; }
+  html,
+  body {
+    background: #fff !important;
+  }
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .report-page {
+    max-width: none !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+  /* Keep an assembly card / summary table from splitting across pages. */
+  .report-assembly {
+    break-inside: avoid;
+  }
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+}

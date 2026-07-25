@@ -1,0 +1,87 @@
+# Full stack on localhost (SQL Server + MinIO + API + web), no Traefik/TLS.
+# Copy to deploy/docker-compose.local.yml and replace every <PLACEHOLDER>.
+#
+# Replace:
+#   <PROJECT_NAME>     — lowercase project slug (compose project name), e.g. myapp
+#   <PROJECT_NAME>Db   — EF Core database name + connection-string key, e.g. MyAppDb
+#   <SA_PASSWORD>      — SQL Server `sa` password (same value the API connects with)
+#
+# Build + run:
+#   docker compose -f deploy/docker-compose.local.yml up -d --build
+# Web: http://localhost:3000   API: http://localhost:5000/scalar   MinIO console: http://localhost:9001
+name: <PROJECT_NAME>-local
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "<SA_PASSWORD>"
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssqldata_local:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q \"SELECT 1\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata_local:/data
+
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.api
+    restart: unless-stopped
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      # NOTE: the connection-string key is ConnectionStrings__<PROJECT_NAME>Db.
+      ConnectionStrings__<PROJECT_NAME>Db: "Server=sqlserver,1433;Database=<PROJECT_NAME>Db;User Id=sa;Password=<SA_PASSWORD>;TrustServerCertificate=True;"
+      Minio__Endpoint: "minio:9000"
+      Minio__AccessKey: minioadmin
+      Minio__SecretKey: minioadmin
+      Minio__Bucket: <PROJECT_NAME>
+      Minio__UseSSL: "false"
+      Minio__PublicEndpoint: "http://localhost:9000"
+      Sms__Provider: log
+      Otp__LogCode: "true"
+    ports:
+      - "5000:8080"
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+      args:
+        NEXT_PUBLIC_API_BASE: "http://localhost:5000"
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      NEXT_PUBLIC_API_BASE: "http://localhost:5000"
+    ports:
+      - "3000:3000"
+
+volumes:
+  mssqldata_local:
+  miniodata_local:

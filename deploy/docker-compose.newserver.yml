@@ -1,0 +1,456 @@
+name: mabhas19
+
+# Full self-contained production stack for the NEW server (185.206.94.116, "same box as
+# kurdvahedgas-web"). Unlike docker-compose.server.edge.yml (offline Iran box, own Traefik,
+# transferred images) this server has normal internet, so images are BUILT FROM SOURCE here
+# and it ATTACHES to the box's pre-existing SHARED Traefik v2.11:
+#   * external network "traefik"; cert resolver "myresolver" = ACME DNS-01 via ArvanCloud.
+#   * DNS-01 mints REAL Let's Encrypt certs even though the hosts sit behind the ArvanCloud
+#     CDN (no inbound challenge needed). Origin therefore serves valid HTTPS on :443
+#     -> set the ArvanCloud SSL mode to "Full" and origin port 443 for every host.
+#   * Router/service names (m19web/m19api/m19auth/m19s3) and container_names are unique to
+#     this app so it never disturbs kurdvahedgas-web / sms-service / v2ray on the same box.
+#
+#   docker compose -f deploy/docker-compose.newserver.yml --env-file deploy/.env build --no-cache
+#   docker compose -f deploy/docker-compose.newserver.yml --env-file deploy/.env up -d --force-recreate
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: mabhas19-sqlserver
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+      MSSQL_PID: "Express"   # Express self-caps at ~1.4 GB buffer pool — fits the 4 GB box
+    volumes:
+      - mssqldata:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "(/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' 2>/dev/null) || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    networks: [internal]
+
+  minio:
+    image: minio/minio:latest
+    container_name: mabhas19-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - miniodata:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      # S3 API host — presigned report URLs are issued against this host, so it must be public.
+      - "traefik.http.routers.m19s3.rule=Host(`${MINIO_DOMAIN}`)"
+      - "traefik.http.routers.m19s3.entrypoints=websecure"
+      - "traefik.http.routers.m19s3.tls.certresolver=myresolver"
+      - "traefik.http.routers.m19s3.service=m19s3"
+      - "traefik.http.services.m19s3.loadbalancer.server.port=9000"
+    networks: [internal, traefik]
+
+  auth:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.auth
+    image: mabhas19-auth:newserver
+    container_name: mabhas19-auth
+    restart: unless-stopped
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Mabhas19AuthDb: "Server=sqlserver,1433;Database=Mabhas19AuthDb;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;"
+      # FarsNezam (نظام مهندسی فارس) external read-only DB — engineer auto-provisioning (empty = disabled).
+      ConnectionStrings__FarsNezamDb: "${FARSNEZAM_DB_CONN:-}"
+      OpenIddict__SigningCertificatePath: /certs/openiddict.pfx
+      OpenIddict__SigningCertificatePassword: ${OPENIDDICT_CERT_PASSWORD}
+      Sms__Provider: "${SMS_PROVIDER:-mihan}"
+      Sms__MihanEndpoint: "http://www.mihansmscenter.com/webservice/index.php"
+      Sms__MihanUsername: "${MIHAN_SMS_USERNAME:-}"
+      Sms__MihanPassword: "${MIHAN_SMS_PASSWORD:-}"
+      Sms__MihanSender: "${MIHAN_SMS_SENDER:-}"
+      # Direct msgway.com sending (Sms__Provider=direct). The VPS public IP is whitelisted on msgway.
+      Sms__MsgwayApiKey: "${SMS_MSGWAY_APIKEY:-}"
+      Sms__MsgwayTemplateId: "${SMS_MSGWAY_TEMPLATE_ID:-13812}"
+      Authentication__Google__ClientId: "${GOOGLE_CLIENT_ID:-}"
+      Otp__LogCode: "false"
+      AdminUser__Email: ${ADMIN_EMAIL}
+      AdminUser__Password: ${ADMIN_PASSWORD}
+      Clients__Mabhas19Web__Secret: ${MABHAS19_WEB_CLIENT_SECRET}
+      Clients__Mabhas19Web__Redirect: "https://${WEB_DOMAIN}/api/auth/callback/mabhas19"
+      Clients__Mabhas19Web__PostLogout: "https://${WEB_DOMAIN}"
+      Clients__Mabhas19Mobile__Redirect: "mabhas19://auth"
+      # plan-web is registered unconditionally by the IdP seeder (a confidential client, so it
+      # requires a non-empty secret) even though plan.myceo.ir isn't hosted here.
+      Clients__PlanWeb__Secret: ${PLAN_WEB_CLIENT_SECRET}
+      Clients__PlanWeb__Redirect: "https://plan.myceo.ir/api/auth/callback/plan"
+      # analytics-web public PKCE client (analytic.myceo.ir). Requires ANALYTICS_DOMAIN in deploy/.env;
+      # the IdP seeder skips this client when its Redirect is unset (see AuthDbInitialiser.SeedClientsAsync).
+      Clients__AnalyticsWeb__Redirect: "https://${ANALYTICS_DOMAIN}/auth/callback"
+      Clients__AnalyticsWeb__Silent: "https://${ANALYTICS_DOMAIN}/auth/silent"
+      Clients__AnalyticsWeb__PostLogout: "https://${ANALYTICS_DOMAIN}"
+      # CORS: let the analytics-web SPA call the IdP discovery/JWKS/token endpoints from the browser.
+      Cors__AllowedOrigins__0: "https://${ANALYTICS_DOMAIN}"
+      # mun-sanandaj-web public PKCE client (mun-sanandaj.myceo.ir). Requires MUN_SANANDAJ_DOMAIN in
+      # deploy/.env; the IdP seeder skips this client when its Redirect is unset.
+      Clients__MunSanandajWeb__Redirect: "https://${MUN_SANANDAJ_DOMAIN}/auth/callback"
+      Clients__MunSanandajWeb__Silent: "https://${MUN_SANANDAJ_DOMAIN}/auth/silent"
+      Clients__MunSanandajWeb__PostLogout: "https://${MUN_SANANDAJ_DOMAIN}"
+      Cors__AllowedOrigins__1: "https://${MUN_SANANDAJ_DOMAIN}"
+      # landing-panel public PKCE client (landing-panel.myceo.ir) — the kurdnezam CMS admin panel.
+      # Requires LANDING_PANEL_DOMAIN in deploy/.env; the IdP seeder skips it when Redirect is unset.
+      Clients__LandingPanel__Redirect: "https://${LANDING_PANEL_DOMAIN}/auth/callback"
+      Clients__LandingPanel__Silent: "https://${LANDING_PANEL_DOMAIN}/auth/silent"
+      Clients__LandingPanel__PostLogout: "https://${LANDING_PANEL_DOMAIN}"
+      Cors__AllowedOrigins__2: "https://${LANDING_PANEL_DOMAIN}"
+      # admin-web public PKCE client (admin.myceo.ir) — the central user-management SPA. Requires
+      # ADMIN_DOMAIN in deploy/.env; the IdP seeder skips this client when its Redirect is unset.
+      Clients__AdminWeb__Redirect: "https://${ADMIN_DOMAIN}/auth/callback"
+      Clients__AdminWeb__Silent: "https://${ADMIN_DOMAIN}/auth/silent"
+      Clients__AdminWeb__PostLogout: "https://${ADMIN_DOMAIN}"
+      # CORS: let the admin-web SPA call the IdP discovery/JWKS/token endpoints (and api/admin) from the browser.
+      Cors__AllowedOrigins__3: "https://${ADMIN_DOMAIN}"
+      # walfare-web public PKCE client (refahi.kurdnezam.ir) — the engineers' welfare dashboard.
+      # Requires WALFARE_DOMAIN in deploy/.env; the IdP seeder skips it when Redirect is unset.
+      Clients__WalfareWeb__Redirect: "https://${WALFARE_DOMAIN}/auth/callback"
+      Clients__WalfareWeb__Silent: "https://${WALFARE_DOMAIN}/auth/silent"
+      Clients__WalfareWeb__PostLogout: "https://${WALFARE_DOMAIN}"
+      Cors__AllowedOrigins__4: "https://${WALFARE_DOMAIN}"
+      # KurdNezam membership SQL (same server the API's mun-sanandaj sync reads) — lets the IdP
+      # provision engineer logins from a کد ملی via WebS_GetEngineerInfo. Empty = disabled.
+      ConnectionStrings__KurdNezamDb: "${KURDNEZAM_DB_CONN:-}"
+    volumes:
+      # OpenIddict token-signing PFX (generated by scripts/remote-provision.sh on first deploy).
+      - ./certs:/certs:ro
+      # ASP.NET Data Protection key ring. MUST survive container recreates: it encrypts the login
+      # form's antiforgery token and the auth cookie, so an in-container key ring made every
+      # redeploy break the next login POST. Owned by the app UID (1654) by remote-provision.sh.
+      - ./authkeys:/keys
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.m19auth.rule=Host(`${AUTH_DOMAIN}`)"
+      - "traefik.http.routers.m19auth.entrypoints=websecure"
+      - "traefik.http.routers.m19auth.tls.certresolver=myresolver"
+      - "traefik.http.routers.m19auth.service=m19auth"
+      - "traefik.http.services.m19auth.loadbalancer.server.port=8080"
+    networks: [internal, traefik]
+
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.api
+    image: mabhas19-api:newserver
+    container_name: mabhas19-api
+    restart: unless-stopped
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Mabhas19Db: "Server=sqlserver,1433;Database=Mabhas19Db;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;"
+      # FarsNezam external read-only DB — project provisioning + typ list (empty = disabled).
+      ConnectionStrings__FarsNezamDb: "${FARSNEZAM_DB_CONN:-}"
+      # MinIO is reached via its public host so presigned signatures are valid for browsers.
+      Minio__Endpoint: ${MINIO_DOMAIN}
+      Minio__AccessKey: ${MINIO_ROOT_USER}
+      Minio__SecretKey: ${MINIO_ROOT_PASSWORD}
+      Minio__Bucket: ${MINIO_BUCKET}
+      Minio__UseSSL: "true"
+      # Validates JWTs issued by the central IdP (resolved via ArvanCloud -> this same box).
+      Auth__Authority: "https://${AUTH_DOMAIN}"
+      ExternalImport__NezamMohandesi__BaseUrl: "${NEZAM_BASE_URL:-}"
+      ExternalImport__NezamMohandesi__ApiKey: "${NEZAM_API_KEY:-}"
+      # Analytics: FarsNezam read-only DB. NON-EMPTY switches the analytics query engine from the
+      # bundled in-memory sample data to the real SQL engine (SqlQueryEngine).
+      ConnectionStrings__AnalyticsDb: "${ANALYTICS_DB_CONN:-}"
+      # Analytics AI gateway (ArvanCloud, OpenAI-compatible). BaseUrl MUST end in /v1.
+      AnalyticsAi__BaseUrl: "${ANALYTICS_AI_BASE_URL:-}"
+      AnalyticsAi__ApiKey: "${ANALYTICS_AI_API_KEY:-}"
+      AnalyticsAi__Model: "${ANALYTICS_AI_MODEL:-DeepSeek-R1-qwen-7b-awq}"
+      # CORS: index 0 (https://mabhas19.myceo.ir) comes from appsettings.json; append the analytics
+      # SPA origin as index 1 so the main app's origin is NOT overwritten.
+      Cors__AllowedOrigins__1: "https://${ANALYTICS_DOMAIN}"
+      Cors__AllowedOrigins__2: "https://${MUN_SANANDAJ_DOMAIN}"
+      # kurdnezam: the CMS admin panel plus the public landing site, which calls /api/kurdnezam from
+      # the browser (visit tracking + the registration/contact forms). The site is served on BOTH its
+      # own root domain and the portal subdomain, so both origins must be allowed.
+      Cors__AllowedOrigins__3: "https://${LANDING_PANEL_DOMAIN}"
+      Cors__AllowedOrigins__4: "https://${KURDNEZAM_DOMAIN}"
+      Cors__AllowedOrigins__5: "https://${KURDNEZAM_ROOT_DOMAIN}"
+      # admin-web SPA (admin.myceo.ir) calls the admin API (api/admin) from the browser.
+      Cors__AllowedOrigins__6: "https://${ADMIN_DOMAIN}"
+      # walfare-web SPA (refahi.kurdnezam.ir) calls /api/walfare from the browser.
+      Cors__AllowedOrigins__7: "https://${WALFARE_DOMAIN}"
+      # MunSanandaj: KurdNezam read-only SQL + mahyapardaz REST bearer token (empty = feature disabled).
+      ConnectionStrings__KurdNezamDb: "${KURDNEZAM_DB_CONN:-}"
+      MunSanandaj__ApiToken: "${MUN_SANANDAJ_API_TOKEN:-}"
+      # Iran Kish gateway for the welfare module. Terminal/acceptor ids + the RSA PUBLIC key are
+      # public values shipped in appsettings.json; only the pass phrase is a secret (deploy/.env).
+      IranKish__PassPhrase: "${IRK_PASSPHRASE:-}"
+      IranKish__CallbackUrl: "https://${API_DOMAIN}/api/walfare/payments/irk-return"
+      Walfare__FrontBaseUrl: "https://${WALFARE_DOMAIN}"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.m19api.rule=Host(`${API_DOMAIN}`)"
+      - "traefik.http.routers.m19api.entrypoints=websecure"
+      - "traefik.http.routers.m19api.tls.certresolver=myresolver"
+      - "traefik.http.routers.m19api.service=m19api"
+      - "traefik.http.services.m19api.loadbalancer.server.port=8080"
+    networks: [internal, traefik]
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+      args:
+        # Baked at build time into the client bundle. Domains are unchanged from the old server.
+        NEXT_PUBLIC_API_BASE: "https://${API_DOMAIN}"
+        NEXT_PUBLIC_AUTH_ISSUER: "https://${AUTH_DOMAIN}"
+    image: mabhas19-web:newserver
+    container_name: mabhas19-web
+    restart: unless-stopped
+    depends_on: [api]
+    environment:
+      NEXT_PUBLIC_API_BASE: "https://${API_DOMAIN}"
+      # Auth.js (NextAuth v5) OIDC client -> central IdP. Server-side runtime values.
+      AUTH_SECRET: ${AUTH_SECRET}
+      AUTH_TRUST_HOST: "true"
+      AUTH_URL: "https://${WEB_DOMAIN}"
+      AUTH_MABHAS19_ISSUER: "https://${AUTH_DOMAIN}"
+      AUTH_MABHAS19_ID: "mabhas19-web"
+      AUTH_MABHAS19_SECRET: ${MABHAS19_WEB_CLIENT_SECRET}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.m19web.rule=Host(`${WEB_DOMAIN}`)"
+      - "traefik.http.routers.m19web.entrypoints=websecure"
+      - "traefik.http.routers.m19web.tls.certresolver=myresolver"
+      - "traefik.http.routers.m19web.service=m19web"
+      - "traefik.http.services.m19web.loadbalancer.server.port=3000"
+    # internal: egress + DNS so Auth.js server-side calls reach the IdP (auth.myceo.ir).
+    networks: [traefik, internal]
+
+  # analytics-web — the React/Vite analytics SPA (analytic.myceo.ir), served static by nginx.
+  analytics-web:
+    build:
+      context: ..
+      dockerfile: analytics-web/deploy/Dockerfile.analytics-web
+      args:
+        # Baked into the static bundle at build time (PUBLIC values only — never secrets).
+        VITE_API_BASE: "https://${API_DOMAIN}"
+        VITE_AUTH_AUTHORITY: "https://${AUTH_DOMAIN}"
+        VITE_AUTH_MODE: "oidc"
+        VITE_AUTH_CLIENT_ID: "analytics-web"
+        VITE_AUTH_SCOPE: "openid profile email roles mabhas19.api"
+        VITE_USE_MOCK_API: "false"
+        # Set ANALYTICS_AI_FE_MODE=mock in .env to ship Ask-AI on the mock until the live gateway is trusted.
+        VITE_AI_MODE: "${ANALYTICS_AI_FE_MODE:-gateway}"
+    image: mabhas19-analytics-web:newserver
+    container_name: mabhas19-analytics-web
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.m19analytics.rule=Host(`${ANALYTICS_DOMAIN}`)"
+      - "traefik.http.routers.m19analytics.entrypoints=websecure"
+      - "traefik.http.routers.m19analytics.tls.certresolver=myresolver"
+      - "traefik.http.routers.m19analytics.service=m19analytics"
+      - "traefik.http.services.m19analytics.loadbalancer.server.port=80"
+    # Static SPA: all OIDC/API calls run in the browser -> no DB/IdP server-side egress needed.
+    networks: [traefik]
+
+  # mun-sanandaj-web — the React/Vite monitoring SPA (mun-sanandaj.myceo.ir), served static by nginx.
+  mun-sanandaj-web:
+    build:
+      context: ..
+      dockerfile: mun-sanandaj-web/deploy/Dockerfile.mun-sanandaj-web
+      args:
+        VITE_API_BASE: "https://${API_DOMAIN}"
+        VITE_AUTH_AUTHORITY: "https://${AUTH_DOMAIN}"
+        VITE_AUTH_CLIENT_ID: "mun-sanandaj-web"
+        VITE_AUTH_SCOPE: "openid profile email roles mabhas19.api"
+    image: mabhas19-mun-sanandaj-web:newserver
+    container_name: mabhas19-mun-sanandaj-web
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.m19munsanandaj.rule=Host(`${MUN_SANANDAJ_DOMAIN}`)"
+      - "traefik.http.routers.m19munsanandaj.entrypoints=websecure"
+      - "traefik.http.routers.m19munsanandaj.tls.certresolver=myresolver"
+      - "traefik.http.routers.m19munsanandaj.service=m19munsanandaj"
+      - "traefik.http.services.m19munsanandaj.loadbalancer.server.port=80"
+    networks: [traefik]
+
+  # landing-panel — the kurdnezam CMS admin panel (landing-panel.myceo.ir). React/Vite + Ant Design
+  # SPA served static by nginx. Reads/writes the /api/kurdnezam/* endpoints; every write is gated on
+  # the Administrator role, enforced by the API (the SPA only hides what it cannot do).
+  landing-panel:
+    build:
+      context: ..
+      dockerfile: landing-panel/deploy/Dockerfile.landing-panel
+      args:
+        # Baked into the static bundle at build time (PUBLIC values only — never secrets).
+        VITE_API_BASE: "https://${API_DOMAIN}"
+        VITE_AUTH_ISSUER: "https://${AUTH_DOMAIN}"
+        VITE_OIDC_CLIENT_ID: "landing-panel"
+        VITE_AUTH_SCOPE: "openid profile email roles mabhas19.api"
+    image: mabhas19-landing-panel:newserver
+    container_name: mabhas19-landing-panel
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.m19landingpanel.rule=Host(`${LANDING_PANEL_DOMAIN}`)"
+      - "traefik.http.routers.m19landingpanel.entrypoints=websecure"
+      - "traefik.http.routers.m19landingpanel.tls.certresolver=myresolver"
+      - "traefik.http.routers.m19landingpanel.service=m19landingpanel"
+      - "traefik.http.services.m19landingpanel.loadbalancer.server.port=80"
+    # Static SPA: all OIDC/API calls run in the browser -> no server-side egress needed.
+    networks: [traefik]
+
+  # kurdnezam-web — the PUBLIC landing site (kurdnezam.ir + kurdnezam.myceo.ir). Next.js standalone.
+  # Moved in from its own repo/stack so the whole platform builds and deploys from one place.
+  # Unlike the SPAs above this one renders on the server, so it needs egress to reach the API.
+  kurdnezam-web:
+    build:
+      # Self-contained app (its own package.json + lock, not an npm workspace member), so its own
+      # folder is the build context and its Dockerfile is used unchanged.
+      context: ../kurdnezam-web
+      dockerfile: Dockerfile
+      args:
+        # Next inlines NEXT_PUBLIC_* at BUILD time. Public value only, never a secret.
+        NEXT_PUBLIC_API_BASE: "https://${API_DOMAIN}"
+    image: mabhas19-kurdnezam-web:newserver
+    container_name: mabhas19-kurdnezam-web
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      # TWO routers on purpose, because the two hostnames reach us by different paths.
+      #
+      # 1) The root domain now points STRAIGHT at this box, so it can get a real Let's Encrypt
+      #    cert via HTTP-01. It must NOT use myresolver (DNS-01): the ArvanCloud token is 403
+      #    "access restricted" for these zones, and kurdnezam.ir is not in that account at all
+      #    (404 "Domain not found") — it runs on its own ns1/ns2.kurdnezam.ir nameservers.
+      - "traefik.http.routers.m19kurdnezamweb.rule=Host(`${KURDNEZAM_ROOT_DOMAIN}`)"
+      - "traefik.http.routers.m19kurdnezamweb.entrypoints=websecure"
+      - "traefik.http.routers.m19kurdnezamweb.tls.certresolver=httpresolver"
+      - "traefik.http.routers.m19kurdnezamweb.service=m19kurdnezamweb"
+      # 2) The myceo.ir hostname still sits behind the ArvanCloud CDN, which terminates TLS
+      #    itself. It requests NO cert here: an HTTP-01 challenge for it would be answered by the
+      #    CDN rather than by us, and bundling it with the root domain would fail BOTH.
+      - "traefik.http.routers.m19kurdnezamwebcdn.rule=Host(`${KURDNEZAM_DOMAIN}`)"
+      - "traefik.http.routers.m19kurdnezamwebcdn.entrypoints=websecure"
+      - "traefik.http.routers.m19kurdnezamwebcdn.tls=true"
+      - "traefik.http.routers.m19kurdnezamwebcdn.service=m19kurdnezamweb"
+      - "traefik.http.services.m19kurdnezamweb.loadbalancer.server.port=3000"
+    # node:22-alpine has busybox wget (no curl). Hitting / renders a real page, so this proves
+    # Next is actually serving, not just that the process is alive.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://127.0.0.1:3000/ || exit 1"]
+      interval: 30s
+      timeout: 8s
+      retries: 3
+      start_period: 25s
+    networks: [traefik]
+
+  # walfare-web — the engineers' welfare dashboard (سامانه رفاهی مهندسین) at refahi.kurdnezam.ir.
+  # React/Vite + AntD served static by nginx; signs in via the walfare-web OIDC client (the کد ملی
+  # + OTP page on the IdP) and calls /api/walfare on the API from the browser.
+  walfare-web:
+    build:
+      context: ..
+      dockerfile: walfare-web/deploy/Dockerfile.walfare-web
+      args:
+        # Baked into the static bundle at build time (PUBLIC values only — never secrets).
+        VITE_API_BASE: "https://${API_DOMAIN}"
+        VITE_AUTH_ISSUER: "https://${AUTH_DOMAIN}"
+        VITE_OIDC_CLIENT_ID: "walfare-web"
+        VITE_AUTH_SCOPE: "openid profile email roles mabhas19.api"
+    image: mabhas19-walfare-web:newserver
+    container_name: mabhas19-walfare-web
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.m19walfareweb.rule=Host(`${WALFARE_DOMAIN}`)"
+      - "traefik.http.routers.m19walfareweb.entrypoints=websecure"
+      # refahi.kurdnezam.ir points straight at this box (no CDN), so HTTP-01 issues a real cert —
+      # myresolver (ArvanCloud DNS-01) is broken for these zones and must not be used here.
+      - "traefik.http.routers.m19walfareweb.tls.certresolver=httpresolver"
+      - "traefik.http.routers.m19walfareweb.service=m19walfareweb"
+      - "traefik.http.services.m19walfareweb.loadbalancer.server.port=80"
+    networks: [traefik]
+
+  # admin-web — the central user-management SPA (admin.myceo.ir). React/Vite + Ant Design, served
+  # static by nginx. It calls the IdP's api/admin/* endpoints from the browser (base = the AUTH host,
+  # not the API host), so its access token needs the Administrator role — enforced by the IdP.
+  admin-web:
+    build:
+      context: ..
+      dockerfile: admin-web/deploy/Dockerfile.admin-web
+      args:
+        # Baked into the static bundle at build time (PUBLIC values only — never secrets).
+        # The admin API is hosted by the IdP itself, so the app base is the AUTH host.
+        VITE_AUTH_ISSUER: "https://${AUTH_DOMAIN}"
+        VITE_OIDC_CLIENT_ID: "admin-web"
+        VITE_AUTH_SCOPE: "openid profile email roles mabhas19.api"
+    image: mabhas19-admin-web:newserver
+    container_name: mabhas19-admin-web
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.m19adminweb.rule=Host(`${ADMIN_DOMAIN}`)"
+      - "traefik.http.routers.m19adminweb.entrypoints=websecure"
+      - "traefik.http.routers.m19adminweb.tls.certresolver=myresolver"
+      - "traefik.http.routers.m19adminweb.service=m19adminweb"
+      - "traefik.http.services.m19adminweb.loadbalancer.server.port=80"
+    # Static SPA: all OIDC/API calls run in the browser -> no server-side egress needed.
+    networks: [traefik]
+
+  # status — internal dev roadmap/status board (status.myceo.ir). Pure-static nginx (no build
+  # step), serving roadmap/. It exposes the internal roadmap, so it is gated by a Traefik
+  # basic-auth middleware whose credentials (${STATUS_BASICAUTH} = "user:apr1hash") are generated
+  # once by scripts/remote-provision.sh and printed to the deploy log. Keep CDN = proxied (orange)
+  # + SSL Full so ArvanCloud terminates public TLS (origin serves Traefik's self-signed cert).
+  status:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.status
+    image: mabhas19-status:newserver
+    container_name: mabhas19-status
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.m19status.rule=Host(`${STATUS_DOMAIN}`)"
+      - "traefik.http.routers.m19status.entrypoints=websecure"
+      - "traefik.http.routers.m19status.tls.certresolver=myresolver"
+      - "traefik.http.routers.m19status.service=m19status"
+      - "traefik.http.routers.m19status.middlewares=m19status-auth"
+      - "traefik.http.middlewares.m19status-auth.basicauth.users=${STATUS_BASICAUTH}"
+      - "traefik.http.services.m19status.loadbalancer.server.port=80"
+    networks: [traefik]
+
+volumes:
+  mssqldata:
+  miniodata:
+
+networks:
+  traefik:
+    external: true
+  internal:
+    driver: bridge

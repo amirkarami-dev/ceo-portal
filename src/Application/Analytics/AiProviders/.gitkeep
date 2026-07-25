@@ -1,0 +1,3 @@
+# AiProviders feature placeholder
+# v2: Commands and queries for managing AiProvider configuration records.
+# Includes provider health-check, priority ordering, and enable/disable toggle.

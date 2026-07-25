@@ -1,0 +1,16 @@
+# SOPS configuration — how encrypted secret files in this repo are handled.
+#
+# Secrets are encrypted with `age` (https://github.com/FiloSottile/age). The PRIVATE key lives
+# ONLY on the server (/srv/mabhas19/secrets/age.key, chmod 600) and is backed up off-repo
+# (your password manager). Only the PUBLIC recipient below is needed to (re-)encrypt — so
+# anyone can add/rotate a secret, but only the server can decrypt.
+#
+# Files ending in `.enc.env` are dotenv-format and SOPS auto-detects them by the `.env` extension.
+#
+#   Edit secrets : sops deploy/prod.enc.env        # needs the private key (run on the server)
+#   Decrypt      : deploy/decrypt-env.sh           # run on the server at deploy time -> deploy/.env
+#
+# See deploy/README.md → "Secrets (SOPS + age)".
+creation_rules:
+  - path_regex: \.enc\.env$
+    age: age1sr4j4affxux6zwr4rtknelg59udxcpeyj3ypn7vl8g6zs4q44gyq3njkwd
