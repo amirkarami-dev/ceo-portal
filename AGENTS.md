@@ -44,10 +44,10 @@ copy to all five and rebuild all five, or the others serve a stale list.
 
 ## Commands
 
-### Backend (.NET 10, solution `Mabhas19.slnx`)
+### Backend (.NET 10, solution `ceo-portal.slnx`)
 ```bash
 docker compose -f deploy/docker-compose.dev.yml up -d   # SQL Server (sa) + MinIO (minioadmin) — needed to run the API
-dotnet build Mabhas19.slnx                              # build all
+dotnet build ceo-portal.slnx                            # build all
 dotnet run --project src/Web                            # API on http://localhost:5000  (Scalar docs at /scalar)
 dotnet test                                             # all tests
 dotnet test tests/Domain.UnitTests/Domain.UnitTests.csproj   # one project

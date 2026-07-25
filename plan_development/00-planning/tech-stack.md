@@ -12,7 +12,7 @@ ones in `Directory.Packages.props`, `global.json`, and the `package.json` files 
 |-----------|---------|-----------------|
 | .NET SDK | `10.0.201` (`global.json`, `rollForward: latestFeature`) | Latest LTS-track runtime; pinned so every machine/CI builds identically. |
 | Target framework | `net10.0` | Single TFM across all projects (`Directory.Build.props`). |
-| Solution format | `.slnx` (`Mabhas19.slnx`) | New XML solution format; cleaner diffs than `.sln`. |
+| Solution format | `.slnx` (`ceo-portal.slnx`) | New XML solution format; cleaner diffs than `.sln`. |
 | Clean Architecture base | Jason Taylor template + **.NET Aspire** | Battle-tested layering (Domain/Application/Infrastructure/Web) + Aspire AppHost/ServiceDefaults for orchestration, telemetry, health, resilience out of the box. |
 | CQRS / mediator | **MediatR `12.5.0`** (Apache-2.0, free) | Thin command/query dispatch + pipeline behaviours (validation, logging). **Pinned to the last free version** — MediatR 13.0+ needs a commercial license; no license/replacement needed here. See ADR-002. |
 | Validation | FluentValidation.DI `12.1.1` | Declarative request validators plugged into the MediatR pipeline. |

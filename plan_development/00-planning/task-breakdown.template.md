@@ -124,7 +124,7 @@
 - `ValidationException` ambiguity (FluentValidation vs. app) — **alias the app one**.
 
 ## Verification
-- [ ] `dotnet build Mabhas19.slnx` (warnings-as-errors) passes.
+- [ ] `dotnet build ceo-portal.slnx` (warnings-as-errors) passes.
 - [ ] `dotnet test` green (incl. subscription-gate + report tests).
 - [ ] `npm run build` (web) passes.
 - [ ] Smoke test: Free user blocked on 6th project → admin raises plan → create succeeds → run assessment → **download PDF and confirm Persian renders**.

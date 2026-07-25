@@ -279,7 +279,7 @@ graph TD
   <tr><td><code>packages/assessment-core/</code></td><td>Shared TypeScript scoring engine and reference data.</td></tr>
   <tr><td><code>deploy/</code></td><td>Docker Compose files, Dockerfiles, fonts, and env templates.</td></tr>
 </table>
-<p>The solution file is <code>Mabhas19.slnx</code>. Build output goes to <code>./artifacts/</code> (not <code>bin/obj</code>).</p>
+<p>The solution file is <code>ceo-portal.slnx</code>. Build output goes to <code>./artifacts/</code> (not <code>bin/obj</code>).</p>
 
 <!-- ============ 5 ENTITIES ============ -->
 <h2 id="entities">5. Domain Entities & Database</h2>
@@ -862,7 +862,7 @@ flowchart LR
 <pre class="code"><code># Start SQL Server (sa) + MinIO (minioadmin)
 docker compose -f deploy/docker-compose.dev.yml up -d
 
-dotnet build Mabhas19.slnx          # build all
+dotnet build ceo-portal.slnx        # build all
 dotnet run --project src/Web         # API on http://localhost:5000 (docs at /scalar)
 dotnet test                          # all tests
 dotnet test tests/Domain.UnitTests/Domain.UnitTests.csproj   # one project
