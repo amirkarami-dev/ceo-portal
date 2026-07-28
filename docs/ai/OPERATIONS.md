@@ -10,7 +10,11 @@ names of variables. Real values live in `deploy/.env` on the server (committed e
 
 1. **NuGet is blocked on the dev machine.** Front ends build locally; **.NET builds and tests
    run on the server** inside the SDK container with a cached NuGet volume.
-2. **One service at a time.** The host has 4 GB — parallel image builds get killed.
+2. **One service at a time.** Not because the box is small — measured 2026-07-27 it has **8 cores
+   and 15 GiB** — but because it is **shared**: ~45 containers across other production stacks
+   (Traefik, postgres, mssql2019, the `vng-*` suite, finora, sms-service) leave only ~5 GiB free,
+   with swap already in use. (The old "host has 4 GB" note described the retired
+   `10.249.52.216` server.)
 3. **Never restart the shared Docker daemon or Traefik.** Other production stacks live there.
 4. **Only rebuild what changed** — plus anything that embeds a changed shared component.
 5. Long builds: run them in the background and report the result when they finish.
@@ -148,4 +152,8 @@ presigned URLs have aged out. Update Iran Kish's callback to
 ## Things that are safe to assume broken
 
 - `myresolver` (DNS-01) certificates — use `httpresolver` for direct-DNS hosts.
-- The municipality sync worker fails on an expired remote certificate; unrelated to new work.
+- The municipality sync worker fails on an expired remote certificate. Narrowed 2026-07-27 from the
+  live stack trace: it is the **PDF host `eservice.kurdnezam.ir`**, failing in
+  `MunSanandajPdfFetcher.FetchAsBase64Async` (`AuthenticationException … NotTimeValid`) — *not* the
+  mahyapardaz API. Every `SaveEngineerReport` run dies fetching the PDF, before it ever reaches the
+  municipality. The fix is renewing that certificate; nothing in this repo will help.

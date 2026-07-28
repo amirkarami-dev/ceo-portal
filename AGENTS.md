@@ -187,7 +187,7 @@ Full procedure — host paths, the deploy loop, verification commands, log triag
 table — is in [`docs/ai/OPERATIONS.md`](docs/ai/OPERATIONS.md). Read it before touching production.
 The rules that are never negotiable:
 
-- **Build one service at a time.** The host has 4 GB; parallel image builds get killed.
+- **Build one service at a time.** The host is 8-core / 15 GiB (measured 2026-07-27), but it is **shared** with ~45 containers from other production stacks and only ~5 GiB is free. The old "4 GB" figure described the retired server.
 - **Never restart the shared Docker daemon or Traefik.** Other production stacks run there.
 - **Only rebuild what changed** — *plus every SPA that embeds a changed shared component*. Deploying the API alone is not enough.
 - **Production state is in the explicitly named volumes `ceo-portal_mssqldata` and `ceo-portal_miniodata`.** Changing a Compose project `name:` silently repoints implicit volumes; never use `down -v`.

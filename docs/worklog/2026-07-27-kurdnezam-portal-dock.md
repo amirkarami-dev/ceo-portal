@@ -2,8 +2,8 @@
 
 - **Date:** 2026-07-27
 - **Area:** kurdnezam-web
-- **Branch / commits:** `feat/kurdnezam-portal-dock-redesign` off `main` @ `6f75a80`
-- **Status:** implemented and verified locally, not deployed
+- **Branch / commits:** `feat/kurdnezam-portal-dock-redesign` → merged to `main` as `04aa244`
+- **Status:** **shipped to production** 2026-07-27
 
 ## Goal
 
@@ -61,6 +61,21 @@ Nothing was broken; two design defects were fixed in passing:
   - Console clean of errors.
 - **Not verified:** no screen-reader pass, no real-device test, and no automated test — this app has
   no test suite. Reduced-motion was implemented but not exercised with the OS setting enabled.
+
+### Production deploy (2026-07-27)
+
+Incremental, not `scripts/deploy.ps1` — that script rebuilds all ten services with `--no-cache` and
+force-recreates the whole stack including SQL Server and MinIO, which is disproportionate for a
+one-component change. Shipped three files (`Hero.tsx` plus the `Dockerfile`/`next.config.ts`
+rebrand edits), tagged the running image `:rollback`, built only `kurdnezam-web`, and recreated it
+with `--no-deps`.
+
+- `BUILD_EXIT=0`, `UP_EXIT=0`; container healthy 58 s after start.
+- **The other 11 `ceo-portal` containers stayed "Up 2 days"** — nothing else was touched.
+- `kurdnezam.ir` and `kurdnezam.myceo.ir` both 200.
+- Verified against the live public HTML: first portal link is now
+  `https://refahi.kurdnezam.ir`; `dock-cols` ×2, `lucide-external-link` ×8 (one per tile),
+  `role="list"` ×1; `xl:grid-cols-7` ×0 (old orphan grid gone) and `snap-x` ×0 (no mobile rail).
 
 ## Follow-ups
 

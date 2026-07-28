@@ -186,7 +186,7 @@ containers you already have. `CeoDb` + `CeoAuthDb` live in `mabhas19_sqldata`.
   restore to pass.
 - **Docker `npm install` is strict about peers.** `walfare-web` needs `--legacy-peer-deps`
   (antd-jalali declares React 18; the app runs React 19).
-- **Build one service at a time** — the box has 4 GB and parallel builds get killed.
+- **Build one service at a time** — the box is 8-core / 15 GiB (measured 2026-07-27), but ~45 containers from other production stacks share it and only ~5 GiB is free. The "4 GB" figure in older notes described the retired `10.249.52.216` server.
 - **Deploying the API is not enough.** A shared component (like the launcher) needs every SPA
   that embeds it rebuilt.
 - **Never restart the shared Docker daemon or Traefik** — other production stacks run there.
