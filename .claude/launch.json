@@ -173,6 +173,15 @@
       ],
       "port": 8077,
       "autoPort": false
+    },
+    {
+      "name": "deploy-console",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "deploy/ui/server.js"
+      ],
+      "port": 8099,
+      "autoPort": false
     }
   ]
 }

@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ceo-portal · deploy console</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f4f7f9;--card:#fff;--fg:#0c2233;--muted:#5e7a8e;--line:#dce4ea;
+  --copper:#c56a2b;--gold:#d9a441;--ink:#0c2233;
+  --ok:#1a7f52;--bad:#b3261e;--run:#c56a2b;
+  --shadow:0 2px 4px rgb(12 34 51/.07),0 16px 40px -14px rgb(12 34 51/.25);
+}
+@media(prefers-color-scheme:dark){:root{--bg:#0a1a29;--card:#0f2637;--fg:#e8eef3;--muted:#a9bfcc;--line:#1e3a4f}}
+body{background:var(--bg);color:var(--fg);font:15px/1.6 ui-sans-serif,system-ui,"Segoe UI",sans-serif;
+     -webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:26px 20px 70px}
+
+header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:6px}
+h1{font-size:22px;letter-spacing:-.015em}
+.tag{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--copper);
+     border:1px solid color-mix(in srgb,var(--copper) 40%,transparent);padding:2px 9px;border-radius:99px}
+.sub{color:var(--muted);font-size:13px;margin-bottom:22px}
+
+.banner{background:color-mix(in srgb,var(--bad) 10%,var(--card));border:1px solid color-mix(in srgb,var(--bad) 35%,var(--line));
+        color:var(--fg);border-radius:11px;padding:12px 15px;margin-bottom:18px;font-size:13.5px;display:none}
+.banner.show{display:block}
+.banner code{background:rgb(94 122 142/.16);padding:1px 5px;border-radius:4px;font-size:12.5px}
+
+.grid{display:grid;gap:13px;grid-template-columns:repeat(auto-fill,minmax(268px,1fr))}
+.svc{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:15px 16px;
+     display:flex;flex-direction:column;gap:11px;transition:border-color .2s,transform .2s,box-shadow .2s}
+.svc:hover{border-color:color-mix(in srgb,var(--copper) 35%,var(--line));transform:translateY(-2px);box-shadow:var(--shadow)}
+.svc.busy{border-color:var(--run)}
+.svc h3{font-size:14.5px;font-weight:650}
+.svc .host{font-size:12px;color:var(--muted);font-family:ui-monospace,Consolas,monospace;direction:ltr}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:auto}
+.state{font-size:11.5px;font-weight:600;padding:1px 9px;border-radius:99px;white-space:nowrap}
+.state.up{background:color-mix(in srgb,var(--ok) 14%,transparent);color:var(--ok)}
+.state.off{background:rgb(94 122 142/.16);color:var(--muted)}
+.heavy{font-size:11px;color:var(--muted);border:1px dashed var(--line);border-radius:6px;padding:1px 7px}
+
+/* 44px floor: the accessible minimum touch target, and this gets used on a phone. */
+button{font:inherit;font-size:13px;font-weight:650;border:0;border-radius:9px;padding:10px 18px;
+       background:var(--ink);color:#fff;cursor:pointer;transition:background .18s,transform .1s;min-height:44px}
+button:hover:not(:disabled){background:var(--copper)}
+button:active:not(:disabled){transform:scale(.97)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+/* ---- drawer ---- */
+.scrim{position:fixed;inset:0;background:rgb(10 26 41/.55);backdrop-filter:blur(2px);opacity:0;pointer-events:none;
+       transition:opacity .25s;z-index:40}
+.scrim.open{opacity:1;pointer-events:auto}
+.drawer{position:fixed;inset-block:0;inset-inline-end:0;width:min(560px,100%);background:var(--card);z-index:50;
+        border-inline-start:1px solid var(--line);display:flex;flex-direction:column;
+        transform:translateX(100%);transition:transform .32s cubic-bezier(.22,1,.36,1)}
+.drawer.open{transform:none}
+.dhead{padding:17px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px}
+.dhead h2{font-size:16px}
+.dhead .x{background:none;color:var(--muted);font-size:22px;line-height:1;padding:0;min-width:44px;min-height:44px}
+.dhead .x:hover{background:none;color:var(--fg)}
+
+.steps{padding:16px 20px;display:flex;flex-direction:column;gap:2px;overflow:auto}
+.step{display:flex;gap:12px;align-items:flex-start;padding:7px 0;opacity:.4;transition:opacity .3s}
+.step.active,.step.ok,.step.fail{opacity:1}
+.dot{position:relative;flex:0 0 auto;width:19px;height:19px;border-radius:50%;border:2px solid var(--line);
+     margin-top:2px;display:grid;place-items:center;transition:border-color .3s,background .3s}
+.step:not(:last-child) .dot::after{content:"";position:absolute;top:19px;left:50%;transform:translateX(-50%);
+     width:2px;height:calc(100% + 12px);background:var(--line)}
+.step.ok .dot{border-color:var(--ok);background:var(--ok)}
+.step.ok .dot::before{content:"";width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.step.fail .dot{border-color:var(--bad);background:var(--bad)}
+.step.fail .dot::before{content:"×";color:#fff;font-size:14px;line-height:1;font-weight:700}
+.step.active .dot{border-color:var(--run);border-top-color:transparent;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.step .label{font-size:13.5px;font-weight:550}
+.step.active .label{color:var(--run)}
+.step .label small{display:block;font-weight:400;color:var(--muted);font-size:12px}
+
+.console{flex:1;min-height:120px;margin:0 20px 16px;background:var(--ink);color:#cfe0ea;border-radius:10px;
+         padding:12px 14px;overflow:auto;font:12px/1.65 ui-monospace,Consolas,monospace;white-space:pre-wrap;
+         word-break:break-word;direction:ltr}
+.console:empty::before{content:"waiting…";color:#5e7a8e}
+.console b{color:var(--gold);font-weight:600}
+
+.result{margin:0 20px 18px;border-radius:10px;padding:11px 14px;font-size:13.5px;font-weight:600;display:none}
+.result.show{display:block;animation:pop .3s cubic-bezier(.22,1,.36,1)}
+@keyframes pop{from{opacity:0;transform:translateY(6px)}}
+.result.ok{background:color-mix(in srgb,var(--ok) 14%,transparent);color:var(--ok)}
+.result.bad{background:color-mix(in srgb,var(--bad) 13%,transparent);color:var(--bad)}
+.result small{display:block;font-weight:400;color:var(--muted);margin-top:3px}
+
+@media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><h1>Deploy console</h1><span class="tag">ceo-portal</span></header>
+  <p class="sub">One service at a time. Each deploy tags the running image <code>:rollback</code>, builds only that
+     service, then recreates only its container with <code>--no-deps</code>. SQL Server, MinIO and the shared Traefik
+     are never touched.</p>
+
+  <div class="banner" id="banner"></div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="dtitle">
+  <div class="dhead">
+    <h2 id="dtitle">Deploying</h2>
+    <button class="x" id="close" aria-label="Close">&times;</button>
+  </div>
+  <div class="steps" id="steps"></div>
+  <div class="result" id="result"></div>
+  <pre class="console" id="console"></pre>
+</aside>
+
+<script>
+const STEPS = [
+  ["Package files from HEAD", "git archive of this service's build paths"],
+  ["Upload to server",        "pscp to /tmp"],
+  ["Extract on server",       "into /data/apps/ceo-portal"],
+  ["Tag :rollback",           "so the old image can come back instantly"],
+  ["Build image",             "only this service"],
+  ["Recreate container",      "--no-deps: nothing else restarts"],
+  ["Verify",                  "container health + public HTTP code"],
+];
+
+const $ = (id) => document.getElementById(id);
+let busy = false, es = null;
+
+async function load() {
+  const r = await fetch("/api/services").then((x) => x.json());
+  if (!r.hasPassword) {
+    $("banner").className = "banner show";
+    $("banner").innerHTML = "<b>CEO_SERVER_PASS is not set</b> — the buttons will refuse to run. Start the server with:<br>" +
+      "<code>$env:CEO_SERVER_PASS = [Environment]::GetEnvironmentVariable('CEO_SERVER_PASS','User')</code>";
+  }
+  $("grid").innerHTML = "";
+  r.services.forEach((s) => {
+    const el = document.createElement("article");
+    el.className = "svc";
+    el.id = "svc-" + s.key;
+    const up = s.status && /^Up/.test(s.status);
+    el.innerHTML =
+      `<h3>${s.label}</h3>
+       <div class="host">${s.host}</div>
+       <div class="row">
+         <span class="state ${up ? "up" : "off"}">${s.status ? s.status : "unknown"}</span>
+         ${s.heavy ? '<span class="heavy">slow build</span>' : ""}
+       </div>
+       <div class="row"><button data-svc="${s.key}" data-label="${s.label}">Deploy</button></div>`;
+    $("grid").appendChild(el);
+  });
+  document.querySelectorAll("button[data-svc]").forEach((b) => (b.onclick = () => start(b.dataset.svc, b.dataset.label)));
+}
+
+function renderSteps(state) {
+  $("steps").innerHTML = STEPS.map((s, i) =>
+    `<div class="step ${state[i] || ""}"><span class="dot"></span>
+       <span class="label">${s[0]}<small>${s[1]}</small></span></div>`).join("");
+}
+
+async function start(key, label) {
+  if (busy) return;
+  if (!confirm(`Deploy "${label}" to production?\n\nThis rebuilds and restarts only that one service.`)) return;
+  busy = true;
+  document.querySelectorAll("button[data-svc]").forEach((b) => (b.disabled = true));
+  $("svc-" + key).classList.add("busy");
+  $("dtitle").textContent = "Deploying — " + label;
+  $("console").textContent = "";
+  $("result").className = "result";
+  const state = {};
+  renderSteps(state);
+  $("scrim").classList.add("open");
+  $("drawer").classList.add("open");
+
+  const res = await fetch("/api/deploy", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ service: key }),
+  }).then((x) => x.json());
+
+  if (res.error) { finish(false, res.error); return; }
+
+  es = new EventSource("/api/events?job=" + res.jobId);
+  es.onmessage = (e) => {
+    const ev = JSON.parse(e.data);
+    if (ev.type === "step") {
+      if (ev.state === "running") { Object.keys(state).forEach((k) => state[k] === "active" && (state[k] = "ok")); state[ev.index] = "active"; }
+      else state[ev.index] = ev.state === "ok" ? "ok" : "fail";
+      renderSteps(state);
+    } else if (ev.type === "log") {
+      const c = $("console");
+      c.textContent += ev.line + "\n";
+      c.scrollTop = c.scrollHeight;
+    } else if (ev.type === "done") {
+      finish(ev.ok, ev.error);
+    }
+  };
+}
+
+function finish(ok, err) {
+  es && es.close();
+  busy = false;
+  document.querySelectorAll("button[data-svc]").forEach((b) => (b.disabled = false));
+  document.querySelectorAll(".svc").forEach((s) => s.classList.remove("busy"));
+  const r = $("result");
+  r.className = "result show " + (ok ? "ok" : "bad");
+  r.innerHTML = ok
+    ? "Deployed.<small>Check the verify output below. If it looks wrong, roll back with the <code>:rollback</code> tag.</small>"
+    : "Failed.<small>" + (err || "see the log below") + " — the old container is still running.</small>";
+  load();
+}
+
+const close = () => { $("scrim").classList.remove("open"); $("drawer").classList.remove("open"); };
+$("close").onclick = close;
+$("scrim").onclick = () => { if (!busy) close(); };
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !busy) close(); });
+
+load();
+</script>
+</body>
+</html>
