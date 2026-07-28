@@ -1,4 +1,4 @@
-name: mabhas19
+name: ceo-portal
 
 # Production deployment that ATTACHES to the server's existing Traefik (v2.11) instead of
 # running its own. The external network "traefik" and the cert resolver "myresolver"
@@ -37,22 +37,26 @@ services:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik"
       # S3 API (presigned report URLs are issued against this host)
-      - "traefik.http.routers.m19s3.rule=Host(`${MINIO_DOMAIN}`)"
-      - "traefik.http.routers.m19s3.entrypoints=websecure"
-      - "traefik.http.routers.m19s3.tls.certresolver=myresolver"
-      - "traefik.http.routers.m19s3.service=m19s3"
-      - "traefik.http.services.m19s3.loadbalancer.server.port=9000"
+      - "traefik.http.routers.ceoportal-s3.rule=Host(`${MINIO_DOMAIN}`)"
+      - "traefik.http.routers.ceoportal-s3.entrypoints=websecure"
+      - "traefik.http.routers.ceoportal-s3.tls.certresolver=myresolver"
+      - "traefik.http.routers.ceoportal-s3.service=ceoportal-s3"
+      - "traefik.http.services.ceoportal-s3.loadbalancer.server.port=9000"
+      - "traefik.http.routers.ceoportal-s3-legacy.rule=Host(`${LEGACY_MINIO_DOMAIN:-s3.mabhas19.myceo.ir}`)"
+      - "traefik.http.routers.ceoportal-s3-legacy.entrypoints=websecure"
+      - "traefik.http.routers.ceoportal-s3-legacy.tls.certresolver=myresolver"
+      - "traefik.http.routers.ceoportal-s3-legacy.service=ceoportal-s3"
     networks: [internal, traefik]
 
   auth:
-    image: mabhas19-auth:deploy
+    image: ceo-portal-auth:deploy
     restart: unless-stopped
     depends_on:
       sqlserver:
         condition: service_healthy
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__Mabhas19AuthDb: "Server=sqlserver,1433;Database=Mabhas19AuthDb;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;"
+      ConnectionStrings__CeoAuthDb: "Server=sqlserver,1433;Database=CeoAuthDb;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;"
       # FarsNezam (نظام مهندسی فارس) external read-only DB — engineer auto-provisioning (empty = disabled).
       ConnectionStrings__FarsNezamDb: "${FARSNEZAM_DB_CONN}"
       # OpenIddict signing certificate (PFX) — mounted from ./certs on the host.
@@ -80,15 +84,15 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik"
-      - "traefik.http.routers.m19auth.rule=Host(`${AUTH_DOMAIN}`)"
-      - "traefik.http.routers.m19auth.entrypoints=websecure"
-      - "traefik.http.routers.m19auth.tls.certresolver=myresolver"
-      - "traefik.http.routers.m19auth.service=m19auth"
-      - "traefik.http.services.m19auth.loadbalancer.server.port=8080"
+      - "traefik.http.routers.ceoportal-auth.rule=Host(`${AUTH_DOMAIN}`)"
+      - "traefik.http.routers.ceoportal-auth.entrypoints=websecure"
+      - "traefik.http.routers.ceoportal-auth.tls.certresolver=myresolver"
+      - "traefik.http.routers.ceoportal-auth.service=ceoportal-auth"
+      - "traefik.http.services.ceoportal-auth.loadbalancer.server.port=8080"
     networks: [internal, traefik]
 
   api:
-    image: mabhas19-api:deploy
+    image: ceo-portal-api:deploy
     restart: unless-stopped
     depends_on:
       sqlserver:
@@ -101,7 +105,7 @@ services:
       - "auth.myceo.ir:185.143.234.234"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__Mabhas19Db: "Server=sqlserver,1433;Database=Mabhas19Db;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;"
+      ConnectionStrings__CeoDb: "Server=sqlserver,1433;Database=CeoDb;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;"
       # FarsNezam external read-only DB — project provisioning + typ list (empty = disabled).
       ConnectionStrings__FarsNezamDb: "${FARSNEZAM_DB_CONN}"
       # MinIO is reached via its public host so presigned signatures are valid for browsers.
@@ -117,13 +121,18 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik"
-      - "traefik.http.routers.m19api.rule=Host(`${API_DOMAIN}`)"
-      - "traefik.http.routers.m19api.entrypoints=websecure"
-      - "traefik.http.routers.m19api.tls.certresolver=myresolver"
-      - "traefik.http.services.m19api.loadbalancer.server.port=8080"
+      - "traefik.http.routers.ceoportal-api.rule=Host(`${API_DOMAIN}`)"
+      - "traefik.http.routers.ceoportal-api.entrypoints=websecure"
+      - "traefik.http.routers.ceoportal-api.tls.certresolver=myresolver"
+      - "traefik.http.routers.ceoportal-api.service=ceoportal-api"
+      - "traefik.http.services.ceoportal-api.loadbalancer.server.port=8080"
+      - "traefik.http.routers.ceoportal-api-legacy.rule=Host(`${LEGACY_API_DOMAIN:-api.mabhas19.myceo.ir}`)"
+      - "traefik.http.routers.ceoportal-api-legacy.entrypoints=websecure"
+      - "traefik.http.routers.ceoportal-api-legacy.tls.certresolver=myresolver"
+      - "traefik.http.routers.ceoportal-api-legacy.service=ceoportal-api"
     networks: [internal, traefik]
 
-  web:
+  mabhas19-web:
     image: mabhas19-web:deploy
     restart: unless-stopped
     depends_on: [api]
@@ -156,7 +165,9 @@ services:
 volumes:
   pgdata:      # retained: previous PostgreSQL data (not deleted, in case migration is needed later)
   mssqldata:
+    name: ceo-portal_mssqldata
   miniodata:
+    name: ceo-portal_miniodata
 
 networks:
   traefik:

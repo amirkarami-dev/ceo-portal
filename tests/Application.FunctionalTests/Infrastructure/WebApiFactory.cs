@@ -12,7 +12,7 @@ public class WebApiFactory(string connectionString) : WebApplicationFactory<Prog
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder
-            .UseSetting("ConnectionStrings:Mabhas19Db", connectionString);
+            .UseSetting("ConnectionStrings:CeoDb", connectionString);
 
         builder.ConfigureTestServices(services =>
         {

@@ -1,5 +1,5 @@
 import { Layout, Select, Button, Dropdown, Space, Avatar, Tooltip } from "antd";
-import { SunOutlined, MoonOutlined } from "@ant-design/icons";
+import { MenuUnfoldOutlined, SunOutlined, MoonOutlined } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/useAuth";
 import { useUiStore } from "../store/ui-store";
@@ -21,7 +21,7 @@ const ALL_ROLES: AppRole[] = [
   "Viewer",
 ];
 
-export function Topbar() {
+export function Topbar({ isMobile = false, onMenuClick }: { isMobile?: boolean; onMenuClick?: () => void }) {
   const { t } = useTranslation();
   const { user, roles, logout, setMockRole } = useAuth();
   const { locale, setLocale, themeMode, toggleTheme } = useUiStore();
@@ -42,22 +42,32 @@ export function Topbar() {
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 12,
+        gap: isMobile ? 6 : 12,
         background: "var(--rw-surface-1)",
-        paddingInline: 16,
+        paddingInline: isMobile ? 8 : 16,
       }}
     >
-      <Select
-        aria-label={t("tenant.switcher")}
-        value={currentTenantId ?? undefined}
-        placeholder={t("tenant.switcher")}
-        style={{ minWidth: 180 }}
-        onChange={(v) => setCurrentTenant(v)}
-        options={tenants.map((tn) => ({ value: tn.id, label: tn.displayName }))}
-      />
+      {isMobile && (
+        <Button
+          type="text"
+          aria-label={t("nav.openMenu")}
+          icon={<MenuUnfoldOutlined />}
+          onClick={onMenuClick}
+        />
+      )}
+      {!isMobile && (
+        <Select
+          aria-label={t("tenant.switcher")}
+          value={currentTenantId ?? undefined}
+          placeholder={t("tenant.switcher")}
+          style={{ minWidth: 180 }}
+          onChange={(v) => setCurrentTenant(v)}
+          options={tenants.map((tn) => ({ value: tn.id, label: tn.displayName }))}
+        />
+      )}
       <div style={{ flex: 1 }} />
       <AppSwitcher currentKey="analytics" locale={locale} />
-      {useMock && (
+      {useMock && !isMobile && (
         <Select
           aria-label={t("auth.selectRole")}
           value={roles[0]}

@@ -1,4 +1,4 @@
-# Mabhas19 — Deployment
+# MyCEO Platform — Deployment
 
 Production stack: **Traefik** (TLS) → **Next.js web** + **.NET API**, with **PostgreSQL** and **MinIO (S3)**.
 
@@ -9,12 +9,14 @@ Create these **A records** pointing to the server `10.249.52.216`:
 | Subdomain                     | Purpose                          |
 |-------------------------------|----------------------------------|
 | `mabhas19.myceo.ir`           | Web frontend (Next.js)           |
-| `api.mabhas19.myceo.ir`       | **Backend API** (.NET)           |
-| `s3.mabhas19.myceo.ir`        | MinIO S3 (presigned report URLs) |
+| `myceo.ir`                    | Public service directory          |
+| `api.myceo.ir`                | **Backend API** (.NET)           |
+| `s3.myceo.ir`                 | MinIO S3 (presigned report URLs) |
 | `minio.mabhas19.myceo.ir`     | MinIO console (optional)         |
 
-> **Backend domain you asked about:** use **`api.mabhas19.myceo.ir`**. The frontend talks to it via
-> `NEXT_PUBLIC_API_BASE`. `s3.*` is needed so generated PDF report download links are reachable from the browser.
+> The canonical backend domain is **`api.myceo.ir`**. Clients receive it through `NEXT_PUBLIC_API_BASE` or
+> `VITE_API_BASE`; `s3.myceo.ir` serves generated PDF report links. Keep the legacy API/S3 DNS records and
+> compose routers during the transition so installed mobile apps and existing presigned URLs remain valid.
 >
 > If Arvancloud's CDN/proxy ("cloud") is enabled (orange icon), turn it **off** (DNS-only / grey) for
 > `api.*` and `s3.*`, otherwise the ACME HTTP-01 challenge and large uploads may fail.
@@ -79,29 +81,29 @@ Uses `docker-compose.server.yml` with secrets from `deploy/.env`. SSH is via PuT
 
 ```powershell
 # 1) Build the images locally (where mcr/Docker Hub are reachable; the API build needs apt access for its PDF deps)
-docker build -f deploy/Dockerfile.api -t mabhas19-api:deploy .
+docker build -f deploy/Dockerfile.api -t ceo-portal-api:deploy .
 docker build -f deploy/Dockerfile.web -t mabhas19-web:deploy .
 
 # 2) Save + gzip
-docker save mabhas19-api:deploy | gzip > mabhas19-api-deploy.tar.gz
+docker save ceo-portal-api:deploy | gzip > ceo-portal-api-deploy.tar.gz
 docker save mabhas19-web:deploy | gzip > mabhas19-web-deploy.tar.gz
 
 # 3) Transfer to the server
-pscp -pw "<SERVER_PWD>" mabhas19-api-deploy.tar.gz admin1@10.249.52.216:/srv/mabhas19/
+pscp -pw "<SERVER_PWD>" ceo-portal-api-deploy.tar.gz admin1@10.249.52.216:/srv/mabhas19/
 pscp -pw "<SERVER_PWD>" mabhas19-web-deploy.tar.gz admin1@10.249.52.216:/srv/mabhas19/
 
 # 4) Decrypt secrets, then load + (re)start ONLY api/web — SQL/MinIO and the shared daemon are left untouched
 plink -pw "<SERVER_PWD>" admin1@10.249.52.216 "cd /srv/mabhas19 && \
   bash deploy/decrypt-env.sh && \
-  gunzip -c mabhas19-api-deploy.tar.gz | docker load && \
+  gunzip -c ceo-portal-api-deploy.tar.gz | docker load && \
   gunzip -c mabhas19-web-deploy.tar.gz | docker load && \
-  docker compose -f deploy/docker-compose.server.yml --env-file deploy/.env up -d api web"
+  docker compose -f deploy/docker-compose.server.yml --env-file deploy/.env up -d api mabhas19-web"
 
 # 5) Verify (watch for the EF migration applying; then hit the live endpoints)
 plink -pw "<SERVER_PWD>" admin1@10.249.52.216 "cd /srv/mabhas19 && \
   docker compose -f deploy/docker-compose.server.yml ps && \
   docker compose -f deploy/docker-compose.server.yml logs --tail=50 api"
-curl.exe -fsS https://api.mabhas19.myceo.ir/alive
+curl.exe -fsS https://api.myceo.ir/alive
 ```
 
 - **Config is baked into the image** at build time (`appsettings.json` — e.g. CORS allowlist defaults to
@@ -136,9 +138,9 @@ cd /srv/mabhas19 && SOPS_AGE_KEY_FILE=secrets/age.key PATH="$PWD/bin:$PATH" sops
 ## Local development
 
 ```bash
-docker compose -f deploy/docker-compose.dev.yml up -d     # Postgres + MinIO
+docker compose -f deploy/docker-compose.dev.yml up -d     # SQL Server + MinIO
 dotnet run --project src/Web                              # API on http://localhost:5000 (see launchSettings)
-cd web && npm install && npm run dev                      # Web on http://localhost:3000
+cd mabhas19-web && npm install && npm run dev             # Web on http://localhost:3000
 ```
 
 ## Notes

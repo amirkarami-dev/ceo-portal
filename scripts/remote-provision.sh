@@ -24,9 +24,12 @@ if [ ! -f "$ENV_FILE" ]; then
 
 # --- Public hosts (all behind the ArvanCloud CDN; origin = this box) ---
 WEB_DOMAIN=mabhas19.myceo.ir
-API_DOMAIN=api.mabhas19.myceo.ir
+API_DOMAIN=api.myceo.ir
+LEGACY_API_DOMAIN=api.mabhas19.myceo.ir
 AUTH_DOMAIN=auth.myceo.ir
-MINIO_DOMAIN=s3.mabhas19.myceo.ir
+MINIO_DOMAIN=s3.myceo.ir
+LEGACY_MINIO_DOMAIN=s3.mabhas19.myceo.ir
+PORTAL_DOMAIN=myceo.ir
 ANALYTICS_DOMAIN=analytic.myceo.ir
 MUN_SANANDAJ_DOMAIN=mun-sanandaj.myceo.ir
 STATUS_DOMAIN=status.myceo.ir

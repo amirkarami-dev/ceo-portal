@@ -8,10 +8,10 @@ WORKDIR /app/landing-panel
 
 # Vite build-time config — PUBLIC values only (a static bundle has no server side; real backend
 # secrets never belong here). Defaults target the prod stack; compose overrides via build args.
-ARG VITE_API_BASE=https://api.mabhas19.myceo.ir
+ARG VITE_API_BASE=https://api.myceo.ir
 ARG VITE_AUTH_ISSUER=https://auth.myceo.ir
 ARG VITE_OIDC_CLIENT_ID=landing-panel
-ARG VITE_AUTH_SCOPE="openid profile email roles mabhas19.api"
+ARG VITE_AUTH_SCOPE="openid profile email roles ceo.api"
 ENV VITE_API_BASE=$VITE_API_BASE \
     VITE_AUTH_ISSUER=$VITE_AUTH_ISSUER \
     VITE_OIDC_CLIENT_ID=$VITE_OIDC_CLIENT_ID \

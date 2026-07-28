@@ -2,52 +2,176 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "web",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "web", "run", "dev", "--", "-p", "3200"],
-      "port": 3200,
-      "autoPort": false
-    },
-    {
-      "name": "analytics-web",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "analytics-web", "run", "dev", "--", "--port", "5273", "--strictPort"],
-      "port": 5273,
-      "autoPort": false
-    },
-    {
-      "name": "roadmap",
-      "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8077", "--directory", "roadmap"],
-      "port": 8077,
-      "autoPort": false
-    },
-    {
       "name": "auth",
       "runtimeExecutable": "dotnet",
-      "runtimeArgs": ["run", "--project", "src/Auth"],
+      "runtimeArgs": [
+        "run",
+        "--project",
+        "src/Auth"
+      ],
       "port": 5100,
       "autoPort": false
     },
     {
       "name": "api",
       "runtimeExecutable": "dotnet",
-      "runtimeArgs": ["run", "--project", "src/Web"],
+      "runtimeArgs": [
+        "run",
+        "--project",
+        "src/Web"
+      ],
       "port": 5000,
       "autoPort": false
     },
     {
-      "name": "walfare-web",
+      "name": "mabhas19-web",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "walfare-web", "run", "dev", "--", "--port", "5275", "--strictPort"],
-      "port": 5275,
+      "runtimeArgs": [
+        "--prefix",
+        "mabhas19-web",
+        "run",
+        "dev",
+        "--",
+        "-p",
+        "3000"
+      ],
+      "port": 3000,
+      "autoPort": false
+    },
+    {
+      "name": "kurdnezam-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "kurdnezam-web",
+        "run",
+        "dev",
+        "--",
+        "-p",
+        "3100"
+      ],
+      "port": 3100,
+      "autoPort": false
+    },
+    {
+      "name": "portal-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "portal-web",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5173",
+        "--strictPort",
+        "--host",
+        "127.0.0.1"
+      ],
+      "port": 5173,
+      "autoPort": false
+    },
+    {
+      "name": "landing-panel",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "landing-panel",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5175",
+        "--strictPort",
+        "--host",
+        "127.0.0.1"
+      ],
+      "port": 5175,
+      "autoPort": false
+    },
+    {
+      "name": "admin-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "admin-web",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5180",
+        "--strictPort",
+        "--host",
+        "127.0.0.1"
+      ],
+      "port": 5180,
+      "autoPort": false
+    },
+    {
+      "name": "analytics-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "analytics-web",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5273",
+        "--strictPort",
+        "--host",
+        "127.0.0.1"
+      ],
+      "port": 5273,
       "autoPort": false
     },
     {
       "name": "mun-sanandaj-web",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "mun-sanandaj-web", "run", "dev", "--", "--port", "5274", "--strictPort"],
+      "runtimeArgs": [
+        "--prefix",
+        "mun-sanandaj-web",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5274",
+        "--strictPort",
+        "--host",
+        "127.0.0.1"
+      ],
       "port": 5274,
+      "autoPort": false
+    },
+    {
+      "name": "walfare-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "walfare-web",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5275",
+        "--strictPort",
+        "--host",
+        "127.0.0.1"
+      ],
+      "port": 5275,
+      "autoPort": false
+    },
+    {
+      "name": "roadmap",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8077",
+        "--directory",
+        "roadmap"
+      ],
+      "port": 8077,
       "autoPort": false
     }
   ]

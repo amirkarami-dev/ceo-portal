@@ -6,7 +6,7 @@
 // Backend endpoints (all live under /api/Dashboards):
 //   GET    /api/Dashboards                           → BackendDashboard[]
 //   GET    /api/Dashboards/{id}                      → BackendDashboard
-//   POST   /api/Dashboards  { name, widgets, layout } → { id: string }
+//   POST   /api/Dashboards  { name, widgets, layout } → { id: number }
 //   DELETE /api/Dashboards/{id}                      → 204
 
 import { httpClient } from "./httpClient";
@@ -14,7 +14,7 @@ import type { DashboardRecord, DashboardWidget, GridLayoutItem } from "./queries
 
 /** Shape the backend returns for each Dashboard item */
 interface BackendDashboard {
-  id: string;
+  id: number;
   name: string;
   widgets: DashboardWidget[];
   layout: GridLayoutItem[];
@@ -24,12 +24,12 @@ interface BackendDashboard {
 
 /** Shape the backend returns from POST /api/Dashboards */
 interface BackendCreateResponse {
-  id: string;
+  id: number;
 }
 
 function backendToFrontend(b: BackendDashboard): DashboardRecord {
   return {
-    id: b.id,
+    id: String(b.id),
     tenantId: "",
     name: b.name,
     widgets: b.widgets ?? [],
@@ -68,7 +68,7 @@ export const dashboardsHttpApi = {
       layout: [],
     });
     return {
-      id: resp.id,
+      id: String(resp.id),
       tenantId: "",
       name: opts.name,
       widgets: [],
@@ -94,7 +94,7 @@ export const dashboardsHttpApi = {
     });
     return {
       ...d,
-      id: resp.id || d.id,
+      id: String(resp.id),
       updatedAt: new Date().toISOString(),
     };
   },

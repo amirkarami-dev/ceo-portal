@@ -28,16 +28,6 @@ import type { ReportDefinition } from "../contracts/report-definition";
 const mockGet = vi.mocked(httpClient.get);
 const mockPost = vi.mocked(httpClient.post);
 
-const BACKEND_LIST = [
-  {
-    id: "rep-1",
-    name: "Revenue Report",
-    ownerName: "Alice",
-    visibility: "tenant" as const,
-    updatedAt: "2026-01-01T00:00:00Z",
-  },
-];
-
 const MINIMAL_DEF: ReportDefinition = {
   id: "rep-1",
   schemaVersion: "1",
@@ -46,6 +36,17 @@ const MINIMAL_DEF: ReportDefinition = {
   columns: [],
   presentation: { views: [] },
 };
+
+const BACKEND_LIST = [
+  {
+    id: "rep-1",
+    name: "Revenue Report",
+    ownerName: "Alice",
+    visibility: "tenant" as const,
+    updatedAt: "2026-01-01T00:00:00Z",
+    definition: MINIMAL_DEF,
+  },
+];
 
 describe("reportsHttpApi.list()", () => {
   beforeEach(() => {
@@ -64,6 +65,8 @@ describe("reportsHttpApi.list()", () => {
     expect(result[0].id).toBe("rep-1");
     expect(result[0].ownerName).toBe("Alice");
     expect(result[0].visibility).toBe("tenant");
+    expect(result[0].definition.name).toBe("Revenue Report");
+    expect(result[0].definition.dataset).toBe("ds-sales");
   });
 });
 

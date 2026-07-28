@@ -86,6 +86,7 @@ public class AuthDbInitialiser(
     private async Task SeedScopesAsync()
     {
         await EnsureScopeAsync("mabhas19.api", resources: ["mabhas19.api"]);
+        await EnsureScopeAsync("ceo.api",      resources: ["ceo.api"]);
         await EnsureScopeAsync("plan.api",      resources: ["plan.api"]);
     }
 
@@ -131,7 +132,8 @@ public class AuthDbInitialiser(
                 Permissions.Scopes.Email,
                 Permissions.Scopes.Profile,
                 Permissions.Scopes.Roles,
-                Permissions.Prefixes.Scope + "mabhas19.api"
+                Permissions.Prefixes.Scope + "mabhas19.api",
+                Permissions.Prefixes.Scope + "ceo.api"
             },
             Requirements = { Requirements.Features.ProofKeyForCodeExchange }
         });
@@ -156,7 +158,8 @@ public class AuthDbInitialiser(
                 Permissions.Scopes.Email,
                 Permissions.Scopes.Profile,
                 Permissions.Scopes.Roles,
-                Permissions.Prefixes.Scope + "mabhas19.api"
+                Permissions.Prefixes.Scope + "mabhas19.api",
+                Permissions.Prefixes.Scope + "ceo.api"
             },
             Requirements = { Requirements.Features.ProofKeyForCodeExchange }
         });
@@ -213,7 +216,8 @@ public class AuthDbInitialiser(
                     Permissions.Scopes.Email,
                     Permissions.Scopes.Profile,
                     Permissions.Scopes.Roles,
-                    Permissions.Prefixes.Scope + "mabhas19.api"
+                    Permissions.Prefixes.Scope + "mabhas19.api",
+                    Permissions.Prefixes.Scope + "ceo.api"
                 },
                 Requirements = { Requirements.Features.ProofKeyForCodeExchange }
             };
@@ -250,7 +254,8 @@ public class AuthDbInitialiser(
                     Permissions.Scopes.Email,
                     Permissions.Scopes.Profile,
                     Permissions.Scopes.Roles,
-                    Permissions.Prefixes.Scope + "mabhas19.api"
+                    Permissions.Prefixes.Scope + "mabhas19.api",
+                    Permissions.Prefixes.Scope + "ceo.api"
                 },
                 Requirements = { Requirements.Features.ProofKeyForCodeExchange }
             };
@@ -289,7 +294,8 @@ public class AuthDbInitialiser(
                     Permissions.Scopes.Email,
                     Permissions.Scopes.Profile,
                     Permissions.Scopes.Roles,
-                    Permissions.Prefixes.Scope + "mabhas19.api"
+                    Permissions.Prefixes.Scope + "mabhas19.api",
+                    Permissions.Prefixes.Scope + "ceo.api"
                 },
                 Requirements = { Requirements.Features.ProofKeyForCodeExchange }
             };
@@ -305,7 +311,7 @@ public class AuthDbInitialiser(
         // admin-web — Public, Authorization Code + PKCE, for admin.myceo.ir (the central user-
         // management SPA). It is NOT a grantable service: access is gated by the Administrator role
         // at api/admin, not by a service grant, so ServiceKeys maps it to no key. It requests the
-        // mabhas19.api scope so the token the IdP validates locally for its own admin API carries
+        // ceo.api scope so the token the IdP validates locally for its own admin API carries
         // the roles claim. Optional: only seeded when its redirect URI is configured (same pattern
         // as analytics-web).
         var adminWebRedirect   = configuration["Clients:AdminWeb:Redirect"]   ?? string.Empty;
@@ -330,7 +336,8 @@ public class AuthDbInitialiser(
                     Permissions.Scopes.Email,
                     Permissions.Scopes.Profile,
                     Permissions.Scopes.Roles,
-                    Permissions.Prefixes.Scope + "mabhas19.api"
+                    Permissions.Prefixes.Scope + "mabhas19.api",
+                    Permissions.Prefixes.Scope + "ceo.api"
                 },
                 Requirements = { Requirements.Features.ProofKeyForCodeExchange }
             };
@@ -369,7 +376,8 @@ public class AuthDbInitialiser(
                     Permissions.Scopes.Email,
                     Permissions.Scopes.Profile,
                     Permissions.Scopes.Roles,
-                    Permissions.Prefixes.Scope + "mabhas19.api"
+                    Permissions.Prefixes.Scope + "mabhas19.api",
+                    Permissions.Prefixes.Scope + "ceo.api"
                 },
                 Requirements = { Requirements.Features.ProofKeyForCodeExchange }
             };
@@ -385,8 +393,12 @@ public class AuthDbInitialiser(
 
     private async Task EnsureClientAsync(OpenIddictApplicationDescriptor descriptor)
     {
-        if (await applicationManager.FindByClientIdAsync(descriptor.ClientId!) is not null)
+        var existingClient = await applicationManager.FindByClientIdAsync(descriptor.ClientId!);
+        if (existingClient is not null)
+        {
+            await applicationManager.UpdateAsync(existingClient, descriptor);
             return;
+        }
 
         await applicationManager.CreateAsync(descriptor);
         logger.LogInformation("Created OIDC client {ClientId}.", descriptor.ClientId);

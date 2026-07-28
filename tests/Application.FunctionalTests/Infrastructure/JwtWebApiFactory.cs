@@ -32,7 +32,7 @@ public sealed class JwtWebApiFactory : WebApplicationFactory<Program>
     public const string TestIssuer = "https://test-idp";
 
     /// <summary>The expected audience accepted by the API under test.</summary>
-    public const string TestAudience = "mabhas19.api";
+    public const string TestAudience = "ceo.api";
 
     public JwtWebApiFactory(string connectionString, RsaSecurityKey signingKey)
     {
@@ -43,7 +43,7 @@ public sealed class JwtWebApiFactory : WebApplicationFactory<Program>
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         // Point the app at the Aspire-provisioned SQL Server so EF migrations run fine.
-        builder.UseSetting("ConnectionStrings:Mabhas19Db", _connectionString);
+        builder.UseSetting("ConnectionStrings:CeoDb", _connectionString);
 
         builder.ConfigureTestServices(services =>
         {

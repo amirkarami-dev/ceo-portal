@@ -17,6 +17,6 @@ public class AuthWebFactory(string connectionString) : WebApplicationFactory<Aut
         // (the in-memory test server uses plain HTTP).
         builder.UseEnvironment("Development");
 
-        builder.UseSetting("ConnectionStrings:Mabhas19AuthDb", connectionString);
+        builder.UseSetting("ConnectionStrings:CeoAuthDb", connectionString);
     }
 }

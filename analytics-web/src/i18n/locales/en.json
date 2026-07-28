@@ -25,6 +25,7 @@
     "ask": "Ask AI",
     "reports": "Reports",
     "dashboards": "Dashboards",
+    "openMenu": "Open menu",
     "favorites": "Favorites",
     "data": "Data",
     "exports": "Exports",
@@ -127,18 +128,22 @@
     "addWidget": "Add widget"
   },
   "dash": {
+    "previewLabel": "Selected dashboard",
+    "previewWidgets": "{{value}} report widgets",
     "widget": "Widget",
     "widgetMenu": "Widget menu",
     "removeWidget": "Remove widget",
     "widgetError": "Error loading widget",
     "addWidget": "Add widget",
     "noReports": "No reports available",
+    "reportsLoadError": "Reports could not be loaded.",
     "notFound": "Dashboard not found",
     "forbidden": "Access denied",
     "editMode": "Edit mode",
     "saved": "Dashboard saved",
     "saveError": "Error saving dashboard",
     "dropHere": "Drop a widget here",
+    "emptyDashboard": "This dashboard has no widgets yet",
     "untitled": "Untitled dashboard",
     "search": "Search dashboards…",
     "new": "New dashboard",
@@ -146,12 +151,23 @@
     "emptyList": "No dashboards found",
     "open": "Open",
     "delete": "Delete",
+    "createError": "Dashboard could not be created",
     "cardMenu": "Card menu",
     "widgetCount": "{{count}} widget(s)",
     "boardCount": "{{count}} dashboard(s)",
     "heroSubtitle": "Drag, resize, and arrange your reports side by side as tables or charts.",
     "viewChart": "Chart view",
-    "viewTable": "Table view"
+    "viewTable": "Table view",
+    "tabs": {
+      "all": "All",
+      "mine": "Mine",
+      "recent": "Recent"
+    },
+    "empty": {
+      "all": "No dashboards found",
+      "mine": "You have not created a dashboard yet",
+      "recent": "No recent dashboards"
+    }
   },
   "tenant": {
     "switcher": "Select tenant",
@@ -468,6 +484,7 @@
     "filterHint": "Adjust filters"
   },
   "library": {
+    "organizationUser": "Organization user",
     "colName": "Report name",
     "colOwner": "Owner",
     "colModel": "Data model",

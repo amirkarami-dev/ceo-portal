@@ -15,7 +15,7 @@ fully verified locally (see `plan_development/01-development/sso-oidc.md §8`).
 
 **Rollback safety:** the migration script (`sso-migrate-users.sql`) is additive — it never
 touches source rows. The old `api`/`web` images are preserved until Step 5 succeeds. Rollback
-means re-deploying the previous image tags; the IdP and `Mabhas19AuthDb` can remain.
+means re-deploying the previous image tags; the IdP and `CeoAuthDb` can remain.
 
 ---
 
@@ -93,8 +93,8 @@ AUTH_MABHAS19_SECRET=<same-as-MABHAS19_WEB_CLIENT_SECRET>
 ```
 
 > **Note:** `AUTH_SECRET`, `AUTH_MABHAS19_ISSUER`, `AUTH_MABHAS19_ID`, and `AUTH_MABHAS19_SECRET`
-> must be present in the `web` service environment at runtime for Auth.js to function.
-> Add them to the `web` service `environment:` block in `docker-compose.server.yml` if not already
+> must be present in the `mabhas19-web` service environment at runtime for Auth.js to function.
+> Add them to the `mabhas19-web` service `environment:` block in `docker-compose.server.yml` if not already
 > present (TODO: confirm before cutover).
 
 Upload the updated `.env` to the server:
@@ -109,7 +109,7 @@ On the server, before anything else, tag the current `api` and `web` images as `
 
 ```powershell
 plink -pw "<SERVER_PWD>" admin1@10.249.52.216 `
-    "docker tag mabhas19-api:deploy mabhas19-api:rollback && docker tag mabhas19-web:deploy mabhas19-web:rollback"
+    "docker tag ceo-portal-api:deploy ceo-portal-api:rollback && docker tag mabhas19-web:deploy mabhas19-web:rollback"
 ```
 
 ---
@@ -118,18 +118,18 @@ plink -pw "<SERVER_PWD>" admin1@10.249.52.216 `
 
 ```powershell
 # From the repo root (where mcr.microsoft.com is reachable)
-docker build -f deploy/Dockerfile.auth -t mabhas19-auth:deploy .
+docker build -f deploy/Dockerfile.auth -t ceo-portal-auth:deploy .
 ```
 
 ---
 
-## Step 2 — Rebuild the `api` and `web` images locally
+## Step 2 — Rebuild the `api` and `mabhas19-web` images locally
 
 The API now validates IdP JWTs (AddJwtBearer replaces AddBearerToken); the web uses Auth.js.
 Both images must be rebuilt from the SSO branch.
 
 ```powershell
-docker build -f deploy/Dockerfile.api -t mabhas19-api:deploy .
+docker build -f deploy/Dockerfile.api -t ceo-portal-api:deploy .
 docker build -f deploy/Dockerfile.web -t mabhas19-web:deploy .
 ```
 
@@ -139,19 +139,19 @@ docker build -f deploy/Dockerfile.web -t mabhas19-web:deploy .
 
 ```powershell
 # Save + gzip (run in parallel or sequentially — sequential shown for clarity)
-docker save mabhas19-auth:deploy | gzip > mabhas19-auth-deploy.tar.gz
-docker save mabhas19-api:deploy  | gzip > mabhas19-api-deploy.tar.gz
+docker save ceo-portal-auth:deploy | gzip > ceo-portal-auth-deploy.tar.gz
+docker save ceo-portal-api:deploy  | gzip > ceo-portal-api-deploy.tar.gz
 docker save mabhas19-web:deploy  | gzip > mabhas19-web-deploy.tar.gz
 
 # Transfer
-pscp -pw "<SERVER_PWD>" mabhas19-auth-deploy.tar.gz admin1@10.249.52.216:/srv/mabhas19/
-pscp -pw "<SERVER_PWD>" mabhas19-api-deploy.tar.gz  admin1@10.249.52.216:/srv/mabhas19/
+pscp -pw "<SERVER_PWD>" ceo-portal-auth-deploy.tar.gz admin1@10.249.52.216:/srv/mabhas19/
+pscp -pw "<SERVER_PWD>" ceo-portal-api-deploy.tar.gz  admin1@10.249.52.216:/srv/mabhas19/
 pscp -pw "<SERVER_PWD>" mabhas19-web-deploy.tar.gz  admin1@10.249.52.216:/srv/mabhas19/
 
 # Load on the server (single plink call)
 plink -pw "<SERVER_PWD>" admin1@10.249.52.216 "cd /srv/mabhas19 && \
-  gunzip -c mabhas19-auth-deploy.tar.gz | docker load && \
-  gunzip -c mabhas19-api-deploy.tar.gz  | docker load && \
+  gunzip -c ceo-portal-auth-deploy.tar.gz | docker load && \
+  gunzip -c ceo-portal-api-deploy.tar.gz  | docker load && \
   gunzip -c mabhas19-web-deploy.tar.gz  | docker load"
 ```
 
@@ -167,8 +167,9 @@ plink -pw "<SERVER_PWD>" admin1@10.249.52.216 "cd /srv/mabhas19 && \
 ```
 
 The IdP on first boot:
-1. Creates `Mabhas19AuthDb` and applies its EF Core migrations.
-2. Seeds roles (`Administrator`, `User`), OIDC clients/scopes, and (if `AdminUser__Email` +
+1. Creates `CeoAuthDb` and applies its EF Core migrations.
+2. Seeds roles (`Administrator`, `User`), OIDC clients/scopes (including `ceo.api` and temporary
+  `mabhas19.api` compatibility), and (if `AdminUser__Email` +
    `AdminUser__Password` are set) an admin user.
 
 Wait ~20 seconds for migrations, then verify:
@@ -196,22 +197,22 @@ Copy the migration script to the server and execute it inside the `sqlserver` co
 pscp -pw "<SERVER_PWD>" deploy/sso-migrate-users.sql admin1@10.249.52.216:/srv/mabhas19/deploy/
 
 # Run via sqlcmd inside the container (adjust SA password from .env)
-plink -pw "<SERVER_PWD>" admin1@10.249.52.216 "docker exec mabhas19-sqlserver-1 \
+plink -pw "<SERVER_PWD>" admin1@10.249.52.216 "docker exec ceo-portal-sqlserver-1 \
   /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"\$MSSQL_SA_PASSWORD\" -C \
   -i /tmp/sso-migrate-users.sql 2>/dev/null || \
-  docker exec mabhas19-sqlserver-1 \
+  docker exec ceo-portal-sqlserver-1 \
   /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P \"\$MSSQL_SA_PASSWORD\" \
   -i /tmp/sso-migrate-users.sql"
 ```
 
 > The script tries `mssql-tools18` first (SQL Server 2019+), then falls back to `mssql-tools`.
-> Adjust the container name (`mabhas19-sqlserver-1`) to match what `docker ps` shows.
+> Adjust the container name (`ceo-portal-sqlserver-1`) to match what `docker ps` shows.
 
 Alternatively, copy the script into the container first:
 
 ```powershell
 plink -pw "<SERVER_PWD>" admin1@10.249.52.216 "docker cp \
-  /srv/mabhas19/deploy/sso-migrate-users.sql mabhas19-sqlserver-1:/tmp/"
+  /srv/mabhas19/deploy/sso-migrate-users.sql ceo-portal-sqlserver-1:/tmp/"
 ```
 
 **Inspect the output.** The script prints a verification table. All `Delta_SourceMinusTarget`
@@ -221,13 +222,13 @@ A **positive** delta means rows are missing — investigate and re-run the scrip
 
 ---
 
-## Step 6 — Cut over `api` and `web`
+## Step 6 — Cut over `api` and `mabhas19-web`
 
 Recreate the API and web containers with the new images. SQL Server and MinIO are untouched.
 
 ```powershell
 plink -pw "<SERVER_PWD>" admin1@10.249.52.216 "cd /srv/mabhas19 && \
-  docker compose -f deploy/docker-compose.server.yml --env-file deploy/.env up -d api web"
+  docker compose -f deploy/docker-compose.server.yml --env-file deploy/.env up -d api mabhas19-web"
 ```
 
 Watch the API logs — it should start, connect to SQL Server, apply any pending migrations,
@@ -253,14 +254,14 @@ If any step after Step 4 fails and you need to revert `api`/`web` to the pre-SSO
 ```powershell
 # Re-tag rollback images as :deploy
 plink -pw "<SERVER_PWD>" admin1@10.249.52.216 `
-    "docker tag mabhas19-api:rollback mabhas19-api:deploy && docker tag mabhas19-web:rollback mabhas19-web:deploy"
+    "docker tag ceo-portal-api:rollback ceo-portal-api:deploy && docker tag mabhas19-web:rollback mabhas19-web:deploy"
 
 # Restart api + web with the old images
 plink -pw "<SERVER_PWD>" admin1@10.249.52.216 "cd /srv/mabhas19 && \
   docker compose -f deploy/docker-compose.server.yml --env-file deploy/.env up -d api web"
 ```
 
-The IdP (`auth`) and `Mabhas19AuthDb` can remain running — they are additive and harmless.
+The IdP (`auth`) and `CeoAuthDb` can remain running — they are additive and harmless.
 The old `api`/`web` images used the Identity bearer model and will resume functioning
 immediately once restored.
 

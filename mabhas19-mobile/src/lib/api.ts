@@ -9,7 +9,7 @@ import { refreshTokens, AUTH_ISSUER } from "./oidc"
 export const API_BASE: string =
   process.env.EXPO_PUBLIC_API_BASE ||
   (Constants.expoConfig?.extra?.apiBase as string | undefined) ||
-  "https://api.mabhas19.myceo.ir"
+  "https://api.myceo.ir"
 
 export class ApiError extends Error {
   status: number

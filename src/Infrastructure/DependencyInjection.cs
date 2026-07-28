@@ -47,7 +47,8 @@ public static class DependencyInjection
             .AddJwtBearer(options =>
             {
                 options.Authority = builder.Configuration["Auth:Authority"];
-                options.Audience = "mabhas19.api";
+                // Keep existing browser and mobile sessions valid while clients move to ceo.api.
+                options.TokenValidationParameters.ValidAudiences = ["mabhas19.api", "ceo.api"];
                 options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
                 // Disable inbound claim-type remapping so JWT claim names (e.g. "role",
                 // "sub", "name") are preserved as-is in the ClaimsIdentity.  Without this

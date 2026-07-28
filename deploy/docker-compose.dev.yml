@@ -1,4 +1,4 @@
-name: mabhas19-dev
+name: ceo-portal-dev
 
 # Local development dependencies only (SQL Server + MinIO). The API/web run on your host.
 # Matches src/Web/appsettings.json defaults.  Start:  docker compose -f deploy/docker-compose.dev.yml up -d

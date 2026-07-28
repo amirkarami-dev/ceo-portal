@@ -12,7 +12,7 @@ WORKDIR /app/admin-web
 ARG VITE_AUTH_ISSUER=https://auth.myceo.ir
 ARG VITE_ADMIN_API_BASE=https://auth.myceo.ir
 ARG VITE_OIDC_CLIENT_ID=admin-web
-ARG VITE_AUTH_SCOPE="openid profile email roles mabhas19.api"
+ARG VITE_AUTH_SCOPE="openid profile email roles ceo.api"
 ENV VITE_AUTH_ISSUER=$VITE_AUTH_ISSUER \
     VITE_ADMIN_API_BASE=$VITE_ADMIN_API_BASE \
     VITE_OIDC_CLIENT_ID=$VITE_OIDC_CLIENT_ID \

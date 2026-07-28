@@ -74,6 +74,33 @@ Keep the masked PAN too — it is useful even on an unverified row.
 
 ## Front end
 
+### A report summary without its definition renders several unrelated blanks
+**Symptom:** report names/models/tags and Add Widget rows were blank, while the owner column
+showed a GUID.
+**Cause:** `GET /api/Reports` omitted `DefinitionJson`; the SPA hid the contract gap by casting
+`{}` to `ReportDefinition`. Separately, `OwnerName` stores the OIDC subject ID, not a display name.
+**Fix:** return and deserialize the complete definition, retain the stored report name as a legacy
+fallback, and format subject IDs as the current user's name or a neutral organization-user label.
+**Where:** `GetReportsQuery`, `analytics-web/src/api/reportsHttpApi.ts`, `report-display.ts`.
+
+### A primitive save response can silently produce an `undefined` route
+**Symptom:** creating an analytics dashboard navigated to `/dashboards/undefined/edit`, then
+showed a 404 even though the database insert succeeded.
+**Cause:** `POST /api/Dashboards` serialized a bare integer, while the SPA read `response.id`.
+The mock test returned `{ id }`, so it tested the desired client contract rather than production.
+**Fix:** return an object-shaped `SaveDashboardResponse` from the Web endpoint, normalize its
+numeric ID in the HTTP adapter, and keep a production-shaped adapter/endpoint test.
+**Where:** `src/Web/Endpoints/Analytics/Dashboards.cs`, `analytics-web/src/api/dashboardsHttpApi.ts`.
+
+### A desktop sider must leave the flex row on phones
+**Symptom:** at 390px the analytics dashboard card collapsed to 34px and the page overflowed
+horizontally, even though the card grid itself was responsive.
+**Cause:** the fixed-width 240px `Sider` remained a sibling of the main layout at every width.
+**Fix:** below AntD's `md` breakpoint render navigation in a Drawer, compact the Topbar, and
+remove the Sider from the flex row entirely. Also set `min-width: 0` on the main flex Layout;
+otherwise a wide table expands that child and pushes the mobile menu trigger off-screen.
+**Where:** `analytics-web/src/layout/AppLayout.tsx`, `Topbar.tsx`, `Sidebar.tsx`.
+
 ### `process is not defined` breaks react-grid-layout dragging
 **Symptom:** dashboard widgets would not drag or resize; no console error.
 **Cause:** `react-draggable` reads `process.env` at drag time; the browser has no `process`,
@@ -117,8 +144,46 @@ Gregorian year 1405. Only convert values that are actually Gregorian.
 
 ## Build & deploy
 
-- **NuGet is blocked on the dev machine.** Build and test .NET **on the server**, in the SDK
-  container with the cached NuGet volume. See `OPERATIONS.md`.
+### Renaming a Compose project silently changes implicit volume names
+**Symptom:** services start successfully after a project rename but SQL/MinIO appear empty.
+**Cause:** top-level `name:` prefixes implicit volumes, so changing `mabhas19` to `ceo-portal`
+selects different physical volumes even when service mount keys still say `mssqldata` and
+`miniodata`.
+**Fix:** explicitly name production volumes, stop all writers and stateful services, copy the old
+volumes while stopped, verify inventories/data, and retain the old volumes for rollback. Never
+use `down -v` during this migration.
+**Where:** `deploy/docker-compose.newserver.yml`, `docs/ai/OPERATIONS.md`.
+
+### Running the whole local stack freezes a 32 GB dev machine
+**Symptom:** starting all ten services locally drove RAM to 100%; the machine froze and restarted.
+**Cause:** three compounding defaults, none of them the dev servers' fault alone —
+SQL Server's `max server memory` defaults to **unlimited** (`2147483647` MB) and never gives memory
+back; WSL2 with no `~/.wslconfig` helps itself to **~50% of host RAM** (15.5 GB of 32 GB); and eight
+Node dev servers (Next.js ~1–2 GB each, Vite ~0.3–0.6 GB each) run on the host on top of that.
+**Fix:** cap SQL Server at 2048 MB (`sp_configure 'max server memory (MB)'`, persisted in `master`,
+no restart needed); create `~/.wslconfig` with `memory=8GB`, `swap=4GB`,
+`autoMemoryReclaim=gradual` (needs `wsl --shutdown`); and **run only the front end you are working
+on**. Measured after: 12.7 GB of 31.7 GB with Auth + API + analytics-web up.
+**Not a fix:** putting the front ends in Docker. On Windows they land in the same WSL2 VM — same
+processes, plus VM overhead and polled file watching.
+**Where:** `AGENTS.md` → Local development.
+
+### The same rename trap now applies to `docker-compose.dev.yml` locally
+**Symptom:** `docker compose -f deploy/docker-compose.dev.yml up -d` on a dev machine either fails
+to bind ports 1433/9000 or starts an **empty** SQL Server next to the one holding your data.
+**Cause:** the dev compose file was renamed to `name: ceo-portal-dev`, but the containers already
+running on developer machines were created under the old `mabhas19-dev` project (plus a standalone
+`ceo-portal-sql-local`, ex-`mabhas19-sql-local`, on volume `mabhas19_sqldata`). Compose therefore
+treats them as foreign, creates fresh `ceo-portal-dev_*` volumes, and collides on the ports.
+**Fix:** don't run that compose file against an existing local install — `docker start` the
+containers you already have. `CeoDb` + `CeoAuthDb` live in `mabhas19_sqldata`.
+**Where:** `deploy/docker-compose.dev.yml`; local setup is documented in `AGENTS.md`.
+
+- **NuGet on the dev machine is intermittent, not always blocked.** A full
+  `dotnet build ceo-portal.slnx` succeeded locally on 2026-07-27 (0 errors, ~9 s) off the populated
+  package cache. Try locally; if the *restore* fails, build **on the server** in the SDK container
+  with the cached NuGet volume (see `OPERATIONS.md`). Never change package versions to force a
+  restore to pass.
 - **Docker `npm install` is strict about peers.** `walfare-web` needs `--legacy-peer-deps`
   (antd-jalali declares React 18; the app runs React 19).
 - **Build one service at a time** — the box has 4 GB and parallel builds get killed.

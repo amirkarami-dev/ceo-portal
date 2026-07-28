@@ -30,7 +30,7 @@ config.resolver.extraNodeModules = {
 //    extraNodeModules alone doesn't dedupe when a hoisted package resolves its own
 //    react from the workspace root — that yields two Reacts and a null hook
 //    dispatcher ("Cannot read property 'useEffect' of null"). Redirecting the
-//    resolution origin to the app dir guarantees mobile/node_modules/react wins.
+//    resolution origin to the app dir guarantees mabhas19-mobile/node_modules/react wins.
 const forcedRoots = ["react", "react-native"]
 const defaultResolveRequest = config.resolver.resolveRequest
 config.resolver.resolveRequest = (context, moduleName, platform) => {

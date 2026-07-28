@@ -1,13 +1,15 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Security.Cryptography;
 using Mabhas19.Application.FunctionalTests.Infrastructure;
+using Mabhas19.Domain.Analytics;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Mabhas19.Application.FunctionalTests.Auth;
 
 /// <summary>
-/// Phase-1 exit gate: proves the mabhas19 API, configured as a JWT resource server,
+/// Phase-1 exit gate: proves the CEO API, configured as a JWT resource server,
 /// enforces the token contract without relying on a live IdP.
 ///
 /// The factory is shared across all four test cases (OneTimeSetUp / OneTimeTearDown).
@@ -56,6 +58,46 @@ public class JwtResourceServerTests
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK,
             $"A valid JWT should grant access to GET /api/Projects. Actual: {(int)response.StatusCode} {response.ReasonPhrase}");
+    }
+
+    [Test]
+    public async Task LegacyAudience_GetProjects_Returns200()
+    {
+        var token = JwtTokenHelper.IssueToken(
+            _testKey,
+            sub: "user-1",
+            roles: ["User"],
+            audience: "mabhas19.api");
+
+        using var legacyClient = _factory.CreateClient();
+        legacyClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await legacyClient.GetAsync("/api/Projects");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK,
+            $"A legacy-audience JWT must remain valid during migration. Actual: {(int)response.StatusCode} {response.ReasonPhrase}");
+    }
+
+    [Test]
+    public async Task ValidToken_SaveDashboard_ReturnsObjectWithNumericId()
+    {
+        var token = JwtTokenHelper.IssueToken(_testKey, sub: "dashboard-user", roles: ["User"]);
+
+        using var dashboardClient = _factory.CreateClient();
+        dashboardClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await dashboardClient.PostAsJsonAsync("/api/Dashboards", new
+        {
+            name = "Contract dashboard",
+            widgets = Array.Empty<object>(),
+            layout = Array.Empty<object>()
+        });
+        var body = await response.Content.ReadFromJsonAsync<SaveDashboardResponse>();
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        body.ShouldNotBeNull();
+        body.Id.ShouldBeGreaterThan(0);
+        (await TestApp.FindAsync<Dashboard>(body.Id)).ShouldNotBeNull();
     }
 
     // -------------------------------------------------------------------------
@@ -130,3 +172,5 @@ public class JwtResourceServerTests
             $"An Administrator JWT must not receive 401. Actual: {(int)response.StatusCode} {response.ReasonPhrase}");
     }
 }
+
+public sealed record SaveDashboardResponse(int Id);

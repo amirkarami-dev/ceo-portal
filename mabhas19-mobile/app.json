@@ -29,7 +29,7 @@
       "typedRoutes": true
     },
     "extra": {
-      "apiBase": "https://api.mabhas19.myceo.ir",
+      "apiBase": "https://api.myceo.ir",
       "authIssuer": "https://auth.myceo.ir"
     }
   }

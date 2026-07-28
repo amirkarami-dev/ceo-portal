@@ -28,6 +28,7 @@ import { ReportViewRenderer } from "@/presentation/ReportView";
 import { buildExportMenuItems } from "@/features/export";
 import { ViewSwitcher, type SwitchTarget } from "@/features/ask-ai/ViewSwitcher";
 import { useAuth } from "@/auth/useAuth";
+import { reportOwnerLabel } from "@/features/library/report-display";
 import {
   ErrorState,
   Loading,
@@ -43,7 +44,7 @@ export function ReportViewer() {
   const { t } = useTranslation();
   const { reportId = "" } = useParams<{ reportId: string }>();
   const navigate = useNavigate();
-  const { roles } = useAuth();
+  const { roles, user } = useAuth();
   const { data, isLoading, isError } = useReport(reportId);
 
   const [filterValues, setFilterValues] = useState<Record<number, FilterValue>>({});
@@ -188,7 +189,11 @@ export function ReportViewer() {
         column={3}
         style={{ marginBottom: 12 }}
         items={[
-          { key: "owner", label: t("viewer.owner"), children: data.ownerName },
+          {
+            key: "owner",
+            label: t("viewer.owner"),
+            children: reportOwnerLabel(data.ownerName, user, t("library.organizationUser")),
+          },
           { key: "model", label: t("viewer.model"), children: data.definition.dataset },
           { key: "updated", label: t("viewer.updated"), children: data.updatedAt },
         ]}

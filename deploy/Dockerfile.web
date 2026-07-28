@@ -1,18 +1,18 @@
 # Mabhas19 Web (Next.js 16) — build context is the repository ROOT (monorepo).
 # Consumes the @mabhas19/assessment-core workspace package; next.config sets
 # `output: "standalone"` + `outputFileTracingRoot` to the repo root, so the
-# standalone server entry lands at web/server.js.
+# standalone server entry lands at mabhas19-web/server.js.
 FROM node:24-alpine AS build
 WORKDIR /app
 
-# Root manifest, but drop the Expo `mobile` workspace: it isn't needed for the
-# web image and its react/react-native peer set conflicts during resolution.
+# Root manifest, but drop the Expo `mabhas19-mobile` workspace: it isn't needed for the
+# mabhas19-web image and its react/react-native peer set conflicts during resolution.
 COPY package.json ./
-RUN node -e "const p=require('./package.json'); p.workspaces=(p.workspaces||[]).filter(w=>w!=='mobile'); require('fs').writeFileSync('package.json', JSON.stringify(p,null,2))"
+RUN node -e "const p=require('./package.json'); p.workspaces=(p.workspaces||[]).filter(w=>w!=='mabhas19-mobile'); require('fs').writeFileSync('package.json', JSON.stringify(p,null,2))"
 COPY packages/assessment-core/package.json packages/assessment-core/package.json
 COPY packages/ui/package.json packages/ui/package.json
 COPY packages/api-types/package.json packages/api-types/package.json
-COPY web/package.json web/package.json
+COPY mabhas19-web/package.json mabhas19-web/package.json
 # Resolve fresh (no Windows-generated lock) so Linux-musl native optional deps
 # such as @parcel/watcher — needed by Next to load next.config.ts — are installed.
 RUN npm install --no-audit --no-fund
@@ -21,29 +21,29 @@ RUN npm install --no-audit --no-fund
 COPY packages/assessment-core/ ./packages/assessment-core/
 COPY packages/ui/ ./packages/ui/
 COPY packages/api-types/ ./packages/api-types/
-COPY web/ ./web/
+COPY mabhas19-web/ ./mabhas19-web/
 ENV NEXT_TELEMETRY_DISABLED=1
-ARG NEXT_PUBLIC_API_BASE=https://api.mabhas19.myceo.ir
+ARG NEXT_PUBLIC_API_BASE=https://api.myceo.ir
 ENV NEXT_PUBLIC_API_BASE=$NEXT_PUBLIC_API_BASE
 # Client-side issuer (used for the logout redirect) — baked at build time.
 ARG NEXT_PUBLIC_AUTH_ISSUER=https://auth.myceo.ir
 ENV NEXT_PUBLIC_AUTH_ISSUER=$NEXT_PUBLIC_AUTH_ISSUER
-RUN npm run build -w web
+RUN npm run build -w mabhas19-web
 
 FROM node:24-alpine AS final
 WORKDIR /app
 # HOSTNAME=0.0.0.0 so the standalone server binds all interfaces (not the
 # container hostname), making the published/proxied port reachable.
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
-# Standalone output (monorepo layout): server.js + node_modules under web/.
+# Standalone output (monorepo layout): server.js + node_modules under mabhas19-web/.
 # Copy as the non-root `node` user (built into the base image).
-COPY --from=build --chown=node:node /app/web/.next/standalone ./
-COPY --from=build --chown=node:node /app/web/.next/static ./web/.next/static
-COPY --from=build --chown=node:node /app/web/public ./web/public
+COPY --from=build --chown=node:node /app/mabhas19-web/.next/standalone ./
+COPY --from=build --chown=node:node /app/mabhas19-web/.next/static ./mabhas19-web/.next/static
+COPY --from=build --chown=node:node /app/mabhas19-web/public ./mabhas19-web/public
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD wget -q -O /dev/null http://127.0.0.1:3000/ || exit 1
 
 USER node
-CMD ["node", "web/server.js"]
+CMD ["node", "mabhas19-web/server.js"]

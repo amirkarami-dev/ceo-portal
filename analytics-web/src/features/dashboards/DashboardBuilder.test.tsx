@@ -99,7 +99,7 @@ describe("DashboardBuilder", () => {
     );
     // The newly-created dashboard must exist in the mock DB (one extra beyond the seed).
     const all = await mockApi.dashboards.list();
-    expect(all.length).toBeGreaterThan(1);
+    expect(all).toHaveLength(2);
   });
 
   it("Save button persists both widgets and layout to the mock DB", async () => {

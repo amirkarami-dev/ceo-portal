@@ -2,14 +2,14 @@
 
 The fa-IR (RTL) mobile client for the Section 19 building-energy assessment. Talks
 to the same .NET API as the web app and reuses the shared `@mabhas19/assessment-core`
-scoring engine. Default API base: `https://api.mabhas19.myceo.ir` (override with
+scoring engine. Default API base: `https://api.myceo.ir` (override with
 `EXPO_PUBLIC_API_BASE`).
 
 ## Develop
 
 ```bash
 npm install            # from the repo root (npm workspaces)
-cd mobile
+cd mabhas19-mobile
 npm run start          # Metro dev server (Expo Go / dev client)
 npm run android        # run on a device/emulator
 npm run typecheck
@@ -20,7 +20,7 @@ npm run typecheck
 Prerequisites: Android SDK + NDK `27.1.12297006`, a JDK 17 toolchain.
 
 ```bash
-cd mobile
+cd mabhas19-mobile
 npx expo prebuild --platform android        # if android/ is missing (it is gitignored)
 cd android
 ANDROID_HOME=<your-sdk> ./gradlew :app:assembleRelease -PreactNativeArchitectures=arm64-v8a
@@ -43,11 +43,11 @@ This app lives in an npm-workspaces monorepo and several gotchas are already
 handled in config — don't undo them:
 
 - **`EXPO_NO_METRO_WORKSPACE_ROOT=1`** (in `.env` and `eas.json`): `react` is hoisted
-  to the repo root, so Metro must keep the project root at `mobile/` or the release
+  to the repo root, so Metro must keep the project root at `mabhas19-mobile/` or the release
   bundle can't resolve the entry. `metro.config.js` covers the hoisted deps via
   `nodeModulesPaths`/`watchFolders`.
 - **React dedup** (`metro.config.js` `resolveRequest`): forces every `react` /
-  `react-native` import to `mobile/node_modules`, avoiding a second React (web uses
+  `react-native` import to `mabhas19-mobile/node_modules`, avoiding a second React (web uses
   a newer React) which crashes with `Cannot read property 'useEffect' of null`.
 - **New Architecture** must stay enabled (`app.json` `newArchEnabled: true`) — the
   RN 0.81 / Expo SDK 54 native libraries require it.

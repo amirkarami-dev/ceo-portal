@@ -13,7 +13,7 @@ COPY . .
 # Next inlines NEXT_PUBLIC_* into the client bundle at BUILD time, so the API host has to be an
 # ARG here — setting it only at runtime would leave the browser calling the wrong origin.
 # Public value only (no secrets): the site consumes anonymous /api/kurdnezam/* endpoints.
-ARG NEXT_PUBLIC_API_BASE=https://api.mabhas19.myceo.ir
+ARG NEXT_PUBLIC_API_BASE=https://api.myceo.ir
 ENV NEXT_PUBLIC_API_BASE=$NEXT_PUBLIC_API_BASE \
     NEXT_TELEMETRY_DISABLED=1
 

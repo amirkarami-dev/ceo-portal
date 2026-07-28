@@ -15,7 +15,7 @@ import { PagePlaceholder } from "./PagePlaceholder";
 import { AskAiBuilder } from "../features/ask-ai";
 import { ReportLibrary } from "../features/library";
 import { ReportViewer } from "../features/viewer";
-import { DashboardList, DashboardBuilder } from "../features/dashboards";
+import { DashboardList, DashboardBuilder, DashboardViewer } from "../features/dashboards";
 import AIAdminShell from "../admin/ai/AIAdminShell";
 import { AIProviderList } from "../admin/ai/providers/AIProviderList";
 import { AIRoutingRules } from "../admin/ai/routing/AIRoutingRules";
@@ -48,8 +48,7 @@ export const router = createBrowserRouter([
       {
         element: <AppLayout />,
         children: [
-          // Default redirect to /ask
-          { index: true, element: <Navigate to="/ask" replace /> },
+          { index: true, element: <Navigate to="/dashboards" replace /> },
 
           // User Area
           { path: "ask", element: <AskAiBuilder /> },
@@ -84,7 +83,7 @@ export const router = createBrowserRouter([
               { path: "dashboards/:dashId/edit", element: <DashboardBuilder /> },
             ],
           },
-          { path: "dashboards/:dashId", element: <DashboardList /> },
+          { path: "dashboards/:dashId", element: <DashboardViewer /> },
           {
             element: (
               <RequireRole

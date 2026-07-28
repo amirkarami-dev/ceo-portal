@@ -21,9 +21,7 @@ interface BackendSavedReport {
   ownerName: string;
   visibility: "private" | "tenant";
   updatedAt: string;
-  // The backend list endpoint does NOT return the full definition.
-  // definition is only populated after we POST to save or reconstruct from generate.
-  definition?: ReportDefinition;
+  definition: ReportDefinition;
 }
 
 /** Shape the backend returns from POST /api/Reports */
@@ -32,19 +30,22 @@ interface BackendSaveResponse {
 }
 
 function backendToFrontend(b: BackendSavedReport): SavedReport {
+  const definition = b.definition ?? ({} as ReportDefinition);
+
   return {
     id: b.id,
     ownerName: b.ownerName,
     visibility: b.visibility,
     updatedAt: b.updatedAt,
-    // definition may be absent in list responses; callers that need it must
-    // fetch the individual record (the mock get() delegates back into the list).
-    definition: b.definition ?? ({} as ReportDefinition),
+    definition: {
+      ...definition,
+      name: definition.name?.trim() || b.name,
+    },
   };
 }
 
 export const reportsHttpApi = {
-  /** GET /api/Reports — returns the list; definition may be partial/empty. */
+  /** GET /api/Reports — returns complete definitions for library, viewer, and widgets. */
   async list(): Promise<SavedReport[]> {
     const items = await httpClient.get<BackendSavedReport[]>("/api/Reports");
     return items.map(backendToFrontend);
@@ -52,7 +53,7 @@ export const reportsHttpApi = {
 
   /**
    * "Get by id" — the backend has no GET /api/Reports/{id} endpoint yet, so we
-   * fetch the list and find the matching entry. Returns null when not found.
+  * fetch the complete list and find the matching entry. Returns null when not found.
    */
   async get(id: string): Promise<SavedReport | null> {
     const items = await httpClient.get<BackendSavedReport[]>("/api/Reports");

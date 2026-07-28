@@ -7,8 +7,8 @@
   },
   "workspaces": [
     "packages/*",
-    "web",
-    "mobile",
+    "mabhas19-web",
+    "mabhas19-mobile",
     "analytics-web"
   ]
 }

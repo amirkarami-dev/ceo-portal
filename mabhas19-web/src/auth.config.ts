@@ -16,7 +16,7 @@ export const authConfig: NextAuthConfig = {
       clientSecret: process.env.AUTH_MABHAS19_SECRET,
       authorization: {
         params: {
-          scope: "openid profile email roles offline_access mabhas19.api",
+          scope: "openid profile email roles offline_access ceo.api",
         },
       },
     },

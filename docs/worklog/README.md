@@ -22,6 +22,11 @@ Also, when a task teaches something reusable:
 
 | Date | Record | Area | Status |
 |---|---|---|---|
+| 2026-07-27 | [Agent instruction refresh and local stack bring-up](2026-07-27-agent-docs-and-local-stack.md) | docs / local dev | complete, local only |
+| 2026-07-26 | [Analytics report metadata and navigation UX](2026-07-26-analytics-report-ux.md) | analytics | shipped to production |
+| 2026-07-26 | [CEO Portal Docker project and volume migration](2026-07-26-docker-platform-rename.md) | infra | shipped to production |
+| 2026-07-26 | [Analytics dashboard home and read-only viewer](2026-07-26-analytics-dashboard-home.md) | analytics | shipped to production |
+| 2026-07-26 | [MyCEO platform rebrand and host cutover](2026-07-26-platform-rebrand.md) | infra | shipped to production |
 | 2026-07-25 | [Mihan SMS provider for OTP](2026-07-25-mihan-sms.md) | auth | implementation complete, not deployed |
 | 2026-07-23 | [Iran Kish payment: made it actually reach the bank](2026-07-23-irankish-payment.md) | welfare | shipped |
 | 2026-07-23 | [Welfare service: engineer login, booking, admin](2026-07-23-walfare-service.md) | welfare | shipped |

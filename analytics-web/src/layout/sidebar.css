@@ -1,0 +1,43 @@
+.app-sidebar {
+  padding: 12px 8px;
+  background: transparent;
+}
+
+.app-sidebar .ant-menu-item {
+  min-height: 42px;
+  margin-block: 3px;
+  font-weight: 500;
+}
+
+.app-sidebar .ant-menu-item .anticon {
+  font-size: 17px;
+}
+
+.app-sidebar .ant-menu-item-selected {
+  font-weight: 700;
+  box-shadow: inset 3px 0 0 var(--ant-color-primary, #10b981);
+}
+
+[dir="rtl"] .app-sidebar .ant-menu-item-selected {
+  box-shadow: inset -3px 0 0 var(--ant-color-primary, #10b981);
+}
+
+.app-sidebar .ant-menu-item-group-title {
+  padding-block: 16px 6px;
+  color: var(--ant-color-text-tertiary, #777);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.app-sidebar .app-sidebar__featured {
+  margin-block: 10px 14px;
+  color: var(--ant-color-primary-active, #069469);
+  background: color-mix(in srgb, var(--ant-color-primary, #10b981) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ant-color-primary, #10b981) 24%, transparent);
+}
+
+.app-sidebar .app-sidebar__featured:hover,
+.app-sidebar .app-sidebar__featured.ant-menu-item-selected {
+  color: var(--ant-color-text-light-solid, #fff);
+  background: var(--ant-color-primary, #10b981);
+}

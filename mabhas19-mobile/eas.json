@@ -17,7 +17,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_BASE": "https://api.mabhas19.myceo.ir",
+        "EXPO_PUBLIC_API_BASE": "https://api.myceo.ir",
         "EXPO_NO_METRO_WORKSPACE_ROOT": "1"
       }
     },
@@ -26,7 +26,7 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_API_BASE": "https://api.mabhas19.myceo.ir",
+        "EXPO_PUBLIC_API_BASE": "https://api.myceo.ir",
         "EXPO_NO_METRO_WORKSPACE_ROOT": "1"
       }
     }

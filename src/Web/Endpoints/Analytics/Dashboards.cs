@@ -38,8 +38,11 @@ public class Dashboards : Mabhas19.Web.Infrastructure.IEndpointGroup
         }
     }
 
-    public static async Task<Ok<int>> SaveDashboard(ISender sender, SaveDashboardRequest request)
-        => TypedResults.Ok(await sender.Send(new SaveDashboardCommand(request.Name, request.Widgets, request.Layout, request.Id)));
+    public static async Task<Ok<SaveDashboardResponse>> SaveDashboard(ISender sender, SaveDashboardRequest request)
+    {
+        var id = await sender.Send(new SaveDashboardCommand(request.Name, request.Widgets, request.Layout, request.Id));
+        return TypedResults.Ok(new SaveDashboardResponse(id));
+    }
 
     public static async Task<Results<NoContent, NotFound>> DeleteDashboard(ISender sender, int id)
     {
@@ -59,3 +62,6 @@ public class Dashboards : Mabhas19.Web.Infrastructure.IEndpointGroup
 /// ARRAY of grid items (react-grid-layout shape) — a JsonObject here made model
 /// binding reject every create/save with 400. Id present = update in place.</summary>
 public sealed record SaveDashboardRequest(string Name, JsonArray Widgets, JsonArray Layout, int? Id = null);
+
+// Keep the POST contract object-shaped; the analytics client reads the named id field.
+public sealed record SaveDashboardResponse(int Id);

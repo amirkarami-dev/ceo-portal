@@ -1,3 +1,5 @@
+using System.Text.Json;
+using Mabhas19.Application.Analytics.Reports;
 using Mabhas19.Application.Common.Interfaces;
 using Mabhas19.Application.Common.Interfaces.Analytics;
 using Mabhas19.Application.Common.Security;
@@ -25,16 +27,20 @@ public class GetReportsQueryHandler : IRequestHandler<GetReportsQuery, IReadOnly
     {
         var tenantId = _tenant.TenantId ?? "default";
 
-        return await _context.AnalyticsReports
+        var reports = await _context.AnalyticsReports
             .AsNoTracking()
             .Where(r => r.TenantId == tenantId)
             .OrderByDescending(r => r.LastModified)
-            .Select(r => new SavedReportDto(
-                r.Id,
-                r.Name,
-                r.OwnerName,
-                r.Visibility,
-                r.LastModified))
             .ToListAsync(cancellationToken);
+
+        return reports.Select(r => new SavedReportDto(
+            r.Id,
+            r.Name,
+            r.OwnerName,
+            r.Visibility,
+            r.LastModified,
+            JsonSerializer.Deserialize<ReportDefinitionDto>(r.DefinitionJson)
+                ?? throw new InvalidOperationException($"Report {r.Id} has no definition.")))
+            .ToList();
     }
 }

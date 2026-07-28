@@ -17,11 +17,12 @@ import {
   PageHeader,
   Toolbar,
 } from "@/components/ui";
+import { reportOwnerLabel } from "./report-display";
 
 export function ReportLibrary() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { roles } = useAuth();
+  const { roles, user } = useAuth();
   const { data, isLoading, isError, refetch } = useReports();
   const del = useDeleteReport();
   const [q, setQ] = useState("");
@@ -62,7 +63,12 @@ export function ReportLibrary() {
       sorter: (a, b) => a.definition.name.localeCompare(b.definition.name),
       render: (_v, r) => <Link to={`/reports/${r.id}`}>{r.definition.name}</Link>,
     },
-    { title: t("library.colOwner"), dataIndex: "ownerName" },
+    {
+      title: t("library.colOwner"),
+      dataIndex: "ownerName",
+      render: (owner: string | undefined) =>
+        reportOwnerLabel(owner, user, t("library.organizationUser")),
+    },
     { title: t("library.colModel"), dataIndex: ["definition", "dataset"] },
     {
       title: t("library.colTags"),

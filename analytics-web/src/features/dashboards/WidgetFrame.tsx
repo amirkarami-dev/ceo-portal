@@ -23,7 +23,7 @@ import { KpiTile, SectionCard } from "@/components/ui";
 interface Props {
   widget: DashboardWidget;
   editing: boolean;
-  onRemove: () => void;
+  onRemove?: () => void;
   /** Persist a per-widget display change (view mode toggle). */
   onChange?: (next: DashboardWidget) => void;
 }
@@ -138,7 +138,7 @@ export function WidgetFrame({ widget, editing, onRemove, onChange }: Props) {
           </Tooltip>
         </>
       )}
-      {editing && (
+      {editing && onRemove && (
         <Dropdown
           trigger={["click"]}
           menu={{

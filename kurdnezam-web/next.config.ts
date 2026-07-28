@@ -11,7 +11,7 @@ const remotePatterns: RemotePattern[] = [
   // production API host (uploaded media)
   {
     protocol: "https",
-    hostname: "api.mabhas19.myceo.ir",
+    hostname: "api.myceo.ir",
     pathname: MEDIA_PATHNAME,
   },
 ];

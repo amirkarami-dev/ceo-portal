@@ -21,6 +21,7 @@ export function DashboardBuilder() {
   // "new" case: create an empty dashboard once, then redirect into the edit route.
   const createDash = useCreateDashboard();
   const creatingRef = useRef(false);
+  const [creationAttempt, setCreationAttempt] = useState(0);
   useEffect(() => {
     if (!isNew || creatingRef.current) return;
     creatingRef.current = true;
@@ -33,7 +34,7 @@ export function DashboardBuilder() {
         /* error handled via createDash.isError below */
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isNew]);
+  }, [isNew, creationAttempt]);
 
   const { data, isLoading, isError } = useDashboard(dashId);
   const save = useSaveDashboard();
@@ -57,6 +58,26 @@ export function DashboardBuilder() {
     roles.includes("SuperAdmin");
 
   // While creating a new dashboard (or loading an existing one), show a skeleton.
+  if (isNew && createDash.isError) {
+    return (
+      <Result
+        status="error"
+        title={t("dash.createError")}
+        extra={
+          <Button
+            type="primary"
+            onClick={() => {
+              creatingRef.current = false;
+              createDash.reset();
+              setCreationAttempt((attempt) => attempt + 1);
+            }}
+          >
+            {t("common.retry")}
+          </Button>
+        }
+      />
+    );
+  }
   if (isNew || isLoading) return <Loading rows={8} />;
   if (isError || !data) return <Result status="404" title={t("dash.notFound")} />;
   if (!canEdit) return <Result status="403" title={t("dash.forbidden")} />;

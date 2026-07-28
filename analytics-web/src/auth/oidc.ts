@@ -15,7 +15,7 @@ export function getUserManager(): UserManager {
       silent_redirect_uri: `${origin}/auth/silent`,
       post_logout_redirect_uri: origin,
       response_type: "code", // Authorization Code + PKCE (public client, no secret)
-      scope: import.meta.env.VITE_AUTH_SCOPE ?? "openid profile email roles mabhas19.api",
+      scope: import.meta.env.VITE_AUTH_SCOPE ?? "openid profile email roles ceo.api",
       userStore: new WebStorageStateStore({ store: window.localStorage }),
       automaticSilentRenew: true,
     });

@@ -28,7 +28,7 @@ export const scopes = [
   "email",
   "roles",
   "offline_access",
-  "mabhas19.api",
+  "ceo.api",
 ]
 
 /**

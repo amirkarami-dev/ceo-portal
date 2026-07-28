@@ -31,7 +31,7 @@ builder.Services.AddDataProtection()
 
 builder.Services.AddDbContext<AuthDbContext>(o =>
 {
-    o.UseSqlServer(builder.Configuration.GetConnectionString("Mabhas19AuthDb"));
+    o.UseSqlServer(builder.Configuration.GetConnectionString("CeoAuthDb"));
     o.UseOpenIddict(); // registers OpenIddict's EF Core stores' entity sets
     // The AddUserServiceAccess migration is hand-authored (the dotnet-ef design-time build could not
     // resolve the shared ServiceDefaults source-generator on the build box), so AuthDbContextModelSnapshot
@@ -117,7 +117,7 @@ builder.Services.AddOpenIddict()
         o.AllowAuthorizationCodeFlow().RequireProofKeyForCodeExchange()
          .AllowRefreshTokenFlow();
 
-        o.RegisterScopes("openid", "profile", "email", "roles", "offline_access", "mabhas19.api", "plan.api");
+        o.RegisterScopes("openid", "profile", "email", "roles", "offline_access", "mabhas19.api", "ceo.api", "plan.api");
 
         o.SetAccessTokenLifetime(TimeSpan.FromMinutes(30));
         o.SetRefreshTokenLifetime(TimeSpan.FromDays(14));

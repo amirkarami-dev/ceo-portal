@@ -29,7 +29,7 @@ const mockPost = vi.mocked(httpClient.post);
 const mockDelete = vi.mocked(httpClient.delete);
 
 const BACKEND_DASHBOARD = {
-  id: "dash-1",
+  id: 1,
   name: "Executive Dashboard",
   widgets: [{ i: "w1", reportId: "rep-1", viewIndex: 0, title: "Revenue" }],
   layout: [{ i: "w1", x: 0, y: 0, w: 6, h: 4 }],
@@ -51,7 +51,7 @@ describe("dashboardsHttpApi.list()", () => {
   it("maps backend items to DashboardRecord shape", async () => {
     const result = await dashboardsHttpApi.list();
     expect(result).toHaveLength(1);
-    expect(result[0].id).toBe("dash-1");
+    expect(result[0].id).toBe("1");
     expect(result[0].name).toBe("Executive Dashboard");
     expect(result[0].ownerName).toBe("Alice");
     expect(result[0].widgets).toHaveLength(1);
@@ -73,7 +73,7 @@ describe("dashboardsHttpApi.get()", () => {
   it("maps backend item to DashboardRecord shape", async () => {
     const result = await dashboardsHttpApi.get("dash-1");
     expect(result).not.toBeNull();
-    expect(result?.id).toBe("dash-1");
+    expect(result?.id).toBe("1");
   });
 
   it("returns null on error (e.g. 404)", async () => {
@@ -86,7 +86,7 @@ describe("dashboardsHttpApi.get()", () => {
 describe("dashboardsHttpApi.create()", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockPost.mockResolvedValue({ id: "dash-new" });
+    mockPost.mockResolvedValue({ id: 42 });
   });
 
   it("calls POST /api/Dashboards with name and empty widgets/layout", async () => {
@@ -100,7 +100,7 @@ describe("dashboardsHttpApi.create()", () => {
 
   it("returns a DashboardRecord with the server-assigned id", async () => {
     const result = await dashboardsHttpApi.create({ name: "My Dashboard" });
-    expect(result.id).toBe("dash-new");
+    expect(result.id).toBe("42");
     expect(result.name).toBe("My Dashboard");
     expect(result.widgets).toEqual([]);
   });
@@ -109,7 +109,7 @@ describe("dashboardsHttpApi.create()", () => {
 describe("dashboardsHttpApi.save()", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockPost.mockResolvedValue({ id: "dash-1" });
+    mockPost.mockResolvedValue({ id: 7 });
   });
 
   it("calls POST /api/Dashboards with widgets and layout", async () => {
@@ -149,6 +149,23 @@ describe("dashboardsHttpApi.save()", () => {
       widgets: [],
       layout: [],
     });
+  });
+
+  it("normalizes the numeric response id", async () => {
+    const dashboard = {
+      id: "7",
+      tenantId: "t1",
+      name: "Updated",
+      widgets: [],
+      layout: [],
+      ownerName: "Alice",
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+    };
+
+    const result = await dashboardsHttpApi.save(dashboard);
+
+    expect(result.id).toBe("7");
   });
 });
 

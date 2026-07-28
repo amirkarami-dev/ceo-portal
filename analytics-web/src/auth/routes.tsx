@@ -11,7 +11,7 @@ const useMock = (import.meta.env.VITE_AUTH_MODE ?? "mock") === "mock";
 export function LoginScreen() {
   const { login, user, ready } = useAuth();
   const { t } = useTranslation();
-  if (ready && user) return <Navigate to="/ask" replace />;
+  if (ready && user) return <Navigate to="/dashboards" replace />;
   return (
     <div
       style={{
@@ -58,14 +58,14 @@ export function OidcCallback() {
     if (ran.current) return;
     ran.current = true;
     if (useMock) {
-      navigate("/ask", { replace: true });
+      navigate("/dashboards", { replace: true });
       return;
     }
     getUserManager()
       .signinRedirectCallback()
       .then(() => {
         // The stored user is picked up live by AuthProvider's addUserLoaded subscription.
-        navigate("/ask", { replace: true });
+        navigate("/dashboards", { replace: true });
       })
       .catch(() => setError(t("auth.callbackError")));
     // eslint-disable-next-line react-hooks/exhaustive-deps

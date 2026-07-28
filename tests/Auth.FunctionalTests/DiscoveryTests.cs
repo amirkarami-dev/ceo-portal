@@ -63,6 +63,7 @@ public class DiscoveryTests
             .ToList();
 
         scopes.ShouldContain("mabhas19.api");
+        scopes.ShouldContain("ceo.api");
         scopes.ShouldContain("plan.api");
 
         var codeChallenges = root.GetProperty("code_challenge_methods_supported")

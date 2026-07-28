@@ -1,6 +1,6 @@
-name: mabhas19
+name: ceo-portal
 
-# Mabhas19 production stack: Traefik (TLS) + PostgreSQL + MinIO + .NET API + Next.js web.
+# CEO Portal production stack: Traefik (TLS) + SQL Server + MinIO + .NET API + Mabhas19 web.
 # Run from the repository root:  docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build
 
 services:
@@ -24,7 +24,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - traefik_letsencrypt:/letsencrypt
-    networks: [mabhas19]
+    networks: [ceo-portal]
 
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2019-latest
@@ -41,7 +41,7 @@ services:
       timeout: 5s
       retries: 20
       start_period: 45s
-    networks: [mabhas19]
+    networks: [ceo-portal]
 
   minio:
     image: minio/minio:latest
@@ -65,18 +65,23 @@ services:
       - "traefik.http.routers.minio.tls.certresolver=le"
       - "traefik.http.routers.minio.service=minio"
       - "traefik.http.services.minio.loadbalancer.server.port=9000"
+      - "traefik.http.routers.miniolegacy.rule=Host(`${LEGACY_MINIO_DOMAIN:-s3.mabhas19.myceo.ir}`)"
+      - "traefik.http.routers.miniolegacy.entrypoints=websecure"
+      - "traefik.http.routers.miniolegacy.tls.certresolver=le"
+      - "traefik.http.routers.miniolegacy.service=minio"
       # MinIO console
       - "traefik.http.routers.minioconsole.rule=Host(`${MINIO_CONSOLE_DOMAIN}`)"
       - "traefik.http.routers.minioconsole.entrypoints=websecure"
       - "traefik.http.routers.minioconsole.tls.certresolver=le"
       - "traefik.http.routers.minioconsole.service=minioconsole"
       - "traefik.http.services.minioconsole.loadbalancer.server.port=9001"
-    networks: [mabhas19]
+    networks: [ceo-portal]
 
   api:
     build:
       context: ..
       dockerfile: deploy/Dockerfile.api
+    image: ceo-portal-api:latest
     restart: unless-stopped
     depends_on:
       sqlserver:
@@ -85,7 +90,7 @@ services:
         condition: service_started
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__Mabhas19Db: "Server=sqlserver,1433;Database=Mabhas19Db;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;"
+      ConnectionStrings__CeoDb: "Server=sqlserver,1433;Database=CeoDb;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;"
       Minio__Endpoint: "minio:9000"
       Minio__AccessKey: ${MINIO_ROOT_USER}
       Minio__SecretKey: ${MINIO_ROOT_PASSWORD}
@@ -104,10 +109,15 @@ services:
       - "traefik.http.routers.api.rule=Host(`${API_DOMAIN}`)"
       - "traefik.http.routers.api.entrypoints=websecure"
       - "traefik.http.routers.api.tls.certresolver=le"
+      - "traefik.http.routers.api.service=api"
       - "traefik.http.services.api.loadbalancer.server.port=8080"
-    networks: [mabhas19]
+      - "traefik.http.routers.apilegacy.rule=Host(`${LEGACY_API_DOMAIN:-api.mabhas19.myceo.ir}`)"
+      - "traefik.http.routers.apilegacy.entrypoints=websecure"
+      - "traefik.http.routers.apilegacy.tls.certresolver=le"
+      - "traefik.http.routers.apilegacy.service=api"
+    networks: [ceo-portal]
 
-  web:
+  mabhas19-web:
     build:
       context: ..
       dockerfile: deploy/Dockerfile.web
@@ -123,7 +133,7 @@ services:
       - "traefik.http.routers.web.entrypoints=websecure"
       - "traefik.http.routers.web.tls.certresolver=le"
       - "traefik.http.services.web.loadbalancer.server.port=3000"
-    networks: [mabhas19]
+    networks: [ceo-portal]
 
 volumes:
   mssqldata:
@@ -131,5 +141,5 @@ volumes:
   traefik_letsencrypt:
 
 networks:
-  mabhas19:
+  ceo-portal:
     driver: bridge
