@@ -27,6 +27,19 @@ names of variables. Real values live in `deploy/.env` on the server (committed e
 
 ## The deploy loop
 
+SSH uses PuTTY `plink`/`pscp` (no `sshpass` on Windows). The server password is read from the
+**`CEO_SERVER_PASS`** environment variable — `scripts/deploy.ps1` fails fast without it. Set it as a
+*persisted user* variable, not just in the current shell, or tooling that spawns a fresh shell will
+not see it:
+
+```powershell
+[Environment]::SetEnvironmentVariable('CEO_SERVER_PASS','<password>','User')
+```
+
+Never put the value in a file, a commit, or a chat message. `scripts/deploy.ps1` rebuilds and
+force-recreates the **whole stack**; for a change confined to one service, prefer the incremental
+loop below.
+
 Work is shipped by copying the changed files to the server, rebuilding just those images,
 and recreating just those containers.
 

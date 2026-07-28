@@ -7,12 +7,12 @@
 #
 # Safe to re-run: deploy/.env and the OpenIddict signing cert are generated once and preserved.
 #
-#   pwsh -File scripts/deploy.ps1            # uses $env:M19_SERVER_PASS for the password
+#   pwsh -File scripts/deploy.ps1            # uses $env:CEO_SERVER_PASS for the password
 [CmdletBinding()]
 param(
   [string]$ServerIp   = "185.206.94.116",
   [string]$ServerUser = "ubuntu",
-  [string]$ServerPass = $env:M19_SERVER_PASS,
+  [string]$ServerPass = $env:CEO_SERVER_PASS,
   [string]$HostKey    = "SHA256:avswocM1nU3e0FnKQsQDoKSfs6mb/dkRG/8r7iTLEps",
   [string]$AppPath    = "/data/apps/ceo-portal",
   [string]$Compose    = "deploy/docker-compose.newserver.yml"
@@ -22,7 +22,7 @@ $plink = "C:\Program Files\PuTTY\plink.exe"
 $pscp  = "C:\Program Files\PuTTY\pscp.exe"
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 
-if (-not $ServerPass) { throw "Set the server password via -ServerPass or `$env:M19_SERVER_PASS" }
+if (-not $ServerPass) { throw "Set the server password via -ServerPass or `$env:CEO_SERVER_PASS" }
 
 function Remote([string]$cmd) {
   & $plink -batch -hostkey $HostKey -pw $ServerPass "$ServerUser@$ServerIp" $cmd
