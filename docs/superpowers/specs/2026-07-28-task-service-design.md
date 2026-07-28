@@ -29,6 +29,8 @@ Copy Monday's **look and feel**, not its feature list. See §8 for what the scre
 | employee / accountant / developer | **Job titles, not permissions** | In a task app they would all do the same things. Real roles that grant nothing are dead weight. Stored as a `JobTitle` field, used for filtering and display. |
 | Who can own a task | **Only people invited to task** | The service keeps its own member list. Matches the "Invite / 1" counter in the screenshots and keeps the Owner dropdown short. |
 | Board model | **One board, groups + tasks** | Exactly what the screenshots show. Multiple boards and custom columns are much bigger and are not needed to be useful. |
+| Language / direction | **Persian, RTL** | Matches every other app in the portal. The screenshots are English LTR — that is only the reference for *layout*, not for language. |
+| Dates shown to the user | **Jalali (Persian calendar)** | See §8.4. Stored and sent as ISO; converted only in the browser. |
 
 Only two permission levels exist: **`Administrator`** and **`User`** — the roles this backend
 already has in `src/Domain/Constants/Roles.cs`. No new roles are added.
@@ -159,12 +161,73 @@ Do it in this order, or the "own components" layer never actually happens:
 
 Keep the `components/ui` export surface stable: restyle, don't rename. Every page imports from it.
 
+### 8.4 Persian, RTL and the Jalali date picker
+
+The whole app is **Persian and RTL**. `<html lang="fa" dir="rtl">`, AntD's
+`<ConfigProvider direction="rtl" locale={faIR}>`, and logical CSS properties everywhere
+(`margin-inline-start`, `inset-inline-end` — never `left` / `right`).
+
+**Dates are Jalali in the UI, ISO on the wire.** The API always sends and accepts `2026-07-28`.
+Nothing Jalali ever reaches the database.
+
+#### Which picker — checked, not assumed
+
+`antd-jalali@2.0.1` is what `walfare-web` uses, but its peers are **`antd ^5.18.3`,
+`react ^18.3.1`**. task-web is **AntD 6 + React 19**, so that is a major-version mismatch, not just
+a peer warning. `walfare-web` already needs `--legacy-peer-deps` for this exact package
+(see `GOTCHAS.md`), and that only papers over React 18 vs 19 — not AntD 5 vs 6.
+
+So I checked what AntD 6 actually ships (unpacked `antd@6.5.2`):
+
+- `es/date-picker/generatePicker/index.js` **still exists**, and still exports the same
+  `generatePicker = generateConfig => {…}` factory returning `DatePicker` with `.RangePicker`,
+  `.MonthPicker`, `.YearPicker` etc.
+- `es/locale/fa_IR.js` and `es/date-picker/locale/fa_IR.js` **both ship**.
+
+**Decision: build our own `JalaliDatePicker` in `components/ui`** from AntD 6's own
+`generatePicker` plus a Jalali-configured dayjs. That is exactly what `antd-jalali` does inside, so
+we lose nothing — and we drop a dependency that declares the wrong AntD and React majors. It also
+fits the "build your own design system" goal: the picker becomes a component we own.
+
+Fallback if `generatePicker` turns out to be awkward: **`react-multi-date-picker@4.5.2`**, whose only
+peer is `react >=16.8` — no AntD dependency at all, so the AntD 6 question cannot bite. Cost: it
+does not inherit the AntD theme, so it needs styling to match.
+
+`jalaali-js@2.0.0` (pure date maths, no UI, no peers) is available if the server ever needs Jalali
+conversion — it should not, because the server stays ISO.
+
+#### Jalali rules already paid for in this repo — do not rediscover them
+
+From `GOTCHAS.md`, all learned the hard way in `walfare-web`:
+
+- **Never load a second `jalaliday`.** Whatever extends dayjs must do it once. A second copy
+  double-patches the prototype and the picker breaks.
+- **Never call `d.calendar("jalali")` on a picker value.** `dayjs/plugin/calendar` overrides
+  `.calendar()` and returns a string. Format directly instead.
+- **Never put an already-Jalali string through `new Date()`.** `"1405/03/16"` would be read as
+  Gregorian year 1405. Only convert values that are genuinely Gregorian.
+
+#### Where a date appears
+
+| Place | Shows | Sends |
+|---|---|---|
+| Due date cell | Jalali, e.g. `۶ مرداد` | ISO `2026-07-28` |
+| Due date picker in the item panel | Jalali month grid | ISO |
+| Kanban card date chip | Jalali short | — |
+| Overdue check | computed on the **server**, Tehran time | boolean flag in the payload |
+
+Overdue is computed server-side on purpose. Doing it in the browser means every user's machine
+clock and time zone can disagree about whether a task is late.
+
 ### Screens
 | Route | What |
 |---|---|
 | `/` | Board — table view: groups, rows, inline edit of Owner / Status / Due date |
 | `/` (Kanban tab) | Same data as four status columns |
 | `/members` | Admin only — invite, job title, deactivate |
+
+Persian numerals (`۱۲۳`) for dates and counts, via `toLocaleString("fa-IR")` — the same thing
+`kurdnezam-web` and `analytics-web` already do.
 
 ### UI reference — read from the screenshots
 Recorded here because the PNGs are not in the repo:
@@ -228,7 +291,7 @@ Each step ends in something you can actually look at.
 |---|---|---|
 | 1 | `TaskItem` etc. + EF migration + seed one board, two groups, sample members | migration applies on API start; rows exist in `CeoDb` |
 | 2 | `GET /api/Task/Board` + members endpoints | `/scalar` returns the board payload for an admin |
-| 3 | Scaffold `task-web`, theme tokens, `ConfigProvider`, 4–5 wrapped `components/ui` | app boots on 5276, sign-in works through the local IdP |
+| 3 | Scaffold `task-web`, theme tokens, `ConfigProvider` (RTL + `fa_IR`), 4–5 wrapped `components/ui`, **and the `JalaliDatePicker` spike** | app boots on 5276, sign-in works, and the Jalali picker renders a correct month grid |
 | 4 | Table view — groups, rows, coloured status cells, owner avatars, due dates | board renders the seeded data |
 | 5 | Create / edit / delete, inline status + owner + due date, permission rules | a `User` cannot set a deadline; an admin can |
 | 6 | Kanban view + drag between columns | dragging changes status and persists |
@@ -252,8 +315,7 @@ Plus one board "ceo", groups "To-Do" and "Completed", and three tasks covering
 
 ## 13. Open questions — answer before step 1
 
-1. **Persian/RTL?** Every other app in this repo is Persian and RTL. The screenshots are English
-   LTR. Assumed: **Persian + RTL**, like the rest of the portal. Say if it should be English.
+1. ~~Persian/RTL?~~ **Answered 2026-07-28: yes, Persian + RTL, with a Jalali date picker.** See §8.4.
 2. **Who is the admin?** Assumed: the existing `Administrator` role, so current portal admins get it
    automatically.
 3. **Does a deadline notify anyone?** Assumed no — v1 only shows overdue in red. SMS/email reminders
