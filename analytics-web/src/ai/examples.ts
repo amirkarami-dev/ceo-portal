@@ -220,7 +220,47 @@ const REAL_EXAMPLE_PROMPTS: ExamplePrompt[] = [
   { id: "kn-top-engineers-by-meter", label: "۱۰ مهندس برتر متراژ",
     prompt: "۱۰ مهندس برتر بر اساس مجموع متراژ کارکرد همراه با تعداد تخصیص هر یک",
     datasetKey: "model-engineer-projects" },
+
+  // ── سامانه رفاهی (CeoDb) ────────────────────────────────────────────────
+  { id: "wf-reservations-by-status", label: "رزروها به تفکیک وضعیت",
+    prompt: "تعداد رزروها به تفکیک وضعیت رزرو، مرتب از بیشترین",
+    datasetKey: "model-walfare-reservations" },
+  { id: "wf-revenue-by-pool", label: "درآمد به تفکیک سانس",
+    prompt: "مجموع مبلغ رزروهای پرداخت‌شده به تفکیک استخر یا سانس، مرتب از بیشترین",
+    datasetKey: "model-walfare-reservations" },
+  { id: "wf-reservations-by-field", label: "رزرو به تفکیک رشته",
+    prompt: "تعداد رزروهای پرداخت‌شده به تفکیک رشته مهندسی، مرتب از بیشترین",
+    datasetKey: "model-walfare-reservations" },
+  { id: "wf-reservations-monthly", label: "روند ماهانه رزرو",
+    prompt: "تعداد رزروها به تفکیک ماهِ تاریخ رزرو، به ترتیب زمانی",
+    datasetKey: "model-walfare-reservations" },
+  { id: "wf-cancelled-by-pool", label: "لغوشده‌ها به تفکیک سانس",
+    prompt: "تعداد رزروهای لغوشده به تفکیک سانس، مرتب از بیشترین",
+    datasetKey: "model-walfare-reservations" },
+  { id: "wf-payment-success-rate", label: "موفق در برابر ناموفق",
+    prompt: "تعداد تراکنش‌های موفق در مقابل ناموفق به تفکیک ماهِ زمان تراکنش",
+    datasetKey: "model-walfare-payments" },
+  { id: "wf-revenue-monthly", label: "درآمد ماهانه پرداخت‌ها",
+    prompt: "مجموع مبلغ تراکنش‌های موفق به تفکیک ماه، به ترتیب زمانی",
+    datasetKey: "model-walfare-payments" },
+  { id: "wf-failed-payments", label: "تراکنش‌های ناموفق",
+    prompt: "تعداد و مجموع مبلغ تراکنش‌های ناموفق به تفکیک نوع خدمت",
+    datasetKey: "model-walfare-payments" },
+  { id: "wf-pool-capacity", label: "ظرفیت سانس‌های فعال",
+    prompt: "مجموع ظرفیت سانس‌های فعال به تفکیک خدمت",
+    datasetKey: "model-walfare-pools" },
 ];
+
+/**
+ * Chips for one dataset. The picker and the chips must agree — showing a خدمات رفاهی prompt while
+ * اعضا و پروانه‌ها is selected would silently switch the dataset out from under the user.
+ * Falls back to every chip when the key matches nothing, so a new model is never left with an
+ * empty row.
+ */
+export function examplePromptsFor(datasetKey: string): ExamplePrompt[] {
+  const matching = EXAMPLE_PROMPTS.filter((p) => p.datasetKey === datasetKey);
+  return matching.length > 0 ? matching : EXAMPLE_PROMPTS;
+}
 
 /** Active chips: KurdNezam in REAL mode, sample prompts in mock/dev mode. */
 export const EXAMPLE_PROMPTS: ExamplePrompt[] = USE_REAL_MODELS

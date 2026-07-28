@@ -82,6 +82,7 @@ internal sealed class KurdNezamSemanticModelStore : ISemanticModelStore
             Name        = "اعضا و پروانه‌ها",
             Description = "اطلاعات عضویت و پروانه مهندسان استان کردستان (tblDW_OzviatInfo)",
             Source      = "oz_info",
+            Table       = SourceToTable["oz_info"],
             Fields      =
             [
                 new SemanticFieldDto { Id = "Ozviat",       Name = "کد عضویت",        Type = "number", Role = "dimension",
@@ -118,6 +119,7 @@ internal sealed class KurdNezamSemanticModelStore : ISemanticModelStore
             Name        = "کارکرد پروژه‌ای مهندسان",
             Description = "تخصیص مهندسان به پروژه‌ها و متراژ کارکرد (tblDW_EngineerProjectInfo)",
             Source      = "engineer_projects",
+            Table       = SourceToTable["engineer_projects"],
             Fields      =
             [
                 new SemanticFieldDto { Id = "ProjectNo",  Name = "شماره پرونده",  Type = "string", Role = "dimension",

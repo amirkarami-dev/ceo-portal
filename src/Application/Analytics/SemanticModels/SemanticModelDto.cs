@@ -76,6 +76,30 @@ public class SemanticModelDto
     /// </summary>
     public string Source { get; init; } = string.Empty;
 
+    /// <summary>
+    /// Real table this model reads. Comes from the TRUSTED semantic model only — never from user
+    /// input or from the AI — because the query engine bracket-quotes it straight into SQL.
+    /// Empty means the model is not SQL-backed (the in-memory sample engine).
+    /// </summary>
+    public string Table { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Which configured connection the table lives on: <c>AnalyticsDb</c> (the KurdNezam warehouse,
+    /// the default) or <c>CeoDb</c> (this application's own database, where the welfare tables are).
+    /// The two are different SQL Server instances, so a model must say which one it belongs to.
+    /// </summary>
+    public string ConnectionName { get; init; } = SemanticConnections.AnalyticsDb;
+
     /// <summary>All fields exposed by this model.</summary>
     public IReadOnlyList<SemanticFieldDto> Fields { get; init; } = [];
+}
+
+/// <summary>Names of the connections a semantic model may be bound to.</summary>
+public static class SemanticConnections
+{
+    /// <summary>The external KurdNezam warehouse (<c>ConnectionStrings:AnalyticsDb</c>).</summary>
+    public const string AnalyticsDb = "AnalyticsDb";
+
+    /// <summary>This application's own database (<c>ConnectionStrings:CeoDb</c>).</summary>
+    public const string CeoDb = "CeoDb";
 }

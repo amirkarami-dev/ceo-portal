@@ -34,6 +34,17 @@ internal sealed class SqlQueryEngine : IQueryEngine
         _logger     = logger;
     }
 
+    /// <summary>
+    /// Maps a model's <see cref="SemanticModelDto.ConnectionName"/> to a configured connection
+    /// string. Returns empty when that connection is not configured, which makes the model
+    /// unavailable rather than silently querying the wrong database.
+    /// </summary>
+    private string ResolveConnectionString(string connectionName) => connectionName switch
+    {
+        SemanticConnections.CeoDb => _options.CeoDbConnectionString,
+        _                         => _options.ConnectionString,
+    };
+
     // =========================================================================
     // IQueryEngine implementation
     // =========================================================================
@@ -50,10 +61,22 @@ internal sealed class SqlQueryEngine : IQueryEngine
             return new ReportResultDto { Columns = [], Rows = [], Total = 0 };
         }
 
-        // 2. Resolve real table name
-        if (!KurdNezamSemanticModelStore.SourceToTable.TryGetValue(definition.Dataset, out var tableName))
+        // 2. Resolve real table name — from the TRUSTED model, never from the request.
+        var tableName = model.Table;
+        if (string.IsNullOrWhiteSpace(tableName))
         {
             _logger.LogWarning("SqlQueryEngine: no table mapping for source '{Source}'", definition.Dataset);
+            return new ReportResultDto { Columns = [], Rows = [], Total = 0 };
+        }
+
+        // 2b. Resolve which database it lives on. The welfare tables are in CeoDb, a different
+        //     SQL Server instance from the KurdNezam warehouse, so the connection is per model.
+        var connectionString = ResolveConnectionString(model.ConnectionName);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            _logger.LogWarning(
+                "SqlQueryEngine: connection '{Connection}' is not configured; model '{Model}' is unavailable",
+                model.ConnectionName, model.ModelKey);
             return new ReportResultDto { Columns = [], Rows = [], Total = 0 };
         }
 
@@ -65,7 +88,7 @@ internal sealed class SqlQueryEngine : IQueryEngine
         // 4. Execute against the real DB
         var rows = new List<Dictionary<string, object?>>();
 
-        await using var conn = new SqlConnection(_options.ConnectionString);
+        await using var conn = new SqlConnection(connectionString);
         await conn.OpenAsync(cancellationToken);
 
         await using var cmd = new SqlCommand(sql, conn)

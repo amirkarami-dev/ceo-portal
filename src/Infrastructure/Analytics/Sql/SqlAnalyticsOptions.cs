@@ -14,6 +14,14 @@ public sealed class SqlAnalyticsOptions
     /// </summary>
     public string ConnectionString { get; init; } = string.Empty;
 
+    /// <summary>
+    /// Connection string for this application's own database (<c>ConnectionStrings:CeoDb</c>),
+    /// where the welfare tables live. A different SQL Server instance from
+    /// <see cref="ConnectionString"/>, so welfare models cannot be reached through it.
+    /// Empty means welfare models are not queryable.
+    /// </summary>
+    public string CeoDbConnectionString { get; init; } = string.Empty;
+
     /// <summary>Per-query timeout in seconds. Defaults to 60.</summary>
     public int CommandTimeoutSeconds { get; init; } = 60;
 

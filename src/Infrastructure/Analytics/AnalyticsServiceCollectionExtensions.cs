@@ -25,13 +25,30 @@ internal static class AnalyticsServiceCollectionExtensions
 
         if (!string.IsNullOrWhiteSpace(analyticsCs))
         {
+            // The welfare models read CeoDb, a DIFFERENT SQL Server instance from the KurdNezam
+            // warehouse, so the engine needs both connection strings and picks per model.
+            var ceoCs = configuration.GetConnectionString("CeoDb") ?? string.Empty;
+
             // Register a singleton options instance with the connection string from config.
-            var sqlOpts = new SqlAnalyticsOptions { ConnectionString = analyticsCs };
+            var sqlOpts = new SqlAnalyticsOptions
+            {
+                ConnectionString      = analyticsCs,
+                CeoDbConnectionString = ceoCs,
+            };
             services.AddSingleton(sqlOpts);
             services.AddSingleton<IOptions<SqlAnalyticsOptions>>(
                 new Microsoft.Extensions.Options.OptionsWrapper<SqlAnalyticsOptions>(sqlOpts));
 
-            services.AddScoped<ISemanticModelStore, KurdNezamSemanticModelStore>();
+            // Both catalogues, presented as one. Registered concretely (not as ISemanticModelStore)
+            // so the composite can take them without resolving itself.
+            services.AddScoped<KurdNezamSemanticModelStore>();
+            services.AddScoped<WalfareSemanticModelStore>();
+            services.AddScoped<ISemanticModelStore>(sp => new CompositeSemanticModelStore(
+            [
+                sp.GetRequiredService<KurdNezamSemanticModelStore>(),
+                sp.GetRequiredService<WalfareSemanticModelStore>(),
+            ]));
+
             services.AddScoped<IQueryEngine, SqlQueryEngine>();
         }
         else

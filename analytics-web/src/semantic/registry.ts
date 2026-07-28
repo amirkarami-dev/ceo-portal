@@ -4,6 +4,7 @@ import { projectModel } from "./models/project";
 import { salesModel } from "./models/sales";
 import { financeModel } from "./models/finance";
 import { ozInfoModel, engineerProjectsModel } from "./models/kurdnezam";
+import { walfareReservationsModel, walfarePaymentsModel, walfarePoolsModel } from "./models/walfare";
 import { projectData } from "./datasets/project";
 import { salesData } from "./datasets/sales";
 import { financeData } from "./datasets/finance";
@@ -12,6 +13,7 @@ import { financeData } from "./datasets/finance";
 // import { salesModel, projectModel } from "../semantic/registry"
 export { projectModel, salesModel, financeModel };
 export { ozInfoModel, engineerProjectsModel };
+export { walfareReservationsModel, walfarePaymentsModel, walfarePoolsModel };
 
 /** In REAL mode the dataset picker + auto-viz use the live KurdNezam models (matching the
  *  backend store); in MOCK/dev mode they use the bundled sample models + in-browser data. */
@@ -23,6 +25,9 @@ export const semanticModels: Record<string, SemanticModel> = USE_REAL_MODELS
   ? {
       [ozInfoModel.id]: ozInfoModel,
       [engineerProjectsModel.id]: engineerProjectsModel,
+      [walfareReservationsModel.id]: walfareReservationsModel,
+      [walfarePaymentsModel.id]: walfarePaymentsModel,
+      [walfarePoolsModel.id]: walfarePoolsModel,
     }
   : {
       // sales first ON PURPOSE: the Ask-AI default dataset is listSemanticModels()[0],

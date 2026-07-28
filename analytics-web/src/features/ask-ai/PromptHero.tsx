@@ -4,7 +4,7 @@ import { SendOutlined } from "@ant-design/icons";
 import { motion } from "framer-motion";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { EXAMPLE_PROMPTS } from "@/ai/examples";
+import { examplePromptsFor } from "@/ai/examples";
 import { listSemanticModels } from "@/semantic/registry";
 
 interface Props {
@@ -73,7 +73,7 @@ export function PromptHero({ compact, datasetKey, onDataset, onSubmit }: Props) 
 
       {!compact && (
         <div className="ask-hero__chips" style={{ marginTop: 16, display: "flex", flexWrap: "wrap", gap: 8 }}>
-          {EXAMPLE_PROMPTS.map((ex) => (
+          {examplePromptsFor(datasetKey).map((ex) => (
             <Tag.CheckableTag
               key={ex.id}
               data-testid="example-chip"
