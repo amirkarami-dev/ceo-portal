@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+} from "react";
 import {
   AnimatePresence,
   motion,
@@ -17,6 +23,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardList,
+  ExternalLink,
   FileCog,
   Flame,
   HardHat,
@@ -25,6 +32,7 @@ import {
   Zap,
   type LucideIcon,
 } from "lucide-react";
+import type { QuickLink } from "@/data/content";
 import { useContent } from "@/lib/store";
 import { imageUrl } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -387,45 +395,137 @@ const portalIcons: Record<string, LucideIcon> = {
   power: Zap,
 };
 
+/** Icon key of the link pinned to the first cell. Same tile as the rest — the
+    organisation wants it read first, not styled as a separate banner. */
+const PORTAL_PINNED_ICON = "welfare";
+
+/* Farsi chrome for the dock. `useI18n()`'s `t()` is typed to a closed union of
+   keys, so new copy would mean editing i18n.tsx — out of scope for this
+   component. The slider above hardcodes its Farsi aria-labels the same way. */
+const DOCK_COPY = {
+  navLabel: "سامانه‌ها و خدمات سازمان",
+  newTab: "در پنجرهٔ جدید باز می‌شود",
+} as const;
+
+const DOCK_EASE = [0.22, 1, 0.36, 1] as const;
+
+/**
+ * Column count in [min,max] leaving the fewest empty cells in the last row.
+ * Replaces the hardcoded `xl:grid-cols-7`, which stranded a lone tile in a
+ * second row as soon as the API served anything other than exactly 7 links.
+ * Ties go to the wider grid (fewer, shallower rows).
+ */
+function balancedColumns(count: number, min: number, max: number): number {
+  if (count <= min) return Math.max(count, 1);
+  let best = min;
+  let fewestEmpty = Number.POSITIVE_INFINITY;
+  for (let cols = min; cols <= max; cols++) {
+    const empty = (cols - (count % cols)) % cols;
+    if (empty <= fewestEmpty) {
+      fewestEmpty = empty;
+      best = cols;
+    }
+  }
+  return best;
+}
+
+/* ── one service tile — every portal uses this, including the pinned one ── */
+
+function PortalTile({
+  link,
+  animateIn,
+  delay,
+}: {
+  link: QuickLink;
+  animateIn: boolean;
+  delay: number;
+}) {
+  const Icon = portalIcons[link.icon] ?? Building2;
+  return (
+    <motion.li
+      initial={animateIn ? { opacity: 0, y: 12 } : false}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.28, delay, ease: DOCK_EASE }}
+    >
+      <a
+        href={link.href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="group relative flex h-full flex-col items-center gap-3 rounded-xl border border-line bg-white p-4 pt-6 text-center transition duration-200 hover:border-copper/40 hover:bg-copper-soft/40 hover:shadow-lift focus-visible:border-copper focus-visible:bg-copper-soft/50 motion-safe:hover:-translate-y-0.5 motion-safe:active:translate-y-0"
+      >
+        {/* Honest affordance for target="_blank" — the old dock gave none. */}
+        <ExternalLink
+          aria-hidden
+          className="absolute end-2.5 top-2.5 size-3.5 text-steel transition duration-200 group-hover:text-copper group-focus-visible:text-copper motion-safe:group-hover:-translate-x-0.5 motion-safe:group-hover:-translate-y-0.5"
+        />
+        <span className="grid size-12 place-items-center rounded-xl bg-ink text-gold transition-colors duration-200 group-hover:bg-copper group-hover:text-white">
+          <Icon className="size-6" aria-hidden />
+        </span>
+        <span className="text-balance text-sm font-medium leading-6 text-ink">
+          {link.title}
+        </span>
+        <span className="sr-only">({DOCK_COPY.newTab})</span>
+      </a>
+    </motion.li>
+  );
+}
+
 export function PortalDock() {
   const { content } = useContent();
   const hydrated = useHydrated();
+  const reduce = useReducedMotion();
+  const animateIn = hydrated && !reduce;
+
+  /* The welfare portal leads. It is pinned here, in the component, because the
+     API only orders quick links by sortOrder and this one ships last (8 of 8).
+     It renders as an ordinary tile — first, not featured. */
+  const links = useMemo(() => {
+    const ordered = [...content.quickLinks].sort(
+      (a, b) => a.sortOrder - b.sortOrder
+    );
+    const i = ordered.findIndex((l) => l.icon === PORTAL_PINNED_ICON);
+    return i < 1
+      ? ordered
+      : [ordered[i], ...ordered.slice(0, i), ...ordered.slice(i + 1)];
+  }, [content.quickLinks]);
+
+  if (!links.length) return null;
+
   return (
-    <div className="relative z-10 mx-auto -mt-12 max-w-6xl px-4">
-      <motion.ul
+    <nav
+      aria-label={DOCK_COPY.navLabel}
+      className="relative z-10 mx-auto -mt-12 max-w-6xl px-4"
+      style={
+        { "--dock-cols": String(balancedColumns(links.length, 3, 6)) } as CSSProperties
+      }
+    >
+      <motion.div
         key={hydrated ? "anim" : "ssr"}
-        initial={hydrated ? { opacity: 0, y: 24 } : false}
+        initial={animateIn ? { opacity: 0, y: 24 } : false}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        className="grid grid-cols-2 gap-3 rounded-2xl border border-line bg-white p-4 shadow-lift sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7"
+        transition={{ duration: 0.5, delay: 0.4, ease: DOCK_EASE }}
+        className="rounded-2xl border border-line bg-white p-4 shadow-lift"
       >
-        {content.quickLinks.map((link, i) => {
-          const Icon = portalIcons[link.icon] ?? Building2;
-          return (
-            <motion.li
+        {/* Always a wrapping grid — never a horizontal rail. Two columns on a
+            phone shows every service without sideways scrolling; from md the
+            column count is chosen so the last row is full.
+            `role="list"` because preflight's `list-style:none` drops list
+            semantics in Safari/VoiceOver. */}
+        <ul
+          role="list"
+          className="grid grid-cols-2 gap-3 md:[grid-template-columns:repeat(var(--dock-cols),minmax(0,1fr))]"
+        >
+          {links.map((link, i) => (
+            <PortalTile
               key={link.id}
-              initial={hydrated ? { opacity: 0, y: 12 } : false}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 + i * 0.06 }}
-            >
-              <a
-                href={link.href}
-                target="_blank"
-                rel="noreferrer"
-                className="group flex h-full flex-col items-center gap-3 rounded-xl border border-transparent p-4 text-center transition-all hover:border-copper/30 hover:bg-copper-soft/50"
-              >
-                <span className="grid size-12 place-items-center rounded-xl bg-ink text-gold transition-colors group-hover:bg-copper group-hover:text-white">
-                  <Icon className="size-6" aria-hidden />
-                </span>
-                <span className="text-sm font-medium leading-6 text-ink">
-                  {link.title}
-                </span>
-              </a>
-            </motion.li>
-          );
-        })}
-      </motion.ul>
-    </div>
+              link={link}
+              animateIn={animateIn}
+              delay={0.5 + i * 0.04}
+            />
+          ))}
+        </ul>
+      </motion.div>
+    </nav>
   );
 }
 
