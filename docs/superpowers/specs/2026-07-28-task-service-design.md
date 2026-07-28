@@ -96,6 +96,22 @@ Four tables in `CeoDb`, all `BaseAuditableEntity` (free `Created` / `CreatedBy` 
 | `JobTitle` | string | `Employee` / `Accountant` / `Developer` — a label, not a permission |
 | `IsActive` | bool | soft removal; keeps old task owners resolvable |
 
+### `task_notifications` — the bell
+| Column | Type | Notes |
+|---|---|---|
+| `Id` | int PK | |
+| `MemberId` | int, indexed | who it is for |
+| `TaskItemId` | int | what it is about |
+| `Kind` | string enum | `DueTomorrow` · `Overdue` |
+| `DueDateAtSend` | DateOnly | the deadline this notification was about |
+| `IsRead` | bool | |
+| `CreatedAt` | DateTimeOffset | |
+
+**Unique index on `(MemberId, TaskItemId, Kind, DueDateAtSend)`.** This is what stops duplicates:
+the daily job can run twice, or the container can restart mid-run, and the same person still gets
+told once. Including `DueDateAtSend` in the key is deliberate — if an admin moves the deadline, the
+task legitimately becomes "due tomorrow" again and should notify again.
+
 ### `task_boards` — one row in v1
 | `Id` int PK · `Name` string (the screenshots call it "ceo") |
 
@@ -157,6 +173,55 @@ status columns is a status change, not a reorder.
 
 `GET /api/Task/Board` returning everything in one call is deliberate: the board is small (tens of
 rows), and one payload avoids the waterfall that a `/groups` → `/items` → `/members` chain creates.
+
+## 7.1 Deadline notifications
+
+**In-app only.** A bell icon with an unread count, exactly like the Notifications panel in the
+screenshots. No SMS, no email.
+
+Why not SMS: `MihanSmsSender` lives in `src/Auth` and serves OTP. The API cannot call it today —
+it would need sharing into `Infrastructure` or an internal Auth call, plus a phone number on every
+member, plus a cost per message. Not worth it for v1. Email is bigger still: this repo has **no**
+email sender at all. Both stay possible later; the notification row is the same either way, only
+the delivery changes.
+
+### When it fires
+
+A **daily job** at **08:00 Tehran time**, writing at most two notifications per task:
+
+| Kind | Condition |
+|---|---|
+| `DueTomorrow` | `DueDate == tomorrow` and status is not `Done` |
+| `Overdue` | `DueDate < today` and status is not `Done` |
+
+`Done` tasks never notify. A task that is already overdue notifies **once**, not every morning —
+the unique index guarantees that.
+
+### ⚠ Two traps to get right
+
+**1. `new PeriodicTimer(TimeSpan.FromHours(24))` does not run at 08:00.** It fires 24 h after the
+container started, so a deploy at 15:20 moves every future notification to 15:20. Compute the delay
+to the next 08:00 Tehran, `await Task.Delay(thatDelay)`, and only then start the 24 h timer. The
+MunSanandaj workers do not need this because a 12 h sync does not care what time it runs — this one
+does.
+
+**2. "Tomorrow" and "today" must be Tehran days, not UTC days.** The container runs UTC. At 22:00
+Tehran it is already the next day in UTC, so a naive `DateTime.UtcNow.Date` would notify a day
+early. Resolve today from the Tehran time zone, then compare to the stored `DateOnly`. This is the
+same reason §6 stores the deadline as a `DateOnly` and §8.4 computes overdue on the server.
+
+### API
+
+| Method | Route | Who |
+|---|---|---|
+| GET | `/api/Task/Notifications` | the caller's own, newest first, with an unread count |
+| POST | `/api/Task/Notifications/read` | mark all, or a list of ids, as read |
+
+A member can only ever read or mark their **own** rows — `MemberId` comes from the token, never
+from the request body.
+
+The board page already polls; the bell can piggyback on the same `GET /api/Task/Board` response by
+including `unreadNotificationCount`, so v1 needs no extra polling loop.
 
 ## 8. Frontend — `task-web`
 
@@ -320,8 +385,9 @@ Each step ends in something you can actually look at.
 | 5 | Admin create / edit / delete; owner-only status change; permission rules | signed in as a `User`: no New task button, owner and due date read-only, status editable only on own rows — and the API rejects it even if the UI is bypassed |
 | 6 | Kanban view + drag between columns | dragging changes status and persists |
 | 7 | Members page + invite | invited person can sign in and see the board |
-| 8 | Filter / sort / search, empty states, mobile | works at 375 px with no sideways scroll |
-| 9 | Deploy: compose, Dockerfile, IdP client, CORS, DNS, AppSwitcher in all six | `https://task.kurdnezam.ir` serves it |
+| 8 | Deadline notifications: `task_notifications`, the daily 08:00 worker, bell UI | a task due tomorrow produces exactly one row; running the job twice produces no second row |
+| 9 | Filter / sort / search, empty states, mobile | works at 375 px with no sideways scroll |
+| 10 | Deploy: compose, Dockerfile, IdP client, CORS, DNS, AppSwitcher in all six | `https://task.kurdnezam.ir` serves it |
 
 ## 12. Sample data to seed
 
@@ -340,9 +406,9 @@ Plus one board "ceo", groups "To-Do" and "Completed", and three tasks covering
 ## 13. Open questions — answer before step 1
 
 1. ~~Persian/RTL?~~ **Answered 2026-07-28: yes, Persian + RTL, with a Jalali date picker.** See §8.4.
-2. **Who is the admin?** Assumed: the existing `Administrator` role, so current portal admins get it
-   automatically.
-3. **Does a deadline notify anyone?** Assumed no — v1 only shows overdue in red. SMS/email reminders
-   would need the existing Mihan SMS sender and a scheduled job.
+2. ~~Who is the admin?~~ **Answered 2026-07-28: the existing `Administrator` role.** Current portal
+   admins get task admin automatically. No new role, no separate admin list.
+3. ~~Does a deadline notify anyone?~~ **Answered 2026-07-28: yes — in-app bell only, daily at 08:00
+   Tehran, `DueTomorrow` + `Overdue`.** See §7.1.
 4. ~~Can a User create tasks?~~ **Answered 2026-07-28: no — only the admin creates tasks.** A User's
    only write action is changing the status of a task they own.
