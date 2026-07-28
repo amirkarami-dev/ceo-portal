@@ -38,11 +38,22 @@ already has in `src/Domain/Constants/Roles.cs`. No new roles are added.
 | Can… | Administrator | User |
 |---|---|---|
 | See the board | yes | yes |
-| Create a task | yes | yes |
-| Assign an owner to anyone | yes | only themselves |
+| **Create a task** | **yes** | **no** |
+| Assign / change the owner | yes | no |
 | Set / change a deadline | yes | no |
-| Change status of a task | any task | only tasks they own |
+| Change status of a task | any task | **only tasks they own** |
+| Delete a task | yes | no |
 | Invite a member, set job titles | yes | no |
+
+**A User has exactly one write action: move their own task's status.** Everything else is read-only.
+That is the whole permission model — keep it that simple.
+
+What this means in the UI (do not just hide buttons — the API enforces it too):
+
+- `New task` button and every `+ Add task` row: **admin only**.
+- Owner cell and Due date cell: read-only text for a User, editable for an admin.
+- Status cell: editable **only on rows the User owns**; read-only on everyone else's.
+- Kanban drag: a User can drag their own cards between columns, nothing else.
 
 ## 4. ⚠ Naming trap — do not call the entity `Task`
 
@@ -124,12 +135,25 @@ Auto-mapped from `IEndpointGroup` classes, like every other endpoint group here.
 | Method | Route | Who |
 |---|---|---|
 | GET | `/api/Task/Board` | any member — board + groups + items + members, one payload |
-| POST | `/api/Task/Items` | any member |
-| PUT | `/api/Task/Items/{id}` | admin, or the owner (owner may change only `Status`) |
-| PUT | `/api/Task/Items/{id}/move` | drag between groups / reorder |
-| DELETE | `/api/Task/Items/{id}` | admin |
+| POST | `/api/Task/Items` | **admin only** |
+| PUT | `/api/Task/Items/{id}` | **admin only** — title, owner, deadline, group |
+| PATCH | `/api/Task/Items/{id}/status` | admin, **or the owner of that task** |
+| PUT | `/api/Task/Items/{id}/move` | **admin only** — reorder / move between groups |
+| DELETE | `/api/Task/Items/{id}` | **admin only** |
 | GET/POST | `/api/Task/Members` | admin — list / invite |
 | PUT | `/api/Task/Members/{id}` | admin — job title, deactivate |
+
+**Status is its own endpoint on purpose.** It is the single field a non-admin may write. Splitting
+it out means the ownership check lives in one small handler, instead of a general "update task"
+handler that has to work out which fields the caller is allowed to touch — the kind of branching
+where a permission bug hides.
+
+`RequireRole(Administrator)` covers every route except `GET /api/Task/Board` and
+`PATCH /Items/{id}/status`. Those two check membership, and status additionally checks
+`item.OwnerMemberId == caller's member id` unless the caller is an admin.
+
+**Kanban drag for a User** goes through `PATCH /status`, not `/move` — dragging a card between
+status columns is a status change, not a reorder.
 
 `GET /api/Task/Board` returning everything in one call is deliberate: the board is small (tens of
 rows), and one payload avoids the waterfall that a `/groups` → `/items` → `/members` chain creates.
@@ -293,7 +317,7 @@ Each step ends in something you can actually look at.
 | 2 | `GET /api/Task/Board` + members endpoints | `/scalar` returns the board payload for an admin |
 | 3 | Scaffold `task-web`, theme tokens, `ConfigProvider` (RTL + `fa_IR`), 4–5 wrapped `components/ui`, **and the `JalaliDatePicker` spike** | app boots on 5276, sign-in works, and the Jalali picker renders a correct month grid |
 | 4 | Table view — groups, rows, coloured status cells, owner avatars, due dates | board renders the seeded data |
-| 5 | Create / edit / delete, inline status + owner + due date, permission rules | a `User` cannot set a deadline; an admin can |
+| 5 | Admin create / edit / delete; owner-only status change; permission rules | signed in as a `User`: no New task button, owner and due date read-only, status editable only on own rows — and the API rejects it even if the UI is bypassed |
 | 6 | Kanban view + drag between columns | dragging changes status and persists |
 | 7 | Members page + invite | invited person can sign in and see the board |
 | 8 | Filter / sort / search, empty states, mobile | works at 375 px with no sideways scroll |
@@ -320,5 +344,5 @@ Plus one board "ceo", groups "To-Do" and "Completed", and three tasks covering
    automatically.
 3. **Does a deadline notify anyone?** Assumed no — v1 only shows overdue in red. SMS/email reminders
    would need the existing Mihan SMS sender and a scheduled job.
-4. **Can a User create tasks at all,** or only the admin? Assumed yes, but they can only own them
-   themselves and cannot set a deadline.
+4. ~~Can a User create tasks?~~ **Answered 2026-07-28: no — only the admin creates tasks.** A User's
+   only write action is changing the status of a task they own.
