@@ -79,6 +79,8 @@ internal sealed class WalfareSemanticModelStore : ISemanticModelStore
             Source         = "walfare_reservations",
             Table          = SourceToTable["walfare_reservations"],
             ConnectionName = SemanticConnections.CeoDb,
+            // Exposes نام and کد ملی — Administrator only.
+            RequiresAdministrator = true,
             Fields         =
             [
                 new SemanticFieldDto { Id = "PoolId", Name = "استخر/سانس", Type = "number", Role = "dimension",
@@ -91,6 +93,10 @@ internal sealed class WalfareSemanticModelStore : ISemanticModelStore
                     Description = "کد رشته مهندسیِ رزروکننده، از سامانه نظام مهندسی" },
                 new SemanticFieldDto { Id = "FullName", Name = "نام رزروکننده", Type = "string", Role = "dimension",
                     Description = "نام و نام خانوادگی مهندس در زمان رزرو" },
+                new SemanticFieldDto { Id = "NationalCode", Name = "کد ملی", Type = "string", Role = "dimension",
+                    Description = "کد ملی مهندس رزروکننده — داده شخصی، فقط برای مدیر" },
+                new SemanticFieldDto { Id = "TrackingCode", Name = "کد رهگیری", Type = "string", Role = "dimension",
+                    Description = "کد رهگیری بلیط؛ فقط برای رزروهای پرداخت‌شده مقدار دارد" },
                 new SemanticFieldDto { Id = "DateJalali", Name = "تاریخ رزرو (شمسی)", Type = "string", Role = "dimension",
                     Description = "روزِ رزروشده به شمسی مانند 1405/05/01" },
                 new SemanticFieldDto { Id = "Date", Name = "تاریخ رزرو", Type = "date", Role = "date",
@@ -112,6 +118,8 @@ internal sealed class WalfareSemanticModelStore : ISemanticModelStore
             Source         = "walfare_payments",
             Table          = SourceToTable["walfare_payments"],
             ConnectionName = SemanticConnections.CeoDb,
+            // Exposes نام پرداخت‌کننده — Administrator only.
+            RequiresAdministrator = true,
             Fields         =
             [
                 new SemanticFieldDto { Id = "Status", Name = "وضعیت پرداخت", Type = "number", Role = "dimension",

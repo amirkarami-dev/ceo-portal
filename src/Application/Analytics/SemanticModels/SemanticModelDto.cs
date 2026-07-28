@@ -90,6 +90,15 @@ public class SemanticModelDto
     /// </summary>
     public string ConnectionName { get; init; } = SemanticConnections.AnalyticsDb;
 
+    /// <summary>
+    /// True when this model exposes personal data and must be restricted to the
+    /// <c>Administrator</c> role. The Reports endpoint itself only requires authentication, so
+    /// without this flag any signed-in portal user could export کد ملی and names.
+    /// Enforced in <c>ExecuteReportQueryHandler</c>, and the model is hidden from the dataset list
+    /// for everyone else.
+    /// </summary>
+    public bool RequiresAdministrator { get; init; }
+
     /// <summary>All fields exposed by this model.</summary>
     public IReadOnlyList<SemanticFieldDto> Fields { get; init; } = [];
 }

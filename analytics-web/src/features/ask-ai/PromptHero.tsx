@@ -48,7 +48,11 @@ export function PromptHero({ compact, datasetKey, onDataset, onSubmit }: Props) 
           value={datasetKey}
           onChange={onDataset}
           options={listSemanticModels().map((m) => ({ value: m.key, label: m.label }))}
-          style={{ minWidth: 160 }}
+          // Dataset names are long Persian phrases ("استخرها و سانس‌های رفاهی"), so the control
+          // needs room and the popup must be free to be wider than it — otherwise every option
+          // is ellipsised and the lists are indistinguishable.
+          popupMatchSelectWidth={false}
+          style={{ minWidth: 220, maxWidth: 320 }}
         />
         <Input.TextArea
           aria-label={t("ask.promptLabel")}

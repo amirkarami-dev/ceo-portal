@@ -222,6 +222,9 @@ const REAL_EXAMPLE_PROMPTS: ExamplePrompt[] = [
     datasetKey: "model-engineer-projects" },
 
   // ── سامانه رفاهی (CeoDb) ────────────────────────────────────────────────
+  { id: "wf-paid-list", label: "فهرست رزروهای پرداخت‌شده",
+    prompt: "فهرست رزروهای پرداخت‌شده شامل نام رزروکننده، کد ملی، تاریخ رزرو و مبلغ، مرتب از جدیدترین",
+    datasetKey: "model-walfare-reservations" },
   { id: "wf-reservations-by-status", label: "رزروها به تفکیک وضعیت",
     prompt: "تعداد رزروها به تفکیک وضعیت رزرو، مرتب از بیشترین",
     datasetKey: "model-walfare-reservations" },
