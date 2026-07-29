@@ -1,0 +1,132 @@
+using Mabhas19.Domain.Elections;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
+namespace Mabhas19.Infrastructure.Data.Configurations.Elections;
+
+public class ElectionConfiguration : IEntityTypeConfiguration<Election>
+{
+    public void Configure(EntityTypeBuilder<Election> b)
+    {
+        b.ToTable("Elections", t =>
+        {
+            // The window must be a real window, and a voter must be able to pick at least one
+            // candidate. Enforced in SQL so no code path can write a nonsense election.
+            t.HasCheckConstraint("CK_Elections_Window", "[ClosesAtUtc] > [OpensAtUtc]");
+            t.HasCheckConstraint("CK_Elections_MaxSelections", "[MaxSelections] >= 1");
+        });
+
+        b.Property(x => x.Title).HasMaxLength(300).IsRequired();
+        b.Property(x => x.Description).HasMaxLength(2000);
+        b.Property(x => x.DateJalali).HasMaxLength(30).IsRequired();
+
+        // datetimeoffset(0): a voting window is to the second. Sub-second precision on an election
+        // record would be noise, and these are compared against a clock, not a ballot.
+        b.Property(x => x.OpensAtUtc).HasPrecision(0);
+        b.Property(x => x.ClosesAtUtc).HasPrecision(0);
+        b.Property(x => x.TalliedAt).HasPrecision(0);
+        b.Property(x => x.BallotsPurgedAt).HasPrecision(0);
+
+        b.Property(x => x.StartTime).HasPrecision(0);
+        b.Property(x => x.EndTime).HasPrecision(0);
+
+        // Digest over the sealed ballots at close. Fixed 32 bytes (SHA-256).
+        b.Property(x => x.ResultDigest).HasMaxLength(32);
+
+        // Drives «انتخابات فعال» — the query every voter lands on.
+        b.HasIndex(x => new { x.Status, x.ClosesAtUtc });
+    }
+}
+
+public class ElectionCandidateConfiguration : IEntityTypeConfiguration<ElectionCandidate>
+{
+    public void Configure(EntityTypeBuilder<ElectionCandidate> b)
+    {
+        b.ToTable("ElectionCandidates");
+
+        b.Property(x => x.FullName).HasMaxLength(300).IsRequired();
+        b.Property(x => x.Description).HasMaxLength(2000);
+        b.Property(x => x.ReshteCode).HasMaxLength(50);
+        b.Property(x => x.EducationLevel).HasMaxLength(200);
+
+        // Candidates belong to their election and die with it — but only a Draft election can be
+        // deleted at all (a published one has ballots referencing it via ElectionId).
+        b.HasOne(x => x.Election)
+            .WithMany(e => e.Candidates)
+            .HasForeignKey(x => x.ElectionId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        b.HasIndex(x => new { x.ElectionId, x.SortOrder });
+    }
+}
+
+public class ElectionEligibleReshteConfiguration : IEntityTypeConfiguration<ElectionEligibleReshte>
+{
+    public void Configure(EntityTypeBuilder<ElectionEligibleReshte> b)
+    {
+        b.ToTable("ElectionEligibleReshtes");
+
+        // Natural composite key: the same discipline cannot be added to one election twice, and
+        // there is no surrogate Id to carry around.
+        b.HasKey(x => new { x.ElectionId, x.ReshteCode });
+
+        b.Property(x => x.ReshteCode).HasMaxLength(50).IsRequired();
+        b.Property(x => x.ReshteLabel).HasMaxLength(200);
+
+        b.HasOne(x => x.Election)
+            .WithMany(e => e.EligibleReshtes)
+            .HasForeignKey(x => x.ElectionId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
+/// <summary>
+/// The voter roll. See <see cref="ElectionVoteReceipt"/> — every omission is deliberate.
+/// </summary>
+public class ElectionVoteReceiptConfiguration : IEntityTypeConfiguration<ElectionVoteReceipt>
+{
+    public void Configure(EntityTypeBuilder<ElectionVoteReceipt> b)
+    {
+        b.ToTable("ElectionVoteReceipts");
+
+        // THIS is the one-vote guarantee — a UNIQUE constraint in the database, so two concurrent
+        // casts (web + bot, or a double-submit) cannot both win a race. Do not move this check into
+        // application code.
+        b.HasKey(x => new { x.ElectionId, x.VoterHash });
+
+        // HMAC-SHA256 output: exactly 32 bytes, fixed length. binary(32), not varbinary.
+        b.Property(x => x.VoterHash).HasMaxLength(32).IsFixedLength().IsRequired();
+
+        // NO navigation to Election, and NO foreign key. A FK would be harmless today, but it invites
+        // an .Include() that joins the roll to anything else. Kept deliberately inert.
+        //
+        // NO index other than the key. An index on ElectionId alone would order rows within an
+        // election, and row order is insert order — which is the correlation this table avoids.
+    }
+}
+
+/// <summary>
+/// The sealed ballots. See <see cref="ElectionBallot"/>.
+/// </summary>
+public class ElectionBallotConfiguration : IEntityTypeConfiguration<ElectionBallot>
+{
+    public void Configure(EntityTypeBuilder<ElectionBallot> b)
+    {
+        b.ToTable("ElectionBallots");
+
+        // Random v4 GUID as the clustered key, generated by the app. ValueGeneratedNever() is the
+        // point: a database-generated sequential key (or an identity int) would make primary-key
+        // order equal voting order, which hands an attacker the sequence for free.
+        b.HasKey(x => x.BallotId);
+        b.Property(x => x.BallotId).ValueGeneratedNever();
+
+        b.Property(x => x.Sealed).IsRequired();
+
+        // Needed by the tally and by the 30-day purge. Safe: it groups ballots by election, which is
+        // already public, and reveals nothing about who cast them.
+        b.HasIndex(x => x.ElectionId);
+
+        // NO navigation to Election and NO foreign key — same reasoning as the roll. Also: a cascade
+        // delete from Elections would silently destroy ballots, and the purge must be explicit.
+    }
+}

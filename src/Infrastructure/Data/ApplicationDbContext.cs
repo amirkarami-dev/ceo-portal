@@ -1,6 +1,7 @@
 ﻿using System.Reflection;
 using Mabhas19.Application.Common.Interfaces;
 using Mabhas19.Domain.Analytics;
+using Mabhas19.Domain.Elections;
 using Mabhas19.Domain.Entities;
 using Mabhas19.Domain.Kurdnezam;
 using Mabhas19.Domain.MunSanandaj;
@@ -55,6 +56,18 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<WelfarePoolReservation> WelfarePoolReservations => Set<WelfarePoolReservation>();
 
     public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
+
+    public DbSet<Election> Elections => Set<Election>();
+
+    public DbSet<ElectionCandidate> ElectionCandidates => Set<ElectionCandidate>();
+
+    public DbSet<ElectionEligibleReshte> ElectionEligibleReshtes => Set<ElectionEligibleReshte>();
+
+    // The two halves of the secret ballot. Never join these to each other, and never join either to
+    // a user — see the remarks on ElectionVoteReceipt and ElectionBallot.
+    public DbSet<ElectionVoteReceipt> ElectionVoteReceipts => Set<ElectionVoteReceipt>();
+
+    public DbSet<ElectionBallot> ElectionBallots => Set<ElectionBallot>();
 
     public DbSet<KurdnezamSlide> KurdnezamSlides => Set<KurdnezamSlide>();
 
