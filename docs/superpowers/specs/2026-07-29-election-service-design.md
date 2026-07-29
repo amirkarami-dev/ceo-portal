@@ -235,13 +235,8 @@ results ordered by votes.
 
 1. ~~The 4 unmappable disciplines~~ **Answered 2026-07-29: there is no صلاحیت column.** See §2.
    Those elections need a new org-DB field or an uploaded voter list. Out of v1.
-5. **Must a voter be an ACTIVE member with a valid licence?** The document says nothing, and the
-   agreed rule is "discipline only" — but `Vazeyat` / `VaziateOzv` and `TarikheEtebar` / `PrvExp` are
-   right there. Today a suspended member, or one whose پروانه expired years ago, would be allowed to
-   vote purely because `WebS_GetEngineerInfo` still knows their کد ملی. That is the kind of thing a
-   losing candidate challenges afterwards. **Recommendation: require active status and an unexpired
-   licence.** This is different from the پایه rule that was declined — it is about whether the person
-   is currently a member at all, not how senior they are.
+5. ~~Must a voter be an ACTIVE member with a valid licence?~~ **Answered 2026-07-29: yes, require
+   both.** See §14.
 6. ~~Does «واحد» mean `ShobeName`?~~ **Answered 2026-07-29: no.** The title is free text and carries
    no meaning for the system. Eligibility is always set separately, as explicit `ReshteID` codes.
    `ShobeID` / `ShobeName` are **not** used.
@@ -263,8 +258,10 @@ its eligibility in words («ویژهٔ مهندسان رشتهٔ مکانیک»)
 excluded.
 2. ~~Turnout visibility~~ **Answered 2026-07-29: hide any row with fewer than 5 eligible voters.**
    Admins still see the total. See §13.
-3. **Who may publish results** — any `Administrator`, or a named person? There is one flat admin
-   role today.
+3. ~~Who may publish results~~ **Answered 2026-07-29: any `Administrator`.** No second approver, no
+   named publisher. Publishing is therefore recorded in the append-only admin action log (§6, attack
+   7) so it is at least attributable after the fact.
+5b. **What value of `Vazeyat` / `VaziateOzv` means "active"?** Blocks §14 — see there.
 4. ~~Retention~~ **Answered 2026-07-29: keep sealed ballots 30 days after close, then delete.**
    See §13.
 
@@ -307,3 +304,64 @@ showing "1 eligible, hidden" leaks the same fact.
 
 The overall total is always shown. Admins see counts only, never who — the participation-by-کد-ملی
 endpoint stays deleted (§6, attack 6).
+
+---
+
+## 14. Voter must be an active member with a valid licence
+
+Three conditions, all checked live at cast time from the one
+`IEngineerDirectory.GetByNationalCodeAsync` call. No extra query, no stored eligibility list.
+
+| # | Condition | Field |
+|---|---|---|
+| 1 | The کد ملی is known to the org | the lookup returns non-null |
+| 2 | Membership is **active** | `Vazeyat` / `VaziateOzv` |
+| 3 | The پروانه has **not expired** | `TarikheEtebar` / `PrvExp` |
+| 4 | Discipline matches, when `EligibilityMode = ByReshte` | `ReshteID` |
+
+This is deliberately different from the پایه rule that was declined. That was about *seniority*.
+This is about whether the person **is a member at all right now** — a suspended member, or one whose
+licence lapsed years ago, is not someone whose vote would survive a challenge.
+
+`EngineerInfo` must be widened to carry these fields. It currently maps 5 of ~50 columns; this adds
+membership status, licence expiry and `MadrakNam`. Additive change, no existing caller breaks.
+
+### ⚠ Two things must be pinned down before writing this check
+
+**1. Which value means "active"?** The code dictionary covers `PayeT`, `IsHogh`, `TypDftr`, `Reshte`
+and so on — but **not** `Vazeyat` or `VaziateOzv`. Without the code list this check cannot be
+written: guessing "1 = active" could silently disenfranchise every eligible engineer, or silently
+let suspended ones vote. Both are worse than not shipping the check.
+
+Needed: the meaning of each value of `Vazeyat` and `VaziateOzv`, and which of the two is the
+authoritative membership status. Also which of `TarikheEtebar` and `PrvExp` is the پروانه expiry —
+there are two date fields and they may not agree.
+
+**2. The expiry dates are Jalali strings.** The analytics model already documents `ExpDate` as
+«تاریخ اعتبار پروانه، شمسی مانند 1405/05/01». So:
+
+- **Never** put them through `new Date()` / `DateTime.Parse` — `1405/05/01` would be read as
+  Gregorian year 1405. This trap is already in `GOTCHAS.md`.
+- Compare **Jalali to Jalali**: convert today's date to Jalali once, then compare. Zero-padded
+  `yyyy/MM/dd` strings also compare correctly with a plain ordinal string comparison, which avoids a
+  conversion entirely — but only if every stored value really is zero-padded. Verify that against
+  real rows before relying on it.
+- A blank or unparseable expiry must **fail closed** for voting, and be reported to the admin — not
+  silently treated as valid.
+
+### Failure messages
+
+A refused voter must be told **which** condition failed, in Persian, or they will simply think the
+system is broken:
+
+| Reason | Message |
+|---|---|
+| کد ملی unknown | «این کد ملی در سامانه نظام مهندسی یافت نشد» |
+| Not active | «عضویت شما فعال نیست» |
+| Licence expired | «اعتبار پروانهٔ شما به پایان رسیده است» |
+| Wrong discipline | «این انتخابات ویژهٔ مهندسان رشتهٔ … است» |
+| Already voted | «شما قبلاً در این انتخابات رأی داده‌اید» |
+
+Note the first message: `GOTCHAS.md` records that this exact sentence was once shown for a **SQL
+parameter bug**, not a real "not found". So on a lookup *error* (as opposed to a genuine miss), show
+a distinct message and log it — never reuse the not-found wording for a failure.
