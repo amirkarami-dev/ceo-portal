@@ -1,71 +1,7 @@
-using System.Globalization;
+using Mabhas19.Application.Common;
 using Mabhas19.Domain.Walfare;
 
 namespace Mabhas19.Application.Walfare;
-
-/// <summary>
-/// Jalali (شمسی) date plumbing for the welfare module. The UI talks Jalali strings; capacity and
-/// window checks need Gregorian <see cref="DateOnly"/>, so both are stored side by side.
-/// </summary>
-public static class JalaliDate
-{
-    private static readonly PersianCalendar Persian = new();
-
-    /// <summary>"۱۴۰۵/۵/۱" یا "1405/05/01" → Gregorian date. Null when unparseable.</summary>
-    public static DateOnly? Parse(string? jalali)
-    {
-        if (string.IsNullOrWhiteSpace(jalali)) return null;
-
-        var parts = NormalizeDigits(jalali).Split('/', '-');
-        if (parts.Length != 3) return null;
-        if (!int.TryParse(parts[0], out var y) ||
-            !int.TryParse(parts[1], out var m) ||
-            !int.TryParse(parts[2], out var d)) return null;
-        if (y is < 1300 or > 1500 || m is < 1 or > 12 || d is < 1 or > 31) return null;
-
-        try
-        {
-            return DateOnly.FromDateTime(Persian.ToDateTime(y, m, d, 0, 0, 0, 0));
-        }
-        catch (ArgumentOutOfRangeException)
-        {
-            return null;
-        }
-    }
-
-    /// <summary>Gregorian → "1405/05/01" (Latin digits; the UI localises digits itself).</summary>
-    public static string Format(DateOnly date)
-    {
-        var dt = date.ToDateTime(TimeOnly.MinValue);
-        return $"{Persian.GetYear(dt):0000}/{Persian.GetMonth(dt):00}/{Persian.GetDayOfMonth(dt):00}";
-    }
-
-    /// <summary>
-    /// Weekday bit for <see cref="WelfarePool.ActiveDays"/>: bit 0 = شنبه … bit 6 = جمعه.
-    /// </summary>
-    public static int WeekdayBit(DateOnly date) =>
-        date.DayOfWeek == DayOfWeek.Saturday ? 0 : (int)date.DayOfWeek + 1;
-
-    public static bool IsActiveOn(int activeDaysMask, DateOnly date) =>
-        (activeDaysMask & (1 << WeekdayBit(date))) != 0;
-
-    /// <summary>Persian/Arabic digits arrive from fa keyboards; parsing wants Latin.</summary>
-    public static string NormalizeDigits(string value)
-    {
-        Span<char> buffer = stackalloc char[value.Length];
-        var n = 0;
-        foreach (var ch in value.Trim())
-        {
-            buffer[n++] = ch switch
-            {
-                >= '۰' and <= '۹' => (char)('0' + (ch - '۰')),
-                >= '٠' and <= '٩' => (char)('0' + (ch - '٠')),
-                _ => ch
-            };
-        }
-        return new string(buffer[..n]);
-    }
-}
 
 // ── DTOs ─────────────────────────────────────────────────────────────────────
 

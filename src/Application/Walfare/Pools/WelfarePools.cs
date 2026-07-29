@@ -5,6 +5,7 @@ using Mabhas19.Domain.Constants;
 using Mabhas19.Domain.Walfare;
 using Microsoft.EntityFrameworkCore;
 using ValidationException = Mabhas19.Application.Common.Exceptions.ValidationException;
+using Mabhas19.Application.Common;
 
 namespace Mabhas19.Application.Walfare.Pools;
 

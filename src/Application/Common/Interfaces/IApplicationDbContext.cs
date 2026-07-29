@@ -2,6 +2,7 @@
 using Mabhas19.Domain.Entities;
 using Mabhas19.Domain.Kurdnezam;
 using Mabhas19.Domain.MunSanandaj;
+using Mabhas19.Domain.Elections;
 using Mabhas19.Domain.Walfare;
 
 namespace Mabhas19.Application.Common.Interfaces;
@@ -50,6 +51,18 @@ public interface IApplicationDbContext
     DbSet<WelfarePoolReservation> WelfarePoolReservations { get; }
 
     DbSet<PaymentTransaction> PaymentTransactions { get; }
+
+    DbSet<Election> Elections { get; }
+
+    DbSet<ElectionCandidate> ElectionCandidates { get; }
+
+    DbSet<ElectionEligibleReshte> ElectionEligibleReshtes { get; }
+
+    // The two halves of the secret ballot. Never join these to each other, and never join either to
+    // a user — see the remarks on ElectionVoteReceipt and ElectionBallot.
+    DbSet<ElectionVoteReceipt> ElectionVoteReceipts { get; }
+
+    DbSet<ElectionBallot> ElectionBallots { get; }
 
     DbSet<KurdnezamSlide> KurdnezamSlides { get; }
 
