@@ -261,9 +261,49 @@ stored code set. Two consequences worth stating: the admin UI must make it obvio
 does not restrict anyone** — only the discipline selection does — and a published election must show
 its eligibility in words («ویژهٔ مهندسان رشتهٔ مکانیک») so a voter can see why they were included or
 excluded.
-2. **Turnout visibility.** k-anonymity (k=5) is proposed for the per-discipline breakdown. Confirm,
-   or drop the breakdown entirely.
+2. ~~Turnout visibility~~ **Answered 2026-07-29: hide any row with fewer than 5 eligible voters.**
+   Admins still see the total. See §13.
 3. **Who may publish results** — any `Administrator`, or a named person? There is one flat admin
    role today.
-4. **Retention.** How long are sealed ballots kept after an election? They are the only record that
-   could ever be re-tallied, and also the only thing an attacker with both secrets could open.
+4. ~~Retention~~ **Answered 2026-07-29: keep sealed ballots 30 days after close, then delete.**
+   See §13.
+
+---
+
+## 13. Retention and turnout
+
+### Sealed ballots: 30 days, then deleted
+
+A sealed ballot is the only record that can be re-tallied — and the only thing an attacker holding
+**both** secrets could ever open. Keeping it is proof; keeping it is also risk, and the risk grows
+with time because keys leak, staff leave and backups get copied.
+
+| Phase | What exists |
+|---|---|
+| Open → close | Sealed ballots + hashed roll |
+| Close → +30 days | Same. A recount is possible. Disputes can be settled with evidence. |
+| After +30 days | **Sealed ballots deleted.** Results and turnout counts kept forever. |
+
+Rules:
+
+- **The roll (`ElectionVoteReceipts`) is never deleted.** Those rows are keyed hashes, not names,
+  and they carry no choice — so turnout stays provable forever, and the double-vote guarantee is not
+  weakened by purging ballots.
+- After the purge the result is **final and cannot be re-checked**. The admin UI must say so plainly
+  before publishing, because it is not reversible.
+- The purge runs as a scheduled job. Same trap as the task service: `PeriodicTimer(24h)` fires 24 h
+  after the container starts, so it drifts with every deploy — compute the delay to a fixed local
+  hour first, then start the timer.
+- Deleting a ballot must never touch `Elections.ResultDigest`. That digest is what proves the
+  published numbers came from the ballots that existed at close.
+
+### Turnout: hide groups smaller than 5
+
+The per-discipline breakdown is suppressed for any discipline with **fewer than 5 eligible voters**.
+
+Without this, «۱ از ۱ رأی داد» in a small discipline is a plaintext roll entry — the pepper
+bypassed by an aggregate, not by breaking any crypto. Suppress the **row**, not just the percentage:
+showing "1 eligible, hidden" leaks the same fact.
+
+The overall total is always shown. Admins see counts only, never who — the participation-by-کد-ملی
+endpoint stays deleted (§6, attack 6).
