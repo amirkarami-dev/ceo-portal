@@ -34,8 +34,31 @@ closes, results are shown ordered by most votes.
 > عمران would silently open the election to every civil engineer and quietly corrupt a real result.
 > ترافیک (7) exists in the data but is missing from the document.
 >
-> To unblock this later: run `WebS_GetEngineerInfo` once and list **all** the columns it returns.
-> `EngineerInfo` maps only 5 of them, so a صلاحیت column may already be there unused.
+> **Checked 2026-07-29 — confirmed unmappable.** The full `WebS_GetEngineerInfo` column list was
+> supplied (≈50 columns; `EngineerInfo` maps only 5). **There is no صلاحیت / تخصص column.** The
+> nearest things are four *grade-per-service-type* fields (`PayeTarh`, `PayeNez`, `PayeEjr`,
+> `PayeUrb`) and `ShobeID` / `ShobeName` (شعبه, a branch) — none of which is a sub-speciality.
+> So an election for one of those four disciplines cannot be expressed on this data source at all.
+> It needs either a new field in the org DB or a manually uploaded voter list, both out of v1 scope.
+
+### Useful columns the current code ignores
+
+`EngineerInfo` maps 5 of ~50. Three matter here:
+
+| Column | What it gives us |
+|---|---|
+| `MadrakNam` | **مقطع تحصیلی** — the education level the document asks for on each candidate |
+| `Vazeyat`, `VaziateOzv`, `TarikheEtebar`, `PrvExp` | membership status and licence validity — see open question 5 |
+| `ShobeID`, `ShobeName` | شعبه / branch. **Possibly** what «واحد» means in «انتخاب هیئت رئیسه واحد گاز» — needs confirming |
+
+### Candidate entry should auto-fill
+
+The document has the admin typing each candidate's نام، رشته، مقطع تحصیلی by hand. Since candidates
+are themselves members, the admin should instead type the candidate's **کد ملی** and have
+`FullName`, `ReshteCode` and `EducationLevel` filled from `Nam` / `NameKhanevadegi` / `Reshte` /
+`MadrakNam`. Fewer typos, and the candidate's discipline then genuinely matches the org record
+instead of whatever was typed. Keep the fields editable for the rare person not in the directory.
+This needs `IEngineerDirectory` widened to return `MadrakNam` — an additive change to `EngineerInfo`.
 
 ## 3. Reuse — do not rebuild
 
@@ -210,8 +233,17 @@ results ordered by votes.
 
 ## 12. Open questions
 
-1. **The 4 unmappable disciplines** — see §2. Send the full column list from
-   `WebS_GetEngineerInfo` and I can design real sub-speciality eligibility.
+1. ~~The 4 unmappable disciplines~~ **Answered 2026-07-29: there is no صلاحیت column.** See §2.
+   Those elections need a new org-DB field or an uploaded voter list. Out of v1.
+5. **Must a voter be an ACTIVE member with a valid licence?** The document says nothing, and the
+   agreed rule is "discipline only" — but `Vazeyat` / `VaziateOzv` and `TarikheEtebar` / `PrvExp` are
+   right there. Today a suspended member, or one whose پروانه expired years ago, would be allowed to
+   vote purely because `WebS_GetEngineerInfo` still knows their کد ملی. That is the kind of thing a
+   losing candidate challenges afterwards. **Recommendation: require active status and an unexpired
+   licence.** This is different from the پایه rule that was declined — it is about whether the person
+   is currently a member at all, not how senior they are.
+6. **Does «واحد» in «انتخاب هیئت رئیسه واحد گاز» mean `ShobeName`?** If so, branch becomes a second
+   eligibility dimension alongside discipline, and «واحد گاز» may be expressible after all.
 2. **Turnout visibility.** k-anonymity (k=5) is proposed for the per-discipline breakdown. Confirm,
    or drop the breakdown entirely.
 3. **Who may publish results** — any `Administrator`, or a named person? There is one flat admin
