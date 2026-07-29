@@ -242,8 +242,25 @@ results ordered by votes.
    losing candidate challenges afterwards. **Recommendation: require active status and an unexpired
    licence.** This is different from the پایه rule that was declined — it is about whether the person
    is currently a member at all, not how senior they are.
-6. **Does «واحد» in «انتخاب هیئت رئیسه واحد گاز» mean `ShobeName`?** If so, branch becomes a second
-   eligibility dimension alongside discipline, and «واحد گاز» may be expressible after all.
+6. ~~Does «واحد» mean `ShobeName`?~~ **Answered 2026-07-29: no.** The title is free text and carries
+   no meaning for the system. Eligibility is always set separately, as explicit `ReshteID` codes.
+   `ShobeID` / `ShobeName` are **not** used.
+
+### Worked example
+
+«انتخاب هیئت رئیسه واحد گاز» is entered as:
+
+| Field | Value |
+|---|---|
+| `Title` | `انتخاب هیئت رئیسه واحد گاز` — free text, never parsed |
+| `EligibilityMode` | `ByReshte` |
+| `ElectionEligibleReshtes` | one row: `ReshteCode = "4"` (مکانیک) |
+
+So «واحد گاز» is a label for humans; the machine only ever compares `EngineerInfo.ReshteCode` to the
+stored code set. Two consequences worth stating: the admin UI must make it obvious that **the title
+does not restrict anyone** — only the discipline selection does — and a published election must show
+its eligibility in words («ویژهٔ مهندسان رشتهٔ مکانیک») so a voter can see why they were included or
+excluded.
 2. **Turnout visibility.** k-anonymity (k=5) is proposed for the per-discipline breakdown. Confirm,
    or drop the breakdown entirely.
 3. **Who may publish results** — any `Administrator`, or a named person? There is one flat admin
