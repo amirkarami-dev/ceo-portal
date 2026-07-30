@@ -17,6 +17,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Minio;
+using Mabhas19.Application.Common.Interfaces.Elections;
+using Mabhas19.Infrastructure.Elections;
 
 namespace Microsoft.Extensions.DependencyInjection;
 
@@ -111,6 +113,13 @@ public static class DependencyInjection
 
         // Analytics module (query engine + AI report-generation service).
         services.AddAnalyticsServices(config);
+
+        // Election ballot crypto. Registered unconditionally — unlike the external integrations, this
+        // has no third-party dependency, and both services report IsConfigured so a missing key makes
+        // voting unavailable with a clear message instead of silently sealing ballots under a default.
+        services.Configure<ElectionCryptoOptions>(config.GetSection(ElectionCryptoOptions.SectionName));
+        services.AddSingleton<IVoterRoll, VoterRoll>();
+        services.AddSingleton<IBallotSealer, BallotSealer>();
 
         // MunSanandaj integration (KurdNezam SQL -> mahyapardaz REST). Gated off entirely when
         // ConnectionStrings:KurdNezamDb is empty, mirroring the AnalyticsDb/FarsNezamDb pattern —
