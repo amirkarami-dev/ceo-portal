@@ -13,6 +13,8 @@ type Svc = {
   color: string;
   icon: ReactNode;
   adminOnly?: boolean;
+  /** Shown to every signed-in user, because the service is not gated by a `svc` grant at all. */
+  ungated?: boolean;
 };
 
 const ic = {
@@ -110,6 +112,27 @@ const SERVICES: Svc[] = [
     ),
   },
   {
+    key: "election",
+    nameFa: "سامانه انتخابات",
+    nameEn: "Elections",
+    href: "https://election.myceo.ir",
+    color: "#0d9488",
+    // Ungated on purpose. `election` IS grantable (an admin can assign it, and a new engineer who
+    // signs in through the election service gets it) but it is deliberately NOT in ServiceKeys'
+    // client map, so it never blocks anyone at authorize — every engineer provisioned before this
+    // service existed carries ["walfare"] and must still be able to vote. Hiding the tile behind a
+    // grant would therefore hide a service the person can actually use.
+    ungated: true,
+    icon: (
+      <svg {...ic}>
+        <path d="M5 21h14" />
+        <path d="M7 21v-9l5-3 5 3v9" />
+        <path d="M9.5 13.5 11 15l3.5-3.5" />
+        <path d="M12 3v3" />
+      </svg>
+    ),
+  },
+  {
     key: "admin",
     nameFa: "مدیریت کاربران",
     nameEn: "User Admin",
@@ -172,7 +195,9 @@ export function AppSwitcher({ currentKey, locale = "fa" }: { currentKey: string;
 
   if (svc === null) return null;
   const grantAll = svc.length === 0;
-  const visible = SERVICES.filter((s) => (s.adminOnly ? isAdmin : grantAll || svc.includes(s.key)));
+  const visible = SERVICES.filter((s) =>
+    s.adminOnly ? isAdmin : s.ungated || grantAll || svc.includes(s.key),
+  );
   if (visible.length < 2) return null;
 
   const label = isFa ? "سرویس‌ها" : "Apps";

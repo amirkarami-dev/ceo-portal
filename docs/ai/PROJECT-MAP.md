@@ -19,6 +19,7 @@ if you add a service, a route group, or a page, update the tables here.
 | Sanandaj municipality | `mun-sanandaj.myceo.ir` | `mun-sanandaj-web/` |
 | Kurdnezam public site | `kurdnezam.ir` | `kurdnezam-web/` |
 | **Engineers' welfare** | **`refahi.kurdnezam.ir`** | `walfare-web/` |
+| **Elections** (not deployed yet) | **`election.myceo.ir`** | `election-web/` |
 | Object storage (S3) | `s3.myceo.ir` | MinIO |
 
 Server: `/data/apps/ceo-portal` on the production host, behind a **shared** Traefik. The Compose
@@ -46,8 +47,45 @@ Clean Architecture. A feature normally touches all four layers.
 | Kurdnezam CMS | `Application/Kurdnezam` | `/api/Kurdnezam*` | `landing-panel/`, `kurdnezam-web/` |
 | Municipality | `Application/MunSanandaj` | `/api/MunSanandaj*` | `mun-sanandaj-web/` |
 | **Welfare** | `Application/Walfare` | `/api/walfare/*` | `walfare-web/` |
+| **Elections** | `Application/Elections` | `/api/ElectionAdmin`, `/api/Election`, `/api/BaleWebhook` | `election-web/`, Bale bot |
 
-## Welfare service (newest, most recently changed)
+## Election service (in build — steps 1–6 done, 7–9 open)
+
+Secret-ballot online elections. Design: `docs/superpowers/specs/2026-07-29-election-service-design.md`.
+
+- **Three endpoint groups, deliberately split.** `/api/ElectionAdmin` is `Administrator`-only and only
+  ever defines an election — it has **no** route that reveals who voted, only counts. `/api/Election`
+  is the voter side; its cast body is `{ electionId, candidateIds }` and **never** a voter identifier,
+  because identity comes from the token. `/api/BaleWebhook/{path}` is the bot, anonymous by necessity.
+- **Two channels, one rule set.** `IBallotCaster` (`Application/Elections/BallotCasting.cs`) holds every
+  cast rule and `IElectionBrowser` every eligibility rule; the web command handlers and the bot both
+  delegate. These two are the only places a کد ملی is a parameter, and that must never spread to a
+  command bound from a request body.
+- **The Bale bot** (`Application/Elections/Bale/`) is `/start` → کد ملی → OTP → choose → **fresh OTP** →
+  cast. The OTP goes only to the mobile the organisation has on record (SMS + Bale `safir` push by
+  phone) — **never into the chat**, which would make a public number the only factor. Conversation state
+  is in process memory, so **the API must not be scaled past one replica**.
+- **Secrecy**: `ElectionVoteReceipt` holds only `(ElectionId, VoterHash)` — no timestamp, no channel,
+  no discipline — so "who voted" and "turnout per رشته" are not computable by design, not merely
+  hidden. Ballots are AES-256-GCM sealed with a per-election HKDF key; the roll is HMAC-SHA256 under a
+  pepper. Sealed ballots are kept **30 days**, then purged; the SHA-256 result digest survives and is
+  the only remaining evidence behind the published numbers.
+- **Freeze rule**: once voting opens or any ballot exists, nothing about the election may change.
+  Enforced in one place (`ElectionGuard.EnsureEditableAsync`) and surfaced to the admin UI as
+  `ElectionDetailDto.IsEditable`.
+- **A title restricts nobody.** «انتخاب هیئت رئیسه واحد گاز» limits voters to مکانیک only because the
+  admin also selected discipline code 4. The UI shows the eligibility next to every title for this
+  reason.
+- **Only seven `Reshte` codes exist** in the org DB. سازه / ژئوتکنیک / زه‌کشی / سازه نگهبان are
+  صلاحیت, have no column, and are out of v1.
+- **One SPA, two audiences.** `election-web` serves voters at `/`, `/vote/:id`, `/result/:id` behind
+  `RequireAuth` only, and admins at `/admin*` behind `RequireAdmin`. An `Administrator` check in front
+  of the ballot would disenfranchise every engineer.
+- `election` is in **`ServiceKeys.All`** (grantable, so it can show a launcher tile) but deliberately
+  **not in `ClientToKey`** (never gating) — see GOTCHAS. Voters sign in with کد ملی + OTP via
+  `/Account/EngineerLogin?service=election`.
+
+## Welfare service
 
 Engineers buy pool tickets; admins define what is on sale.
 
@@ -66,8 +104,8 @@ Engineers buy pool tickets; admins define what is on sale.
 
 ## Front ends — shared conventions
 
-All SPAs (`analytics-web`, `admin-web`, `landing-panel`, `mun-sanandaj-web`, `walfare-web`)
-follow the same shape:
+All SPAs (`analytics-web`, `admin-web`, `landing-panel`, `mun-sanandaj-web`, `walfare-web`,
+`election-web`) follow the same shape:
 
 ```
 src/api/        HTTP client + typed endpoints        src/layout/    shell, nav, app switcher
@@ -76,9 +114,11 @@ src/query/      TanStack Query keys + hooks          src/components/ui/  shared 
 src/theme/      design tokens, light/dark
 ```
 
-- **The app launcher (`src/layout/AppSwitcher.tsx`) is byte-identical across all five SPAs.**
-  Add a service to one → copy to all five, then rebuild **all five** or the old ones keep
-  serving a stale list.
+- **The app launcher (`src/layout/AppSwitcher.tsx`) is byte-identical across all six SPAs**
+  (`admin-web`, `analytics-web`, `election-web`, `landing-panel`, `mun-sanandaj-web`, `walfare-web`).
+  Add a service to one → copy to all six, then rebuild **all six** or the old ones keep serving a
+  stale list. Verify with `md5sum */src/layout/AppSwitcher.tsx`.
+  It has **no `election` entry yet** — that lands with the step-9 deploy.
 - Persian / RTL everywhere; dates shown in the Jalali calendar.
 - `mabhas19-web/` and `kurdnezam-web/` are Next.js and follow their own (documented) structure. `portal-web/` is a public Vite service directory with no API or OIDC calls.
 - Analytics opens on `/dashboards`: All/Mine/Recent dashboard library, read-only detail at

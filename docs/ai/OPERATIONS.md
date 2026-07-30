@@ -24,7 +24,10 @@ names of variables. Real values live in `deploy/.env` on the server (committed e
 - Host path: `/data/apps/ceo-portal` (the prior `/data/apps/mabhas19` source tree is retained temporarily as a rollback copy)
 - Compose file: `deploy/docker-compose.newserver.yml`, env file `deploy/.env`
 - Services: `sqlserver`, `minio`, `auth`, `api`, `mabhas19-web`, `portal-web`, `analytics-web`,
-  `admin-web`, `landing-panel`, `mun-sanandaj-web`, `kurdnezam-web`, `walfare-web`
+  `admin-web`, `landing-panel`, `mun-sanandaj-web`, `kurdnezam-web`, `walfare-web`, `election-web`
+- **`api` must stay at one replica.** The Bale bot keeps its conversation state (including a کد ملی)
+  in process memory rather than in a table, on purpose — see PROJECT-MAP. A second replica would make
+  every other bot message look like a brand-new chat.
 - TLS: shared Traefik. `httpresolver` (HTTP-01) works for domains pointed straight at the box
   (`kurdnezam.ir`, `refahi.kurdnezam.ir`). The `myceo.ir` hosts sit behind the CDN — do not
   repoint them.
@@ -135,9 +138,67 @@ Keep the old volumes and compose file for rollback; never use `down -v`.
 | `AUTH_DOMAIN`, `API_DOMAIN`, `MINIO_DOMAIN`, `PORTAL_DOMAIN` | all | canonical public host names |
 | `LEGACY_API_DOMAIN`, `LEGACY_MINIO_DOMAIN` | Traefik | temporary compatibility routes for old clients and presigned URLs |
 | `MSSQL_SA_PASSWORD` | sqlserver | database admin password |
+| `ELECTION_DOMAIN` | Traefik, auth, api | `election.myceo.ir` |
+| `ELECTIONS_VOTER_PEPPER` | api | HMAC key for the voter roll. base64, 32 bytes |
+| `ELECTIONS_BALLOT_MASTER_KEY` | api | root of the per-election ballot keys. base64, 32 bytes |
+| `BALE_BOT_TOKEN` | api | Bale bot token; empty makes the webhook 404 |
+| `BALE_WEBHOOK_PATH` | api | unguessable path segment after `/api/BaleWebhook/` |
+| `BALE_WEBHOOK_SECRET` | api | optional `X-Bale-Webhook-Secret` shared value |
+| `BALE_SAFIR_ACCESS_KEY` | api | safir `api-access-key`, pushes the vote code by phone |
+| `BALE_SAFIR_BOT_ID` | api | numeric `bot_id` safir requires in the body |
 
 Public, non-secret gateway settings (terminal id, acceptor id, RSA public key) live in
 `src/Web/appsettings.json`.
+
+## Election service — first deploy
+
+Everything below is one-time. The service is inert without it: with no keys the API reports voting
+unavailable, and with no bot token the webhook returns 404.
+
+**1. Generate the two ballot keys.** They must differ, and each is base64 of exactly 32 bytes:
+
+```bash
+openssl rand -base64 32   # ELECTIONS_VOTER_PEPPER
+openssl rand -base64 32   # ELECTIONS_BALLOT_MASTER_KEY
+```
+
+> **Generate once and never rotate while ballots are retained.** Changing the pepper re-hashes every
+> voter — the API refuses rather than silently handing everyone a second vote, because it pins a
+> fingerprint on the election at the first cast. Changing the master key makes every sealed ballot
+> unopenable, i.e. **the result is lost**. Losing the keys loses the election; back them up with the
+> age key.
+
+**2. Add every new variable to `deploy/prod.enc.env` on the server** (SOPS; the age private key lives
+at `/srv/mabhas19/secrets/age.key` and nowhere else). See the table above plus `ELECTION_DOMAIN`.
+Bale values come from `https://business.bale.ai/dashboard/safir`.
+
+**3. DNS.** `election.myceo.ir` is under `myceo.ir` and therefore **behind the ArvanCloud CDN**, so its
+Traefik router uses `myresolver` (DNS-01) like every other `myceo.ir` host — `httpresolver` cannot
+complete HTTP-01 through the CDN. Do not repoint the host to bypass the CDN.
+
+**4. Deploy, one service at a time** (see the deploy loop above). Order matters:
+`auth` first (it seeds the `election-web` OIDC client and needs `ELECTION_DOMAIN` to do so), then
+`api`, then `election-web`.
+
+**5. The launcher.** `AppSwitcher.tsx` gained the election tile, and it is byte-identical in **all six**
+SPAs — so `admin-web`, `analytics-web`, `landing-panel`, `mun-sanandaj-web` and `walfare-web` must be
+rebuilt too, or the ones you skip keep serving a launcher without it.
+
+**6. Register the Bale webhook once** (there is deliberately no registrar service):
+
+```bash
+curl -F "url=https://api.myceo.ir/api/BaleWebhook/<BALE_WEBHOOK_PATH>" \
+     https://tapi.bale.ai/bot<BALE_BOT_TOKEN>/setWebhook
+```
+
+**7. Check it end to end before announcing an election.** The bot has never run against the real Bale
+API. Send `/start`, then a کد ملی, and confirm the code arrives **both** in Bale and by SMS. If only the
+SMS arrives, the safir key, the `bot_id`, or the account state is wrong — the code reports the Bale
+channel as "not delivered" and carries on, so nothing looks broken.
+
+**Do not run an Extended Events or Profiler trace on `CeoDb` during a live election.** EF batches the
+receipt and the ballot inserts into one statement, so a statement-level trace pairs a voter's roll
+entry with their sealed ballot. This is a documented exposure, not a hypothetical.
 
 ## Platform-host cutover
 

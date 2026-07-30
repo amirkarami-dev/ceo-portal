@@ -8,11 +8,25 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 namespace Mabhas19.Auth.Pages.Account;
 
 /// <summary>
-/// OTP login for the engineers' welfare service (سامانه رفاهی مهندسین), keyed by کد ملی instead
-/// of a mobile number. The IdP resolves the engineer's mobile itself — from the auth user when
-/// one exists, otherwise from the KurdNezam membership DB (which also provisions the account,
-/// username = the CodeMeli the org returns, granted only the walfare service).
+/// OTP login for the engineer-facing services, keyed by کد ملی instead of a mobile number. The IdP
+/// resolves the engineer's mobile itself — from the auth user when one exists, otherwise from the
+/// KurdNezam membership DB (which also provisions the account, username = the CodeMeli the org
+/// returns).
 /// </summary>
+/// <remarks>
+/// <para>
+/// Shared by <c>walfare-web</c> (سامانه رفاهی مهندسین) and <c>election-web</c> (سامانه انتخابات). The
+/// caller passes <c>service</c> so the page can name the service it is signing the person into, and so
+/// a freshly provisioned account is granted **only** that service — provisioning an election voter
+/// with a welfare grant would hand them a service they never asked for.
+/// </para>
+/// <para>
+/// This is the only usable door for an engineer: accounts created here have **no password**, and the
+/// generic <c>/Account/Otp</c> page keys on a mobile number and would create a user whose username is
+/// that number. For voting that username is not a کد ملی, so the cast refuses — safe, but the person
+/// simply cannot vote. Hence the client → this page routing in <c>AuthorizationController</c>.
+/// </para>
+/// </remarks>
 public class EngineerLoginModel(
     IKurdNezamDirectory directory,
     IOtpService otpService,
@@ -20,12 +34,35 @@ public class EngineerLoginModel(
     SignInManager<AuthUser> signInManager,
     UserManager<AuthUser> userManager) : PageModel
 {
+    /// <summary>
+    /// The service this login is for: heading text, and the single grant a new account receives.
+    /// </summary>
+    /// <remarks>
+    /// Keyed on a short opaque hint rather than the raw <c>client_id</c> so the page cannot be talked
+    /// into granting an arbitrary service key by a crafted query string — an unknown value falls back
+    /// to welfare, which is what every existing engineer account already has.
+    /// </remarks>
+    private static readonly Dictionary<string, (string Heading, string Grant)> Services =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["walfare"]  = ("سامانه رفاهی مهندسین", ServiceKeys.Walfare),
+            ["election"] = ("سامانه انتخابات", ServiceKeys.Election),
+        };
+
     [BindProperty] public string NationalCode { get; set; } = "";
     [BindProperty] public string Code { get; set; } = "";
+
+    /// <summary>Round-tripped through the form so an error re-render keeps the right heading and grant.</summary>
+    [BindProperty(SupportsGet = true)] public string? Service { get; set; }
 
     public bool CodeSent { get; private set; }
     public string? MaskedPhone { get; private set; }
     public string? ErrorMessage { get; private set; }
+
+    public string Heading => Resolved.Heading;
+
+    private (string Heading, string Grant) Resolved =>
+        Service is not null && Services.TryGetValue(Service, out var s) ? s : Services["walfare"];
 
     public IActionResult OnGet(string? returnUrl = null)
     {
@@ -131,9 +168,12 @@ public class EngineerLoginModel(
                 if (!created.Succeeded)
                     return (null, null, "خطا در ایجاد حساب کاربری.");
 
-                // A fresh engineer account gets ONLY the welfare service — an empty grant list
-                // would mean "all services" under the grandfather rule.
-                await serviceAccess.ReplaceAsync(user.Id, [ServiceKeys.Walfare], "engineer-login",
+                // A fresh engineer account gets ONLY the service they came in through — an empty grant
+                // list would mean "all services" under the grandfather rule. Note this does NOT gate
+                // voting: `election` is deliberately unmapped in ServiceKeys.ClientToKey, so an
+                // engineer holding ["walfare"] can still vote. The grant is about what the launcher
+                // offers them, not about who may cast a ballot.
+                await serviceAccess.ReplaceAsync(user.Id, [Resolved.Grant], "engineer-login",
                     HttpContext.RequestAborted);
             }
         }

@@ -20,6 +20,17 @@ public class AuthorizationController(
 {
     private const string FarsHintPrefix = "fars:";
 
+    /// <summary>
+    /// Clients whose users are engineers signing in with کد ملی + OTP, mapped to the service hint the
+    /// login page uses for its heading and for the single grant a new account receives.
+    /// </summary>
+    private static readonly Dictionary<string, string> EngineerLoginClients =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["walfare-web"]  = "walfare",
+            ["election-web"] = "election",
+        };
+
     [HttpGet("connect/authorize"), HttpPost("connect/authorize")]
     public async Task<IActionResult> Authorize()
     {
@@ -43,11 +54,15 @@ public class AuthorizationController(
                 return RedirectToFarsLogin(farsCo, returnUrl);
             }
 
-            // The welfare app signs engineers in by کد ملی + OTP, not username/password — its
-            // unauthenticated authorize goes to the engineer login instead of the default page.
-            if (string.Equals(request.ClientId, "walfare-web", StringComparison.OrdinalIgnoreCase))
+            // The engineer-facing apps sign people in by کد ملی + OTP, not username/password — their
+            // unauthenticated authorize goes to the engineer login instead of the default page. Engineer
+            // accounts have NO password, so sending them to /Account/Login would be a dead end.
+            // Administrators reach these apps through the shared SSO cookie, or via the
+            // "ورود مدیران" link on that page.
+            if (EngineerLoginClients.TryGetValue(request.ClientId ?? string.Empty, out var service))
             {
-                return Redirect($"/Account/EngineerLogin?returnUrl={Uri.EscapeDataString(returnUrl)}");
+                return Redirect(
+                    $"/Account/EngineerLogin?returnUrl={Uri.EscapeDataString(returnUrl)}&service={service}");
             }
 
             return Challenge(

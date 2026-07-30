@@ -18,6 +18,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Minio;
 using Mabhas19.Application.Common.Interfaces.Elections;
+using Mabhas19.Application.Elections;
 using Mabhas19.Infrastructure.Elections;
 
 namespace Microsoft.Extensions.DependencyInjection;
@@ -120,6 +121,47 @@ public static class DependencyInjection
         services.Configure<ElectionCryptoOptions>(config.GetSection(ElectionCryptoOptions.SectionName));
         services.AddSingleton<IVoterRoll, VoterRoll>();
         services.AddSingleton<IBallotSealer, BallotSealer>();
+
+        // The two voting channels share one implementation of the rules. Scoped because both take the
+        // request-scoped DbContext. See Application/Elections/BallotCasting.cs for why the کد ملی is a
+        // parameter on these and must never be one on a command.
+        services.AddScoped<IBallotCaster, BallotCaster>();
+        services.AddScoped<IElectionBrowser, ElectionBrowser>();
+
+        // Bale bot (second voting channel). Registered unconditionally: IBaleClient.IsConfigured is
+        // false without a token, and the webhook refuses up front — the same fail-loud-not-silent
+        // pattern as the ballot crypto above.
+        services.Configure<BaleOptions>(config.GetSection(BaleOptions.SectionName));
+        services.Configure<VoteOtpOptions>(config.GetSection(VoteOtpOptions.SectionName));
+        services.Configure<ElectionSmsOptions>(config.GetSection(ElectionSmsOptions.SectionName));
+
+        // RemoveAllLoggers is NOT tidying. IHttpClientFactory's default logging writes the request URI
+        // at Information level, and Bale puts the bot token IN THE PATH
+        // (https://tapi.bale.ai/bot{token}/sendMessage) — so every message the bot sent would print the
+        // token into the application log, which is usually less protected than the database. Anyone with
+        // the log can then read every update and post as the bot.
+        //
+        // Verified: with the loggers left in place the line
+        //   "Start processing HTTP request POST https://tapi.bale.ai/bot<TOKEN>/sendMessage"
+        // appears on every send.
+        services.AddHttpClient<IBaleClient, BaleClient>(c =>
+                c.BaseAddress = new Uri("https://tapi.bale.ai/"))
+            .RemoveAllLoggers();
+
+        // These two carry their credentials in a header and a body, so the URI is harmless — but their
+        // request logs are still a per-message timeline of OTP sends, and nothing needs it.
+        services.AddHttpClient<IBaleSafirSender, BaleSafirSender>(c =>
+                c.BaseAddress = new Uri("https://safir.bale.ai/"))
+            .RemoveAllLoggers();
+        services.AddHttpClient<IElectionSmsSender, ElectionSmsSender>()
+            .RemoveAllLoggers();
+
+        // The vote OTP store needs IMemoryCache and nothing else in this host registers it.
+        services.AddMemoryCache();
+        services.AddSingleton<IVoteOtpStore, VoteOtpStore>();
+        // Singleton: the conversation state IS the store, so a scoped one would forget every message.
+        services.AddSingleton<IBaleSessionStore, BaleSessionStore>();
+        services.AddScoped<IVoteOtpSender, VoteOtpSender>();
 
         // MunSanandaj integration (KurdNezam SQL -> mahyapardaz REST). Gated off entirely when
         // ConnectionStrings:KurdNezamDb is empty, mirroring the AnalyticsDb/FarsNezamDb pattern —

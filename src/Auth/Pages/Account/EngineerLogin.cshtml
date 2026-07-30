@@ -5,7 +5,7 @@
     var returnUrl = ViewData["ReturnUrl"] as string;
 }
 
-<h1>سامانه رفاهی مهندسین</h1>
+<h1>@Model.Heading</h1>
 @if (!Model.CodeSent)
 {
     <p class="subtitle">کد ملی خود را وارد کنید؛ کد ورود به شماره موبایل ثبت‌شده در سازمان پیامک می‌شود.</p>
@@ -27,6 +27,9 @@ else
 {
     <form method="post" asp-page-handler="Request">
         <input type="hidden" name="returnUrl" value="@returnUrl" />
+        @* Service must survive the POST or an error re-render loses the heading AND the grant a new
+           account would receive. *@
+        <input type="hidden" asp-for="Service" />
         <label for="NationalCode">کد ملی</label>
         <input asp-for="NationalCode" type="text" id="NationalCode" inputmode="numeric" maxlength="10"
                placeholder="__________ (۱۰ رقم)" autocomplete="off" autofocus />
@@ -37,6 +40,7 @@ else
 {
     <form method="post" asp-page-handler="Verify">
         <input type="hidden" name="returnUrl" value="@returnUrl" />
+        <input type="hidden" asp-for="Service" />
         <input type="hidden" asp-for="NationalCode" />
         <label for="Code">کد تأیید</label>
         <input asp-for="Code" type="text" id="Code" class="otp-code" inputmode="numeric" maxlength="6"
@@ -44,3 +48,12 @@ else
         <button type="submit">تأیید و ورود</button>
     </form>
 }
+
+@*
+    Engineer accounts have no password, so this page is their only door. Administrators DO have one and
+    may land here when they open an engineer-facing app first with no SSO cookie — without this link
+    they would be stuck on a form that cannot accept them.
+*@
+<p class="subtitle" style="margin-top:18px">
+    <a asp-page="/Account/Login" asp-route-returnUrl="@returnUrl">ورود مدیران با نام کاربری و رمز عبور</a>
+</p>

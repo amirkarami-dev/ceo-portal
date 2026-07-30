@@ -51,9 +51,23 @@ public static class JalaliDate
     public static bool IsActiveOn(int activeDaysMask, DateOnly date) =>
         (activeDaysMask & (1 << WeekdayBit(date))) != 0;
 
+    /// <summary>Largest input that may go on the stack. Above this, rent from the heap.</summary>
+    /// <remarks>
+    /// <c>stackalloc</c> sized by the caller's string was a remote kill switch. This is called on
+    /// attacker-controlled text — a Bale bot message arrives through an anonymous webhook — and a
+    /// megabyte of text asks for two megabytes of stack. <see cref="StackOverflowException"/> cannot be
+    /// caught: the whole API process dies, taking every other service on it down mid-election.
+    /// </remarks>
+    private const int MaxStackDigits = 256;
+
     /// <summary>Persian/Arabic digits arrive from fa keyboards; parsing wants Latin.</summary>
     public static string NormalizeDigits(string value)
     {
+        if (value.Length > MaxStackDigits)
+        {
+            return NormalizeDigitsOnHeap(value);
+        }
+
         Span<char> buffer = stackalloc char[value.Length];
         var n = 0;
         foreach (var ch in value.Trim())
@@ -66,6 +80,26 @@ public static class JalaliDate
             };
         }
         return new string(buffer[..n]);
+    }
+
+    /// <summary>Same transformation, heap-allocated, for inputs too long to put on the stack.</summary>
+    private static string NormalizeDigitsOnHeap(string value)
+    {
+        var trimmed = value.Trim();
+        var buffer = new char[trimmed.Length];
+        var n = 0;
+
+        foreach (var ch in trimmed)
+        {
+            buffer[n++] = ch switch
+            {
+                >= '۰' and <= '۹' => (char)('0' + (ch - '۰')),
+                >= '٠' and <= '٩' => (char)('0' + (ch - '٠')),
+                _ => ch
+            };
+        }
+
+        return new string(buffer, 0, n);
     }
 }
 

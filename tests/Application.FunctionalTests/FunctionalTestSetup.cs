@@ -9,6 +9,20 @@ public class FunctionalTestSetup
     internal static DatabaseResetter? DbResetter { get; private set; }
     internal static string ConnectionString { get; private set; } = null!;
 
+    /// <summary>The fake membership directory the API is wired to, for tests to arrange.</summary>
+    internal static FakeEngineerDirectory Directory => Factory.Directory;
+
+    /// <summary>What the Bale bot would have sent.</summary>
+    internal static FakeBaleClient Bale => Factory.Bale;
+
+    /// <summary>The OTP codes the bot issued, through the real limit logic.</summary>
+    internal static RecordingVoteOtpStore? Otp => Factory.Otp;
+
+    internal static FakeVoteOtpSender OtpSender => Factory.OtpSender;
+
+    private static WebApiFactory Factory =>
+        _factory ?? throw new InvalidOperationException("Test host not started.");
+
     private static WebApiFactory? _factory;
     private static DistributedApplication? _app;
 

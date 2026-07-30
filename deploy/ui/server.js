@@ -39,6 +39,7 @@ const SERVICES = {
   "analytics-web": { label: "Analytics", container: "ceo-portal-analytics-web", host: "analytic.myceo.ir", paths: ["analytics-web"] },
   "walfare-web": { label: "Engineers' welfare", container: "ceo-portal-walfare-web", host: "refahi.kurdnezam.ir", paths: ["walfare-web"] },
   "mun-sanandaj-web": { label: "Sanandaj municipality", container: "ceo-portal-mun-sanandaj-web", host: "mun-sanandaj.myceo.ir", paths: ["mun-sanandaj-web"] },
+  "election-web": { label: "Elections", container: "ceo-portal-election-web", host: "election.myceo.ir", paths: ["election-web"] },
   "landing-panel": { label: "Kurdnezam CMS", container: "ceo-portal-landing-panel", host: "landing-panel.myceo.ir", paths: ["landing-panel"] },
   "admin-web": { label: "User admin", container: "ceo-portal-admin-web", host: "admin.myceo.ir", paths: ["admin-web"] },
   "mabhas19-web": { label: "Mabhas19 web", container: "mabhas19-web", host: "mabhas19.myceo.ir", paths: ["mabhas19-web", "packages", "package.json", "package-lock.json", "deploy/Dockerfile.web"] },

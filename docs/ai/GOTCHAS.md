@@ -125,6 +125,98 @@ outcome by throwing, the table keeps stale data until a manual reload. Prefer re
 updated row and letting the caller pick the message from its status.
 **Where:** the admin «تأیید» action in `walfare-web/src/pages/admin/AdminPaymentsPage.tsx`.
 
+### `IHttpClientFactory` logs the request URI — so a token in the path lands in the log
+`AddHttpClient` wires up default logging that prints `POST https://host/path` at Information level.
+Bale's API puts the **bot token in the path** (`tapi.bale.ai/bot{token}/sendMessage`), so every send
+wrote the token into the application log, which is less protected than the database. Anyone with the
+log can then read every update and post as the bot. Fix: `.RemoveAllLoggers()` on that client.
+Check any new typed client whose URL carries a credential.
+**Where:** `src/Infrastructure/DependencyInjection.cs`, `src/Infrastructure/Elections/BaleClient.cs`.
+
+### `stackalloc` sized by caller input is a remote kill switch
+`JalaliDate.NormalizeDigits` did `stackalloc char[value.Length]`. It is called on attacker-controlled
+text (a Bale message arrives through an anonymous webhook), so one POST with a megabyte of text asks
+for two megabytes of stack. **`StackOverflowException` cannot be caught** — the whole process dies,
+taking every other service on that host with it. Anything reachable from unauthenticated input must
+heap-allocate above a small threshold.
+**Where:** `src/Application/Common/JalaliDate.cs`; pinned by `NormalizeDigitsSafetyTests`.
+
+### An OTP delivered to the channel that asked for it is not a second factor
+The Bale bot briefly sent the vote code as a message **into the chat that had just typed the کد ملی**.
+Since کد ملی is public in Iran, anyone could open their own chat, type a member's number, read the code
+off their own screen and cast that member's ballot — and the roll's UNIQUE key then made it permanent,
+so the real member could never vote and the theft was unlinkable. **Both OTP channels must be bound to
+the mobile the organisation has on record** (SMS, and Bale's `safir` push *by phone number*).
+The fix removed the `chatId` parameter from `IVoteOtpSender` so the mistake cannot be re-expressed.
+**Where:** `src/Infrastructure/Elections/VoteOtpSender.cs`.
+
+### Bale/Telegram payloads are snake_case; minimal APIs bind camelCase
+No `[JsonPropertyName]` meant `callback_query` did not bind, so **every inline-button tap was silently
+dropped**: the text flow worked, the bot returned 200, and the voting keyboard was simply dead. Tests
+that construct the DTOs in C# cannot catch this — only one that deserialises real bytes can.
+**Where:** `src/Application/Elections/Bale/BaleUpdate.cs`; pinned by `BaleWireContractTests`.
+
+### Rate-limit keys built on a public identifier become weapons
+کد ملی is public, so an OTP cooldown or lockout keyed on the *person* lets anyone lock a chosen voter
+out by burning that person's budget from their own chat. Key cooldown, attempts and lockout on
+**(chat, voter)**; keep only the volume cap per person, since that is what bounds the SMS bill.
+**Where:** `src/Infrastructure/Elections/VoteOtpStore.cs`.
+
+### Engineer accounts have no password, so the default login page is a dead end for them
+`EngineerLogin` creates them with `userManager.CreateAsync(user)` and no password. A client whose
+unauthenticated authorize falls through to `/Account/Login` shows those users a form they can never
+satisfy. `/Account/Otp` is not the answer either: it keys on a **mobile number** and creates a user
+whose username is that number — for voting the username must be the کد ملی, so the cast refuses.
+Any new engineer-facing client must be added to `EngineerLoginClients` in `AuthorizationController`.
+**Where:** `src/Auth/Auth/AuthorizationController.cs`, `src/Auth/Pages/Account/EngineerLogin.cshtml.cs`.
+
+### `EngineerLogin` provisioning grants exactly one service — pass the right one
+A fresh account gets a **non-empty** grant list on purpose (empty means "all services" under the
+grandfather rule). It used to hardcode `walfare`, so any second engineer-facing app would silently hand
+its users welfare access. The page now takes a `service` hint, matched against an allow-map so a crafted
+query string cannot grant an arbitrary key.
+**Where:** `src/Auth/Pages/Account/EngineerLogin.cshtml.cs`.
+
+### A service key in `ServiceKeys.All` is not the same as one in `ClientToKey`
+`All` makes a service **grantable** (admin UI, launcher tiles). `ClientToKey` makes it **gating** at
+authorize. Adding `election-web` to `ClientToKey` would refuse every engineer provisioned before the
+election service existed, because they all carry `["walfare"]` — a silent disenfranchisement, at the IdP,
+of people the API considers eligible. Grantable-but-not-gating is deliberate; keep it.
+**Where:** `src/Auth/Data/ServiceKeys.cs`.
+
+### A DTO field named `…Label` can still be carrying the raw code
+`BallotCandidateDto.ReshteLabelOrCode` was filled with `c.ReshteCode` — `ElectionCandidate` stores only
+the code, so there was never a label to fall back to. The field is `string?` and never null, so nothing
+failed; the voting card just read «۴» instead of «مکانیک». Resolve through `Application.Common.ReshteNames`,
+which is the single source of truth for the seven codes (the Bale bot needs it too, and has no
+client-side table).
+**Where:** `src/Application/Common/ReshteNames.cs`, `src/Application/Elections/VoterQueries.cs`.
+
+### API enums are NUMBERS on the wire, and typing them as strings fails silently
+No host registers a `JsonStringEnumConverter`, so `ElectionStatus.Draft` is `0`, never `"Draft"`.
+A TypeScript string union (`"Draft" | "Published"`) compiles and lints clean, then every
+comparison is simply `false` at runtime — no error, no console warning, just a publish button
+that never appears. Mirror the C# enum as a const object plus a `typeof` union.
+The reverse direction is worse: if a converter is ever added, a numeric mismatch could bind to
+the enum's `0` member and, for eligibility, open a restricted election to everybody.
+**Where:** `election-web/src/lib/types.ts` and `walfare-web/src/api/walfareApi.ts`;
+pinned by `tests/Application.UnitTests/Elections/ElectionWireContractTests.cs`, which fails if a
+string-enum converter appears.
+
+### `TimeOnly` on the wire is `"HH:mm:ss"`, but the picker gives `"HH:mm"`
+`TimeOnly` **serialises** as `"08:00:00"` and **accepts** either form, so a client that slices
+five characters to display and posts them back unchanged works right up until something does a
+round trip. Widen on the way out, slice on the way in.
+**Where:** `toWireTime`/`fromWireTime` in `election-web/src/lib/types.ts`.
+
+### `export const X` + `export type X` trips ESLint's `no-redeclare`
+This is the repo's numeric-enum pattern and it is legal TypeScript, but both `no-redeclare` and
+`@typescript-eslint/no-redeclare` flag it (the TS-aware one only exempts interface/namespace
+merging). Turn the rule off; `tsc` still catches a genuine duplicate as "Duplicate identifier".
+`walfare-web` currently **fails `npm run lint`** for this reason — its Docker build is unaffected
+because `npm run build` runs `typecheck`, not `lint`.
+**Where:** `election-web/eslint.config.js` has the fix.
+
 ### Jalali pickers: don't load a second `jalaliday`
 `antd-jalali` extends dayjs itself. A second copy double-patches the prototype and breaks the
 picker. Also **never call `d.calendar("jalali")` on a picker value** — `dayjs/plugin/calendar`
@@ -136,9 +228,18 @@ overrides that method and returns a string. Format directly.
 Gregorian year 1405. Only convert values that are actually Gregorian.
 **Where:** `analytics-web/src/presentation/format.ts`.
 
-### The app launcher exists five times
-`src/layout/AppSwitcher.tsx` is byte-identical in all five SPAs. Change one → copy to all →
-**rebuild all five**, or the panels you skipped keep serving the old list.
+### `myceo.ir` hosts need `myresolver`; only the direct-pointed hosts use `httpresolver`
+`refahi.kurdnezam.ir` and `kurdnezam.ir` point straight at the box, so HTTP-01 works and their Traefik
+routers use `httpresolver`. Every `myceo.ir` host sits behind the ArvanCloud CDN, where HTTP-01 cannot
+complete — those must use `myresolver` (DNS-01). Copying the `walfare-web` compose block for a new
+`myceo.ir` SPA therefore breaks certificate issuance; copy `mun-sanandaj-web`'s instead.
+**Where:** `deploy/docker-compose.newserver.yml`.
+
+### The app launcher exists six times
+`src/layout/AppSwitcher.tsx` is byte-identical in all six SPAs (`admin-web`, `analytics-web`,
+`election-web`, `landing-panel`, `mun-sanandaj-web`, `walfare-web`). Change one → copy to all →
+**rebuild all six**, or the panels you skipped keep serving the old list.
+Check with `md5sum */src/layout/AppSwitcher.tsx` — all six hashes must match.
 
 ---
 
@@ -184,8 +285,13 @@ containers you already have. `CeoDb` + `CeoAuthDb` live in `mabhas19_sqldata`.
   package cache. Try locally; if the *restore* fails, build **on the server** in the SDK container
   with the cached NuGet volume (see `OPERATIONS.md`). Never change package versions to force a
   restore to pass.
-- **Docker `npm install` is strict about peers.** `walfare-web` needs `--legacy-peer-deps`
-  (antd-jalali declares React 18; the app runs React 19).
+- **Docker `npm install` is strict about peers.** `walfare-web` and `election-web` need
+  `--legacy-peer-deps` (antd-jalali declares React 18; the apps run React 19).
+- **The Mihan SMS transport exists twice.** `src/Auth/Sms/MihanSmsSender.cs` (login) and
+  `src/Infrastructure/Elections/ElectionSmsSender.cs` (votes). The IdP does not reference `src/Shared`,
+  so sharing the code would mean adding a project reference to the live login host. Both bind the same
+  `Sms:*` section, so there is no extra config — but **a change to the SOAP envelope or the relay
+  contract must be made in both.**
 - **Build one service at a time** — the box is 8-core / 15 GiB (measured 2026-07-27), but ~45 containers from other production stacks share it and only ~5 GiB is free. The "4 GB" figure in older notes described the retired `10.249.52.216` server.
 - **Deploying the API is not enough.** A shared component (like the launcher) needs every SPA
   that embeds it rebuilt.

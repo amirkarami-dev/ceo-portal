@@ -35,7 +35,7 @@ building‑energy assessment. For the app‑by‑app map and live URLs see
 | `mabhas19-mobile/` | Mabhas19 mobile app | Expo / React Native |
 | `portal-web/` | MyCEO public service directory (`myceo.ir`) | Vite + React, no API/OIDC calls |
 | `kurdnezam-web/` | Kurdnezam public site | Next.js (own `AGENTS.md`/`CLAUDE.md`) |
-| `analytics-web/`, `admin-web/`, `landing-panel/`, `mun-sanandaj-web/`, `walfare-web/` | analytics / user admin / CMS / municipality / engineers' welfare | Vite SPAs (shared shape) |
+| `analytics-web/`, `admin-web/`, `landing-panel/`, `mun-sanandaj-web/`, `walfare-web/`, `election-web/` | analytics / user admin / CMS / municipality / engineers' welfare / elections | Vite SPAs (shared shape) |
 | `packages/` | `assessment-core` (scoring), `ui`, `api-types` | shared TS packages |
 
 Conventions for the five shared Vite SPAs — including the byte‑identical `AppSwitcher.tsx` rule —
@@ -87,9 +87,13 @@ registered redirect URIs and the API's CORS allow‑list are keyed to them.
 | `analytics-web` | `npm --prefix analytics-web run dev -- --port 5273 --strictPort` | 5273 |
 | `mun-sanandaj-web` | `npm --prefix mun-sanandaj-web run dev -- --port 5274 --strictPort` | 5274 |
 | `walfare-web` | `npm --prefix walfare-web run dev -- --port 5275 --strictPort` | 5275 |
+| `election-web` | `npm --prefix election-web run dev -- --port 5276 --strictPort` | 5276 |
 
 **`walfare-web` and `admin-web` both pin 5180 in their `vite.config.ts`** — walfare needs the
 explicit `--port 5275 --strictPort` override above or whichever starts second dies.
+
+**`election-web` needs `npm install --legacy-peer-deps`** — `antd-jalali` declares React 18 and the
+app is on React 19, same as `walfare-web`.
 
 Before shipping any front end: `npm run build` **and** `npm run lint` (plus `npx vitest run` where
 tests exist) must pass. `mabhas19-web/.env.local` bakes `NEXT_PUBLIC_API_BASE` at build time, and
@@ -130,7 +134,9 @@ adding overhead and forcing polled file watching.
 `analytics-web` runs fully mocked locally (`VITE_AUTH_MODE=mock`, `VITE_USE_MOCK_API=true` in
 `.env.development`). To point it at the real local IdP you must also add a `Clients:AnalyticsWeb`
 block to `src/Auth/appsettings.Development.json` — `AuthDbInitialiser` **skips** seeding the
-`analytics-web` and `walfare-web` clients entirely when their redirect URI is unconfigured.
+`analytics-web`, `walfare-web` and `election-web` clients entirely when their redirect URI is
+unconfigured. On startup the Auth log prints `Created OIDC client <id>.` for each one it seeded —
+that line is the quickest confirmation the block was picked up.
 
 ## Architecture
 

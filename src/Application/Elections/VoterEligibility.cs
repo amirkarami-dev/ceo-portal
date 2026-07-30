@@ -75,6 +75,17 @@ public static class VoterEligibility
     /// <c>GOTCHAS.md</c> records «این کد ملی یافت نشد» once being shown for a SQL parameter bug — so a
     /// failure must NOT reuse the not-found wording, or the next outage looks like mass ineligibility.
     /// </param>
+    /// <summary>
+    /// The reason given when the organisation's directory could not be reached.
+    /// </summary>
+    /// <remarks>
+    /// Exposed as a constant so callers can recognise this specific outcome without matching on prose. The
+    /// Bale bot needs it: an empty ballot list during an outage must not be reported as «there is no
+    /// election for you», which would be the same trap as reusing «یافت نشد» for a database fault.
+    /// </remarks>
+    public const string DirectoryUnavailableMessage =
+        "ارتباط با سامانه نظام مهندسی برقرار نشد. لطفاً چند لحظه بعد دوباره تلاش کنید";
+
     public static VoterCheck CheckVoter(
         Election election,
         EngineerInfo? engineer,
@@ -83,8 +94,7 @@ public static class VoterEligibility
     {
         if (lookupFailed)
         {
-            return new(VoterStatus.DirectoryUnavailable,
-                "ارتباط با سامانه نظام مهندسی برقرار نشد. لطفاً چند لحظه بعد دوباره تلاش کنید");
+            return new(VoterStatus.DirectoryUnavailable, DirectoryUnavailableMessage);
         }
 
         if (engineer is null)

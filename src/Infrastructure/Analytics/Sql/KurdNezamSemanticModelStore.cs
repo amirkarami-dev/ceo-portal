@@ -1,4 +1,5 @@
 using Mabhas19.Application.Analytics.SemanticModels;
+using Mabhas19.Application.Common;
 using Mabhas19.Application.Common.Interfaces.Analytics;
 
 namespace Mabhas19.Infrastructure.Analytics.Sql;
@@ -45,12 +46,11 @@ internal sealed class KurdNezamSemanticModelStore : ISemanticModelStore
             ["32"] = "حقوقی آزمایشگاه",
         };
 
+    // From Application.Common.ReshteNames — the single source of truth. Kept there rather than here
+    // because the election cards and the Bale bot need the same mapping, and two copies of a lookup
+    // table drift.
     private static readonly IReadOnlyDictionary<string, string> ReshteLabels =
-        new Dictionary<string, string>
-        {
-            ["1"] = "معماری", ["2"] = "شهرسازی", ["3"] = "عمران", ["4"] = "مکانیک",
-            ["5"] = "برق", ["6"] = "نقشه‌برداری", ["7"] = "ترافیک",
-        };
+        ReshteNames.All.ToDictionary(x => x.Key, x => x.Value);
 
     private static readonly IReadOnlyList<SemanticModelDto> Catalogue = BuildCatalogue();
 

@@ -21,6 +21,7 @@ public static class ServiceKeys
     public const string LandingPanel = "landing-panel";
     public const string Plan         = "plan";
     public const string Walfare      = "walfare";
+    public const string Election     = "election";
 
     /// <summary>The grantable services, in display order, with Persian + English names.</summary>
     public static readonly IReadOnlyList<ServiceKey> All =
@@ -31,10 +32,18 @@ public static class ServiceKeys
         new(LandingPanel, "پنل مدیریت لندینگ",  "Landing Panel"),
         new(Plan,         "پلن",                "Plan"),
         new(Walfare,      "سامانه رفاهی مهندسین", "Engineers' Welfare"),
+        new(Election,     "سامانه انتخابات",     "Elections"),
     ];
 
     // Maps an OIDC client_id -> the product service key it belongs to. admin-web is absent on
     // purpose (role-gated, not service-gated) so it is never blocked by the authorize enforcement.
+    //
+    // election-web is absent for a DIFFERENT and deliberate reason: `election` is grantable (so an
+    // admin can grant it and the launcher can show its tile) but it must never GATE. Every engineer
+    // provisioned before the election service existed carries a grant list of ["walfare"]; mapping
+    // election-web here would refuse all of them at authorize and silently disenfranchise them.
+    // Eligibility for an election is decided per election by the API from the org directory — a
+    // membership list in the IdP is not allowed to be a second, invisible voter roll.
     private static readonly IReadOnlyDictionary<string, string> ClientToKey =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {

@@ -128,6 +128,14 @@ services:
       Clients__WalfareWeb__Silent: "https://${WALFARE_DOMAIN}/auth/silent"
       Clients__WalfareWeb__PostLogout: "https://${WALFARE_DOMAIN}"
       Cors__AllowedOrigins__4: "https://${WALFARE_DOMAIN}"
+      # election-web public PKCE client (election.myceo.ir) — سامانه انتخابات.
+      # Requires ELECTION_DOMAIN in deploy/.env; the IdP seeder skips it when Redirect is unset.
+      # Its unauthenticated authorize is routed to /Account/EngineerLogin?service=election, because
+      # engineer accounts have no password (see AuthorizationController.EngineerLoginClients).
+      Clients__ElectionWeb__Redirect: "https://${ELECTION_DOMAIN}/auth/callback"
+      Clients__ElectionWeb__Silent: "https://${ELECTION_DOMAIN}/auth/silent"
+      Clients__ElectionWeb__PostLogout: "https://${ELECTION_DOMAIN}"
+      Cors__AllowedOrigins__5: "https://${ELECTION_DOMAIN}"
       # KurdNezam membership SQL (same server the API's mun-sanandaj sync reads) — lets the IdP
       # provision engineer logins from a کد ملی via WebS_GetEngineerInfo. Empty = disabled.
       ConnectionStrings__KurdNezamDb: "${KURDNEZAM_DB_CONN:-}"
@@ -196,6 +204,23 @@ services:
       Cors__AllowedOrigins__6: "https://${ADMIN_DOMAIN}"
       # walfare-web SPA (refahi.kurdnezam.ir) calls /api/walfare from the browser.
       Cors__AllowedOrigins__7: "https://${WALFARE_DOMAIN}"
+      # election-web SPA (election.myceo.ir) calls /api/Election* from the browser.
+      Cors__AllowedOrigins__8: "https://${ELECTION_DOMAIN}"
+      # Election ballot crypto. BOTH must be set and MUST DIFFER, each base64 of 32 bytes
+      # (openssl rand -base64 32). Without them voting reports itself unavailable rather than sealing
+      # ballots under a default key — deliberate: an unusable election beats an unsafe one.
+      Elections__VoterPepper: "${ELECTIONS_VOTER_PEPPER:-}"
+      Elections__BallotMasterKey: "${ELECTIONS_BALLOT_MASTER_KEY:-}"
+      # Bale bot — the second voting channel. Empty BotToken/WebhookPath makes the webhook 404, which is
+      # the safe default. The webhook path is not a secret in the security sense (getWebhookInfo returns
+      # it and it appears in proxy logs) but keeping it out of the repo still stops casual probing.
+      Bale__BotToken: "${BALE_BOT_TOKEN:-}"
+      Bale__WebhookPath: "${BALE_WEBHOOK_PATH:-}"
+      Bale__WebhookSecret: "${BALE_WEBHOOK_SECRET:-}"
+      # safir pushes the vote code to a Bale account BY PHONE NUMBER. Both are required together;
+      # without them the Bale channel reports "not delivered" and SMS carries every code.
+      Bale__SafirAccessKey: "${BALE_SAFIR_ACCESS_KEY:-}"
+      Bale__SafirBotId: "${BALE_SAFIR_BOT_ID:-0}"
       # MunSanandaj: KurdNezam read-only SQL + mahyapardaz REST bearer token (empty = feature disabled).
       ConnectionStrings__KurdNezamDb: "${KURDNEZAM_DB_CONN:-}"
       MunSanandaj__ApiToken: "${MUN_SANANDAJ_API_TOKEN:-}"
@@ -419,6 +444,39 @@ services:
       - "traefik.http.routers.ceoportal-walfare.tls.certresolver=httpresolver"
       - "traefik.http.routers.ceoportal-walfare.service=ceoportal-walfare"
       - "traefik.http.services.ceoportal-walfare.loadbalancer.server.port=80"
+    networks: [traefik]
+
+  # election-web — سامانه انتخابات (election.myceo.ir). React/Vite + Ant Design SPA served static by
+  # nginx. ONE app, TWO audiences: engineers vote at "/" behind RequireAuth only, and administrators
+  # manage elections at "/admin*" behind RequireAdmin. The API enforces both again — this SPA only
+  # decides what to draw.
+  #
+  # Voters sign in with کد ملی + یک‌بار‌مصرف: the IdP routes this client's unauthenticated authorize to
+  # /Account/EngineerLogin because engineer accounts have no password.
+  election-web:
+    build:
+      context: ..
+      dockerfile: election-web/deploy/Dockerfile.election-web
+      args:
+        # Baked into the static bundle at build time (PUBLIC values only — never secrets).
+        VITE_API_BASE: "https://${API_DOMAIN}"
+        VITE_AUTH_AUTHORITY: "https://${AUTH_DOMAIN}"
+        VITE_AUTH_CLIENT_ID: "election-web"
+        VITE_AUTH_SCOPE: "openid profile email roles ceo.api"
+    image: ceo-portal-election-web:newserver
+    container_name: ceo-portal-election-web
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.ceoportal-election.rule=Host(`${ELECTION_DOMAIN}`)"
+      - "traefik.http.routers.ceoportal-election.entrypoints=websecure"
+      # election.myceo.ir sits under myceo.ir, which is behind the ArvanCloud CDN — so this uses
+      # myresolver (DNS-01), the same as every other myceo.ir host. NOT httpresolver: HTTP-01 cannot
+      # complete through the CDN. (refahi.kurdnezam.ir points straight at the box and is the exception.)
+      - "traefik.http.routers.ceoportal-election.tls.certresolver=myresolver"
+      - "traefik.http.routers.ceoportal-election.service=ceoportal-election"
+      - "traefik.http.services.ceoportal-election.loadbalancer.server.port=80"
     networks: [traefik]
 
   # admin-web — the central user-management SPA (admin.myceo.ir). React/Vite + Ant Design, served

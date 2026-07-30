@@ -389,6 +389,47 @@ public class AuthDbInitialiser(
 
             await EnsureClientAsync(walfareClient);
         }
+
+        // election-web — Public, Authorization Code + PKCE, for election.myceo.ir (سامانه انتخابات).
+        // Like admin-web, it is deliberately NOT a grantable service in ServiceKeys: the admin screens
+        // are gated by the Administrator role at /api/ElectionAdmin, and the voter screens must stay
+        // open to every authenticated member — eligibility is decided per-election by the API from the
+        // org directory, never by a service grant. Optional: only seeded when its redirect is set.
+        var electionRedirect   = configuration["Clients:ElectionWeb:Redirect"]   ?? string.Empty;
+        var electionSilent     = configuration["Clients:ElectionWeb:Silent"]     ?? string.Empty;
+        var electionPostLogout = configuration["Clients:ElectionWeb:PostLogout"] ?? string.Empty;
+
+        if (!string.IsNullOrWhiteSpace(electionRedirect))
+        {
+            var electionClient = new OpenIddictApplicationDescriptor
+            {
+                ClientId    = "election-web",
+                ClientType  = ClientTypes.Public,
+                DisplayName = "Elections",
+                Permissions =
+                {
+                    Permissions.Endpoints.Authorization,
+                    Permissions.Endpoints.Token,
+                    Permissions.Endpoints.EndSession,
+                    Permissions.GrantTypes.AuthorizationCode,
+                    Permissions.GrantTypes.RefreshToken,
+                    Permissions.ResponseTypes.Code,
+                    Permissions.Scopes.Email,
+                    Permissions.Scopes.Profile,
+                    Permissions.Scopes.Roles,
+                    Permissions.Prefixes.Scope + "mabhas19.api",
+                    Permissions.Prefixes.Scope + "ceo.api"
+                },
+                Requirements = { Requirements.Features.ProofKeyForCodeExchange }
+            };
+            electionClient.RedirectUris.Add(new Uri(electionRedirect));
+            if (!string.IsNullOrWhiteSpace(electionSilent))
+                electionClient.RedirectUris.Add(new Uri(electionSilent));
+            if (!string.IsNullOrWhiteSpace(electionPostLogout))
+                electionClient.PostLogoutRedirectUris.Add(new Uri(electionPostLogout));
+
+            await EnsureClientAsync(electionClient);
+        }
     }
 
     private async Task EnsureClientAsync(OpenIddictApplicationDescriptor descriptor)
