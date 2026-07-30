@@ -17,16 +17,27 @@ public sealed class KurdNezamEngineerDirectory(
 {
     private readonly string? _connectionString = config.GetConnectionString("KurdNezamDb");
 
+    public bool IsConfigured => !string.IsNullOrWhiteSpace(_connectionString);
+
+    /// <inheritdoc/>
     public async Task<EngineerInfo?> GetByNationalCodeAsync(string nationalCode, CancellationToken ct = default)
+        => (await LookupAsync(nationalCode, ct)).Engineer;
+
+    public async Task<DirectoryResult> LookupAsync(string nationalCode, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(_connectionString))
+        if (!IsConfigured)
         {
             logger.LogWarning("KurdNezam engineer directory not configured (ConnectionStrings:KurdNezamDb empty).");
-            return null;
+            return new(DirectoryOutcome.Unavailable, null);
         }
 
         var code = nationalCode.Trim();
-        if (code.Length != 10 || !code.All(char.IsAsciiDigit)) return null;
+
+        // A malformed code is genuinely "not this org's member", not an outage — the SP is never asked.
+        if (code.Length != 10 || !code.All(char.IsAsciiDigit))
+        {
+            return new(DirectoryOutcome.NotFound, null);
+        }
 
         try
         {
@@ -45,7 +56,7 @@ public sealed class KurdNezamEngineerDirectory(
             cmd.Parameters.Add(new SqlParameter("@NationalCode", SqlDbType.NVarChar, 20) { Value = code });
 
             await using var r = await cmd.ExecuteReaderAsync(ct);
-            if (!await r.ReadAsync(ct)) return null;
+            if (!await r.ReadAsync(ct)) return new(DirectoryOutcome.NotFound, null);
 
             string? S(string column)
             {
@@ -54,7 +65,25 @@ public sealed class KurdNezamEngineerDirectory(
             }
 
             var codeMeli = S("CodeMeli");
-            if (string.IsNullOrWhiteSpace(codeMeli)) return null;
+            if (string.IsNullOrWhiteSpace(codeMeli)) return new(DirectoryOutcome.NotFound, null);
+
+            // The SP takes an int @Code AS WELL AS a national code, and this repo has already been
+            // burned once by getting @Code wrong (see the note above). It is a black box: a fallback
+            // branch, a LIKE, or a person holding two membership rows could answer with someone else.
+            // If that ever happens during an election, engineer A's ballot would consume engineer B's
+            // one-vote slot and B would later be told they had already voted. So verify the answer is
+            // about the person we asked about, and refuse a multi-row answer outright.
+            if (!string.Equals(codeMeli.Trim(), code, StringComparison.Ordinal))
+            {
+                logger.LogError("KurdNezam directory answered with a different national code than requested.");
+                return new(DirectoryOutcome.Unavailable, null);
+            }
+
+            if (await r.ReadAsync(ct))
+            {
+                logger.LogError("KurdNezam directory returned more than one row for a single national code.");
+                return new(DirectoryOutcome.Unavailable, null);
+            }
 
             // Vazeyat: 0 = active, anything else = not active. Read as a nullable int so a missing or
             // non-numeric value stays null, which IsActiveMember treats as NOT active — failing closed.
@@ -65,7 +94,7 @@ public sealed class KurdNezamEngineerDirectory(
             }
 
             // Nam/NameKhanevadegi hold the Persian names; FirstName/LastName are usually empty.
-            return new EngineerInfo(
+            return new(DirectoryOutcome.Found, new EngineerInfo(
                 codeMeli!,
                 S("Nam") is { Length: > 0 } nam ? nam : S("FirstName") ?? string.Empty,
                 S("NameKhanevadegi") is { Length: > 0 } fam ? fam : S("LastName") ?? string.Empty,
@@ -75,7 +104,7 @@ public sealed class KurdNezamEngineerDirectory(
                 // Jalali string, e.g. 1405/05/01. Kept as text on purpose — parsing it here with
                 // DateTime would read 1405 as a Gregorian year.
                 S("PrvExp"),
-                S("MadrakNam"));
+                S("MadrakNam")));
         }
         catch (Exception ex)
         {
@@ -83,7 +112,10 @@ public sealed class KurdNezamEngineerDirectory(
             // and during an election it would accumulate a plaintext list of exactly the people who
             // tried to vote, with timestamps. See ISecretRequest.
             logger.LogError(ex, "KurdNezam engineer lookup failed");
-            return null;
+
+            // Unavailable, NOT NotFound. Returning "not found" here is what would tell every voter
+            // «این کد ملی یافت نشد» during a database outage.
+            return new(DirectoryOutcome.Unavailable, null);
         }
     }
 }

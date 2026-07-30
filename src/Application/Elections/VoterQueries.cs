@@ -78,18 +78,18 @@ public class GetMyBallotsQueryHandler(
 
         var nationalCode = user.Name;
         EngineerInfo? engineer = null;
-        var lookupFailed = false;
 
-        if (!string.IsNullOrWhiteSpace(nationalCode))
+        // Treat a crypto or directory misconfiguration exactly as the cast does. Otherwise this query
+        // would happily show canVote:true and the cast would then refuse with a different reason —
+        // the UI promising something the server will not honour.
+        var votingAvailable = roll.IsConfigured && directory.IsConfigured;
+        var lookupFailed = !votingAvailable;
+
+        if (votingAvailable && !string.IsNullOrWhiteSpace(nationalCode))
         {
-            try
-            {
-                engineer = await directory.GetByNationalCodeAsync(nationalCode, cancellationToken);
-            }
-            catch
-            {
-                lookupFailed = true;
-            }
+            var lookup = await directory.LookupAsync(nationalCode, cancellationToken);
+            engineer = lookup.Engineer;
+            lookupFailed = lookup.Outcome == DirectoryOutcome.Unavailable;
         }
 
         var today = IranTime.Today(now);
@@ -103,9 +103,10 @@ public class GetMyBallotsQueryHandler(
             // Only ask the roll when the person is otherwise allowed — computing a hash for someone
             // ineligible would put their code through the pepper for no reason.
             var alreadyVoted = false;
-            if (voterCheck.IsEligible && roll.IsConfigured)
+            if (voterCheck.IsEligible)
             {
-                var hash = roll.ComputeHash(e.Id, engineer!.NationalCode);
+                // Hash the AUTHENTICATED identity, matching the cast — not the directory's echo.
+                var hash = roll.ComputeHash(e.Id, nationalCode!);
                 alreadyVoted = await context.ElectionVoteReceipts
                     .AsNoTracking()
                     .AnyAsync(r => r.ElectionId == e.Id && r.VoterHash == hash, cancellationToken);

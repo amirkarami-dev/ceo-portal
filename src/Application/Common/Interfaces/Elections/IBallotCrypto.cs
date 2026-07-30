@@ -20,6 +20,13 @@ public interface IVoterRoll
 
     /// <summary>False when no pepper is configured, which makes voting unavailable rather than unsafe.</summary>
     bool IsConfigured { get; }
+
+    /// <summary>
+    /// Non-secret fingerprint of the running pepper, 8 bytes. Pinned onto an election at its first
+    /// cast so a later pepper change is refused loudly instead of silently handing everyone a second
+    /// vote. Contains no کد ملی.
+    /// </summary>
+    byte[] Fingerprint { get; }
 }
 
 /// <summary>

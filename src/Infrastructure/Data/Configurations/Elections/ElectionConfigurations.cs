@@ -33,6 +33,9 @@ public class ElectionConfiguration : IEntityTypeConfiguration<Election>
         // Digest over the sealed ballots at close. Fixed 32 bytes (SHA-256).
         b.Property(x => x.ResultDigest).HasMaxLength(32);
 
+        // 8-byte pepper fingerprint. Non-secret; see Election.RollFingerprint.
+        b.Property(x => x.RollFingerprint).HasMaxLength(8).IsFixedLength();
+
         // Drives «انتخابات فعال» — the query every voter lands on.
         b.HasIndex(x => new { x.Status, x.ClosesAtUtc });
     }
@@ -121,7 +124,11 @@ public class ElectionBallotConfiguration : IEntityTypeConfiguration<ElectionBall
         b.HasKey(x => x.BallotId);
         b.Property(x => x.BallotId).ValueGeneratedNever();
 
-        b.Property(x => x.Sealed).IsRequired();
+        // Explicit length so this is NOT varbinary(max). A LOB column lives in the off-row
+        // allocation unit in INSERT order, which would undo the random-clustered-key defence the
+        // moment a DBA flipped 'large value types out of row'. 12 nonce + 4 x slots + 16 tag; 512
+        // covers any realistic MaxSelections with room to spare.
+        b.Property(x => x.Sealed).HasMaxLength(512).IsRequired();
 
         // Needed by the tally and by the 30-day purge. Safe: it groups ballots by election, which is
         // already public, and reveals nothing about who cast them.

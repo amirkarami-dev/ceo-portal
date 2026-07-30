@@ -118,10 +118,27 @@ Two tables that share **no column, no id and no timestamp**.
 
 | Attacker has | Can they link person → choice? |
 |---|---|
-| Full **read** access to `CeoDb` | **No** — needs the ballot key, which is not in the DB |
-| DB read **+ host access** (both secrets) | **Yes.** Honest limit: roll and ballot are written in one transaction (they must be, or you lose votes or allow double votes), so transaction-log forensics can pair them. |
+| Full **read** access to `CeoDb` (tables only) | **No** — needs the ballot key, which is not in the DB |
+| DB read **+ statement-level tracing** on that instance | **Yes, to a row.** Corrected 2026-07-30 — see below. |
+| DB read **+ host access** (both secrets) | **Yes, by name.** |
 
-That residual is stated, not hidden. It is the price of the single-transaction guarantee.
+**Corrected after reviewing the implementation.** The earlier claim that pairing needs "the database
+*and* the host" understated it. EF batches the receipt INSERT and the ballot INSERT into a single
+`sp_executesql` round trip, so one captured statement carries that voter's `VoterHash` and their
+`Sealed` blob in the same parameter list. An Extended Events or Profiler session — which a DBA with
+read access on that instance normally *can* start — yields an exact roll-to-ballot mapping with no
+transaction-log forensics and no filesystem access. The pepper (host) is then only needed to put
+names to the roll entries.
+
+Two consequences:
+
+- **Deployment requirement: no XEvent/Profiler trace may run on `CeoDb` during a live election.**
+- Splitting the two INSERTs would break the pairing but also break atomicity, which either loses
+  votes or allows double votes. The batch stays; the exposure is documented instead of denied.
+
+Note what is *not* exposed: EF's own command logging redacts parameter values to `?` unless
+`EnableSensitiveDataLogging` is set, and it is not. This is a database-side tracing exposure, not an
+application-log one.
 
 ## 6. Security rules that came out of the adversarial review
 

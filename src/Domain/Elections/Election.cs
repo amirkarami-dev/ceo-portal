@@ -103,6 +103,20 @@ public class Election : BaseAuditableEntity
     public byte KeyVersion { get; set; } = 1;
 
     /// <summary>
+    /// Non-secret fingerprint of the voter pepper this election's roll was built with. Set on the
+    /// first cast; every later cast must match it.
+    /// </summary>
+    /// <remarks>
+    /// Without this, a pepper change silently voids the one-vote guarantee: the same person hashes
+    /// differently and votes again. That is not exotic — a redeploy that regenerates
+    /// <c>deploy/.env</c>, a SOPS rollback, or the future Bale bot host simply having a different env
+    /// var would do it, and <c>IVoterRoll</c> is a singleton so two processes can legitimately hold
+    /// two different peppers at once. The fingerprint reveals nothing about any voter: it is
+    /// <c>HMAC(pepper, "ceo-portal/roll-fingerprint")</c> truncated, with no کد ملی involved.
+    /// </remarks>
+    public byte[]? RollFingerprint { get; set; }
+
+    /// <summary>
     /// Set when the sealed ballots have been purged (30 days after close). After this the result can
     /// never be re-checked, so the UI must say so before publishing.
     /// </summary>

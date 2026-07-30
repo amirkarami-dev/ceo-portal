@@ -246,7 +246,19 @@ public class ElectionSecurityContractTests
             names.ShouldNotContain("CreatedBy");
             names.ShouldNotContain("LastModified");
             names.ShouldNotContain("LastModifiedBy");
-            t.GetProperties().ShouldAllBe(p => p.PropertyType != typeof(DateTimeOffset));
+
+            // Reject EVERY temporal type, not just DateTimeOffset. Any timestamp at all is a join key
+            // against the other table, and the original assertion would have let a DateTime,
+            // DateOnly, TimeOnly or a nullable of any of them straight through.
+            foreach (var prop in t.GetProperties())
+            {
+                var type = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
+
+                type.ShouldNotBe(typeof(DateTimeOffset), $"{t.Name}.{prop.Name}");
+                type.ShouldNotBe(typeof(DateTime), $"{t.Name}.{prop.Name}");
+                type.ShouldNotBe(typeof(DateOnly), $"{t.Name}.{prop.Name}");
+                type.ShouldNotBe(typeof(TimeOnly), $"{t.Name}.{prop.Name}");
+            }
         }
     }
 }

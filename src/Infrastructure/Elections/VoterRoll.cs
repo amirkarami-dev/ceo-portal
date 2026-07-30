@@ -27,6 +27,24 @@ internal sealed class VoterRoll : IVoterRoll
 
     public bool IsConfigured => _pepper.Length == 32;
 
+    /// <inheritdoc/>
+    public byte[] Fingerprint
+    {
+        get
+        {
+            if (!IsConfigured)
+            {
+                return [];
+            }
+
+            // A fixed label, never a کد ملی — this value is stored in the clear on the election row.
+            return HMACSHA256
+                .HashData(_pepper, Encoding.UTF8.GetBytes("ceo-portal/roll-fingerprint"))
+                .AsSpan(0, 8)
+                .ToArray();
+        }
+    }
+
     public byte[] ComputeHash(int electionId, string nationalCode)
     {
         if (!IsConfigured)

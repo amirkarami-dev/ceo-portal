@@ -50,14 +50,22 @@ public class CastVoteCommandHandler(
 {
     public async Task<CastVoteResult> Handle(CastVoteCommand request, CancellationToken cancellationToken)
     {
-        if (!roll.IsConfigured || !sealer.IsConfigured)
+        // Everything the vote depends on must be present BEFORE we tell anyone anything. The
+        // directory is included: without it we cannot check eligibility, and reporting that as
+        // "you are not a member" is the outage-looks-like-mass-ineligibility trap.
+        if (!roll.IsConfigured || !sealer.IsConfigured || !directory.IsConfigured)
         {
             // Better unavailable than unsafe: sealing under a default key would produce ballots
             // anyone could open, and hashing without a pepper would make the roll reversible.
             throw Fail("Configuration", "سامانهٔ رأی‌گیری در حال حاضر در دسترس نیست");
         }
 
+        // AsNoTracking is deliberate. Election and ElectionCandidate derive BaseAuditableEntity, so a
+        // tracked one in this unit of work is a single stray assignment away from the audit
+        // interceptor stamping LastModifiedBy = the voter's OIDC subject on a row a DB reader can see —
+        // right beside their ballot. Nothing here needs to mutate the election.
         var election = await context.Elections
+            .AsNoTracking()
             .Include(e => e.Candidates)
             .Include(e => e.EligibleReshtes)
             .FirstOrDefaultAsync(e => e.Id == request.ElectionId, cancellationToken);
@@ -75,28 +83,23 @@ public class CastVoteCommandHandler(
 
         // Engineer accounts use the کد ملی as the username (same as the welfare flow).
         var nationalCode = user.Name;
-        if (string.IsNullOrWhiteSpace(nationalCode))
+        if (string.IsNullOrWhiteSpace(nationalCode) || !IsWellFormedNationalCode(nationalCode))
         {
+            // Checked here so a non-engineer account (or a malformed username) gets a Persian refusal.
+            // Letting VoterRoll.ComputeHash throw would surface as a 500 and, in the ballot list,
+            // would break the whole page for that user instead of one election.
             throw Fail("Voter", "حساب کاربری شما برای رأی دادن معتبر نیست");
         }
 
-        // 3-6. Person-level checks against the org record.
-        EngineerInfo? engineer;
-        var lookupFailed = false;
-        try
-        {
-            engineer = await directory.GetByNationalCodeAsync(nationalCode, cancellationToken);
-        }
-        catch
-        {
-            // The directory already swallows its own errors and returns null, but if that ever
-            // changes an outage must not be reported as "you are not a member".
-            engineer = null;
-            lookupFailed = true;
-        }
+        // 3-6. Person-level checks against the org record. LookupAsync — not
+        // GetByNationalCodeAsync — because only it can tell an outage from an unknown code.
+        var lookup = await directory.LookupAsync(nationalCode, cancellationToken);
 
         var voterCheck = VoterEligibility.CheckVoter(
-            election, engineer, IranTime.Today(now), lookupFailed);
+            election,
+            lookup.Engineer,
+            IranTime.Today(now),
+            lookupFailed: lookup.Outcome == DirectoryOutcome.Unavailable);
 
         if (!voterCheck.IsEligible)
         {
@@ -124,11 +127,34 @@ public class CastVoteCommandHandler(
                 $"حداکثر {election.MaxSelections} کاندیدا می‌توانید انتخاب کنید");
         }
 
-        // The roll entry and the sealed ballot, written together. They MUST be one transaction: a
-        // roll row without a ballot loses a vote, and a ballot without a roll row allows a second one.
-        // This is also the honest limit documented in the design — the pairing is visible in the SQL
-        // transaction log to someone holding both the database and the host.
-        var voterHash = roll.ComputeHash(election.Id, engineer!.NationalCode);
+        // Re-read the clock and re-check the window. The lookup above crosses the network to the org's
+        // SQL Server and can stall for seconds; without this a request that arrived one second before
+        // closing could commit well after it, which is exactly what a losing candidate would point at.
+        if (clock.GetUtcNow() >= election.ClosesAtUtc)
+        {
+            throw Fail("Election", "زمان رأی‌گیری این انتخابات به پایان رسیده است");
+        }
+
+        // Pin the pepper to the election on the first cast, and refuse afterwards if it changed. A
+        // changed pepper hashes the same person differently, which silently voids the one-vote key and
+        // hands everyone a second vote. IVoterRoll is a singleton, so two hosts CAN hold two peppers.
+        var fingerprint = roll.Fingerprint;
+        var pinned = await context.Elections
+            .AsNoTracking()
+            .Where(e => e.Id == election.Id)
+            .Select(e => e.RollFingerprint)
+            .FirstAsync(cancellationToken);
+
+        if (pinned is not null && !pinned.SequenceEqual(fingerprint))
+        {
+            throw Fail("Configuration",
+                "پیکربندی سامانهٔ رأی‌گیری تغییر کرده است؛ لطفاً با مدیر سامانه تماس بگیرید");
+        }
+
+        // Key the roll on the AUTHENTICATED identity, not on whatever the directory echoed back. The
+        // directory now verifies the two agree, but keying on the token means the org's database can
+        // never move a voter's roll entry onto someone else even if that check is ever weakened.
+        var voterHash = roll.ComputeHash(election.Id, nationalCode);
 
         context.ElectionVoteReceipts.Add(new ElectionVoteReceipt
         {
@@ -145,6 +171,16 @@ public class CastVoteCommandHandler(
             Sealed = sealer.Seal(election.Id, election.KeyVersion, election.MaxSelections, chosen),
             KeyVersion = election.KeyVersion
         });
+
+        // Pin the fingerprint on the first cast only. Done with a targeted UPDATE rather than by
+        // tracking the Election, so no auditable entity joins this unit of work — see the
+        // AsNoTracking note above. The WHERE guard makes it a no-op for every later voter.
+        if (pinned is null)
+        {
+            await context.Elections
+                .Where(e => e.Id == election.Id && e.RollFingerprint == null)
+                .ExecuteUpdateAsync(s => s.SetProperty(e => e.RollFingerprint, fingerprint), cancellationToken);
+        }
 
         try
         {
@@ -177,6 +213,16 @@ public class CastVoteCommandHandler(
         }
 
         return new CastVoteResult(true, "رأی شما با موفقیت ثبت شد");
+    }
+
+    /// <summary>
+    /// Ten ASCII digits after folding Persian/Arabic digits — the same shape VoterRoll requires. Kept
+    /// as a string throughout: parsing it as a number would drop a leading zero and collide two people.
+    /// </summary>
+    private static bool IsWellFormedNationalCode(string value)
+    {
+        var code = JalaliDate.NormalizeDigits(value).Trim();
+        return code.Length == 10 && code.All(char.IsAsciiDigit);
     }
 
     private static ValidationException Fail(string field, string message)
