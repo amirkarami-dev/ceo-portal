@@ -228,6 +228,42 @@ overrides that method and returns a string. Format directly.
 Gregorian year 1405. Only convert values that are actually Gregorian.
 **Where:** `analytics-web/src/presentation/format.ts`.
 
+### A Bale bot token is `<bot_id>:<secret>`; the safir key is a separate 16-char string
+Two different credentials on two different dashboard pages, and pasting one where the other belongs
+fails in a way that looks like nothing: `https://tapi.bale.ai/bot<wrong-token>/setWebhook` answers
+**404 Not Found**, exactly as it would for a valid token calling a missing method. Sanity checks that
+catch it in one line: a real token is ~46 characters and **contains a colon**, and the digits before
+the colon must equal `BALE_SAFIR_BOT_ID`. `getMe` is the definitive check — it returns the bot's
+username.
+**Where:** `deploy/.env` on the server — `BALE_BOT_TOKEN` vs `BALE_SAFIR_ACCESS_KEY`.
+
+### Piping a secret into `plink` from PowerShell corrupts it
+`$key | plink … 'read -r V'` arrives with a **UTF-8 BOM in front and a `\r` at the end** — PowerShell's
+output encoding adds both. The value looks right in the file and is silently wrong: a 16-character key
+becomes 18 characters, and the remote service rejects every request. Transfer secrets as base64 of the
+raw UTF-8 bytes and decode server-side, then prove it by comparing SHA-256 of the local and remote
+values. Length alone is not enough to spot it; `printf %s "$v" | tr -d '[:print:]' | wc -c` is.
+**Where:** hit while writing `BALE_SAFIR_ACCESS_KEY` into `deploy/.env` on 2026-07-30.
+
+### SOPS is gone from the server — the live secrets are the plaintext `deploy/.env`
+`deploy/README.md` and older notes describe editing `deploy/prod.enc.env` with `sops`, using an age key
+at `/srv/mabhas19/secrets/age.key`. **Checked on the box 2026-07-30: none of that exists.** There is no
+`sops` or `age` binary anywhere, and `/srv/mabhas19` is not a directory. The host move to
+`/data/apps/ceo-portal` left them behind.
+
+What is actually true:
+
+- `/data/apps/ceo-portal/deploy/.env` — plaintext, `chmod 600`, **this is what compose reads**. Edit it
+  directly to add or change a secret.
+- `deploy/prod.enc.env` — still committed, but **nobody on the server can decrypt it**. Treat it as a
+  historical artifact until an age key is restored; it does not reflect the running config.
+- `scripts/deploy.ps1` never runs `decrypt-env.sh`, and deliberately preserves `deploy/.env`, so a
+  hand-edit survives every deploy.
+
+**The risk this creates:** the secrets now live in exactly one place, on one disk, with no backup and no
+copy in git. Rebuild the server and they are gone — including the election ballot keys, which cannot be
+regenerated without destroying the ability to read existing ballots. Back `deploy/.env` up off-server.
+
 ### `myceo.ir` hosts need `myresolver`; only the direct-pointed hosts use `httpresolver`
 `refahi.kurdnezam.ir` and `kurdnezam.ir` point straight at the box, so HTTP-01 works and their Traefik
 routers use `httpresolver`. Every `myceo.ir` host sits behind the ArvanCloud CDN, where HTTP-01 cannot

@@ -168,9 +168,14 @@ openssl rand -base64 32   # ELECTIONS_BALLOT_MASTER_KEY
 > unopenable, i.e. **the result is lost**. Losing the keys loses the election; back them up with the
 > age key.
 
-**2. Add every new variable to `deploy/prod.enc.env` on the server** (SOPS; the age private key lives
-at `/srv/mabhas19/secrets/age.key` and nowhere else). See the table above plus `ELECTION_DOMAIN`.
-Bale values come from `https://business.bale.ai/dashboard/safir`.
+**2. Add every new variable to `/data/apps/ceo-portal/deploy/.env` on the server.**
+
+> **Not `prod.enc.env`.** `sops` and the age key are no longer on this server — see GOTCHAS. The
+> plaintext `deploy/.env` is what compose reads, and `scripts/deploy.ps1` preserves it across deploys.
+
+See the table above plus `ELECTION_DOMAIN`. Bale values come from
+`https://business.bale.ai/dashboard/safir`. **Back the file up off-server afterwards** — it is now the
+only copy of the ballot keys, and losing them makes every sealed ballot unreadable.
 
 **3. DNS.** `election.myceo.ir` is under `myceo.ir` and therefore **behind the ArvanCloud CDN**, so its
 Traefik router uses `myresolver` (DNS-01) like every other `myceo.ir` host — `httpresolver` cannot
