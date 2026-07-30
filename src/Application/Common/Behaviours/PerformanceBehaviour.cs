@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using Mabhas19.Application.Common.Interfaces;
+using Mabhas19.Application.Common.Security;
 using Microsoft.Extensions.Logging;
 
 namespace Mabhas19.Application.Common.Behaviours;
@@ -31,7 +32,10 @@ public class PerformanceBehaviour<TRequest, TResponse> : IPipelineBehavior<TRequ
 
         var elapsedMilliseconds = _timer.ElapsedMilliseconds;
 
-        if (elapsedMilliseconds > 500)
+        // Same reasoning as LoggingBehaviour: a slow-request warning naming the user is still a
+        // roll entry, and a vote is exactly the request most likely to be slow (an external
+        // membership lookup plus crypto), so this branch would fire often.
+        if (elapsedMilliseconds > 500 && request is not ISecretRequest)
         {
             var requestName = typeof(TRequest).Name;
             var userId = _user.Id ?? string.Empty;

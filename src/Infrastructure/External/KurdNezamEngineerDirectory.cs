@@ -56,17 +56,33 @@ public sealed class KurdNezamEngineerDirectory(
             var codeMeli = S("CodeMeli");
             if (string.IsNullOrWhiteSpace(codeMeli)) return null;
 
+            // Vazeyat: 0 = active, anything else = not active. Read as a nullable int so a missing or
+            // non-numeric value stays null, which IsActiveMember treats as NOT active — failing closed.
+            int? status = null;
+            if (int.TryParse(S("Vazeyat"), out var parsedStatus))
+            {
+                status = parsedStatus;
+            }
+
             // Nam/NameKhanevadegi hold the Persian names; FirstName/LastName are usually empty.
             return new EngineerInfo(
                 codeMeli!,
                 S("Nam") is { Length: > 0 } nam ? nam : S("FirstName") ?? string.Empty,
                 S("NameKhanevadegi") is { Length: > 0 } fam ? fam : S("LastName") ?? string.Empty,
                 S("ReshteID") ?? string.Empty,
-                S("Mob"));
+                S("Mob"),
+                status,
+                // Jalali string, e.g. 1405/05/01. Kept as text on purpose — parsing it here with
+                // DateTime would read 1405 as a Gregorian year.
+                S("PrvExp"),
+                S("MadrakNam"));
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "KurdNezam engineer lookup failed for national code {Code}", code);
+            // Deliberately NOT logging the national code. This line runs on any transient SQL error,
+            // and during an election it would accumulate a plaintext list of exactly the people who
+            // tried to vote, with timestamps. See ISecretRequest.
+            logger.LogError(ex, "KurdNezam engineer lookup failed");
             return null;
         }
     }
