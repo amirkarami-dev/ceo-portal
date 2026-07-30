@@ -123,19 +123,43 @@ voter is told the code went by SMS, nothing looks broken):
 Fixed, plus a new `Bale:SafirBotId` option and `SafirContractTests` (11 tests) pinning the body shape and
 every written form of an Iranian mobile to one string.
 
-**Still not verified — nothing has ever talked to the real Bale API.** There is no bot token on this
-machine, so `BaleClient`, `BaleSafirSender` and the `setWebhook` registration are unexercised. Unproven:
-- that a real safir call with a real key succeeds (the *shape* now matches the published sample, but only
-  a live call proves the key, the bot id and the account state);
+**safir VERIFIED LIVE (2026-07-30).** `SafirLiveSmokeTests` ran the real `BaleSafirSender` against the
+real API with the real key, and Amir confirmed the message arrived in the bot chat on `web.bale.ai`:
+
+```
+normalised -> 98912XXXXXXX
+safir ACCEPTED the message
+Passed! - Failed: 0, Passed: 1
+```
+
+So the phone normalisation, the `bot_id`, the nested body and the `api-access-key` header are all
+correct. This was the single largest unknown in step 8 and it is now closed.
+
+The test is `[Explicit]` and reads the key, the bot id and the phone from environment variables
+(`BALE_SAFIR_ACCESS_KEY`, `BALE_SAFIR_BOT_ID`, `BALE_TEST_PHONE`). With any of them unset it calls
+`Assert.Ignore`, so a normal run and CI never message anybody. No credential and no phone number is in
+the repository.
+
+**Still not verified — the rest of the Bale surface.** No bot token on this machine, so `BaleClient` and
+the `setWebhook` registration are unexercised. Unproven:
 - that Bale renders `inline_keyboard` exactly as Telegram does;
-- whether Bale sends a webhook secret header at all (support is optional and off by default).
+- whether Bale sends a webhook secret header at all (support is optional and off by default);
+- the `/start` conversation end to end, which needs the webhook reachable from the internet.
 
 Also not verified: the SMS channel end to end (dev uses `Provider=log`), and eligibility against the real
 membership database (no `KurdNezamDb` connection here).
 
 ## Follow-ups
-- **Before a real election, exercise the bot manually once** end to end with the real token. The two
-  things most likely to be wrong are the safir payload and the keyboard rendering.
+- **Before a real election, exercise the bot manually once** end to end with the real token. safir is now
+  proven; what remains is the keyboard rendering and the `/start` conversation, both of which need the
+  webhook registered against a deployed API.
+- To re-run the live safir check at any time:
+  ```powershell
+  [Environment]::SetEnvironmentVariable('BALE_SAFIR_ACCESS_KEY','<key>','User')
+  [Environment]::SetEnvironmentVariable('BALE_SAFIR_BOT_ID','<bot id>','User')
+  [Environment]::SetEnvironmentVariable('BALE_TEST_PHONE','<a mobile>','User')
+  dotnet test tests/Application.UnitTests --filter "FullyQualifiedName~SafirLiveSmoke"
+  ```
 - **Step 9 — deploy.** New config into `deploy/prod.enc.env`: `Bale__BotToken`, `Bale__WebhookPath`,
   `Bale__WebhookSecret` (optional), `Bale__SafirAccessKey`, `Bale__SafirBotId`, plus the existing
   `Elections__VoterPepper` / `Elections__BallotMasterKey`. Values are on the safir dashboard for

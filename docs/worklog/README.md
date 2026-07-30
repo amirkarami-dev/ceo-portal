@@ -23,7 +23,7 @@ Also, when a task teaches something reusable:
 | Date | Record | Area | Status |
 |---|---|---|---|
 | 2026-07-30 | [Election step 9: deployment wiring](2026-07-30-election-deploy-prep.md) | election / infra | ready to deploy — needs secrets on the server |
-| 2026-07-30 | [Election step 8: the Bale voting bot](2026-07-30-election-bale-bot.md) | election | in progress — never run against the real Bale API |
+| 2026-07-30 | [Election step 8: the Bale voting bot](2026-07-30-election-bale-bot.md) | election | in progress — safir push verified live; bot chat untested |
 | 2026-07-30 | [Election step 7: the voter flow](2026-07-30-election-voter-flow.md) | election | in progress — voter UI not seen rendered |
 | 2026-07-30 | [Election step 6: `election-web` admin panel](2026-07-30-election-admin-panel.md) | election | in progress — UI click-through pending |
 | 2026-07-27 | [Kurdnezam portal dock: welfare first, uniform tiles](2026-07-27-kurdnezam-portal-dock.md) | kurdnezam-web | implemented, not deployed |
