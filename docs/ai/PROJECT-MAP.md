@@ -81,6 +81,10 @@ Secret-ballot online elections. Design: `docs/superpowers/specs/2026-07-29-elect
 - **One SPA, two audiences.** `election-web` serves voters at `/`, `/vote/:id`, `/result/:id` behind
   `RequireAuth` only, and admins at `/admin*` behind `RequireAdmin`. An `Administrator` check in front
   of the ballot would disenfranchise every engineer.
+- **Candidate photos** upload to the shared S3 store under this service's own `elections/` prefix
+  (`/api/ElectionMedia`, Administrator to write, anonymous to read so `<img>` works). Every upload in the
+  portal follows that pattern — object storage, one folder per service. Never write into another
+  service's prefix.
 - `election` is in **`ServiceKeys.All`** (grantable, so it can show a launcher tile) but deliberately
   **not in `ClientToKey`** (never gating) — see GOTCHAS. Voters sign in with کد ملی + OTP via
   `/Account/EngineerLogin?service=election`.

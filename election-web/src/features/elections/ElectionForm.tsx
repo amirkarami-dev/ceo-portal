@@ -26,6 +26,7 @@ import {
 } from "@ant-design/icons";
 import { PageHeader } from "../../components/PageHeader";
 import { JalaliDateField, TimeField } from "../../components/ui/JalaliFields";
+import { PhotoField } from "../../components/ui/PhotoField";
 import { useCreateElection, useElection, useUpdateElection } from "../../lib/queries";
 import {
   EligibilityMode,
@@ -420,17 +421,30 @@ export function ElectionForm() {
                             </Form.Item>
                           </Col>
                           <Col xs={24} md={8}>
+                            {/* The photo uploads to object storage under the election service's own
+                                elections/ folder. It was briefly a free-text path field, which meant
+                                the admin had to put the file somewhere else first — so in practice it
+                                stayed empty and every card fell back to initials. */}
                             <Form.Item
-                              name={[field.name, "image"]}
-                              label="نشانی تصویر"
-                              rules={[{ max: 500 }]}
-                              // No uploader here on purpose: the only file endpoint the API exposes is
-                              // the kurdnezam CMS bucket, and pointing an election at it would tie the
-                              // two services together. A path is enough — the card falls back to
-                              // initials when it is empty.
-                              extra="اختیاری؛ در صورت خالی بودن، حرف اول نام نمایش داده می‌شود"
+                              noStyle
+                              shouldUpdate={(a: FormValues, b: FormValues) =>
+                                a.candidates?.[index]?.fullName !== b.candidates?.[index]?.fullName
+                              }
                             >
-                              <Input placeholder="/api/kurdnezam/media/..." dir="ltr" />
+                              {({ getFieldValue }) => (
+                                <Form.Item
+                                  name={[field.name, "image"]}
+                                  label="تصویر کاندیدا"
+                                  rules={[{ max: 500 }]}
+                                >
+                                  <PhotoField
+                                    disabled={readOnly}
+                                    fallbackName={
+                                      getFieldValue(["candidates", index, "fullName"]) as string
+                                    }
+                                  />
+                                </Form.Item>
+                              )}
                             </Form.Item>
                           </Col>
                         </Row>

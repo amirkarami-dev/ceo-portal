@@ -36,14 +36,20 @@ async function toError(response: Response): Promise<ApiError> {
   let message = "";
 
   try {
-    const body = (await response.json()) as {
-      errors?: Record<string, string[]>;
-      title?: string;
-      detail?: string;
-    };
-    errors = body.errors ?? {};
-    // Prefer a field message; those are the ones written for a human.
-    message = Object.values(errors).flat()[0] ?? body.detail ?? body.title ?? "";
+    const body = (await response.json()) as
+      | string
+      | { errors?: Record<string, string[]>; title?: string; detail?: string };
+
+    if (typeof body === "string") {
+      // TypedResults.BadRequest("...") serialises as a bare JSON string. The upload endpoint answers
+      // that way, and its messages are written in Persian for the admin — losing them here would turn
+      // "the image is over 2 MB" into "unexpected error (400)".
+      message = body;
+    } else {
+      errors = body.errors ?? {};
+      // Prefer a field message; those are the ones written for a human.
+      message = Object.values(errors).flat()[0] ?? body.detail ?? body.title ?? "";
+    }
   } catch {
     // Non-JSON body (a 502 from the proxy, say) — fall through to a generic message.
   }
@@ -92,6 +98,34 @@ export function mediaUrl(pathOrUrl?: string | null): string {
   if (/^https?:\/\//i.test(p) || p.startsWith("data:")) return p;
   if (p.startsWith("/api/")) return `${API_BASE}${p}`;
   return p;
+}
+
+/** What the upload endpoint returns. */
+export interface UploadedMedia {
+  fileName: string;
+  /** Server-relative, e.g. "/api/ElectionMedia/ab12….jpg". Resolve with {@link mediaUrl}. */
+  url: string;
+}
+
+/**
+ * Uploads a candidate photo to the election service's own folder in object storage.
+ *
+ * Multipart, so it cannot go through `request<T>` — that one sets `Content-Type: application/json`,
+ * and setting any Content-Type by hand on a `FormData` body drops the multipart boundary the server
+ * needs to parse it. Let fetch write the header itself.
+ */
+export async function uploadImage(file: File): Promise<UploadedMedia> {
+  const body = new FormData();
+  body.append("file", file);
+
+  const response = await fetch(`${API_BASE}/api/ElectionMedia`, {
+    method: "POST",
+    headers: await authHeaders(false),
+    body,
+  });
+
+  if (!response.ok) throw await toError(response);
+  return (await response.json()) as UploadedMedia;
 }
 
 export const apiGet = <T,>(path: string) => request<T>("GET", path);
