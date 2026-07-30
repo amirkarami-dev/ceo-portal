@@ -29,6 +29,7 @@ public sealed record ElectionCandidateDto(
     string? Description,
     string? ReshteCode,
     string? EducationLevel,
+    string? Image,
     int SortOrder);
 
 public sealed record ElectionDetailDto(
@@ -162,7 +163,7 @@ public class GetElectionQueryHandler(IApplicationDbContext context, TimeProvider
             e.Candidates
                 .OrderBy(c => c.SortOrder)
                 .Select(c => new ElectionCandidateDto(
-                    c.Id, c.FullName, c.Description, c.ReshteCode, c.EducationLevel, c.SortOrder))
+                    c.Id, c.FullName, c.Description, c.ReshteCode, c.EducationLevel, c.Image, c.SortOrder))
                 .ToList(),
             EligibilityText.Describe(e.EligibilityMode, e.EligibleReshtes),
             ballotCount,

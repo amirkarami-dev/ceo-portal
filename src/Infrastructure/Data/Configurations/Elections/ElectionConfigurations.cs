@@ -48,6 +48,7 @@ public class ElectionCandidateConfiguration : IEntityTypeConfiguration<ElectionC
         b.Property(x => x.Description).HasMaxLength(2000);
         b.Property(x => x.ReshteCode).HasMaxLength(50);
         b.Property(x => x.EducationLevel).HasMaxLength(200);
+        b.Property(x => x.Image).HasMaxLength(500);
 
         // Candidates belong to their election and die with it — but only a Draft election can be
         // deleted at all (a published one has ballots referencing it via ElectionId).

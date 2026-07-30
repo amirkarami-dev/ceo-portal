@@ -18,6 +18,8 @@ public sealed record CandidateInput(
     string? Description,
     string? ReshteCode,
     string? EducationLevel,
+    /// <summary>Stored media path for the voting card. Optional — the card falls back to initials.</summary>
+    string? Image,
     int SortOrder);
 
 /// <summary>
@@ -91,6 +93,7 @@ public class ElectionInputValidator : AbstractValidator<ElectionInput>
             r.RuleFor(x => x.Description).MaximumLength(2000);
             r.RuleFor(x => x.ReshteCode).MaximumLength(50);
             r.RuleFor(x => x.EducationLevel).MaximumLength(200);
+            r.RuleFor(x => x.Image).MaximumLength(500);
         });
     }
 }
@@ -150,6 +153,7 @@ internal static class ElectionMapper
                     ? null
                     : JalaliDate.NormalizeDigits(c.ReshteCode),
                 EducationLevel = c.EducationLevel?.Trim(),
+                Image = string.IsNullOrWhiteSpace(c.Image) ? null : c.Image.Trim(),
                 SortOrder = c.SortOrder == 0 ? order : c.SortOrder
             });
             order++;

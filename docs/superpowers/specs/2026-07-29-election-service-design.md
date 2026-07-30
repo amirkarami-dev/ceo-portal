@@ -201,9 +201,35 @@ only**; publish results. Server-side validation refuses a broken election: no ca
 start, `MaxSelections` above the candidate count. Keep the server preflight; **no per-card autosave**
 and no client mirror of server rules — this form is filled a handful of times a year.
 
-**Voter** (`election.myceo.ir`): active elections → candidate list → select within `MaxSelections` →
-**explicit confirm step** (a ballot cannot be undone) → done. Before the window: countdown. After:
-results ordered by votes.
+**Voter** (`election.myceo.ir`): active elections → **candidate cards** → select within
+`MaxSelections` → **explicit confirm step** (a ballot cannot be undone) → done. Before the window:
+countdown. After: results ordered by votes.
+
+### Candidate cards
+
+The ballot is a grid of cards, not a list of radio buttons. Each card carries:
+
+| | |
+|---|---|
+| Avatar | `ElectionCandidate.Image` — a stored media path, same convention as `KurdnezamPerson.Image`, over the same MinIO bucket |
+| نام و نام خانوادگی | the heading |
+| رشته | e.g. «مکانیک» |
+| مقطع تحصیلی | from `MadrakNam` |
+| توضیحات | free text, clamped with a "بیشتر" expander so one long biography cannot make a card tower over the others |
+
+Rules that matter on a ballot:
+
+- **A missing photo must not disadvantage anyone.** Cards with no `Image` render initials in the same
+  circle, at the same size. Every card is the same height and shape regardless of how much the admin
+  typed, or the layout itself becomes a form of campaigning.
+- **The whole card is the target**, not a small radio dot — 44 px minimum, and the selected state must
+  be visible without relying on colour alone (border + check icon), for the same accessibility reason
+  the rest of the portal follows.
+- **Selection is capped at `MaxSelections`.** When the cap is reached, the remaining cards are
+  disabled with a visible reason («حداکثر ۲ نفر») rather than silently ignoring the click.
+- **Card order follows `SortOrder`** from the server and never shuffles between loads — a random or
+  shifting order would change what voters see and could be argued to favour someone.
+- RTL: use logical properties, and never mirror the avatar or the check icon.
 
 ## 10. Deployment
 

@@ -144,7 +144,7 @@ public class ElectionInputValidatorTests
             ? [new EligibleReshteInput("4", "مکانیک")]
             : [],
         Candidates: Enumerable.Range(1, candidates)
-            .Select(n => new CandidateInput($"کاندیدا {n}", null, "4", "کارشناسی", n))
+            .Select(n => new CandidateInput($"کاندیدا {n}", null, "4", "کارشناسی", null, n))
             .ToList());
 
     private static IReadOnlyList<string> Errors(ElectionInput input)

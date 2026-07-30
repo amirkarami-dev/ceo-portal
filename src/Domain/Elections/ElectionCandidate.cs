@@ -40,6 +40,18 @@ public class ElectionCandidate : BaseAuditableEntity
     /// <summary>مقطع تحصیلی, from the directory's <c>MadrakNam</c>.</summary>
     public string? EducationLevel { get; set; }
 
+    /// <summary>
+    /// Candidate photo for the voting card — a stored path like <c>/api/kurdnezam/media/…</c>, never
+    /// the bytes. Same convention as <see cref="Kurdnezam.KurdnezamPerson.Image"/>, over the same
+    /// MinIO bucket.
+    /// </summary>
+    /// <remarks>
+    /// Optional on purpose. A candidate with no photo must still render a complete card — the UI shows
+    /// initials — because a missing image should never make one candidate look less legitimate than
+    /// another on a ballot.
+    /// </remarks>
+    public string? Image { get; set; }
+
     /// <summary>Ballot order, so the list does not shuffle between page loads.</summary>
     public int SortOrder { get; set; }
 }
