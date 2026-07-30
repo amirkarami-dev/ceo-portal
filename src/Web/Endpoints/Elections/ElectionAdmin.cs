@@ -33,6 +33,7 @@ public class ElectionAdmin : Mabhas19.Web.Infrastructure.IEndpointGroup
         groupBuilder.MapPut(UpdateElection, "{id:int}");
         groupBuilder.MapPost(PublishElection, "{id:int}/publish");
         groupBuilder.MapPost(CancelElection, "{id:int}/cancel");
+        groupBuilder.MapPost(TallyElection, "{id:int}/tally");
         groupBuilder.MapDelete(DeleteElection, "{id:int}");
     }
 
@@ -75,6 +76,13 @@ public class ElectionAdmin : Mabhas19.Web.Infrastructure.IEndpointGroup
         await sender.Send(new CancelElectionCommand(id));
         return TypedResults.NoContent();
     }
+
+    /// <summary>
+    /// Count the ballots and publish «نتیجه انتخابات». Re-runnable during the 30-day retention window;
+    /// the digest makes a recount safe by refusing if the ballots changed since the first count.
+    /// </summary>
+    public static async Task<Ok<TallyOutcome>> TallyElection(ISender sender, int id)
+        => TypedResults.Ok(await sender.Send(new TallyElectionCommand(id)));
 
     public static async Task<NoContent> DeleteElection(ISender sender, int id)
     {

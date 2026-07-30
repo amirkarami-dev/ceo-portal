@@ -337,16 +337,27 @@ Rules:
 - Deleting a ballot must never touch `Elections.ResultDigest`. That digest is what proves the
   published numbers came from the ballots that existed at close.
 
-### Turnout: hide groups smaller than 5
+### Turnout: total only — the per-discipline breakdown is impossible, not merely suppressed
 
-The per-discipline breakdown is suppressed for any discipline with **fewer than 5 eligible voters**.
+**Corrected 2026-07-30, while building the tally.** The earlier plan was to show a per-discipline
+breakdown with rows under 5 eligible voters suppressed. That plan assumed the breakdown was
+computable. **It is not.**
 
-Without this, «۱ از ۱ رأی داد» in a small discipline is a plaintext roll entry — the pepper
-bypassed by an aggregate, not by breaking any crypto. Suppress the **row**, not just the percentage:
-showing "1 eligible, hidden" leaks the same fact.
+`ElectionVoteReceipts` holds exactly two columns — `ElectionId` and `VoterHash`. There is no
+discipline on it, no channel, no timestamp. So "how many مکانیک engineers voted" cannot be answered
+without adding a discipline column to the roll, which is precisely the kind of metadata dimension
+§5 rejects (it is why `Channel` was dropped).
 
-The overall total is always shown. Admins see counts only, never who — the participation-by-کد-ملی
-endpoint stays deleted (§6, attack 6).
+So the k-anonymity rule is moot: there is nothing to suppress, because the aggregate cannot be
+built. This is the secrecy working better than the design expected, not a missing feature.
+
+**What is shown:** one number — how many people voted — read from the roll. Because the roll is never
+purged, that number stays provable forever, even after the 30-day ballot purge.
+
+**What is not shown, and cannot be:** turnout by discipline, by channel, or over time.
+
+Admins see counts only, never who — the participation-by-کد-ملی endpoint stays deleted
+(§6, attack 6).
 
 ---
 

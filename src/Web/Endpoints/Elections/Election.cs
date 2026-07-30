@@ -28,6 +28,7 @@ public class Election : Mabhas19.Web.Infrastructure.IEndpointGroup
 
         groupBuilder.MapGet(GetMyBallots, "MyBallots");
         groupBuilder.MapPost(CastVote, "Cast");
+        groupBuilder.MapGet(GetResult, "{id:int}/result");
     }
 
     /// <summary>Published elections, each with whether this person may vote and why not.</summary>
@@ -40,4 +41,11 @@ public class Election : Mabhas19.Web.Infrastructure.IEndpointGroup
     /// </summary>
     public static async Task<Ok<CastVoteResult>> CastVote(ISender sender, CastVoteCommand command)
         => TypedResults.Ok(await sender.Send(command));
+
+    /// <summary>
+    /// «نتیجه انتخابات» — available to any authenticated member once the election has been tallied. A
+    /// result nobody can read is not a result.
+    /// </summary>
+    public static async Task<Ok<ElectionResultDto>> GetResult(ISender sender, int id)
+        => TypedResults.Ok(await sender.Send(new GetElectionResultQuery(id)));
 }
