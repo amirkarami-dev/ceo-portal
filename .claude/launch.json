@@ -180,6 +180,24 @@
       "autoPort": false
     },
     {
+      "name": "room-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "room-web",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5277",
+        "--strictPort",
+        "--host",
+        "127.0.0.1"
+      ],
+      "port": 5277,
+      "autoPort": false
+    },
+    {
       "name": "roadmap",
       "runtimeExecutable": "python",
       "runtimeArgs": [

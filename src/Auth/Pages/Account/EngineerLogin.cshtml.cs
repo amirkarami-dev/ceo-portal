@@ -15,7 +15,8 @@ namespace Mabhas19.Auth.Pages.Account;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Shared by <c>walfare-web</c> (سامانه رفاهی مهندسین) and <c>election-web</c> (سامانه انتخابات). The
+/// Shared by <c>walfare-web</c> (سامانه رفاهی مهندسین), <c>election-web</c> (سامانه انتخابات) and
+/// <c>room-web</c> (جلسات آنلاین). The
 /// caller passes <c>service</c> so the page can name the service it is signing the person into, and so
 /// a freshly provisioned account is granted **only** that service — provisioning an election voter
 /// with a welfare grant would hand them a service they never asked for.
@@ -47,6 +48,7 @@ public class EngineerLoginModel(
         {
             ["walfare"]  = ("سامانه رفاهی مهندسین", ServiceKeys.Walfare),
             ["election"] = ("سامانه انتخابات", ServiceKeys.Election),
+            ["room"]     = ("جلسات آنلاین", ServiceKeys.Room),
         };
 
     [BindProperty] public string NationalCode { get; set; } = "";

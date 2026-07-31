@@ -29,6 +29,7 @@ public class AuthorizationController(
         {
             ["walfare-web"]  = "walfare",
             ["election-web"] = "election",
+            ["room-web"]     = "room",
         };
 
     [HttpGet("connect/authorize"), HttpPost("connect/authorize")]

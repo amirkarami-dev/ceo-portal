@@ -51,6 +51,21 @@ public static class TestApp
         return _userId;
     }
 
+    /// <summary>
+    /// Drops the identity without touching the database.
+    /// </summary>
+    /// <remarks>
+    /// For the anonymous half of a link test. <see cref="ResetState"/> would also do it — and would
+    /// wipe the room the test just seeded, so the link would come back "not found" for a reason that
+    /// has nothing to do with what was being proven.
+    /// </remarks>
+    public static void SignOut()
+    {
+        _userId = null;
+        _userName = null;
+        _roles = null;
+    }
+
     public static async Task<string> RunAsDefaultUserAsync()
     {
         return await RunAsUserAsync("test@local", "Testing1234!", []);
@@ -88,6 +103,7 @@ public static class TestApp
         FunctionalTestSetup.Bale.Reset();
         FunctionalTestSetup.OtpSender.Reset();
         FunctionalTestSetup.Otp?.Reset();
+        FunctionalTestSetup.LiveKit.Reset();
     }
 
     public static async Task<TEntity?> FindAsync<TEntity>(params object[] keyValues)

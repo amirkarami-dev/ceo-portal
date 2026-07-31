@@ -38,6 +38,111 @@ so users saw a generic English sentence instead of the Persian reason.
 **Fix:** serialize by runtime type — `WriteAsJsonAsync(pd, pd.GetType(), …)`.
 **Where:** `src/Web/Infrastructure/ProblemDetailsExceptionHandler.cs`.
 
+### Two endpoint handlers with the same method name make the WHOLE API return 500
+**Symptom:** every route answers 500 — including endpoints nobody touched. `/api/Projects` and
+`/api/Dashboards` broke because a *room* endpoint was added.
+**Cause:** `EndpointRouteBuilderExtensions` calls `.WithName(handler.Method.Name)`, and ASP.NET Core
+requires endpoint names to be unique across the **whole application**, not per route group. `RoomAdmin`
+and `Room` both had a handler called `GetRoom`. Legal C#, compiles clean, starts up fine.
+**How it hides:** handler tests go through MediatR and never touch HTTP, so every test for the new
+feature stays green. Only a test that issues a real request sees it, and what it sees is a bare 500 on
+an unrelated endpoint.
+**Fix:** prefix every handler with its area — `GetRoomAdmin`, `GetKurdnezamNews`,
+`CreateWalfareService`. The rest of the codebase already does this; it is not style.
+**Pinned by:** `tests/Application.FunctionalTests/Infrastructure/EndpointNameTests.cs`, which reads the
+real `EndpointDataSource` and prints the colliding name.
+
+### Stripping "invisible" characters mangles Persian, and strips word gaps
+Two traps in one small function (`RoomJoinRules.SanitizeDisplayName`), both silent:
+1. **U+200C (نیم‌فاصله) is `UnicodeCategory.Format`** — the same category as the bidi overrides you
+   actually want gone. A blanket strip respells «علی‌رضا» as «علیرضا»: visually close enough that
+   nobody reports it. Spare U+200C and U+200D by code point.
+2. **Tab and newline are `Control`, not whitespace-first.** Strip controls before collapsing
+   whitespace and «رضا احمدی» pasted from a textarea becomes «رضااحمدی» — the gap is deleted rather
+   than turned into a space. Check `Rune.IsWhiteSpace` **first**, then strip.
+
+Why sanitize at all: a name typed by a guest is sent to the media server and echoed to every other
+client, so escaping at render time is too late. U+202E alone lets one guest reverse the rendering of
+the whole participant list for everybody.
+
+### Docker Hub blob fetches 403 from this network
+**Symptom:** `docker pull livekit/livekit-server:v1.13.3` → `unknown: failed to copy: httpReadSeeker:
+failed open: unexpected status from GET request to https://production.cloudfront.docker.com/... :
+403 Forbidden`. The manifest resolves; only the layer blob is refused.
+**Cause:** same class of network restriction already recorded for NuGet — the CDN, not Docker.
+**Fix that works:** the servers can pull. Lift an image the VPS already runs:
+```
+plink … "docker save livekit/livekit-server:v1.13.3 | gzip -1 > /tmp/lk.tgz"
+pscp  … amirserver@185.182.220.182:/tmp/lk.tgz .   &&   docker load -i lk.tgz
+```
+36 MB, about four seconds. No secret is involved, so this is safe for any image the production hosts
+already have.
+
+### A local LiveKit needs `--node-ip`, or it connects and then never starts
+**Symptom:** signalling succeeds — the token is accepted, the participant appears, the control bar
+renders — and then `ConnectionError: could not establish pc connection`. The pair of symptoms is
+confusing: authentication clearly worked, so the token looks fine, and the failure looks like a bug in
+the app.
+**Cause:** the container advertises its **Docker-internal** address (`172.17.0.3`) as the ICE
+candidate. The browser on the host cannot route to it.
+**Fix:** `--node-ip 127.0.0.1` on the dev server, and publish 7881/tcp + 7882/udp.
+**Full local command** (uses LiveKit's published placeholder pair `devkey`/`secret` — a documented
+constant, never the production key):
+```
+docker run -d --name ceo-livekit-local -p 7880:7880 -p 7881:7881 -p 7882:7882/udp \
+  livekit/livekit-server:v1.13.3 --dev --bind 0.0.0.0 --node-ip 127.0.0.1
+```
+Related: the **production** server needed `udp_port` rather than a one-port range — see the step 1–2
+worklog for that one.
+
+### framer-motion `AnimatePresence` leaks nodes in a background tab
+**Symptom:** a countdown that ticks once a second accumulated every past digit in the DOM — ۵۳, ۵۱,
+۵۰, ۴۹ … all still rendered, stacked in one tile.
+**Cause:** an `exit` animation must run to completion before the element is removed, and it is driven
+by `requestAnimationFrame`, which browsers pause for a tab that is not visible. No frames means no
+exit means no removal — one orphaned node per second, for as long as the tab stays in the background.
+**Fix:** for a value that changes on a timer, animate the **arrival only**: a keyed `motion.span` with
+`initial`/`animate` and **no** `AnimatePresence`. Changing the key replaces the node outright, so
+there is no exit lifecycle to stall.
+**Where:** `room-web/src/features/join/Countdown.tsx`. It matters there because that page is designed
+to sit open for twenty minutes while somebody waits for a webinar — the background tab is the normal
+case, not the edge case.
+
+### `navigator.clipboard` does not exist on plain http
+**Symptom:** the copy button on the meeting row threw, in dev only.
+**Cause:** the Clipboard API is gated on a **secure context**. `https://` and `http://localhost` count;
+`http://room.localhost:5277` — which is how every SPA in this repo is reached in dev — does **not**.
+**Fix:** try `navigator.clipboard` inside `window.isSecureContext`, then fall back to a hidden
+`<textarea>` + `document.execCommand("copy")`.
+**Where:** `room-web/src/features/rooms/RoomsList.tsx`. Applies to any copy button in any of the SPAs.
+
+### A nested FluentValidation validator renames every field it reports
+**Symptom:** nothing. The request is rejected, the Persian message is right, the status code is right —
+the form just highlights **no field at all**, on every validation error.
+**Cause:** `RuleFor(x => x.Input).SetValidator(new XInputValidator())` is the obvious way to share one
+set of rules between a create and an update command. FluentValidation prefixes every child key with the
+parent property, so the API answers `Input.JoinMode` to a form whose field is `joinMode`.
+**Fix:** `.SetValidator(…).OverridePropertyName(string.Empty)` — an empty parent name is dropped from the
+chain, so the keys stay flat. Then assert it: a test that no error key contains a `.` is the only thing
+that will notice this coming back.
+**Where:** `src/Application/Rooms/RoomAdminCommands.cs`, pinned by
+`tests/Application.UnitTests/Rooms/RoomValidationKeyTests.cs`.
+**Applies to** any command that wraps a shared input record — the election commands are flat and so
+never hit it.
+
+### A CHECK constraint that describes a live row will refuse a soft delete
+**Symptom:** `DELETE` on a meeting threw `DbUpdateException` → *conflicted with the CHECK constraint
+"CK_Rooms_JoinTokenMatchesMode"*. Create, update and every validator were fine.
+**Cause:** the constraint said "a link-joined meeting **has** a link". Soft-deleting one drops the token
+on purpose — that is what kills every copy of the link — which leaves a link-mode row with no token.
+**Fix:** exempt the tombstone, not the rule: `… OR [IsDeleted] = 1`. The protective half — invite-only
+may never hold a dangling secret — stays absolute.
+**Lesson:** a constraint states an invariant of a **live** row. Soft delete creates rows that were never
+in that state, and only a test against real SQL Server will show it. An in-memory provider ignores CHECK
+constraints entirely.
+**Where:** `src/Infrastructure/Data/Configurations/Rooms/RoomConfigurations.cs`, migration
+`20260731124639_RelaxRoomJoinTokenCheckForDeleted`.
+
 ### `System.Text.Json` is strict where Newtonsoft was forgiving
 **Symptom:** the payment gateway "could not be reached" although it had answered.
 **Cause:** Iran Kish sends `status` as a **number**; the DTO declared `bool`. The legacy client

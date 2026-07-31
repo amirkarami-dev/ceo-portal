@@ -20,6 +20,19 @@ public class FunctionalTestSetup
 
     internal static FakeVoteOtpSender OtpSender => Factory.OtpSender;
 
+    /// <summary>The stand-in media server: head-counts to arrange, ended rooms to assert on.</summary>
+    internal static FakeLiveKitAdmin LiveKit => Factory.LiveKit;
+
+    /// <summary>
+    /// A real HTTP client against the test host.
+    /// </summary>
+    /// <remarks>
+    /// Almost every test goes through MediatR instead, which is faster and asserts on typed results.
+    /// This exists for the handful of things that only exist in the HTTP pipeline — route wiring and
+    /// the authorisation middleware — and which a handler test would happily pass without.
+    /// </remarks>
+    internal static HttpClient CreateClient() => Factory.CreateClient();
+
     private static WebApiFactory Factory =>
         _factory ?? throw new InvalidOperationException("Test host not started.");
 

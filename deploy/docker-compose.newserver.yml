@@ -136,6 +136,14 @@ services:
       Clients__ElectionWeb__Silent: "https://${ELECTION_DOMAIN}/auth/silent"
       Clients__ElectionWeb__PostLogout: "https://${ELECTION_DOMAIN}"
       Cors__AllowedOrigins__5: "https://${ELECTION_DOMAIN}"
+      # room-web public PKCE client (room.myceo.ir) — جلسات آنلاین.
+      # Requires ROOM_DOMAIN in deploy/.env; the IdP seeder skips it when Redirect is unset.
+      # Its unauthenticated authorize is routed to /Account/EngineerLogin?service=room, for the same
+      # reason as election: engineer accounts have no password.
+      Clients__RoomWeb__Redirect: "https://${ROOM_DOMAIN}/auth/callback"
+      Clients__RoomWeb__Silent: "https://${ROOM_DOMAIN}/auth/silent"
+      Clients__RoomWeb__PostLogout: "https://${ROOM_DOMAIN}"
+      Cors__AllowedOrigins__6: "https://${ROOM_DOMAIN}"
       # KurdNezam membership SQL (same server the API's mun-sanandaj sync reads) — lets the IdP
       # provision engineer logins from a کد ملی via WebS_GetEngineerInfo. Empty = disabled.
       ConnectionStrings__KurdNezamDb: "${KURDNEZAM_DB_CONN:-}"
@@ -206,6 +214,20 @@ services:
       Cors__AllowedOrigins__7: "https://${WALFARE_DOMAIN}"
       # election-web SPA (election.myceo.ir) calls /api/Election* from the browser.
       Cors__AllowedOrigins__8: "https://${ELECTION_DOMAIN}"
+      # room-web SPA (room.myceo.ir) calls /api/Room* from the browser — including two ANONYMOUS
+      # routes (the link landing page and the link join), which a guest with no account opens.
+      Cors__AllowedOrigins__9: "https://${ROOM_DOMAIN}"
+      # Where a meeting's join link points. Unset ⇒ every link comes back null, which looks like a
+      # broken feature rather than a missing setting.
+      Rooms__PublicBaseUrl: "https://${ROOM_DOMAIN}"
+      # The media server: a dedicated LiveKit on its own machine (lk.myceo.ir), NOT this box. The
+      # secret signs every join token and is not room-scoped — whoever holds it can mint a token for
+      # any room on that server — so it lives only in deploy/.env. Empty ⇒ meetings report themselves
+      # unavailable rather than minting tokens nothing will accept.
+      LiveKit__ApiUrl: "${LIVEKIT_API_URL:-}"
+      LiveKit__ApiKey: "${LIVEKIT_API_KEY:-}"
+      LiveKit__ApiSecret: "${LIVEKIT_API_SECRET:-}"
+      LiveKit__PublicWsUrl: "${LIVEKIT_PUBLIC_WS_URL:-}"
       # Election ballot crypto. BOTH must be set and MUST DIFFER, each base64 of 32 bytes
       # (openssl rand -base64 32). Without them voting reports itself unavailable rather than sealing
       # ballots under a default key — deliberate: an unusable election beats an unsafe one.
@@ -477,6 +499,34 @@ services:
       - "traefik.http.routers.ceoportal-election.tls.certresolver=myresolver"
       - "traefik.http.routers.ceoportal-election.service=ceoportal-election"
       - "traefik.http.services.ceoportal-election.loadbalancer.server.port=80"
+    networks: [traefik]
+
+  # room-web — جلسات آنلاین (room.myceo.ir). React/Vite + Ant Design, served static by nginx.
+  # Its media never touches this box: video goes browser <-> lk.myceo.ir (a dedicated LiveKit on its
+  # own machine). Only tokens and admin calls pass through the API here.
+  room-web:
+    build:
+      context: ..
+      dockerfile: room-web/deploy/Dockerfile.room-web
+      args:
+        # Baked into the static bundle at build time (PUBLIC values only — never secrets).
+        VITE_API_BASE: "https://${API_DOMAIN}"
+        VITE_AUTH_AUTHORITY: "https://${AUTH_DOMAIN}"
+        VITE_AUTH_CLIENT_ID: "room-web"
+        VITE_AUTH_SCOPE: "openid profile email roles ceo.api"
+    image: ceo-portal-room-web:newserver
+    container_name: ceo-portal-room-web
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.ceoportal-room.rule=Host(`${ROOM_DOMAIN}`)"
+      - "traefik.http.routers.ceoportal-room.entrypoints=websecure"
+      # Same reasoning as election: room.myceo.ir sits under myceo.ir, so myresolver (DNS-01).
+      # HTTP-01 cannot complete through the CDN even when the record is currently unproxied.
+      - "traefik.http.routers.ceoportal-room.tls.certresolver=myresolver"
+      - "traefik.http.routers.ceoportal-room.service=ceoportal-room"
+      - "traefik.http.services.ceoportal-room.loadbalancer.server.port=80"
     networks: [traefik]
 
   # admin-web — the central user-management SPA (admin.myceo.ir). React/Vite + Ant Design, served

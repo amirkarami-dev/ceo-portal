@@ -1,5 +1,6 @@
 using Mabhas19.Application.Common.Interfaces;
 using Mabhas19.Application.Common.Interfaces.Elections;
+using Mabhas19.Application.Common.Interfaces.Rooms;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -28,6 +29,9 @@ public class WebApiFactory(string connectionString) : WebApplicationFactory<Prog
     /// <summary>Records OTP delivery without reaching Bale or an SMS provider.</summary>
     public FakeVoteOtpSender OtpSender { get; } = new();
 
+    /// <summary>Stands in for the media server, so no test reaches the real one.</summary>
+    public FakeLiveKitAdmin LiveKit { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder
@@ -37,7 +41,17 @@ public class WebApiFactory(string connectionString) : WebApplicationFactory<Prog
             // for any vote test to reach the handler at all. These two MUST differ — reusing one value
             // would make the roll and the ballots share key material.
             .UseSetting("Elections:VoterPepper", TestKeys.VoterPepper)
-            .UseSetting("Elections:BallotMasterKey", TestKeys.BallotMasterKey);
+            .UseSetting("Elections:BallotMasterKey", TestKeys.BallotMasterKey)
+            // A join link is built from configuration, not from the request, so the tests have to set
+            // it — otherwise every assertion on a link would pass against a null.
+            .UseSetting("Rooms:PublicBaseUrl", TestRoomBaseUrl)
+            // Throwaway media-server credentials. The token service refuses to sign without them and
+            // every join would come back «سرویس ویدیو در دسترس نیست» — a green suite proving nothing.
+            // The signature is never sent anywhere: LiveKit itself is faked (see FakeLiveKitAdmin), so
+            // these only let the REAL token be minted and inspected.
+            .UseSetting("LiveKit:ApiKey", TestKeys.LiveKitApiKey)
+            .UseSetting("LiveKit:ApiSecret", TestKeys.LiveKitApiSecret)
+            .UseSetting("LiveKit:PublicWsUrl", TestWsUrl);
 
         builder.ConfigureTestServices(services =>
         {
@@ -70,6 +84,10 @@ public class WebApiFactory(string connectionString) : WebApplicationFactory<Prog
                 .RemoveAll<IVoteOtpSender>()
                 .AddSingleton<IVoteOtpSender>(OtpSender);
 
+            services
+                .RemoveAll<ILiveKitAdmin>()
+                .AddSingleton<ILiveKitAdmin>(LiveKit);
+
             CaptureOtpStore(services);
         });
     }
@@ -93,6 +111,12 @@ public class WebApiFactory(string connectionString) : WebApplicationFactory<Prog
         });
     }
 
+    /// <summary>Where a test's join links point. No trailing slash, on purpose — the builder trims one.</summary>
+    internal const string TestRoomBaseUrl = "https://room.test";
+
+    /// <summary>What a join result should report as the browser's socket address.</summary>
+    internal const string TestWsUrl = "wss://lk.test";
+
     /// <summary>Test-only key material. Base64 of 32 bytes each, and deliberately different.</summary>
     internal static class TestKeys
     {
@@ -101,5 +125,10 @@ public class WebApiFactory(string connectionString) : WebApplicationFactory<Prog
 
         /// <summary>Bytes 0xFE descending — nothing in common with the pepper above.</summary>
         public const string BallotMasterKey = "/v38+/r5+Pf29fTz8vHw7+7t7Ovq6ejn5uXk4+Lh4N8=";
+
+        /// <summary>A fake media-server key pair. Never used against a real LiveKit.</summary>
+        public const string LiveKitApiKey = "APItestkey";
+
+        public const string LiveKitApiSecret = "test-secret-not-a-real-livekit-secret";
     }
 }

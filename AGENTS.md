@@ -88,12 +88,18 @@ registered redirect URIs and the API's CORS allow‑list are keyed to them.
 | `mun-sanandaj-web` | `npm --prefix mun-sanandaj-web run dev -- --port 5274 --strictPort` | 5274 |
 | `walfare-web` | `npm --prefix walfare-web run dev -- --port 5275 --strictPort` | 5275 |
 | `election-web` | `npm --prefix election-web run dev -- --port 5276 --strictPort` | 5276 |
+| `room-web` | `npm --prefix room-web run dev` | 5277 |
 
 **`walfare-web` and `admin-web` both pin 5180 in their `vite.config.ts`** — walfare needs the
 explicit `--port 5275 --strictPort` override above or whichever starts second dies.
 
-**`election-web` needs `npm install --legacy-peer-deps`** — `antd-jalali` declares React 18 and the
-app is on React 19, same as `walfare-web`.
+**`election-web` and `room-web` need `npm install --legacy-peer-deps`** — `antd-jalali` declares
+React 18 and the apps are on React 19, same as `walfare-web`.
+
+**`room-web` pins its port in `vite.config.ts`** (`strictPort: true`), so it needs no `--port`
+override — but it also cannot quietly move to 5278 when 5277 is taken, which is deliberate: the IdP
+redirect URI and the API CORS entry are both keyed to 5277 and a silent move fails at the login
+redirect with an error that says nothing about ports.
 
 Before shipping any front end: `npm run build` **and** `npm run lint` (plus `npx vitest run` where
 tests exist) must pass. `mabhas19-web/.env.local` bakes `NEXT_PUBLIC_API_BASE` at build time, and
@@ -109,6 +115,7 @@ predate its `name: ceo-portal-dev` project rename:
 | What | Container | Holds |
 |---|---|---|
 | SQL Server, port 1433 | `ceo-portal-sql-local` (plain `docker run`, volume `mabhas19_sqldata`) | `CeoDb` + `CeoAuthDb` |
+| LiveKit, port 7880 | `ceo-livekit-local` (dev mode, `devkey`/`secret`) | the room service's media server for local work — **never** the production one |
 | MinIO, ports 9000/9001 | `mabhas19-dev-minio-1` (volume `mabhas19-dev_miniodata_dev`) | report bucket |
 
 > **Do not run `docker compose -f deploy/docker-compose.dev.yml up -d` against this machine.**

@@ -48,6 +48,7 @@ Clean Architecture. A feature normally touches all four layers.
 | Municipality | `Application/MunSanandaj` | `/api/MunSanandaj*` | `mun-sanandaj-web/` |
 | **Welfare** | `Application/Walfare` | `/api/walfare/*` | `walfare-web/` |
 | **Elections** | `Application/Elections` | `/api/ElectionAdmin`, `/api/Election`, `/api/BaleWebhook` | `election-web/`, Bale bot |
+| **Rooms** | `Application/Rooms` | `/api/RoomAdmin`, `/api/Room` | `room-web/` (dev port 5277) |
 
 ## Election service (in build — steps 1–6 done, 7–9 open)
 
@@ -88,6 +89,64 @@ Secret-ballot online elections. Design: `docs/superpowers/specs/2026-07-29-elect
 - `election` is in **`ServiceKeys.All`** (grantable, so it can show a launcher tile) but deliberately
   **not in `ClientToKey`** (never gating) — see GOTCHAS. Voters sign in with کد ملی + OTP via
   `/Account/EngineerLogin?service=election`.
+
+## Room service (in build — steps 1–9 done, 10 open)
+
+Online meetings at `room.myceo.ir`. Design: `docs/superpowers/specs/2026-07-31-room-service-design.md`.
+
+- **The media server is a dedicated LiveKit on Amir's own VPS** (`lk.myceo.ir`, `185.182.220.182`), not
+  the shared box. A LiveKit API secret is **not scoped to a room**, so sharing one server would let
+  either product mint a token into the other's meetings.
+- **Two shapes, and the difference is who may speak.** `Meeting` = everyone publishes. `Presentation` =
+  only the presenter does, and that is enforced in the **token** (`canPublish:false`), not the UI — the
+  media server refuses a track the token does not allow, so a tampered front end changes nothing.
+  Careful: LiveKit treats an **omitted** `canPublish` as `true`, so the serializer must write `false`
+  explicitly.
+- **Three join modes**: `InviteOnly` (Meeting only, by کد ملی), `Private` (link + the welfare کد ملی/OTP
+  login), `Public` (link + a full name, Presentation only). The four combinations that must never exist
+  are **CHECK constraints**, not just validators — each one is a security rule.
+- **The presenter is identified by کد ملی**, because an authenticated join carries the کد ملی as its
+  media identity and `Room.MayPublish` compares them ordinally. A free-text id there is a presenter who
+  joins muted with no error anywhere. The display name comes from the organisation's record.
+- **`JoinToken` is the link secret** (32 hex, regenerable), never the row id. Regenerating it is the only
+  way to kill a link that reached the wrong audience. It is returned **only** by `/api/RoomAdmin`, which
+  is why admin and attendee are separate endpoint groups.
+- **`Rooms:PublicBaseUrl`** decides where a link points. Unset ⇒ every join link is `null`, which looks
+  like a broken feature rather than a missing setting.
+- **Admin calls to the media server are fail-soft; minting a token is not.** A head-count hiccup must
+  render zeros, not a 500; a token is a security decision and throws.
+- **One implementation of the join gates** (`IRoomJoiner`), used by both the member path and the link
+  path — same reason `IBallotCaster` exists. The gates and their Persian reasons are a pure function
+  (`RoomJoinRules.Check`), and their **order** is deliberate: eligibility before the countdown, and
+  "media server unavailable" last, because it is about us and not about them.
+- **A meeting you may not attend is a 404, never a 403.** A 403 confirms it exists, and walking the ids
+  would list every meeting in the organisation one request at a time. Only «باید وارد شوید» is a 401 —
+  the one refusal a browser can act on. Nothing is a 403, because the problem-details handler writes no
+  `Detail` for one and the Persian reason would vanish.
+- **A guest name is sanitized where it is accepted, not where it is rendered** — it goes to the media
+  server and comes back to every other client. See GOTCHAS for the two traps in doing that.
+- **`room-web`** (dev 5277) is the seventh SPA, same shape as `election-web`: attendee at `/` behind
+  `RequireAuth` only, admin at `/admin*` behind `RequireAdmin`. Like `election`, the `room` service key
+  is **grantable but never gating** — who attends a meeting is that meeting's invite list or its link,
+  so `room-web` is deliberately absent from `ServiceKeys.ClientToKey`.
+- **The presenter and invite boxes resolve a name from a کد ملی** via `GET /api/RoomAdmin/people/{code}`
+  (Administrator-only, one direction). Searching by name would be a downloadable membership list.
+- **`/j/:joinToken`** is the guest landing page — outside `RequireAuth` **and** outside `AppLayout`.
+  Its countdown is measured against `serverNowUtc`, never the device clock, and reaching zero only
+  triggers a refetch: the server's `canJoinNow` is always the authority.
+- **The anonymous link routes share the API-wide rate limiter** (120/min per IP,
+  `src/Web/DependencyInjection.cs`). That is the one control worth revisiting before a large public
+  webinar — everyone behind one NAT shares the budget. See the step 7 worklog.
+- **`/room/:id` and `/j/:joinToken` render the SAME `MeetingScreen`** — a member's door and a guest's
+  door into one component, for the same reason `IRoomJoiner` exists on the server. Publish controls are
+  **absent, not disabled**, for an audience member; camera and microphone always start off.
+- **Chat authenticates a guest with the media token itself**, in an `X-Room-Token` header, verified by
+  `IRoomTokenService.VerifyJoinToken`. A guest has no account, so this is the only credential they
+  have — and it is a good one: it binds one identity to one room and expires. **The token's room is
+  checked against the room being written to**, or one public link would open the chat of every meeting
+  on the server. Sender name and `IsGuest` come out of that signature, never from the request body.
+- **Chat is saved by the API and delivered live over the media data channel.** Not polling — every
+  participant polling would burn the shared per-IP rate limit. De-duplicated on the database row id.
 
 ## Welfare service
 

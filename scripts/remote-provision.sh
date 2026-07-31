@@ -121,6 +121,24 @@ ensure_env WALFARE_DOMAIN refahi.kurdnezam.ir
 # Iran Kish pass phrase (SECRET — the operator pastes the real value; empty disables the gateway).
 ensure_env IRK_PASSPHRASE ""
 
+# room.myceo.ir — جلسات آنلاین. An unset domain would make the IdP seeder parse
+# "https:///auth/callback" and abort, so it is always present.
+ensure_env ROOM_DOMAIN room.myceo.ir
+
+# The media server is a DEDICATED LiveKit on its own machine, not this box — only tokens and admin
+# calls go through the API here; video never touches this host.
+#
+# The API URL and the browser's WebSocket URL are public. The key pair is NOT: a LiveKit secret is
+# not room-scoped, so whoever holds it can mint a token into any meeting on that server. Both stay
+# empty here and are pasted in out-of-band, exactly like IRK_PASSPHRASE above — ensure_env never
+# overwrites a live value, so an already-configured pair survives every redeploy.
+#
+# Empty ⇒ the room service reports itself unavailable rather than minting tokens nothing will accept.
+ensure_env LIVEKIT_API_URL https://lk.myceo.ir
+ensure_env LIVEKIT_PUBLIC_WS_URL wss://lk.myceo.ir
+ensure_env LIVEKIT_API_KEY ""
+ensure_env LIVEKIT_API_SECRET ""
+
 # msgway direct SMS — backfill the new keys for .env files created before direct sending existed.
 # (SMS_MSGWAY_APIKEY stays empty here — the real key is a secret set out-of-band; ensure_env never
 # overwrites a live value, so an already-configured key is preserved.)

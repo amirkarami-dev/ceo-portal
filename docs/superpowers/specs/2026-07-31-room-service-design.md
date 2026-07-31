@@ -128,7 +128,8 @@ Adapted to this repo: `BaseAuditableEntity`, the shared `IApplicationDbContext`,
 | `Type` | `Meeting` = 0, `Presentation` = 1 |
 | `JoinMode` | `InviteOnly` = 0, `Private` = 1, `Public` = 2 |
 | `JoinToken` | 32 hex, the link secret; regenerable |
-| `PresenterUserId?`, `PresenterName?` | required when `Type = Presentation` |
+| `PresenterUserId?` | the presenter's **کد ملی** — required when `Type = Presentation`. Must be a کد ملی because an authenticated join carries it as the media identity, and `MayPublish` compares the two exactly |
+| `PresenterName?` | read from the organisation's record on save, never typed by the admin |
 | `StartsAtUtc` | when joining opens |
 | `EarlyJoinMinutes` | default 10 — how long before the start people may enter |
 | `DurationMinutes?` | display only in v1 |
@@ -141,17 +142,32 @@ Rules enforced at save: `Public` requires `Type = Presentation`; `Presentation` 
 **`RoomInvites`** — `(RoomId, UserId)` unique. Only used by `Meeting`.
 **`RoomMessages`** — `(RoomId, CreatedAt)`, text ≤ 4000, sender id + name, `IsGuest`.
 
-## 6. API — `/api/Room`
+## 6. API — two groups, split by who may call them
+
+Admin and attendee are **separate endpoint groups**, the same split the election service uses. The
+reason is one field: the join link. It is the entire gate for a public presentation, so the DTO that
+carries it must never be reachable by a route an attendee can call. One group with a role check inside
+it is one forgotten `if` away from handing the key out.
+
+**`/api/RoomAdmin`** — Administrator at the group level *(step 4, built)*
+
+| Route | Purpose |
+|---|---|
+| `GET /` | every meeting: type, join mode, start time, live head-count, **and the join link on the row** |
+| `GET /{id}` | detail, with the invite list |
+| `POST /` | create; generates `Slug` + `JoinToken` |
+| `PUT /{id}` | edit, including type, join mode, presenter, start time |
+| `POST /{id}/link` | new `JoinToken`, old links die; returns the full URL |
+| `POST /{id}/active` | open or close the doors; closing also ends the live room |
+| `DELETE /{id}` | soft delete, drop the link, end the live room |
+| `POST /{id}/invites`, `DELETE …/{userId}` | `Meeting` only, by کد ملی |
+
+**`/api/Room`** — attendees *(step 5)*
 
 | Route | Who | Purpose |
 |---|---|---|
 | `GET /rooms` | signed in | meetings I may attend (invited, or I am the presenter) |
-| `GET /rooms/{id}` | signed in | detail; admin also gets invites and the join link |
-| `POST /rooms` | Administrator | create; generates `Slug` + `JoinToken` |
-| `PUT /rooms/{id}` | Administrator | edit, including type, join mode, presenter, start time |
-| `POST /rooms/{id}/regenerate-link` | Administrator | new `JoinToken`, old links die |
-| `DELETE /rooms/{id}` | Administrator | soft delete, end the live room |
-| `POST /rooms/{id}/invites`, `DELETE …/{userId}` | Administrator | `Meeting` only |
+| `GET /rooms/{id}` | signed in | detail. **No join link, no invite list.** |
 | `POST /rooms/{id}/join` | signed in | token for a member |
 | **`GET /join/{joinToken}`** | anonymous | what the landing page needs: name, start time, join mode, whether it is open yet. **No ids, no invite list.** |
 | **`POST /join/{joinToken}`** | anonymous | `{ fullName }` for a public meeting → guest token. Private ⇒ 401 with "sign in first" |

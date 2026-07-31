@@ -22,6 +22,7 @@ using Mabhas19.Application.Elections;
 using Mabhas19.Infrastructure.Elections;
 using Mabhas19.Infrastructure.Rooms;
 using Mabhas19.Application.Common.Interfaces.Rooms;
+using Mabhas19.Application.Rooms;
 
 namespace Microsoft.Extensions.DependencyInjection;
 
@@ -130,6 +131,11 @@ public static class DependencyInjection
         // meetings unavailable with a clear message rather than minting tokens nothing will accept.
         services.Configure<LiveKitOptions>(config.GetSection(LiveKitOptions.SectionName));
 
+        // Where a join link points. Configuration rather than something derived from the incoming
+        // request, so a link is identical whether it was made from the admin panel, a script, or a
+        // request that reached us through the CDN with a rewritten host.
+        services.Configure<RoomLinkOptions>(config.GetSection(RoomLinkOptions.SectionName));
+
         // Singleton, and the SAME instance serves both interfaces: RoomTokenService also mints the
         // server-wide admin token, which must stay reachable only from Infrastructure.
         services.AddSingleton<RoomTokenService>();
@@ -151,6 +157,11 @@ public static class DependencyInjection
             // The Authorization header carries a freshly minted admin token on every call. Default
             // request logging would not print it, but there is nothing here worth logging either.
             .RemoveAllLoggers();
+
+        // The two ways into a meeting — a member opening it from their list, and a stranger opening a
+        // link — share one implementation of the gates, for the same reason IBallotCaster below exists.
+        // Scoped: it reads the request-scoped identity and DbContext.
+        services.AddScoped<IRoomJoiner, RoomJoiner>();
 
         // The two voting channels share one implementation of the rules. Scoped because both take the
         // request-scoped DbContext. See Application/Elections/BallotCasting.cs for why the کد ملی is a

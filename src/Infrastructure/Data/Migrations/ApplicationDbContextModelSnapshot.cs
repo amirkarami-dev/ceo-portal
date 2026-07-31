@@ -1696,7 +1696,7 @@ namespace Mabhas19.Infrastructure.Data.Migrations
 
                             t.HasCheckConstraint("CK_Rooms_InviteOnlyIsMeetingOnly", "[JoinMode] <> 0 OR [Type] = 0");
 
-                            t.HasCheckConstraint("CK_Rooms_JoinTokenMatchesMode", "([JoinMode] = 0 AND [JoinToken] IS NULL) OR ([JoinMode] <> 0 AND [JoinToken] IS NOT NULL)");
+                            t.HasCheckConstraint("CK_Rooms_JoinTokenMatchesMode", "([JoinMode] = 0 AND [JoinToken] IS NULL) OR ([JoinMode] <> 0 AND ([JoinToken] IS NOT NULL OR [IsDeleted] = 1))");
 
                             t.HasCheckConstraint("CK_Rooms_MaxParticipants", "[MaxParticipants] >= 1");
 

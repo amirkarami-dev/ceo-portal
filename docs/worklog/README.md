@@ -22,6 +22,12 @@ Also, when a task teaches something reusable:
 
 | Date | Record | Area | Status |
 |---|---|---|---|
+| 2026-07-31 | [Room step 9: saved chat](2026-07-31-room-step-9-chat.md) | room | **observed** — a guest's message survived a reload |
+| 2026-07-31 | [Room step 8: the meeting screen, both modes](2026-07-31-room-step-8-meeting-screen.md) | room / front end | **observed** — server refused the audience publish |
+| 2026-07-31 | [Room step 7: the link landing page and the countdown](2026-07-31-room-step-7-join-page.md) | room / front end | **proven in a browser** — a guest joined |
+| 2026-07-31 | [Room step 6: room-web — my meetings, admin table, create/edit](2026-07-31-room-step-6-room-web.md) | room / front end | built; signed-in screens not yet driven |
+| 2026-07-31 | [Room step 5: joining — member, guest, landing page](2026-07-31-room-step-5-join.md) | room | built and tested; no browser has connected |
+| 2026-07-31 | [Room step 4: admin CRUD, join links, invites](2026-07-31-room-step-4-admin-api.md) | room | built and tested; no UI yet |
 | 2026-07-31 | [Room steps 1-3: video server, meeting model, tokens](2026-07-31-room-steps-1-2.md) | room / infra | steps 1-3 done; token proven live |
 | 2026-07-31 | [Election step 10: candidate photos upload to object storage](2026-07-31-election-candidate-photo-upload.md) | election | built, not deployed |
 | 2026-07-31 | [Election service: deployed to production](2026-07-31-election-deploy.md) | election / infra | **live** at election.myceo.ir |

@@ -133,6 +133,24 @@ const SERVICES: Svc[] = [
     ),
   },
   {
+    key: "room",
+    nameFa: "جلسات آنلاین",
+    nameEn: "Meetings",
+    href: "https://room.myceo.ir",
+    color: "#4f46e5",
+    // Ungated, for the same reason as `election`. `room` IS grantable so an admin can assign it and
+    // this tile can appear, but it is deliberately NOT in ServiceKeys' client map, so it never blocks
+    // anyone at authorize — every engineer provisioned before this service existed carries
+    // ["walfare"], and who may attend a meeting is decided per meeting by the API, not by a grant.
+    ungated: true,
+    icon: (
+      <svg {...ic}>
+        <rect x="2" y="6" width="13" height="12" rx="2" />
+        <path d="m15 11 5-3v8l-5-3z" />
+      </svg>
+    ),
+  },
+  {
     key: "admin",
     nameFa: "مدیریت کاربران",
     nameEn: "User Admin",

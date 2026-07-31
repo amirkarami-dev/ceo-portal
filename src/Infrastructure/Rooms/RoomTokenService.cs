@@ -133,6 +133,83 @@ internal sealed class RoomTokenService(IOptions<LiveKitOptions> options)
         return Sign(JsonSerializer.SerializeToUtf8Bytes(payload, Json));
     }
 
+    /// <inheritdoc/>
+    public RoomTokenIdentity? VerifyJoinToken(string? token)
+    {
+        if (!IsConfigured || string.IsNullOrWhiteSpace(token))
+        {
+            return null;
+        }
+
+        var parts = token.Split('.');
+        if (parts.Length != 3)
+        {
+            return null;
+        }
+
+        var signingInput = $"{parts[0]}.{parts[1]}";
+
+        byte[] presented;
+        byte[] payloadBytes;
+        try
+        {
+            presented = FromBase64Url(parts[2]);
+            payloadBytes = FromBase64Url(parts[1]);
+        }
+        catch (FormatException)
+        {
+            return null;
+        }
+
+        var expected = HMACSHA256.HashData(
+            Encoding.UTF8.GetBytes(_options.ApiSecret),
+            Encoding.UTF8.GetBytes(signingInput));
+
+        // Fixed-time. A byte-by-byte compare that returns early leaks how much of a forged signature
+        // was right, and this endpoint can be called as fast as the network allows.
+        if (!CryptographicOperations.FixedTimeEquals(presented, expected))
+        {
+            return null;
+        }
+
+        Payload? payload;
+        try
+        {
+            payload = JsonSerializer.Deserialize<Payload>(payloadBytes, Json);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+
+        if (payload is null || string.IsNullOrWhiteSpace(payload.Sub))
+        {
+            return null;
+        }
+
+        // The same ten seconds of leeway the minting side allows, for the same reason.
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        if (now < payload.Nbf - 10 || now >= payload.Exp)
+        {
+            return null;
+        }
+
+        // Without a room this token would be a credential for every meeting on the server. Callers
+        // must still check the name matches the room they are writing to.
+        if (string.IsNullOrWhiteSpace(payload.Video.Room))
+        {
+            return null;
+        }
+
+        return new RoomTokenIdentity(payload.Video.Room, payload.Sub, payload.Name);
+    }
+
+    private static byte[] FromBase64Url(string value)
+    {
+        var s = value.Replace('-', '+').Replace('_', '/');
+        return Convert.FromBase64String(s.PadRight(s.Length + ((4 - (s.Length % 4)) % 4), '='));
+    }
+
     private string Sign(byte[] payloadBytes)
     {
         var head = Base64Url(JsonSerializer.SerializeToUtf8Bytes(new Header(), Json));

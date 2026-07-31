@@ -430,6 +430,48 @@ public class AuthDbInitialiser(
 
             await EnsureClientAsync(electionClient);
         }
+
+        // room-web — Public, Authorization Code + PKCE, for room.myceo.ir (جلسات آنلاین).
+        // Like election-web, `room` is a grantable service (so the launcher can show its tile) but is
+        // deliberately NOT in ServiceKeys' client map, so it never gates: who may attend a meeting is
+        // that meeting's invite list or its link, decided by the API. An engineer carrying ["walfare"]
+        // who is invited to a جلسه must still be able to sign in. Optional: only seeded when its
+        // redirect is set.
+        var roomRedirect   = configuration["Clients:RoomWeb:Redirect"]   ?? string.Empty;
+        var roomSilent     = configuration["Clients:RoomWeb:Silent"]     ?? string.Empty;
+        var roomPostLogout = configuration["Clients:RoomWeb:PostLogout"] ?? string.Empty;
+
+        if (!string.IsNullOrWhiteSpace(roomRedirect))
+        {
+            var roomClient = new OpenIddictApplicationDescriptor
+            {
+                ClientId    = "room-web",
+                ClientType  = ClientTypes.Public,
+                DisplayName = "Meetings",
+                Permissions =
+                {
+                    Permissions.Endpoints.Authorization,
+                    Permissions.Endpoints.Token,
+                    Permissions.Endpoints.EndSession,
+                    Permissions.GrantTypes.AuthorizationCode,
+                    Permissions.GrantTypes.RefreshToken,
+                    Permissions.ResponseTypes.Code,
+                    Permissions.Scopes.Email,
+                    Permissions.Scopes.Profile,
+                    Permissions.Scopes.Roles,
+                    Permissions.Prefixes.Scope + "mabhas19.api",
+                    Permissions.Prefixes.Scope + "ceo.api"
+                },
+                Requirements = { Requirements.Features.ProofKeyForCodeExchange }
+            };
+            roomClient.RedirectUris.Add(new Uri(roomRedirect));
+            if (!string.IsNullOrWhiteSpace(roomSilent))
+                roomClient.RedirectUris.Add(new Uri(roomSilent));
+            if (!string.IsNullOrWhiteSpace(roomPostLogout))
+                roomClient.PostLogoutRedirectUris.Add(new Uri(roomPostLogout));
+
+            await EnsureClientAsync(roomClient);
+        }
     }
 
     private async Task EnsureClientAsync(OpenIddictApplicationDescriptor descriptor)

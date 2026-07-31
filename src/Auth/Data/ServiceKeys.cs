@@ -22,6 +22,7 @@ public static class ServiceKeys
     public const string Plan         = "plan";
     public const string Walfare      = "walfare";
     public const string Election     = "election";
+    public const string Room         = "room";
 
     /// <summary>The grantable services, in display order, with Persian + English names.</summary>
     public static readonly IReadOnlyList<ServiceKey> All =
@@ -33,6 +34,7 @@ public static class ServiceKeys
         new(Plan,         "پلن",                "Plan"),
         new(Walfare,      "سامانه رفاهی مهندسین", "Engineers' Welfare"),
         new(Election,     "سامانه انتخابات",     "Elections"),
+        new(Room,         "جلسات آنلاین",        "Meetings"),
     ];
 
     // Maps an OIDC client_id -> the product service key it belongs to. admin-web is absent on
@@ -44,6 +46,10 @@ public static class ServiceKeys
     // election-web here would refuse all of them at authorize and silently disenfranchise them.
     // Eligibility for an election is decided per election by the API from the org directory — a
     // membership list in the IdP is not allowed to be a second, invisible voter roll.
+    //
+    // room-web is absent for exactly the same reason, and the argument is even simpler there: who may
+    // attend a meeting is the invite list on that meeting, or the link. An engineer carrying
+    // ["walfare"] who is invited to a جلسه must be able to sign in and attend it.
     private static readonly IReadOnlyDictionary<string, string> ClientToKey =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {

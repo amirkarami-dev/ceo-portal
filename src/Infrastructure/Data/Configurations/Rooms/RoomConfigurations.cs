@@ -25,9 +25,16 @@ public class RoomConfiguration : IEntityTypeConfiguration<Room>
                 "[Type] <> 1 OR [PresenterUserId] IS NOT NULL");
 
             // A link-joined meeting needs a link; an invite-only one must not have a dangling secret.
+            //
+            // The "needs a link" half is about a LIVE meeting. Deleting one drops its token on purpose —
+            // that is what kills every copy of the link — and the row stays as a tombstone so the slug is
+            // never reused. Without the IsDeleted escape, deleting a link meeting fails at the database
+            // with a constraint name. The half that actually protects anything is untouched: invite-only
+            // can never hold a token, deleted or not.
             t.HasCheckConstraint(
                 "CK_Rooms_JoinTokenMatchesMode",
-                "([JoinMode] = 0 AND [JoinToken] IS NULL) OR ([JoinMode] <> 0 AND [JoinToken] IS NOT NULL)");
+                "([JoinMode] = 0 AND [JoinToken] IS NULL) "
+                + "OR ([JoinMode] <> 0 AND ([JoinToken] IS NOT NULL OR [IsDeleted] = 1))");
 
             // Invite-only is a Meeting concept; a presentation is reached by link.
             t.HasCheckConstraint(
