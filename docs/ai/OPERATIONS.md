@@ -205,6 +205,36 @@ channel as "not delivered" and carries on, so nothing looks broken.
 receipt and the ballot inserts into one statement, so a statement-level trace pairs a voter's roll
 entry with their sealed ballot. This is a documented exposure, not a hypothetical.
 
+## Room service — the media server is NOT this box
+
+`room.myceo.ir` is a static SPA like the others, but its video never touches the production host.
+Media goes browser ↔ **`lk.myceo.ir`**, a dedicated LiveKit on Amir's own VPS (`185.182.220.182`).
+Only join tokens and admin calls pass through `api.myceo.ir`.
+
+Four `deploy/.env` keys drive it, backfilled by `remote-provision.sh`:
+
+| Key | Value | Secret? |
+|---|---|---|
+| `LIVEKIT_API_URL` | `https://lk.myceo.ir` | no |
+| `LIVEKIT_PUBLIC_WS_URL` | `wss://lk.myceo.ir` | no |
+| `LIVEKIT_API_KEY` | the key id — it is the token's `iss` | no |
+| `LIVEKIT_API_SECRET` | signs every join token | **yes** |
+
+**The secret is not room-scoped.** Whoever holds it can mint a token into any meeting on that server,
+so it lives only in `deploy/.env` (chmod 600) here and `/srv/sites/livekit/keys.yaml` on the VPS.
+Empty ⇒ the room service reports itself unavailable rather than minting tokens nothing will accept.
+That is the safe default and where it should be left if the pair is ever in doubt.
+
+Moving it between the two machines: base64 it, carry the SHA-256 alongside, and **verify the digest
+before writing anything**. A raw secret through an SSH pipe has already picked up a BOM and a
+trailing `\r` once in this project and silently grew from 16 characters to 18 — see GOTCHAS. The
+digest check turns that into a refusal instead of a meeting nobody can join. It earned its keep on
+the first attempt of the room deploy, when the upload failed and the guard refused to write an empty
+secret over a good one.
+
+`ROOM_DOMAIN` must also be set: an unset domain makes the IdP seeder parse `https:///auth/callback`
+and abort, taking the whole auth container's startup with it.
+
 ## Platform-host cutover
 
 The canonical hosts are `myceo.ir`, `api.myceo.ir`, and `s3.myceo.ir`; the OIDC issuer remains

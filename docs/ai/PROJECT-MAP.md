@@ -90,7 +90,7 @@ Secret-ballot online elections. Design: `docs/superpowers/specs/2026-07-29-elect
   **not in `ClientToKey`** (never gating) — see GOTCHAS. Voters sign in with کد ملی + OTP via
   `/Account/EngineerLogin?service=election`.
 
-## Room service (in build — steps 1–9 done, 10 open)
+## Room service — **live** at `room.myceo.ir`
 
 Online meetings at `room.myceo.ir`. Design: `docs/superpowers/specs/2026-07-31-room-service-design.md`.
 

@@ -65,6 +65,34 @@ Why sanitize at all: a name typed by a guest is sent to the media server and ech
 client, so escaping at render time is too late. U+202E alone lets one guest reverse the rendering of
 the whole participant list for everybody.
 
+### ArvanCloud serves a 404 for a minute after an origin container restarts
+**Symptom:** immediately after `docker compose up -d` recreated the SPA containers,
+`https://election.myceo.ir` and `https://refahi.kurdnezam.ir` — live all day — returned **404**
+through the CDN. Both recovered on their own within a couple of minutes.
+**Not the cause:** Traefik labels, the `traefik` network, container health, nginx. All were correct
+and 200 at the origin the entire time.
+**Diagnose from the origin before changing anything:**
+```
+curl -k --resolve HOST:443:185.206.94.116 https://HOST/   # what Traefik really serves
+curl -k -H 'Host: HOST' https://127.0.0.1/                # same, one layer lower
+```
+200 there and 404 publicly = the CDN. Wait; do not "fix" a correct label.
+Also seen on a brand-new host: `room.myceo.ir` 404'd for a few minutes after first deploy while the
+origin already served the SPA.
+
+### Traefik on the production box cannot issue ANY new certificate
+**Symptom:** the Traefik log is a wall of
+`Unable to obtain ACME certificate … arvancloud: failed to add TXT record … 403
+{"status": false, "message": "Your access to this section is restricted."}` — for every domain, not
+just a new one.
+**Cause:** the ArvanCloud DNS API token used for the DNS-01 challenge has lost permission.
+**Why nothing looks broken:** ArvanCloud terminates public TLS and the origin only ever serves
+Traefik's self-signed default cert. `openssl s_client -servername api.myceo.ir` shows
+`CN = TRAEFIK DEFAULT CERT` on hosts that work perfectly.
+**Why it matters:** the CDN is load-bearing for TLS on **every** host. Taking any domain off the
+proxy (grey cloud) leaves browsers facing a self-signed certificate. Renew the token before doing
+that, or before a cert genuinely needs issuing.
+
 ### Docker Hub blob fetches 403 from this network
 **Symptom:** `docker pull livekit/livekit-server:v1.13.3` → `unknown: failed to copy: httpReadSeeker:
 failed open: unexpected status from GET request to https://production.cloudfront.docker.com/... :

@@ -22,6 +22,7 @@ Also, when a task teaches something reusable:
 
 | Date | Record | Area | Status |
 |---|---|---|---|
+| 2026-07-31 | [Room step 10: deploy — room.myceo.ir](2026-07-31-room-step-10-deploy.md) | room / infra | **live** at room.myceo.ir |
 | 2026-07-31 | [Room step 9: saved chat](2026-07-31-room-step-9-chat.md) | room | **observed** — a guest's message survived a reload |
 | 2026-07-31 | [Room step 8: the meeting screen, both modes](2026-07-31-room-step-8-meeting-screen.md) | room / front end | **observed** — server refused the audience publish |
 | 2026-07-31 | [Room step 7: the link landing page and the countdown](2026-07-31-room-step-7-join-page.md) | room / front end | **proven in a browser** — a guest joined |
