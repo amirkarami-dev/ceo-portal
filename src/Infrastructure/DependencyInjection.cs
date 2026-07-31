@@ -20,6 +20,8 @@ using Minio;
 using Mabhas19.Application.Common.Interfaces.Elections;
 using Mabhas19.Application.Elections;
 using Mabhas19.Infrastructure.Elections;
+using Mabhas19.Infrastructure.Rooms;
+using Mabhas19.Application.Common.Interfaces.Rooms;
 
 namespace Microsoft.Extensions.DependencyInjection;
 
@@ -121,6 +123,34 @@ public static class DependencyInjection
         services.Configure<ElectionCryptoOptions>(config.GetSection(ElectionCryptoOptions.SectionName));
         services.AddSingleton<IVoterRoll, VoterRoll>();
         services.AddSingleton<IBallotSealer, BallotSealer>();
+
+        // Room service (video meetings). The media server is a dedicated LiveKit instance on its own
+        // machine; nothing here handles media, only tokens and admin calls. Registered unconditionally
+        // and gated on IsConfigured, the same pattern as the ballot crypto: a missing key makes
+        // meetings unavailable with a clear message rather than minting tokens nothing will accept.
+        services.Configure<LiveKitOptions>(config.GetSection(LiveKitOptions.SectionName));
+
+        // Singleton, and the SAME instance serves both interfaces: RoomTokenService also mints the
+        // server-wide admin token, which must stay reachable only from Infrastructure.
+        services.AddSingleton<RoomTokenService>();
+        services.AddSingleton<IRoomTokenService>(sp => sp.GetRequiredService<RoomTokenService>());
+        services.AddSingleton<ILiveKitAdminToken>(sp => sp.GetRequiredService<RoomTokenService>());
+
+        var liveKitUrl = config[$"{LiveKitOptions.SectionName}:ApiUrl"];
+        services.AddHttpClient<ILiveKitAdmin, LiveKitAdmin>(c =>
+            {
+                if (!string.IsNullOrWhiteSpace(liveKitUrl))
+                {
+                    c.BaseAddress = new Uri(liveKitUrl.TrimEnd('/') + "/");
+                }
+
+                // A head-count must never hold a page open. The admin calls are fail-soft, so a
+                // timeout degrades to zero rather than to an error.
+                c.Timeout = TimeSpan.FromSeconds(8);
+            })
+            // The Authorization header carries a freshly minted admin token on every call. Default
+            // request logging would not print it, but there is nothing here worth logging either.
+            .RemoveAllLoggers();
 
         // The two voting channels share one implementation of the rules. Scoped because both take the
         // request-scoped DbContext. See Application/Elections/BallotCasting.cs for why the کد ملی is a
