@@ -22,6 +22,7 @@ Also, when a task teaches something reusable:
 
 | Date | Record | Area | Status |
 |---|---|---|---|
+| 2026-07-31 | [Room steps 1-2: video server + meeting model](2026-07-31-room-steps-1-2.md) | room / infra | step 1 live; step 2 built |
 | 2026-07-31 | [Election step 10: candidate photos upload to object storage](2026-07-31-election-candidate-photo-upload.md) | election | built, not deployed |
 | 2026-07-31 | [Election service: deployed to production](2026-07-31-election-deploy.md) | election / infra | **live** at election.myceo.ir |
 | 2026-07-30 | [Election step 9: deployment wiring](2026-07-30-election-deploy-prep.md) | election / infra | ready to deploy — needs secrets on the server |

@@ -3,6 +3,7 @@ using Mabhas19.Domain.Entities;
 using Mabhas19.Domain.Kurdnezam;
 using Mabhas19.Domain.MunSanandaj;
 using Mabhas19.Domain.Elections;
+using Mabhas19.Domain.Rooms;
 using Mabhas19.Domain.Walfare;
 
 namespace Mabhas19.Application.Common.Interfaces;
@@ -63,6 +64,12 @@ public interface IApplicationDbContext
     DbSet<ElectionVoteReceipt> ElectionVoteReceipts { get; }
 
     DbSet<ElectionBallot> ElectionBallots { get; }
+
+    DbSet<Room> Rooms { get; }
+
+    DbSet<RoomInvite> RoomInvites { get; }
+
+    DbSet<RoomMessage> RoomMessages { get; }
 
     DbSet<KurdnezamSlide> KurdnezamSlides { get; }
 
