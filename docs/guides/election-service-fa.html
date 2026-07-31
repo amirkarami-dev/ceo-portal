@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>سامانهٔ انتخابات — مستندات فنی</title>
+
+<style>
+  html, body { margin: 0; }
+
+  :root {
+    direction: rtl;
+
+    --paper:      #EDF0F5;
+    --paper-2:    #E3E8F0;
+    --card:       #F7F9FC;
+    --ink:        #0D1622;
+    --mute:       #5C6880;
+    --line:       #C9D2E0;
+    --lapis:      #1D4E89;
+    --lapis-soft: #DCE6F3;
+    --seal:       #9B2C2C;
+    --seal-soft:  #F3DEDE;
+    --gold:       #9C7C2F;
+    --ok:         #1F6B4A;
+    --ok-soft:    #DCEDE4;
+
+    --fa: "Vazirmatn", "IRANSans", "Iranian Sans", "Sahel", "Segoe UI",
+          Tahoma, "Noto Naskh Arabic", sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, "Liberation Mono", monospace;
+
+    --measure: 68ch;
+    --rail: 15rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:      #0A111C;
+      --paper-2:    #0E1725;
+      --card:       #121C2C;
+      --ink:        #DFE6F0;
+      --mute:       #8A97AE;
+      --line:       #24334A;
+      --lapis:      #6FA8DC;
+      --lapis-soft: #16283F;
+      --seal:       #D9797A;
+      --seal-soft:  #2E1A1C;
+      --gold:       #C6A353;
+      --ok:         #6FCF9A;
+      --ok-soft:    #14261E;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:      #0A111C;
+    --paper-2:    #0E1725;
+    --card:       #121C2C;
+    --ink:        #DFE6F0;
+    --mute:       #8A97AE;
+    --line:       #24334A;
+    --lapis:      #6FA8DC;
+    --lapis-soft: #16283F;
+    --seal:       #D9797A;
+    --seal-soft:  #2E1A1C;
+    --gold:       #C6A353;
+    --ok:         #6FCF9A;
+    --ok-soft:    #14261E;
+  }
+  :root[data-theme="light"] {
+    --paper:      #EDF0F5;
+    --paper-2:    #E3E8F0;
+    --card:       #F7F9FC;
+    --ink:        #0D1622;
+    --mute:       #5C6880;
+    --line:       #C9D2E0;
+    --lapis:      #1D4E89;
+    --lapis-soft: #DCE6F3;
+    --seal:       #9B2C2C;
+    --seal-soft:  #F3DEDE;
+    --gold:       #9C7C2F;
+    --ok:         #1F6B4A;
+    --ok-soft:    #DCEDE4;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--fa);
+    font-size: 16px;
+    line-height: 1.95;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  code, .m, .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  /* Machine tokens: column names, codes, hashes. Latin, so they read LTR inside RTL prose. */
+  .m {
+    direction: ltr;
+    unicode-bidi: isolate;
+    display: inline-block;
+    font-size: 0.86em;
+    background: var(--lapis-soft);
+    color: var(--lapis);
+    border: 1px solid color-mix(in srgb, var(--lapis) 22%, transparent);
+    border-radius: 4px;
+    padding: 0.05em 0.4em;
+    line-height: 1.6;
+  }
+  .m.seal { background: var(--seal-soft); color: var(--seal); border-color: color-mix(in srgb, var(--seal) 26%, transparent); }
+
+  .shell {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+    max-width: 78rem;
+    margin-inline: auto;
+    padding: 0 1.25rem 6rem;
+  }
+
+  @media (min-width: 1100px) {
+    .shell { grid-template-columns: var(--rail) minmax(0, 1fr); gap: 3.5rem; padding-inline: 2rem; }
+  }
+
+  /* ── masthead ─────────────────────────────────────────────── */
+  .mast {
+    grid-column: 1 / -1;
+    padding: 5rem 0 2.5rem;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 3rem;
+  }
+  .eyebrow {
+    font-size: 0.75rem;
+    letter-spacing: 0.18em;
+    color: var(--gold);
+    font-weight: 700;
+    margin: 0 0 1.25rem;
+  }
+  .mast h1 {
+    font-size: clamp(2.2rem, 5.5vw, 3.6rem);
+    line-height: 1.35;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    margin: 0 0 1rem;
+    text-wrap: balance;
+  }
+  .mast .lede {
+    font-size: clamp(1.05rem, 2vw, 1.2rem);
+    color: var(--mute);
+    max-width: var(--measure);
+    margin: 0 0 2rem;
+  }
+  .facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 2.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
+  }
+  .fact { display: flex; flex-direction: column; gap: 0.1rem; }
+  .fact dt { font-size: 0.72rem; letter-spacing: 0.1em; color: var(--mute); font-weight: 600; }
+  .fact dd { margin: 0; font-weight: 700; font-size: 0.95rem; }
+
+  /* ── contents rail ────────────────────────────────────────── */
+  .rail { display: none; }
+  @media (min-width: 1100px) {
+    .rail {
+      display: block;
+      position: sticky;
+      top: 2rem;
+      align-self: start;
+      max-height: calc(100vh - 4rem);
+      overflow-y: auto;
+      font-size: 0.86rem;
+      border-inline-start: 1px solid var(--line);
+      padding-inline-start: 1.25rem;
+    }
+  }
+  .rail p { font-size: 0.7rem; letter-spacing: 0.14em; color: var(--mute); font-weight: 700; margin: 0 0 0.85rem; }
+  .rail ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.55rem; }
+  .rail a { color: var(--mute); text-decoration: none; display: block; border-radius: 4px; }
+  .rail a:hover, .rail a:focus-visible { color: var(--lapis); }
+
+  /* ── sections ─────────────────────────────────────────────── */
+  main { min-width: 0; }
+  section { margin-bottom: 4.5rem; scroll-margin-top: 2rem; }
+  section > p, section > ul, section > ol, section > .note { max-width: var(--measure); }
+
+  h2 {
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    font-weight: 800;
+    line-height: 1.45;
+    margin: 0 0 0.4rem;
+    text-wrap: balance;
+  }
+  h2 .idx {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--gold);
+    display: block;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.35rem;
+  }
+  h3 {
+    font-size: 1.12rem;
+    font-weight: 700;
+    margin: 2.25rem 0 0.6rem;
+    line-height: 1.6;
+  }
+  p { margin: 0 0 1.1rem; }
+  ul, ol { margin: 0 0 1.1rem; padding-inline-start: 1.4rem; }
+  li { margin-bottom: 0.5rem; }
+  strong { font-weight: 700; }
+  a { color: var(--lapis); }
+
+  .sub {
+    color: var(--mute);
+    max-width: var(--measure);
+    margin: 0 0 1.75rem;
+  }
+
+  /* ── tables ───────────────────────────────────────────────── */
+  .scroll { overflow-x: auto; margin: 0 0 1.25rem; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+  table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+  th, td { text-align: start; padding: 0.7rem 0.95rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  thead th {
+    font-size: 0.72rem;
+    letter-spacing: 0.09em;
+    color: var(--mute);
+    font-weight: 700;
+    background: var(--paper-2);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+
+  /* ── the separation diagram: the thesis of the system ─────── */
+  .split {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    align-items: stretch;
+    margin: 2rem 0 1.5rem;
+  }
+  @media (min-width: 760px) {
+    .split { grid-template-columns: 1fr auto 1fr; gap: 0; }
+  }
+  .vault {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 1.4rem 1.5rem;
+  }
+  .vault h4 { margin: 0 0 0.15rem; font-size: 1rem; font-weight: 800; }
+  .vault .cap { color: var(--mute); font-size: 0.85rem; margin: 0 0 1rem; }
+  .cols { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+  .cols li { display: flex; align-items: baseline; gap: 0.6rem; margin: 0; font-size: 0.88rem; }
+  .cols .never { color: var(--mute); text-decoration: line-through; text-decoration-color: var(--seal); }
+
+  /* The severed link. Decorative, so hidden from assistive tech. */
+  .gap {
+    display: grid;
+    place-items: center;
+    padding: 1rem 1.5rem;
+    position: relative;
+  }
+  .gap .rule {
+    width: 100%;
+    min-width: 3rem;
+    height: 1px;
+    background: repeating-linear-gradient(to right, var(--line) 0 6px, transparent 6px 12px);
+  }
+  @media (min-width: 760px) {
+    .gap { padding: 1.5rem 1.25rem; }
+    .gap .rule { width: 1px; height: 100%; background: repeating-linear-gradient(to bottom, var(--line) 0 6px, transparent 6px 12px); }
+  }
+  .gap .cut {
+    position: absolute;
+    background: var(--paper);
+    color: var(--seal);
+    border: 1px solid color-mix(in srgb, var(--seal) 35%, transparent);
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.25rem 0.7rem;
+    white-space: nowrap;
+  }
+
+  /* ── callouts ─────────────────────────────────────────────── */
+  .note {
+    border-inline-start: 3px solid var(--lapis);
+    background: var(--card);
+    padding: 1rem 1.2rem;
+    border-radius: 0 10px 10px 0;
+    margin: 0 0 1.25rem;
+  }
+  .note.warn { border-inline-start-color: var(--seal); }
+  .note.warn strong:first-child { color: var(--seal); }
+  .note p:last-child { margin-bottom: 0; }
+  .note .tag {
+    display: block;
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    font-weight: 700;
+    color: var(--mute);
+    margin-bottom: 0.3rem;
+  }
+
+  /* ── workflow tracks ──────────────────────────────────────── */
+  .track { display: flex; flex-direction: column; gap: 0; margin: 1.5rem 0; }
+  .step {
+    display: grid;
+    grid-template-columns: 2.4rem minmax(0, 1fr);
+    gap: 1rem;
+    padding-bottom: 1.5rem;
+    position: relative;
+  }
+  .step:not(:last-child)::before {
+    content: "";
+    position: absolute;
+    inset-inline-start: 1.2rem;
+    top: 2.4rem;
+    bottom: 0;
+    width: 1px;
+    background: var(--line);
+  }
+  .step .dot {
+    width: 2.4rem; height: 2.4rem;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--card);
+    border: 1px solid var(--line);
+    color: var(--lapis);
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    font-weight: 700;
+    z-index: 1;
+  }
+  .step.crit .dot { border-color: color-mix(in srgb, var(--seal) 45%, transparent); color: var(--seal); }
+  .step h4 { margin: 0.35rem 0 0.3rem; font-size: 1rem; font-weight: 700; }
+  .step p { margin: 0; color: var(--mute); font-size: 0.93rem; max-width: 60ch; }
+
+  /* ── phase strip ──────────────────────────────────────────── */
+  .phases { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1.5rem 0; }
+  .phase {
+    border: 1px solid var(--line);
+    background: var(--card);
+    border-radius: 8px;
+    padding: 0.6rem 0.9rem;
+    min-width: 8.5rem;
+    flex: 1 1 8.5rem;
+  }
+  .phase b { display: block; font-size: 0.95rem; }
+  .phase span { color: var(--mute); font-size: 0.8rem; }
+
+  /* ── can / cannot ─────────────────────────────────────────── */
+  .duo { display: grid; grid-template-columns: 1fr; gap: 1rem; margin: 1.5rem 0; }
+  @media (min-width: 720px) { .duo { grid-template-columns: 1fr 1fr; } }
+  .panel { border: 1px solid var(--line); border-radius: 12px; padding: 1.25rem 1.4rem; background: var(--card); }
+  .panel h4 { margin: 0 0 0.9rem; font-size: 0.95rem; font-weight: 800; }
+  .panel.yes h4 { color: var(--ok); }
+  .panel.no h4 { color: var(--seal); }
+  .panel ul { margin: 0; padding-inline-start: 1.1rem; }
+  .panel li { font-size: 0.92rem; }
+
+  footer {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--line);
+    padding-top: 1.75rem;
+    margin-top: 2rem;
+    color: var(--mute);
+    font-size: 0.86rem;
+  }
+  footer p { max-width: var(--measure); }
+
+  :focus-visible { outline: 2px solid var(--lapis); outline-offset: 3px; border-radius: 3px; }
+
+  /* Standalone-only: the repo copy has no host toggle, so it carries its own. */
+  .themer {
+    position: fixed;
+    top: 1rem; inset-inline-start: 1rem;
+    z-index: 20;
+    background: var(--card);
+    color: var(--mute);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0.4rem 0.9rem;
+    font-family: var(--fa);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .themer:hover { color: var(--lapis); border-color: var(--lapis); }
+  @media print { .themer, .rail { display: none; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+</style>
+</head>
+<body>
+
+<button class="themer" type="button" id="themer" aria-label="تغییر پوستهٔ روشن و تیره">پوستهٔ تیره / روشن</button>
+
+<div dir="rtl">
+  <div class="shell">
+
+    <header class="mast">
+      <p class="eyebrow">مستندات فنی — سازمان نظام مهندسی</p>
+      <h1>سامانهٔ انتخابات</h1>
+      <p class="lede">
+        رأی‌گیری برخط برای انتخابات سازمان، با <strong>رأی مخفی</strong>: هیچ‌کس — حتی مدیر سامانه یا
+        مدیر پایگاه داده — نمی‌تواند بفهمد یک نفر به چه کسی رأی داده است. رأی‌دهنده از دو راه می‌تواند
+        رأی بدهد: وب‌سایت، یا ربات بله.
+      </p>
+      <dl class="facts">
+        <div class="fact"><dt>نشانی</dt><dd class="m">election.myceo.ir</dd></div>
+        <div class="fact"><dt>کانال رأی</dt><dd>وب و ربات بله</dd></div>
+        <div class="fact"><dt>احراز هویت</dt><dd>کد ملی + کد پیامکی</dd></div>
+        <div class="fact"><dt>وضعیت</dt><dd>مستقر روی سرور</dd></div>
+      </dl>
+    </header>
+
+    <nav class="rail" aria-label="فهرست مطالب">
+      <p>فهرست</p>
+      <ol>
+        <li><a href="#chekar">۱ — این سامانه چه می‌کند</a></li>
+        <li><a href="#makhfi">۲ — رأی مخفی چگونه کار می‌کند</a></li>
+        <li><a href="#che-kasi">۳ — چه کسی می‌تواند رأی بدهد</a></li>
+        <li><a href="#gardesh-web">۴ — گردش کار رأی‌دهنده (وب)</a></li>
+        <li><a href="#gardesh-bot">۵ — گردش کار ربات بله</a></li>
+        <li><a href="#modir">۶ — کار مدیر سامانه</a></li>
+        <li><a href="#marahel">۷ — مراحل یک انتخابات</a></li>
+        <li><a href="#shomaresh">۸ — شمارش آرا و اعلام نتیجه</a></li>
+        <li><a href="#negahdari">۹ — نگهداری و حذف برگه‌ها</a></li>
+        <li><a href="#memari">۱۰ — معماری و اجزا</a></li>
+        <li><a href="#hoshdar">۱۱ — نکات عملیاتی</a></li>
+      </ol>
+    </nav>
+
+    <main>
+
+      <!-- ─────────────────────────────────────────────── -->
+      <section id="chekar">
+        <h2><span class="idx">۰۱</span>این سامانه چه می‌کند</h2>
+        <p class="sub">
+          یک مدیر، انتخاباتی را تعریف می‌کند: عنوان، اینکه چه کسانی حق رأی دارند، فهرست کاندیداها،
+          تاریخ و بازهٔ ساعتی، و اینکه هر نفر یک نفر را انتخاب می‌کند یا چند نفر را. مهندسان واجد
+          شرایط <strong>یک بار</strong> رأی می‌دهند. پس از بسته شدن بازه، نتیجه به ترتیب بیشترین رأی
+          نمایش داده می‌شود.
+        </p>
+
+        <div class="note">
+          <span class="tag">نکتهٔ مهم برای مدیر</span>
+          <p>
+            <strong>عنوان انتخابات هیچ محدودیتی ایجاد نمی‌کند.</strong> عبارتی مانند
+            «انتخاب هیئت رئیسه واحد گاز» فقط یک متن برای انسان است و سامانه آن را نمی‌خواند. آنچه
+            تعیین می‌کند چه کسی حق رأی دارد، فقط <strong>انتخاب رشته</strong> است. اگر رشته انتخاب
+            نشود، همهٔ اعضا واجد شرایط‌اند — حتی اگر عنوان چیز دیگری بگوید.
+          </p>
+        </div>
+
+        <h3>رشته‌های موجود</h3>
+        <p>
+          سامانه فقط هفت رشتهٔ ثبت‌شده در پایگاه دادهٔ سازمان را می‌شناسد:
+          معماری، شهرسازی، عمران، مکانیک، برق، نقشه‌برداری، ترافیک.
+        </p>
+        <div class="note warn">
+          <span class="tag">محدودیت شناخته‌شده</span>
+          <p>
+            <strong>سازه، ژئوتکنیک، زه‌کشی و سازه نگهبان رشته نیستند</strong> — اینها صلاحیت یا تخصص
+            هستند و در پایگاه دادهٔ سازمان ستونی برای آنها وجود ندارد. بنابراین برگزاری انتخاباتی
+            محدود به یکی از این چهار مورد، با داده‌های فعلی <strong>ممکن نیست</strong>. نگاشتن آنها
+            به «عمران» انتخابات را بی‌سروصدا به روی همهٔ مهندسان عمران باز می‌کند و نتیجه را خراب
+            می‌کند؛ به همین دلیل انجام نشده است.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─────────────────────────────────────────────── -->
+      <section id="makhfi">
+        <h2><span class="idx">۰۲</span>رأی مخفی چگونه کار می‌کند</h2>
+        <p class="sub">
+          این هستهٔ کل سامانه است. ایده در یک جمله: <strong>«چه کسی رأی داد» و «به چه کسی رأی داد»
+          در دو جدول جداگانه نگهداری می‌شوند که هیچ ستون، هیچ شناسه و هیچ زمانی مشترک ندارند.</strong>
+          پس حتی اگر کسی هر دو جدول را کامل بخواند، نمی‌تواند سطرهای آنها را به هم وصل کند.
+        </p>
+
+        <div class="split">
+          <div class="vault">
+            <h4>فهرست رأی‌دهندگان</h4>
+            <p class="cap">ثابت می‌کند کسی رأی داده — بدون آنکه بگوید چه کسی</p>
+            <ul class="cols">
+              <li><span class="m">ElectionId</span> شمارهٔ انتخابات</li>
+              <li><span class="m">VoterHash</span> اثر رمزنگاری‌شدهٔ کد ملی</li>
+              <li class="never"><span class="m">زمان ثبت</span></li>
+              <li class="never"><span class="m">کانال رأی</span></li>
+              <li class="never"><span class="m">نام کاربر</span></li>
+            </ul>
+          </div>
+
+          <div class="gap" aria-hidden="true">
+            <div class="rule"></div>
+            <span class="cut">هیچ پیوندی</span>
+          </div>
+
+          <div class="vault">
+            <h4>برگه‌های رأی</h4>
+            <p class="cap">انتخاب فرد را نگه می‌دارد — رمزگذاری‌شده</p>
+            <ul class="cols">
+              <li><span class="m">BallotId</span> شناسهٔ تصادفی</li>
+              <li><span class="m">ElectionId</span> شمارهٔ انتخابات</li>
+              <li><span class="m">Sealed</span> انتخاب رمزگذاری‌شده</li>
+              <li class="never"><span class="m">زمان ثبت</span></li>
+              <li class="never"><span class="m">شناسهٔ ترتیبی</span></li>
+            </ul>
+          </div>
+        </div>
+
+        <h3>سه تصمیمی که این را ممکن می‌کند</h3>
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr><th>تصمیم</th><th>چه چیزی را تضمین می‌کند</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>کد ملی هرگز ذخیره نمی‌شود</strong><br><span class="m">HMAC-SHA256</span> با یک کلید محرمانه</td>
+                <td>کلید فقط روی سرور است و در پایگاه داده نیست. بدون آن، کسی که کل پایگاه داده را
+                    بخواند حتی نمی‌تواند تأیید کند که <em>یک شخص مشخص</em> رأی داده است یا نه.</td>
+              </tr>
+              <tr>
+                <td><strong>برگه با <span class="m">AES-256-GCM</span> مهر می‌شود</strong></td>
+                <td>کلید هر انتخابات جداگانه ساخته می‌شود و آن هم فقط روی سرور است. طول برگه ثابت و
+                    گزینه‌ها مرتب‌شده‌اند، پس حتی اندازه و ترتیب داده هم چیزی لو نمی‌دهد.</td>
+              </tr>
+              <tr>
+                <td><strong>هیچ برگه‌ای مُهر زمانی ندارد</strong></td>
+                <td>اگر برگه‌ها زمان داشتند، مقایسهٔ زمان ثبت با سایر گزارش‌ها می‌توانست رأی را به
+                    فرد برگرداند. شناسهٔ برگه هم تصادفی است، نه ترتیبی.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>تضمین «یک نفر، یک رأی»</h3>
+        <p>
+          این تضمین را <strong>خودِ پایگاه داده</strong> می‌دهد، نه کد برنامه: روی جفت
+          <span class="m">(ElectionId, VoterHash)</span> یک کلید یکتا تعریف شده است. اگر یک نفر هم‌زمان
+          از وب و از ربات بله اقدام کند، دومی توسط پایگاه داده رد می‌شود — نه با یک بررسی نرم‌افزاری
+          که ممکن است در شرایط هم‌زمانی از دست برود.
+        </p>
+
+        <div class="note warn">
+          <span class="tag">آنچه پنهان نمی‌کنیم</span>
+          <p>
+            <strong>یک راه نفوذ باقی است و صادقانه ثبت شده:</strong> اگر کسی هم‌زمان دسترسی خواندن به
+            پایگاه داده داشته باشد <em>و</em> بتواند روی همان نمونه ردیابی سطح دستور
+            (<span class="m">Extended Events</span> یا <span class="m">Profiler</span>) اجرا کند، چون
+            ثبت «فهرست» و «برگه» در یک تراکنش واحد انجام می‌شود، می‌تواند این دو را جفت کند. جدا کردن
+            این دو ثبت، اتمی بودن را از بین می‌برد و یا رأی گم می‌شود یا رأی تکراری ممکن می‌شود؛ پس
+            این ریسک پذیرفته و مستند شده است.
+          </p>
+          <p style="margin-top:.6rem">
+            <strong>الزام عملیاتی:</strong> در زمان برگزاری یک انتخابات زنده، هیچ ردیابی
+            <span class="m">Profiler</span> یا <span class="m">XEvent</span> روی پایگاه دادهٔ
+            <span class="m">CeoDb</span> نباید اجرا شود.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─────────────────────────────────────────────── -->
+      <section id="che-kasi">
+        <h2><span class="idx">۰۳</span>چه کسی می‌تواند رأی بدهد</h2>
+        <p class="sub">
+          هر چهار شرط، <strong>در لحظهٔ ثبت رأی</strong> و از روی رکورد زندهٔ سازمان بررسی می‌شوند.
+          هیچ فهرست از پیش آماده‌ای از «رأی‌دهندگان مجاز» ذخیره نمی‌شود — چنین فهرستی خودش یک سیاههٔ
+          نام‌دار کنار صندوق رأی می‌بود.
+        </p>
+        <div class="scroll">
+          <table>
+            <thead><tr><th>شرط</th><th>اگر برقرار نباشد، رأی‌دهنده این را می‌بیند</th></tr></thead>
+            <tbody>
+              <tr><td>کد ملی در سامانهٔ سازمان شناخته شده باشد</td><td>«این کد ملی در سامانهٔ نظام مهندسی یافت نشد»</td></tr>
+              <tr><td>عضویت فعال باشد</td><td>«عضویت شما فعال نیست»</td></tr>
+              <tr><td>پروانه معتبر باشد</td><td>«اعتبار پروانهٔ شما به پایان رسیده است»</td></tr>
+              <tr><td>رشته با انتخابات بخواند</td><td>«این انتخابات ویژهٔ مهندسان رشتهٔ … است»</td></tr>
+              <tr><td>قبلاً رأی نداده باشد</td><td>«شما قبلاً در این انتخابات رأی داده‌اید»</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note">
+          <span class="tag">چرا پیام‌ها دقیق‌اند</span>
+          <p>
+            اگر به همهٔ این حالت‌ها یک پیام کلی داده شود، رأی‌دهنده فکر می‌کند سامانه خراب است و به
+            جای حل مشکل، تماس می‌گیرد. یک نکتهٔ دیگر هم هست: وقتی ارتباط با پایگاه دادهٔ سازمان
+            <strong>قطع</strong> باشد، پیام «یافت نشد» نمایش داده نمی‌شود — چون این جمله دربارهٔ
+            عضویت فرد ادعایی می‌کند که درست نیست. پیام جداگانه‌ای برای خطای ارتباط وجود دارد.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─────────────────────────────────────────────── -->
+      <section id="gardesh-web">
+        <h2><span class="idx">۰۴</span>گردش کار رأی‌دهنده — وب</h2>
+        <p class="sub">نشانی <span class="m">election.myceo.ir</span></p>
+
+        <div class="track">
+          <div class="step">
+            <div class="dot">۱</div>
+            <div>
+              <h4>ورود با کد ملی</h4>
+              <p>رأی‌دهنده کد ملی را وارد می‌کند و یک کد یک‌بار‌مصرف به شمارهٔ موبایل ثبت‌شده در
+                 سازمان پیامک می‌شود. رمز عبوری در کار نیست.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="dot">۲</div>
+            <div>
+              <h4>فهرست انتخابات‌های من</h4>
+              <p>فقط انتخابات‌هایی که این فرد در آنها واجد شرایط است نمایش داده می‌شود، همراه با
+                 وضعیت هرکدام: در انتظار شروع، در جریان، یا پایان‌یافته. شرایط واجد بودن هم به زبان
+                 ساده کنار عنوان نوشته می‌شود.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="dot">۳</div>
+            <div>
+              <h4>انتخاب از میان کارت‌های کاندیدا</h4>
+              <p>هر کاندیدا یک کارت با عکس، نام، رشته، مقطع تحصیلی و توضیح دارد. همهٔ کارت‌ها
+                 هم‌اندازه‌اند و کارت بدون عکس، حروف اول نام را در همان دایره نشان می‌دهد — چون
+                 نابرابری در ظاهر کارت‌ها خودش نوعی تبلیغ است. ترتیب کارت‌ها ثابت است و هرگز
+                 جابه‌جا نمی‌شود.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="dot">۴</div>
+            <div>
+              <h4>مرحلهٔ تأیید نهایی</h4>
+              <p>پیش از ثبت، انتخاب‌ها یک بار دیگر نشان داده می‌شوند و رأی‌دهنده باید صریحاً تأیید
+                 کند. اگر سقف انتخاب تکمیل شده باشد، بقیهٔ کارت‌ها با ذکر دلیل غیرفعال می‌شوند
+                 («حداکثر ۲ نفر») نه اینکه کلیک بی‌اثر بماند.</p>
+            </div>
+          </div>
+          <div class="step crit">
+            <div class="dot">۵</div>
+            <div>
+              <h4>ثبت رأی — بازگشت‌ناپذیر</h4>
+              <p>رأی پس از ثبت <strong>قابل تغییر نیست</strong>. این تصمیم آگاهانه گرفته شده: امکان
+                 ویرایش رأی یعنی سامانه باید بداند کدام برگه مال کیست، و همین رأی مخفی را از بین
+                 می‌برد.</p>
+            </div>
+          </div>
+        </div>
+
+        <p>
+          پیش از شروع بازهٔ رأی‌گیری، صفحه یک <strong>شمارش معکوس</strong> نشان می‌دهد. پس از اعلام
+          نتیجه، همان صفحه نتیجه را به ترتیب بیشترین رأی نمایش می‌دهد.
+        </p>
+      </section>
+
+      <!-- ─────────────────────────────────────────────── -->
+      <section id="gardesh-bot">
+        <h2><span class="idx">۰۵</span>گردش کار ربات بله</h2>
+        <p class="sub">
+          کانال دوم رأی‌گیری، برای کسانی که با پیام‌رسان راحت‌ترند. <strong>هر دو کانال از یک
+          مجموعه قانون واحد استفاده می‌کنند</strong> — همان کدی که رأی وب را می‌پذیرد، رأی ربات را
+          هم می‌پذیرد. اگر دو پیاده‌سازی جدا بود، دیر یا زود یکی چیزی را قبول می‌کرد که دیگری رد
+          می‌کند.
+        </p>
+
+        <div class="track">
+          <div class="step">
+            <div class="dot">۱</div>
+            <div><h4>‏<span class="m">/start</span></h4>
+              <p>گفتگو فقط در چت خصوصی کار می‌کند. در گروه پاسخی داده نمی‌شود، چون در گروه همهٔ
+                 اعضا یک نشست مشترک می‌داشتند.</p></div>
+          </div>
+          <div class="step">
+            <div class="dot">۲</div>
+            <div><h4>ارسال کد ملی</h4>
+              <p>سامانه فرد را در پایگاه دادهٔ سازمان پیدا می‌کند و شرایط عضویت را بررسی می‌کند.</p></div>
+          </div>
+          <div class="step crit">
+            <div class="dot">۳</div>
+            <div><h4>کد تأیید — به شمارهٔ ثبت‌شده، نه به گفتگو</h4>
+              <p>کد یک‌بار‌مصرف <strong>هم با پیامک و هم با پوش بله</strong> به شمارهٔ موبایلی که در
+                 سازمان ثبت شده فرستاده می‌شود — نه به همان چتی که درخواست از آن آمده. کد ملی در
+                 ایران محرمانه نیست؛ اگر کد به چت درخواست‌کننده می‌رفت، هرکسی با دانستن کد ملی یک
+                 نفر می‌توانست به جای او رأی بدهد.</p></div>
+          </div>
+          <div class="step">
+            <div class="dot">۴</div>
+            <div><h4>انتخاب کاندیدا</h4>
+              <p>انتخابات‌های واجد شرایط و کاندیداها با دکمه‌های شیشه‌ای نمایش داده می‌شوند.</p></div>
+          </div>
+          <div class="step crit">
+            <div class="dot">۵</div>
+            <div><h4>کد تازه، مخصوص همین رأی</h4>
+              <p>پیش از ثبت نهایی، یک کد <strong>تازه</strong> فرستاده می‌شود. نشست فقط می‌گوید
+                 «این چت متعلق به چه کسی است»؛ اجازهٔ ثبت رأی را همان کد لحظه‌ای می‌دهد. به همین
+                 دلیل نشست‌های چندروزه وجود ندارد.</p></div>
+          </div>
+        </div>
+
+        <div class="note">
+          <span class="tag">اگر یکی از دو کانال کار نکرد</span>
+          <p>
+            اگر پیامک برسد ولی پوش بله نه — یا برعکس — رأی‌گیری متوقف نمی‌شود و به کاربر گفته می‌شود
+            کد از کدام راه ارسال شده است. محدودیت تعداد تلاش هم روی <strong>هر دو</strong> اعمال
+            می‌شود: هم روی چت و هم روی کد ملی؛ چون کد ملی عمومی است و حدس‌زدن هویت باید به همان
+            اندازهٔ حدس‌زدن کد پرهزینه باشد.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─────────────────────────────────────────────── -->
+      <section id="modir">
+        <h2><span class="idx">۰۶</span>کار مدیر سامانه</h2>
+        <p class="sub">
+          پنل مدیریت فقط برای نقش <strong>مدیر سیستم</strong> باز است. مهم‌تر از آنچه مدیر می‌تواند
+          انجام دهد، آن چیزی است که <strong>عمداً نمی‌تواند</strong>.
+        </p>
+
+        <div class="duo">
+          <div class="panel yes">
+            <h4>مدیر می‌تواند</h4>
+            <ul>
+              <li>انتخابات جدید بسازد و ویرایش کند</li>
+              <li>رشته‌های واجد شرایط را تعیین کند</li>
+              <li>کاندیداها را با عکس و مشخصات اضافه کند</li>
+              <li>انتخابات را منتشر یا لغو کند</li>
+              <li><strong>تعداد</strong> آرای ثبت‌شده را ببیند</li>
+              <li>آرا را بشمارد و نتیجه را اعلام کند</li>
+            </ul>
+          </div>
+          <div class="panel no">
+            <h4>مدیر نمی‌تواند</h4>
+            <ul>
+              <li>ببیند <strong>چه کسی</strong> رأی داده است</li>
+              <li>ببیند یک شخص مشخص به چه کسی رأی داده</li>
+              <li>مشارکت را به تفکیک رشته ببیند</li>
+              <li>پس از شروع رأی‌گیری چیزی را تغییر دهد</li>
+              <li>رأی کسی را حذف یا اصلاح کند</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="note warn">
+          <span class="tag">دو مورد که عمداً حذف شده‌اند</span>
+          <p>
+            در طراحی اولیه یک نقطهٔ دسترسی وجود داشت که با دادن کد ملی می‌گفت آن فرد رأی داده است یا
+            نه. <strong>این نقطه حذف شد</strong> — چون در عمل یک سیاههٔ کامل و خوانا از رأی‌دهندگان
+            بود و تمام رمزنگاری بالا را بی‌اثر می‌کرد.
+          </p>
+          <p style="margin-top:.6rem">
+            <strong>مشارکت به تفکیک رشته هم نمایش داده نمی‌شود — و اصلاً قابل محاسبه نیست.</strong>
+            جدول فهرست رأی‌دهندگان فقط دو ستون دارد و رشته در آن نیست. در رشته‌ای با تعداد کم عضو،
+            «۱ از ۱ نفر رأی داد» خودش یک نام است.
+          </p>
+        </div>
+
+        <h3>قانون قفل شدن</h3>
+        <p>
+          به محض اینکه بازهٔ رأی‌گیری شروع شود <strong>یا حتی یک رأی ثبت شود</strong>، تمام مشخصات
+          انتخابات و کاندیداها قفل می‌شوند. بدون این قانون، یک مدیر می‌توانست وسط رأی‌گیری نام یا
+          توضیح یک کاندیدا را عوض کند و شکل برگه را تغییر دهد.
+        </p>
+      </section>
+
+      <!-- ─────────────────────────────────────────────── -->
+      <section id="marahel">
+        <h2><span class="idx">۰۷</span>مراحل یک انتخابات</h2>
+        <p class="sub">
+          مرحله در پایگاه داده ذخیره نمی‌شود؛ هر بار از روی وضعیت و ساعت محاسبه می‌شود. پس هیچ
+          زمان‌بندی پس‌زمینه‌ای وجود ندارد که ممکن است اجرا نشود.
+        </p>
+        <div class="phases">
+          <div class="phase"><b>پیش‌نویس</b><span>هنوز منتشر نشده — قابل ویرایش</span></div>
+          <div class="phase"><b>در انتظار شروع</b><span>منتشر شده، بازه نرسیده — قفل</span></div>
+          <div class="phase"><b>در جریان</b><span>رأی‌گیری باز است</span></div>
+          <div class="phase"><b>پایان‌یافته</b><span>بازه بسته، هنوز شمارش نشده</span></div>
+          <div class="phase"><b>نتیجه اعلام شد</b><span>شمارش انجام و منتشر شده</span></div>
+          <div class="phase"><b>لغوشده</b><span>برگزار نخواهد شد</span></div>
+        </div>
+        <div class="note">
+          <span class="tag">ساعت ایران</span>
+          <p>
+            زمان ایران با اختلاف ثابت <span class="m">+03:30</span> محاسبه می‌شود و نه با نام منطقهٔ
+            زمانی سیستم — چون نام این منطقه روی ویندوز و روی سرور لینوکس یکسان نیست و همین باعث
+            می‌شد بازهٔ رأی‌گیری دقیقاً روی سرور اشتباه محاسبه شود. ایران از سال ۱۴۰۱ ساعت تابستانی
+            ندارد.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─────────────────────────────────────────────── -->
+      <section id="shomaresh">
+        <h2><span class="idx">۰۸</span>شمارش آرا و اعلام نتیجه</h2>
+        <p>
+          شمارش <strong>در لحظهٔ درخواست</strong> انجام می‌شود: برگه‌ها باز می‌شوند، شمرده می‌شوند و
+          نتیجه ساخته می‌شود. هیچ جدول جداگانه‌ای برای «نتیجه» وجود ندارد، چون یک نسخهٔ ذخیره‌شده و
+          قابل تغییر از نتیجه، خودش هدف دستکاری است.
+        </p>
+        <h3>اثر انگشت نتیجه</h3>
+        <p>
+          هنگام شمارش، یک <strong>اثر انگشت رمزنگاری‌شده</strong> از مجموعهٔ برگه‌ها ساخته و ذخیره
+          می‌شود. اگر بعداً شمارش دوباره اجرا شود، این اثر انگشت مقایسه می‌شود: اگر برگه‌ها تغییر
+          کرده باشند، سامانه شمارش مجدد را <strong>رد می‌کند</strong> و اعلام می‌کند. همین عدد است که
+          ثابت می‌کند اعداد منتشرشده از همان برگه‌هایی آمده‌اند که در لحظهٔ بسته شدن وجود داشتند.
+        </p>
+        <div class="scroll">
+          <table>
+            <thead><tr><th>در نتیجه نمایش داده می‌شود</th><th>نمایش داده نمی‌شود</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>رتبه و تعداد رأی هر کاندیدا</td>
+                <td>اینکه چه کسی رأی داده است</td>
+              </tr>
+              <tr>
+                <td>تعداد کل شرکت‌کنندگان</td>
+                <td>مشارکت به تفکیک رشته</td>
+              </tr>
+              <tr>
+                <td>اثر انگشت نتیجه</td>
+                <td>مشارکت به تفکیک کانال یا زمان</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          در صورت تساوی، کاندیداهای هم‌رتبه یک رتبهٔ مشترک می‌گیرند و رتبهٔ بعدی جهش می‌کند
+          (۱، ۲، ۲، ۴).
+        </p>
+      </section>
+
+      <!-- ─────────────────────────────────────────────── -->
+      <section id="negahdari">
+        <h2><span class="idx">۰۹</span>نگهداری و حذف برگه‌ها</h2>
+        <p class="sub">
+          برگهٔ مهرشده تنها چیزی است که می‌تواند دوباره شمرده شود — و تنها چیزی است که یک مهاجم با
+          هر دو کلید می‌توانست باز کند. نگه داشتنش هم مدرک است و هم ریسک، و ریسک با گذشت زمان
+          بیشتر می‌شود.
+        </p>
+        <div class="scroll">
+          <table>
+            <thead><tr><th>بازه</th><th>چه چیزی وجود دارد</th></tr></thead>
+            <tbody>
+              <tr><td>از شروع تا پایان رأی‌گیری</td><td>برگه‌های مهرشده + فهرست رمزشدهٔ رأی‌دهندگان</td></tr>
+              <tr><td>تا ۳۰ روز پس از پایان</td><td>همان — شمارش مجدد و بررسی اعتراض ممکن است</td></tr>
+              <tr><td>پس از ۳۰ روز</td><td><strong>برگه‌ها حذف می‌شوند.</strong> نتیجه و تعداد مشارکت برای همیشه می‌مانند</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note warn">
+          <span class="tag">بازگشت‌ناپذیر</span>
+          <p>
+            پس از حذف برگه‌ها، نتیجه <strong>نهایی است و دیگر قابل بازبینی نیست</strong>. پنل مدیریت
+            باید این را پیش از انتشار نتیجه صریح بگوید.
+          </p>
+        </div>
+        <p>
+          <strong>فهرست رأی‌دهندگان هرگز حذف نمی‌شود.</strong> آن سطرها فقط اثر رمزشده‌اند، نه نام،
+          و هیچ انتخابی در خود ندارند — پس تعداد مشارکت برای همیشه قابل اثبات می‌ماند و تضمین
+          «یک نفر یک رأی» هم با حذف برگه‌ها ضعیف نمی‌شود.
+        </p>
+      </section>
+
+      <!-- ─────────────────────────────────────────────── -->
+      <section id="memari">
+        <h2><span class="idx">۱۰</span>معماری و اجزا</h2>
+        <div class="scroll">
+          <table>
+            <thead><tr><th>بخش</th><th>نقش</th></tr></thead>
+            <tbody>
+              <tr><td><span class="m">election.myceo.ir</span></td><td>وب‌سایت رأی‌دهنده و پنل مدیریت — یک برنامه با دو مخاطب</td></tr>
+              <tr><td><span class="m">auth.myceo.ir</span></td><td>ورود مرکزی سازمان؛ ورود مهندسان با کد ملی و کد پیامکی</td></tr>
+              <tr><td><span class="m">api.myceo.ir</span></td><td>قوانین رأی‌گیری، رمزنگاری برگه‌ها، شمارش</td></tr>
+              <tr><td><span class="m">@kurdnezambot</span></td><td>ربات بله — کانال دوم رأی</td></tr>
+              <tr><td>پایگاه دادهٔ سازمان</td><td>هویت، عضویت، اعتبار پروانه و رشته — فقط خواندنی</td></tr>
+              <tr><td>فضای ذخیرهٔ فایل</td><td>عکس کاندیداها، در پوشهٔ مخصوص همین سرویس</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note">
+          <span class="tag">دو کلید محرمانه</span>
+          <p>
+            کلید فهرست رأی‌دهندگان و کلید مهر برگه‌ها، هر دو فقط در فایل پیکربندی سرور نگهداری
+            می‌شوند و <strong>هرگز در پایگاه داده نیستند</strong>. اگر تنظیم نشده باشند، سامانه
+            رأی‌گیری را «در دسترس نیست» اعلام می‌کند و برگه‌ای ثبت نمی‌کند — یک انتخابات برگزارنشده
+            بهتر از انتخاباتی است که رأی‌ها را با کلید پیش‌فرض مهر کند.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─────────────────────────────────────────────── -->
+      <section id="hoshdar">
+        <h2><span class="idx">۱۱</span>نکات عملیاتی</h2>
+        <div class="scroll">
+          <table>
+            <thead><tr><th>مورد</th><th>چرا</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><strong>پیش از انتخابات واقعی، ربات را یک بار کامل امتحان کنید</strong></td>
+                <td>ارسال <span class="m">/start</span>، وارد کردن کد ملی، و تأیید اینکه کد
+                    <strong>هم</strong> در بله <strong>و هم</strong> با پیامک می‌رسد. اگر فقط پیامک
+                    برسد، سامانه بی‌سروصدا ادامه می‌دهد و چیزی خراب به نظر نمی‌رسد.</td>
+              </tr>
+              <tr>
+                <td><strong>هیچ ردیابی پایگاه داده در زمان رأی‌گیری زنده اجرا نشود</strong></td>
+                <td>تنها راه شناخته‌شدهٔ جفت‌کردن رأی‌دهنده و برگه. در بخش ۲ توضیح داده شده.</td>
+              </tr>
+              <tr>
+                <td><strong>سرویس را به بیش از یک نمونه گسترش ندهید</strong></td>
+                <td>وضعیت گفتگوی ربات در حافظهٔ همان نمونه نگهداری می‌شود؛ با دو نمونه، کاربر وسط
+                    گفتگو حافظه‌اش را از دست می‌دهد.</td>
+              </tr>
+              <tr>
+                <td><strong>عنوان انتخابات را با محدودیت رأی اشتباه نگیرید</strong></td>
+                <td>تنها انتخاب رشته تعیین می‌کند چه کسی رأی می‌دهد. در بخش ۱ توضیح داده شده.</td>
+              </tr>
+              <tr>
+                <td><strong>پشتیبان فایل پیکربندی سرور را جدا نگه دارید</strong></td>
+                <td>دو کلید رمزنگاری فقط همان‌جا هستند. با از دست رفتن آن فایل، برگه‌های مهرشده
+                    برای همیشه غیرقابل باز شدن‌اند.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>وضعیت فعلی</h3>
+        <p>
+          سامانه روی سرور مستقر است و ربات ثبت شده است. تا این لحظه <strong>هنوز هیچ انتخابات
+          واقعی‌ای تعریف نشده</strong> و رأیی ثبت نشده است؛ یعنی مسیر کامل هنوز با کاربر واقعی
+          طی نشده است. پیش از اولین انتخابات رسمی، یک آزمایش کامل با یک انتخابات آزمایشی و چند
+          رأی‌دهندهٔ واقعی توصیه می‌شود.
+        </p>
+      </section>
+
+    </main>
+
+    <footer>
+      <p>
+        مستندات فنی سامانهٔ انتخابات — سازمان نظام مهندسی. این سند رفتار واقعی سامانهٔ مستقرشده را
+        توصیف می‌کند، نه طرح اولیه را: مواردی که در بازبینی امنیتی تغییر کردند، در همین متن با شکل
+        نهایی‌شان آمده‌اند.
+      </p>
+    </footer>
+
+  </div>
+</div>
+
+<script>
+  // Starts from the OS preference and only pins data-theme once the reader chooses,
+  // so an untouched page keeps following the system.
+  (function () {
+    var root = document.documentElement;
+    var key = "ceo-docs-theme";
+    var saved = null;
+    try { saved = localStorage.getItem(key); } catch (e) { /* private mode */ }
+    if (saved === "dark" || saved === "light") root.setAttribute("data-theme", saved);
+
+    document.getElementById("themer").addEventListener("click", function () {
+      var dark = root.getAttribute("data-theme") === "dark" ||
+                 (!root.hasAttribute("data-theme") &&
+                  window.matchMedia("(prefers-color-scheme: dark)").matches);
+      var next = dark ? "light" : "dark";
+      root.setAttribute("data-theme", next);
+      try { localStorage.setItem(key, next); } catch (e) { /* ignore */ }
+    });
+  })();
+</script>
+</body>
+</html>

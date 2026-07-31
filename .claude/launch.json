@@ -198,6 +198,19 @@
       "autoPort": false
     },
     {
+      "name": "docs",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "3070",
+        "--directory",
+        "docs"
+      ],
+      "port": 3070,
+      "autoPort": false
+    },
+    {
       "name": "roadmap",
       "runtimeExecutable": "python",
       "runtimeArgs": [

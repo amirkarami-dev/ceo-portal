@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>جلسات آنلاین — مستندات فنی</title>
+
+<style>
+  html, body { margin: 0; }
+
+  :root {
+    direction: rtl;
+
+    /* Petrol + a single warm signal. The signal colour is spent ONLY on the presenter and on
+       irreversible actions — the one asymmetry this whole service is built around. */
+    --paper:      #EDF0F0;
+    --paper-2:    #E2E7E7;
+    --card:       #F7F9F9;
+    --ink:        #12171A;
+    --mute:       #56676D;
+    --line:       #C7D2D4;
+    --petrol:     #145C63;
+    --petrol-soft:#D9E9EA;
+    --signal:     #B4531F;
+    --signal-soft:#F6E3D7;
+    --ok:         #1F6B4A;
+    --ok-soft:    #DCEDE4;
+
+    --fa: "Vazirmatn", "IRANSans", "Iranian Sans", "Sahel", "Segoe UI",
+          Tahoma, "Noto Naskh Arabic", sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, "Liberation Mono", monospace;
+
+    --measure: 68ch;
+    --rail: 15rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:      #0A1113;
+      --paper-2:    #0E1719;
+      --card:       #121D1F;
+      --ink:        #DEE7E8;
+      --mute:       #85969B;
+      --line:       #24383B;
+      --petrol:     #5FB3BC;
+      --petrol-soft:#122C2F;
+      --signal:     #E08A54;
+      --signal-soft:#2C1A11;
+      --ok:         #6FCF9A;
+      --ok-soft:    #14261E;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:      #0A1113;
+    --paper-2:    #0E1719;
+    --card:       #121D1F;
+    --ink:        #DEE7E8;
+    --mute:       #85969B;
+    --line:       #24383B;
+    --petrol:     #5FB3BC;
+    --petrol-soft:#122C2F;
+    --signal:     #E08A54;
+    --signal-soft:#2C1A11;
+    --ok:         #6FCF9A;
+    --ok-soft:    #14261E;
+  }
+  :root[data-theme="light"] {
+    --paper:      #EDF0F0;
+    --paper-2:    #E2E7E7;
+    --card:       #F7F9F9;
+    --ink:        #12171A;
+    --mute:       #56676D;
+    --line:       #C7D2D4;
+    --petrol:     #145C63;
+    --petrol-soft:#D9E9EA;
+    --signal:     #B4531F;
+    --signal-soft:#F6E3D7;
+    --ok:         #1F6B4A;
+    --ok-soft:    #DCEDE4;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--fa);
+    font-size: 16px;
+    line-height: 1.95;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  code, .m, .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  .m {
+    direction: ltr;
+    unicode-bidi: isolate;
+    display: inline-block;
+    font-size: 0.86em;
+    background: var(--petrol-soft);
+    color: var(--petrol);
+    border: 1px solid color-mix(in srgb, var(--petrol) 24%, transparent);
+    border-radius: 4px;
+    padding: 0.05em 0.4em;
+    line-height: 1.6;
+  }
+  .m.sig { background: var(--signal-soft); color: var(--signal); border-color: color-mix(in srgb, var(--signal) 30%, transparent); }
+
+  .shell {
+    display: grid;
+    grid-template-columns: 1fr;
+    max-width: 78rem;
+    margin-inline: auto;
+    padding: 0 1.25rem 6rem;
+  }
+  @media (min-width: 1100px) {
+    .shell { grid-template-columns: var(--rail) minmax(0, 1fr); gap: 3.5rem; padding-inline: 2rem; }
+  }
+
+  .mast {
+    grid-column: 1 / -1;
+    padding: 5rem 0 2.5rem;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 3rem;
+  }
+  .eyebrow {
+    font-size: 0.75rem; letter-spacing: 0.18em; color: var(--signal);
+    font-weight: 700; margin: 0 0 1.25rem;
+  }
+  .mast h1 {
+    font-size: clamp(2.2rem, 5.5vw, 3.6rem);
+    line-height: 1.35; font-weight: 800; letter-spacing: -0.01em;
+    margin: 0 0 1rem; text-wrap: balance;
+  }
+  .mast .lede {
+    font-size: clamp(1.05rem, 2vw, 1.2rem);
+    color: var(--mute); max-width: var(--measure); margin: 0 0 2rem;
+  }
+  .facts { display: flex; flex-wrap: wrap; gap: 0.5rem 2.5rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
+  .fact { display: flex; flex-direction: column; gap: 0.1rem; }
+  .fact dt { font-size: 0.72rem; letter-spacing: 0.1em; color: var(--mute); font-weight: 600; }
+  .fact dd { margin: 0; font-weight: 700; font-size: 0.95rem; }
+
+  .rail { display: none; }
+  @media (min-width: 1100px) {
+    .rail {
+      display: block; position: sticky; top: 2rem; align-self: start;
+      max-height: calc(100vh - 4rem); overflow-y: auto; font-size: 0.86rem;
+      border-inline-start: 1px solid var(--line); padding-inline-start: 1.25rem;
+    }
+  }
+  .rail p { font-size: 0.7rem; letter-spacing: 0.14em; color: var(--mute); font-weight: 700; margin: 0 0 0.85rem; }
+  .rail ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.55rem; }
+  .rail a { color: var(--mute); text-decoration: none; display: block; border-radius: 4px; }
+  .rail a:hover, .rail a:focus-visible { color: var(--petrol); }
+
+  main { min-width: 0; }
+  section { margin-bottom: 4.5rem; scroll-margin-top: 2rem; }
+  section > p, section > ul, section > ol, section > .note { max-width: var(--measure); }
+
+  h2 { font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 800; line-height: 1.45; margin: 0 0 0.4rem; text-wrap: balance; }
+  h2 .idx { font-family: var(--mono); font-size: 0.75rem; color: var(--signal); display: block; letter-spacing: 0.1em; margin-bottom: 0.35rem; }
+  h3 { font-size: 1.12rem; font-weight: 700; margin: 2.25rem 0 0.6rem; line-height: 1.6; }
+  p { margin: 0 0 1.1rem; }
+  ul, ol { margin: 0 0 1.1rem; padding-inline-start: 1.4rem; }
+  li { margin-bottom: 0.5rem; }
+  a { color: var(--petrol); }
+  .sub { color: var(--mute); max-width: var(--measure); margin: 0 0 1.75rem; }
+
+  .scroll { overflow-x: auto; margin: 0 0 1.25rem; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+  table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+  th, td { text-align: start; padding: 0.7rem 0.95rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  thead th { font-size: 0.72rem; letter-spacing: 0.09em; color: var(--mute); font-weight: 700; background: var(--paper-2); white-space: nowrap; }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.yes { color: var(--ok); font-weight: 700; }
+  td.no  { color: var(--mute); }
+
+  /* ── the enforcement chain: the thesis of this service ────── */
+  .chain {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    margin: 2rem 0 1.5rem;
+    align-items: stretch;
+  }
+  @media (min-width: 860px) { .chain { grid-template-columns: 1fr auto 1fr auto 1fr; gap: 0; } }
+  .link {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 1.25rem 1.4rem;
+  }
+  .link .who { font-size: 0.72rem; letter-spacing: 0.1em; color: var(--mute); font-weight: 700; margin: 0 0 0.5rem; }
+  .link h4 { margin: 0 0 0.5rem; font-size: 1rem; font-weight: 800; }
+  .link p { margin: 0; font-size: 0.88rem; color: var(--mute); }
+  .link.end { border-color: color-mix(in srgb, var(--signal) 45%, transparent); }
+  .link.end h4 { color: var(--signal); }
+  .arrow { display: grid; place-items: center; padding: 0.35rem 1rem; color: var(--mute); font-size: 1.15rem; }
+  @media (min-width: 860px) { .arrow { padding: 1.5rem 0.9rem; } }
+
+  /* ── who may speak ────────────────────────────────────────── */
+  .duo { display: grid; grid-template-columns: 1fr; gap: 1rem; margin: 1.5rem 0; }
+  @media (min-width: 720px) { .duo { grid-template-columns: 1fr 1fr; } }
+  .panel { border: 1px solid var(--line); border-radius: 12px; padding: 1.25rem 1.4rem; background: var(--card); }
+  .panel h4 { margin: 0 0 0.25rem; font-size: 1rem; font-weight: 800; }
+  .panel .cap { color: var(--mute); font-size: 0.85rem; margin: 0 0 1rem; }
+  .panel.speaker { border-color: color-mix(in srgb, var(--signal) 45%, transparent); }
+  .panel.speaker h4 { color: var(--signal); }
+  .panel ul { margin: 0; padding-inline-start: 1.1rem; }
+  .panel li { font-size: 0.92rem; }
+  .panel li.off { color: var(--mute); text-decoration: line-through; text-decoration-color: var(--mute); }
+
+  .note {
+    border-inline-start: 3px solid var(--petrol);
+    background: var(--card); padding: 1rem 1.2rem;
+    border-radius: 0 10px 10px 0; margin: 0 0 1.25rem;
+  }
+  .note.warn { border-inline-start-color: var(--signal); }
+  .note.warn strong:first-child { color: var(--signal); }
+  .note p:last-child { margin-bottom: 0; }
+  .note .tag { display: block; font-size: 0.72rem; letter-spacing: 0.1em; font-weight: 700; color: var(--mute); margin-bottom: 0.3rem; }
+
+  .track { display: flex; flex-direction: column; margin: 1.5rem 0; }
+  .step { display: grid; grid-template-columns: 2.4rem minmax(0, 1fr); gap: 1rem; padding-bottom: 1.5rem; position: relative; }
+  .step:not(:last-child)::before {
+    content: ""; position: absolute; inset-inline-start: 1.2rem; top: 2.4rem; bottom: 0; width: 1px; background: var(--line);
+  }
+  .step .dot {
+    width: 2.4rem; height: 2.4rem; border-radius: 50%; display: grid; place-items: center;
+    background: var(--card); border: 1px solid var(--line); color: var(--petrol);
+    font-family: var(--mono); font-size: 0.85rem; font-weight: 700; z-index: 1;
+  }
+  .step.crit .dot { border-color: color-mix(in srgb, var(--signal) 45%, transparent); color: var(--signal); }
+  .step h4 { margin: 0.35rem 0 0.3rem; font-size: 1rem; font-weight: 700; }
+  .step p { margin: 0; color: var(--mute); font-size: 0.93rem; max-width: 60ch; }
+
+  .modes { display: grid; grid-template-columns: 1fr; gap: 0.85rem; margin: 1.5rem 0; }
+  @media (min-width: 820px) { .modes { grid-template-columns: repeat(3, 1fr); } }
+  .mode { border: 1px solid var(--line); background: var(--card); border-radius: 12px; padding: 1.1rem 1.25rem; }
+  .mode b { display: block; font-size: 1rem; margin-bottom: 0.15rem; }
+  .mode .for { font-size: 0.75rem; color: var(--mute); font-weight: 700; letter-spacing: 0.06em; margin-bottom: 0.6rem; }
+  .mode p { margin: 0; font-size: 0.88rem; color: var(--mute); }
+
+  footer {
+    grid-column: 1 / -1; border-top: 1px solid var(--line);
+    padding-top: 1.75rem; margin-top: 2rem; color: var(--mute); font-size: 0.86rem;
+  }
+  footer p { max-width: var(--measure); }
+
+  :focus-visible { outline: 2px solid var(--petrol); outline-offset: 3px; border-radius: 3px; }
+
+  .themer {
+    position: fixed; top: 1rem; inset-inline-start: 1rem; z-index: 20;
+    background: var(--card); color: var(--mute); border: 1px solid var(--line);
+    border-radius: 999px; padding: 0.4rem 0.9rem;
+    font-family: var(--fa); font-size: 0.8rem; font-weight: 600; cursor: pointer;
+  }
+  .themer:hover { color: var(--petrol); border-color: var(--petrol); }
+  @media print { .themer, .rail { display: none; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+</style>
+</head>
+<body>
+
+<button class="themer" type="button" id="themer" aria-label="تغییر پوستهٔ روشن و تیره">پوستهٔ تیره / روشن</button>
+
+<div dir="rtl">
+  <div class="shell">
+
+    <header class="mast">
+      <p class="eyebrow">مستندات فنی — سازمان نظام مهندسی</p>
+      <h1>جلسات آنلاین</h1>
+      <p class="lede">
+        برگزاری جلسه و ارائهٔ برخط برای سازمان. دو نوع جلسه دارد: <strong>جلسه</strong> که همه در آن
+        برابرند، و <strong>ارائه</strong> که فقط یک نفر صحبت می‌کند و بقیه تماشا می‌کنند. ورود یا با
+        دعوت‌نامه است یا با یک لینک — و لینک را می‌شود برای بیرون سازمان هم فرستاد.
+      </p>
+      <dl class="facts">
+        <div class="fact"><dt>نشانی</dt><dd class="m">room.myceo.ir</dd></div>
+        <div class="fact"><dt>سرور تصویر</dt><dd class="m">lk.myceo.ir</dd></div>
+        <div class="fact"><dt>ورود</dt><dd>لینک، یا کد ملی</dd></div>
+        <div class="fact"><dt>وضعیت</dt><dd>مستقر روی سرور</dd></div>
+      </dl>
+    </header>
+
+    <nav class="rail" aria-label="فهرست مطالب">
+      <p>فهرست</p>
+      <ol>
+        <li><a href="#chekar">۱ — این سرویس چه می‌کند</a></li>
+        <li><a href="#do-noe">۲ — جلسه یا ارائه</a></li>
+        <li><a href="#chera-nemitavanad">۳ — چرا تماشاگر نمی‌تواند صحبت کند</a></li>
+        <li><a href="#vorood">۴ — سه راه ورود</a></li>
+        <li><a href="#sakht">۵ — ساخت جلسه</a></li>
+        <li><a href="#mehman">۶ — ورود با لینک</a></li>
+        <li><a href="#ozv">۷ — ورود عضو سازمان</a></li>
+        <li><a href="#goftogoo">۸ — گفتگوی متنی</a></li>
+        <li><a href="#memari">۹ — معماری و اجزا</a></li>
+        <li><a href="#hoshdar">۱۰ — نکات عملیاتی</a></li>
+      </ol>
+    </nav>
+
+    <main>
+
+      <!-- ─────────────────────────────────────────────── -->
+      <section id="chekar">
+        <h2><span class="idx">۰۱</span>این سرویس چه می‌کند</h2>
+        <p class="sub">
+          یک مدیر جلسه‌ای می‌سازد: نام، نوع، زمان شروع، ظرفیت، و اینکه چه کسی می‌تواند وارد شود.
+          اگر جلسه با لینک باشد، لینک همان‌جا در فهرست جلسات ساخته می‌شود و مدیر آن را برای
+          شرکت‌کنندگان می‌فرستد. در زمان مقرر، افراد وارد می‌شوند، تصویر و صدا برقرار می‌شود و
+          گفتگوی متنی هم در کنارش هست.
+        </p>
+        <div class="note">
+          <span class="tag">مهم‌ترین تصمیم معماری</span>
+          <p>
+            <strong>تصویر و صدای جلسه از سرور اصلی سازمان عبور نمی‌کند.</strong> رسانه مستقیم بین
+            مرورگر و یک سرور اختصاصی ویدیو (<span class="m">lk.myceo.ir</span>) روی یک ماشین جداگانه
+            جابه‌جا می‌شود. سرور اصلی فقط مجوز ورود صادر می‌کند و فهرست جلسات را نگه می‌دارد. اگر
+            جلسه‌ای سنگین شود، سرویس‌های دیگر سازمان کند نمی‌شوند.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─────────────────────────────────────────────── -->
+      <section id="do-noe">
+        <h2><span class="idx">۰۲</span>جلسه یا ارائه</h2>
+        <p class="sub">
+          نوع جلسه، همه چیز را تعیین می‌کند: چه کسی می‌تواند صحبت کند، و مردم چطور وارد می‌شوند.
+        </p>
+
+        <div class="duo">
+          <div class="panel">
+            <h4>جلسه</h4>
+            <p class="cap">همه برابرند — مثل یک جلسهٔ کمیسیون</p>
+            <ul>
+              <li>همه می‌توانند صحبت کنند</li>
+              <li>همه می‌توانند دوربین روشن کنند</li>
+              <li>همه می‌توانند صفحه به اشتراک بگذارند</li>
+              <li>ورود با دعوت‌نامه یا با لینک و کد ملی</li>
+            </ul>
+          </div>
+          <div class="panel speaker">
+            <h4>ارائه</h4>
+            <p class="cap">یک نفر می‌گوید، بقیه می‌بینند — مثل وبینار</p>
+            <ul>
+              <li><strong>فقط ارائه‌دهنده</strong> صحبت می‌کند</li>
+              <li class="off">میکروفون تماشاگر</li>
+              <li class="off">دوربین و اشتراک صفحهٔ تماشاگر</li>
+              <li>تماشاگر می‌بیند، می‌شنود و در گفتگو پیام می‌دهد</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="note warn">
+          <span class="tag">قاعده‌ای که سامانه اجازهٔ شکستنش را نمی‌دهد</span>
+          <p>
+            <strong>لینک عمومی فقط برای «ارائه» ممکن است.</strong> یک لینک باز به جلسه‌ای که همه در
+            آن حق صحبت دارند، یعنی هر رهگذری می‌تواند وسط جلسهٔ کمیسیون دوربینش را روشن کند. این
+            ترکیب در سطح پایگاه داده ممنوع شده — نه فقط در فرم — پس هیچ مسیری در نرم‌افزار نمی‌تواند
+            دورش بزند.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─────────────────────────────────────────────── -->
+      <section id="chera-nemitavanad">
+        <h2><span class="idx">۰۳</span>چرا تماشاگر نمی‌تواند صحبت کند</h2>
+        <p class="sub">
+          این مهم‌ترین نکتهٔ امنیتی این سرویس است. <strong>محدودیت در ظاهر برنامه نیست؛ در مجوزی است
+          که سرور صادر می‌کند.</strong> پنهان کردن دکمهٔ میکروفون کافی نیست — کسی که مرورگرش را
+          دستکاری کند می‌تواند دکمه را برگرداند. آنچه واقعاً جلوی او را می‌گیرد، سرور ویدیوست.
+        </p>
+
+        <div class="chain">
+          <div class="link">
+            <p class="who">۱ — سرور سازمان</p>
+            <h4>مجوز امضا می‌شود</h4>
+            <p>هنگام ورود، سرور یک مجوز امضاشده می‌سازد که در آن نوشته شده این فرد
+               اجازهٔ فرستادن تصویر و صدا دارد یا نه.</p>
+          </div>
+          <div class="arrow" aria-hidden="true">←</div>
+          <div class="link">
+            <p class="who">۲ — مرورگر</p>
+            <h4>مجوز فقط حمل می‌شود</h4>
+            <p>مرورگر مجوز را به سرور ویدیو می‌دهد. نمی‌تواند محتوایش را عوض کند،
+               چون امضا خراب می‌شود.</p>
+          </div>
+          <div class="arrow" aria-hidden="true">←</div>
+          <div class="link end">
+            <p class="who">۳ — سرور ویدیو</p>
+            <h4>اجازه را خودش اعمال می‌کند</h4>
+            <p>اگر مجوز اجازهٔ صحبت نداده باشد، سرور ویدیو صدا و تصویر را
+               <strong>نمی‌پذیرد</strong> — هرچه مرورگر بگوید.</p>
+          </div>
+        </div>
+
+        <p>
+          به همین دلیل در «ارائه»، برنامه دکمهٔ میکروفون را برای تماشاگر <strong>اصلاً نشان
+          نمی‌دهد</strong> — نه اینکه خاکستری کند. دکمهٔ غیرفعال یعنی «شاید بعداً بتوانی»، در حالی که
+          تماشاگر هرگز قرار نیست صحبت کند و دکمهٔ خاکستری فقط او را به گشتن دنبال تنظیماتی وامی‌دارد
+          که وجود ندارد.
+        </p>
+
+        <div class="note">
+          <span class="tag">راستی‌آزمایی شده</span>
+          <p>
+            این زنجیره روی یک سرور ویدیوی واقعی آزمایش شده است: یک مهمان با لینک عمومی وارد جلسه شد و
+            سرور ویدیو در گزارش خودش برای او فقط اجازهٔ «شنیدن» و «پیام متنی» ثبت کرد —
+            <strong>اجازهٔ صحبت اصلاً صادر نشد</strong>.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─────────────────────────────────────────────── -->
+      <section id="vorood">
+        <h2><span class="idx">۰۴</span>سه راه ورود</h2>
+        <div class="modes">
+          <div class="mode">
+            <b>فقط دعوت‌شدگان</b>
+            <p class="for">ویژهٔ «جلسه»</p>
+            <p>مدیر افراد را با کد ملی دعوت می‌کند. لینکی وجود ندارد. مناسب جلسه‌های داخلی.</p>
+          </div>
+          <div class="mode">
+            <b>با لینک و ورود با کد ملی</b>
+            <p class="for">جلسه یا ارائه</p>
+            <p>لینک را هر کسی می‌تواند باز کند، ولی برای ورود باید با کد ملی و کد پیامکی وارد شود.
+               یعنی فقط اعضای سازمان.</p>
+          </div>
+          <div class="mode">
+            <b>با لینک، بدون نیاز به ورود</b>
+            <p class="for">فقط «ارائه»</p>
+            <p>هر کسی با داشتن لینک وارد می‌شود و فقط نامش را می‌نویسد. مناسب وبینار عمومی.</p>
+          </div>
+        </div>
+
+        <h3>لینک ورود</h3>
+        <p>
+          لینک هر جلسه یک رشتهٔ تصادفی و غیرقابل‌حدس است — نه شمارهٔ جلسه. مدیر هر وقت بخواهد
+          می‌تواند <strong>لینک تازه</strong> بسازد؛ در آن لحظه لینک قبلی از کار می‌افتد. این تنها
+          راه باطل‌کردن لینکی است که به دست افراد اشتباه رسیده باشد.
+        </p>
+        <p>
+          با <strong>حذف جلسه</strong> هم لینک باطل می‌شود. سابقهٔ گفتگو باقی می‌ماند و شناسهٔ جلسه
+          دیگر هرگز استفاده نمی‌شود، پس یک لینک قدیمی نمی‌تواند به جلسهٔ جدیدی راه پیدا کند.
+        </p>
+
+        <h3>پنج شرطی که پیش از ورود بررسی می‌شود</h3>
+        <div class="scroll">
+          <table>
+            <thead><tr><th>بررسی</th><th>اگر برقرار نباشد</th></tr></thead>
+            <tbody>
+              <tr><td>جلسه وجود دارد و حذف نشده</td><td>«این جلسه پیدا نشد» — همان پیامی که برای لینک اشتباه داده می‌شود</td></tr>
+              <tr><td>جلسه باز است</td><td>«این جلسه بسته شده است»</td></tr>
+              <tr><td>نوع ورود اجازه می‌دهد</td><td>«باید با کد ملی وارد شوید» یا «دعوت نشده‌اید»</td></tr>
+              <tr><td>زمان ورود رسیده</td><td>شمارش معکوس نمایش داده می‌شود</td></tr>
+              <tr><td>ظرفیت تکمیل نشده</td><td>«ظرفیت این جلسه تکمیل شده است»</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note">
+          <span class="tag">دو ریزه‌کاری که عمدی‌اند</span>
+          <p>
+            <strong>جلسهٔ حذف‌شده و لینک اشتباه یک پیام می‌گیرند.</strong> اگر بگوییم «این جلسه حذف
+            شده»، به یک غریبه گفته‌ایم که لینکش زمانی واقعی بوده است.
+          </p>
+          <p style="margin-top:.6rem">
+            <strong>ارائه‌دهنده هرگز پشت در نمی‌ماند</strong> — نه به‌خاطر نوع ورود و نه به‌خاطر
+            پر شدن ظرفیت. جلسه‌ای که تماشاگرانش زودتر رسیده‌اند و جای ارائه‌دهنده را گرفته‌اند،
+            جلسه‌ای است که اصلاً برگزار نمی‌شود.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─────────────────────────────────────────────── -->
+      <section id="sakht">
+        <h2><span class="idx">۰۵</span>ساخت جلسه — کار مدیر</h2>
+        <div class="track">
+          <div class="step">
+            <div class="dot">۱</div>
+            <div><h4>مشخصات و ظرفیت</h4>
+              <p>نام جلسه، توضیح، و حداکثر تعداد شرکت‌کننده.</p></div>
+          </div>
+          <div class="step">
+            <div class="dot">۲</div>
+            <div><h4>نوع و نحوهٔ ورود</h4>
+              <p>با انتخاب «ارائه»، اگر نوع ورودِ انتخاب‌شده با آن سازگار نباشد، فرم خودش آن را
+                 اصلاح می‌کند — تا مدیر کل فرم را پر نکند و آخر کار با خطا روبه‌رو نشود.</p></div>
+          </div>
+          <div class="step crit">
+            <div class="dot">۳</div>
+            <div><h4>ارائه‌دهنده — با کد ملی</h4>
+              <p>ارائه‌دهنده با <strong>کد ملی</strong> مشخص می‌شود، نه با یک نام آزاد. نام او از
+                 روی رکورد سازمان خوانده می‌شود و همان‌جا زیر کادر نشان داده می‌شود تا مدیر مطمئن
+                 شود فرد درستی را انتخاب کرده است.</p></div>
+          </div>
+          <div class="step">
+            <div class="dot">۴</div>
+            <div><h4>زمان شروع و ورود زودهنگام</h4>
+              <p>تاریخ شمسی و ساعت شروع، به‌علاوهٔ اینکه چند دقیقه پیش از شروع در باز شود — تا همه
+                 دقیقاً سر ساعت هم‌زمان وارد نشوند.</p></div>
+          </div>
+          <div class="step">
+            <div class="dot">۵</div>
+            <div><h4>کپی لینک از روی همان ردیف</h4>
+              <p>پس از ساخت، لینک در فهرست جلسات روی همان ردیف با یک دکمه کپی می‌شود. دعوت‌شدگان
+                 جلسه‌های خصوصی هم از همان صفحه با کد ملی اضافه می‌شوند.</p></div>
+          </div>
+        </div>
+
+        <div class="note warn">
+          <span class="tag">چرا کد ملی، نه یک نام دلخواه</span>
+          <p>
+            وقتی ارائه‌دهنده وارد جلسه می‌شود، سامانه باید بتواند تشخیص دهد که این شخص همان
+            ارائه‌دهنده است. این تشخیص با <strong>کد ملی</strong> انجام می‌شود. اگر مدیر یک نام آزاد
+            می‌نوشت، ارائه‌دهنده وارد جلسهٔ خودش می‌شد و <strong>بی‌آنکه خطایی ببیند</strong> اجازهٔ
+            صحبت نداشت — بدترین نوع خرابی، چون هیچ‌جا پیامی نمی‌آید.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─────────────────────────────────────────────── -->
+      <section id="mehman">
+        <h2><span class="idx">۰۶</span>ورود با لینک — تجربهٔ مهمان</h2>
+        <p class="sub">
+          این صفحه اولین چیزی است که یک مهمان از بیرون سازمان می‌بیند، و ممکن است چند دقیقه پیش از
+          شروع باز بماند.
+        </p>
+        <div class="track">
+          <div class="step">
+            <div class="dot">۱</div>
+            <div><h4>باز کردن لینک</h4>
+              <p>نام جلسه، نوع آن، ارائه‌دهنده، تاریخ و ساعت شروع نمایش داده می‌شود. هیچ شناسهٔ
+                 داخلی‌ای در این صفحه نیست — کسی که فقط لینک دارد، فقط همین را می‌بیند.</p></div>
+          </div>
+          <div class="step">
+            <div class="dot">۲</div>
+            <div><h4>شمارش معکوس تا باز شدن در</h4>
+              <p>اگر هنوز زمان نرسیده باشد، شمارش معکوس نشان داده می‌شود و کادر نام همان‌موقع قابل
+                 پر کردن است — تا لحظهٔ باز شدن در، چیزی برای تایپ کردن نمانده باشد. با رسیدن به
+                 صفر، دکمهٔ ورود <strong>بدون نیاز به تازه‌سازی صفحه</strong> فعال می‌شود.</p></div>
+          </div>
+          <div class="step">
+            <div class="dot">۳</div>
+            <div><h4>اتاق انتظار</h4>
+              <p>پیش از آنکه دوربینی روشن شود، مهمان نام خودش، برچسب «مهمان» و سطح دسترسی‌اش
+                 («فقط تماشا و گفتگوی متنی») را می‌بیند. یعنی پاسخ پرسش «چرا نمی‌توانم صحبت کنم؟»
+                 پیش از پرسیدنش روی صفحه است.</p></div>
+          </div>
+          <div class="step">
+            <div class="dot">۴</div>
+            <div><h4>ورود به تصویر و صدا</h4>
+              <p>میکروفون و دوربین <strong>بسته</strong> وارد می‌شوند و کاربر خودش آنها را باز
+                 می‌کند — نه اینکه به‌محض ورود اتاق نشیمن کسی روی پرده برود.</p></div>
+          </div>
+        </div>
+
+        <div class="note">
+          <span class="tag">اگر جلسه خصوصی باشد</span>
+          <p>
+            به‌جای کادر نام، دکمهٔ «ورود با کد ملی» نشان داده می‌شود و شمارش معکوسی در کار نیست —
+            چون مانع، ساعت نیست بلکه حساب کاربری است. پس از ورود، کاربر به <strong>همان لینک
+            جلسه</strong> برمی‌گردد، نه به صفحهٔ اصلی؛ وگرنه باید دوباره لینک را در پیام‌رسانی که از
+            آن آمده پیدا کند.
+          </p>
+        </div>
+
+        <h3>نام مهمان</h3>
+        <p>
+          مهمان نام خودش را می‌نویسد، پس می‌تواند هر چیزی بنویسد — حتی «مدیر سازمان». دو چیز این را
+          مهار می‌کند: هر کسی که با لینک وارد شده باشد در فهرست شرکت‌کنندگان و کنار هر پیامش برچسب
+          <strong>«مهمان»</strong> می‌گیرد، و این برچسب را سرور می‌زند نه مرورگر — پس قابل جعل
+          نیست. ضمناً نام پیش از نمایش پاک‌سازی می‌شود: نویسه‌های نامرئی و جهت‌دهنده حذف می‌شوند،
+          چون یک نویسهٔ خاص می‌تواند نمایش کل فهرست شرکت‌کنندگان را برای همه به‌هم بریزد.
+        </p>
+      </section>
+
+      <!-- ─────────────────────────────────────────────── -->
+      <section id="ozv">
+        <h2><span class="idx">۰۷</span>ورود عضو سازمان</h2>
+        <p>
+          عضوی که با کد ملی وارد سامانه شده، در صفحهٔ <strong>«جلسات من»</strong> جلسه‌هایی را
+          می‌بیند که به آنها دعوت شده یا ارائه‌دهنده‌شان است. هر کارت نام جلسه، ارائه‌دهنده، زمان
+          شروع و تعداد افراد حاضر در جلسه را نشان می‌دهد.
+        </p>
+        <p>
+          دکمهٔ ورود فقط وقتی ظاهر می‌شود که <strong>سرور</strong> بگوید در باز است — نه وقتی ساعت
+          دستگاه کاربر این را بگوید. ساعت لپ‌تاپ می‌تواند اشتباه باشد؛ ساعت سرور مرجع است.
+        </p>
+        <div class="note">
+          <span class="tag">یک ریزه‌کاری امنیتی</span>
+          <p>
+            اگر عضوی نشانی جلسه‌ای را که به آن دعوت نشده مستقیم باز کند، پاسخ <strong>«پیدا
+            نشد»</strong> است، نه «اجازه ندارید». پاسخ دوم تأیید می‌کرد که چنین جلسه‌ای وجود دارد، و
+            با امتحان کردن شماره‌ها می‌شد فهرست تمام جلسات سازمان را درآورد.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─────────────────────────────────────────────── -->
+      <section id="goftogoo">
+        <h2><span class="idx">۰۸</span>گفتگوی متنی</h2>
+        <p class="sub">
+          در یک ارائه، گفتگوی متنی تنها راهی است که تماشاگر می‌تواند چیزی بگوید. پس باید برای کسی
+          هم که هیچ حساب کاربری ندارد کار کند.
+        </p>
+        <p>
+          پیام‌ها <strong>ذخیره می‌شوند</strong>: اگر کسی صفحه را ببندد و دوباره باز کند، یا دیر به
+          جلسه برسد، سابقهٔ گفتگو را می‌بیند. تحویل زنده از مسیر خود سرور ویدیو انجام می‌شود، پس
+          مرورگرها لازم نیست مدام سرور را صدا بزنند.
+        </p>
+
+        <h3>مهمان چطور شناسایی می‌شود</h3>
+        <p>
+          مهمان حساب کاربری ندارد، ولی <strong>همان مجوز امضاشده‌ای را دارد که برای ورود به جلسه
+          گرفته است</strong>. آن مجوز می‌گوید این شخص کیست و برای کدام جلسه معتبر است، و تاریخ
+          انقضا هم دارد. بنابراین همان مجوز به‌عنوان شناسنامهٔ گفتگو استفاده می‌شود و نیازی به
+          ساختن سازوکار دوم نیست.
+        </p>
+        <p>
+          نتیجه‌اش دو چیز است: نام فرستنده از روی همان امضا خوانده می‌شود، پس
+          <strong>مهمان نمی‌تواند بین دو پیام اسمش را عوض کند</strong>؛ و مجوز فقط برای
+          <strong>یک جلسه</strong> معتبر است، پس با لینک یک جلسه نمی‌شود در گفتگوی جلسهٔ دیگری
+          پیام گذاشت.
+        </p>
+        <div class="note">
+          <span class="tag">آنچه آزموده شده</span>
+          <p>
+            این مسیر با چند حمله آزمایش شده و همه رد شده‌اند: مجوز معتبر ولی مربوط به جلسهٔ دیگر،
+            مجوز دستکاری‌شده، مجوز منقضی، و ورودی بی‌معنا. پیام‌ها هم مثل نام مهمان پیش از ذخیره
+            پاک‌سازی می‌شوند — با این تفاوت که در پیام، رفتن به خط بعد مجاز است.
+          </p>
+        </div>
+        <p>
+          جلسه‌ای که بسته شده باشد <strong>پیام تازه نمی‌پذیرد، ولی سابقه‌اش خواندنی می‌ماند</strong>
+          — بستن در، پاک کردن دفتر نیست.
+        </p>
+      </section>
+
+      <!-- ─────────────────────────────────────────────── -->
+      <section id="memari">
+        <h2><span class="idx">۰۹</span>معماری و اجزا</h2>
+        <div class="scroll">
+          <table>
+            <thead><tr><th>بخش</th><th>نقش</th></tr></thead>
+            <tbody>
+              <tr><td><span class="m">room.myceo.ir</span></td><td>صفحهٔ جلسات، پنل مدیریت، صفحهٔ ورود با لینک و خود جلسه</td></tr>
+              <tr><td><span class="m">api.myceo.ir</span></td><td>قوانین ورود، صدور مجوز، فهرست جلسات و ذخیرهٔ گفتگو</td></tr>
+              <tr><td><span class="m">auth.myceo.ir</span></td><td>ورود اعضا با کد ملی و کد پیامکی</td></tr>
+              <tr><td><span class="m sig">lk.myceo.ir</span></td><td><strong>سرور اختصاصی ویدیو، روی ماشینی جدا.</strong> تمام تصویر و صدا از اینجا می‌گذرد</td></tr>
+              <tr><td>پایگاه دادهٔ سازمان</td><td>پیدا کردن نام از روی کد ملی — فقط خواندنی</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note">
+          <span class="tag">چرا سرور ویدیو جداست</span>
+          <p>
+            دو دلیل. اول اینکه کلید سرور ویدیو <strong>به جلسهٔ خاصی محدود نیست</strong> — هر کسی
+            آن را داشته باشد می‌تواند برای هر جلسه‌ای روی آن سرور مجوز بسازد؛ پس سرویس‌های دیگر
+            نباید با آن هم‌خانه باشند. دوم اینکه سرور اصلی سازمان ده‌ها سرویس دیگر را هم اجرا
+            می‌کند و ویدیو دقیقاً همان باری است که با همسایهٔ شلوغ سازگار نیست.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─────────────────────────────────────────────── -->
+      <section id="hoshdar">
+        <h2><span class="idx">۱۰</span>نکات عملیاتی</h2>
+        <div class="scroll">
+          <table>
+            <thead><tr><th>مورد</th><th>چرا</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><strong>پیش از یک وبینار عمومی، سقف درخواست بررسی شود</strong></td>
+                <td>سرور روی هر نشانی اینترنتی سقف درخواست دارد. همهٔ کسانی که پشت یک اینترنت
+                    مشترک‌اند — یک شرکت، یک دانشگاه، یک اپراتور موبایل — این سقف را با هم شریک
+                    می‌شوند. برای یک وبینار بزرگ باید بازبینی شود.</td>
+              </tr>
+              <tr>
+                <td><strong>پهنای باند سرور ویدیو اندازه‌گیری شود</strong></td>
+                <td>در آزمایش، سرعت آپلود آن ماشین بین ۴۴ تا ۶۲ مگابیت بر ثانیه اندازه‌گیری شد —
+                    یعنی حدود ۳۰ تا ۴۰ بیننده با کیفیت مناسب. پیش از یک رویداد بزرگ دوباره
+                    اندازه‌گیری شود.</td>
+              </tr>
+              <tr>
+                <td><strong>از پشتیبان کلید سرور ویدیو مراقبت شود</strong></td>
+                <td>این کلید فقط در دو جا وجود دارد. اگر خالی بماند، سرویس صادقانه اعلام می‌کند
+                    «در دسترس نیست» و مجوزی صادر نمی‌کند — که رفتار درستی است.</td>
+              </tr>
+              <tr>
+                <td><strong>لینک عمومی مثل کلید در است</strong></td>
+                <td>هر کسی که لینک را داشته باشد وارد می‌شود. اگر به دست افراد اشتباه رسید، از
+                    فهرست جلسات «لینک تازه» بسازید؛ لینک قبلی همان لحظه باطل می‌شود.</td>
+              </tr>
+              <tr>
+                <td><strong>سرویس را به بیش از یک نمونه گسترش ندهید</strong></td>
+                <td>محدودیتی است که از سرویس انتخابات به ارث رسیده و روی همان سرور اجرا می‌شود.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>وضعیت فعلی</h3>
+        <p>
+          سرویس روی سرور مستقر است و <span class="m">room.myceo.ir</span> بالا می‌آید. مسیر مهمان —
+          باز کردن لینک، شمارش معکوس، ورود، گفتگو — روی یک سرور ویدیوی واقعی آزمایش شده است. آنچه
+          هنوز آزمایش نشده: <strong>یک جلسهٔ واقعی با چند نفر هم‌زمان</strong>، و دیدن نوار کنترل
+          ارائه‌دهنده در عمل. پیش از اولین جلسهٔ رسمی، یک جلسهٔ آزمایشی با دو سه نفر توصیه می‌شود.
+        </p>
+      </section>
+
+    </main>
+
+    <footer>
+      <p>
+        مستندات فنی سرویس جلسات آنلاین — سازمان نظام مهندسی. این سند رفتار واقعی سرویس مستقرشده را
+        توصیف می‌کند. مواردی که هنوز در عمل آزموده نشده‌اند، در بخش «وضعیت فعلی» صریح آمده‌اند.
+      </p>
+    </footer>
+
+  </div>
+</div>
+
+<script>
+  (function () {
+    var root = document.documentElement;
+    var key = "ceo-docs-theme";
+    var saved = null;
+    try { saved = localStorage.getItem(key); } catch (e) { /* private mode */ }
+    if (saved === "dark" || saved === "light") root.setAttribute("data-theme", saved);
+
+    document.getElementById("themer").addEventListener("click", function () {
+      var dark = root.getAttribute("data-theme") === "dark" ||
+                 (!root.hasAttribute("data-theme") &&
+                  window.matchMedia("(prefers-color-scheme: dark)").matches);
+      var next = dark ? "light" : "dark";
+      root.setAttribute("data-theme", next);
+      try { localStorage.setItem(key, next); } catch (e) { /* ignore */ }
+    });
+  })();
+</script>
+</body>
+</html>

@@ -283,4 +283,4 @@ If you run your own proxy instead of an existing Traefik, rename `TR` and note t
 
 > *All snippets above are the reference project **Mabhas19** versions with `<PLACEHOLDER>` tokens
 > swapped in for project-specific names. The originals (fully filled) are in
-> `docs/mabhas19-guide.html`.*
+> `docs/guides/mabhas19-guide.html`.*
