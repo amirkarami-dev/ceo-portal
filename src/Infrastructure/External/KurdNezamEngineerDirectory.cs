@@ -1,4 +1,5 @@
 using System.Data;
+using System.Data.Common;
 using Mabhas19.Application.Common.Interfaces;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
@@ -58,6 +59,29 @@ public sealed class KurdNezamEngineerDirectory(
             await using var r = await cmd.ExecuteReaderAsync(ct);
             if (!await r.ReadAsync(ct)) return new(DirectoryOutcome.NotFound, null);
 
+            return await MapAsync(r, code, logger, ct);
+        }
+        catch (Exception ex)
+        {
+            // Deliberately NOT logging the national code. This line runs on any transient SQL error,
+            // and during an election it would accumulate a plaintext list of exactly the people who
+            // tried to vote, with timestamps. See ISecretRequest.
+            logger.LogError(ex, "KurdNezam engineer lookup failed");
+
+            // Unavailable, NOT NotFound. Returning "not found" here is what would tell every voter
+            // «این کد ملی یافت نشد» during a database outage.
+            return new(DirectoryOutcome.Unavailable, null);
+        }
+    }
+
+    /// <summary>
+    /// Turns the row the reader is currently on into a result. Extracted so it can be tested against
+    /// a one-row and a two-row reader without a database — the ordering below is the whole point.
+    /// </summary>
+    /// <param name="r">Positioned on the first row already.</param>
+    internal static async Task<DirectoryResult> MapAsync(
+        DbDataReader r, string code, ILogger logger, CancellationToken ct)
+    {
             string? S(string column)
             {
                 var i = r.GetOrdinal(column);
@@ -127,17 +151,5 @@ public sealed class KurdNezamEngineerDirectory(
                 status,
                 prvExp,
                 madrakNam));
-        }
-        catch (Exception ex)
-        {
-            // Deliberately NOT logging the national code. This line runs on any transient SQL error,
-            // and during an election it would accumulate a plaintext list of exactly the people who
-            // tried to vote, with timestamps. See ISecretRequest.
-            logger.LogError(ex, "KurdNezam engineer lookup failed");
-
-            // Unavailable, NOT NotFound. Returning "not found" here is what would tell every voter
-            // «این کد ملی یافت نشد» during a database outage.
-            return new(DirectoryOutcome.Unavailable, null);
-        }
     }
 }

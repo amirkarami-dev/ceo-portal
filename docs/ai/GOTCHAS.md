@@ -21,6 +21,26 @@ Always confirm against the **server log** or the **database row** before changin
 
 ## Back end (.NET)
 
+### `ReadAsync` to check for a second row destroys the first one
+**Symptom:** every engineer on the platform was told «این حساب، حساب مهندس نیست» — welfare booking,
+and the same lookup underneath voting and the room presenter picker. The org database was healthy and
+the person **was** a member.
+**Cause:** the directory read `CodeMeli` from row 1, then called `ReadAsync` to refuse a multi-row
+answer. For the normal single-row case that returns `false` — and leaves the reader **positioned past
+the end**. Every later field (`Vazeyat`, `Nam`, `ReshteID`, `Mob`, `PrvExp`…) threw
+`InvalidOperationException: Invalid attempt to read when no data is present`, the catch reported
+`Unavailable`, and `GetByNationalCodeAsync` flattens `Unavailable` to `null`.
+**Fix:** capture **every** field from the row before advancing. Read first, advance second.
+**Two things made a reader slip into a lie about a person's membership:**
+1. `GetByNationalCodeAsync` collapses NotFound / Unavailable / integrity-failure into one `null`. Any
+   caller that renders `null` as "you are not a member" is making a claim it cannot support. Prefer
+   `LookupAsync` and handle `Unavailable` separately — the election cast path already did.
+2. Nothing tested the real reader; the functional tests all use `FakeEngineerDirectory`.
+**Pinned by:** `tests/Application.UnitTests/External/KurdNezamRowMappingTests.cs`, which maps a
+one-row and a two-row `DataTable.CreateDataReader()` — a real `DbDataReader` that throws on
+read-past-end exactly like SQL Server, so no fake is needed.
+**Shipped broken in** `d02e88a` (2026-07-30) and live for about a day.
+
 ### `new SqlParameter("@Code", 0)` silently sends NO value
 **Symptom:** every engineer lookup failed → «این کد ملی در سامانه نظام مهندسی یافت نشد».
 **Cause:** the literal `0` binds to `SqlParameter(string, SqlDbType)`, not `(string, object)`.
