@@ -27,7 +27,21 @@ public class GetWalfareEngineerMeQueryHandler(IEngineerDirectory directory, IUse
     {
         // Engineer accounts use the کد ملی as the username (see the IdP's EngineerLogin).
         var nationalCode = user.Name ?? string.Empty;
-        var info = await directory.GetByNationalCodeAsync(nationalCode, cancellationToken)
+
+        // LookupAsync, NOT GetByNationalCodeAsync. The latter flattens every outcome to null, so an
+        // outage in the org's membership database becomes «you are not an engineer» — a claim about
+        // this person's membership that we are in no position to make. That is not hypothetical: a
+        // reader bug in the directory did exactly this to every engineer on the platform, and the
+        // welfare page told them they had no membership record.
+        var result = await directory.LookupAsync(nationalCode, cancellationToken);
+
+        if (result.Outcome == DirectoryOutcome.Unavailable)
+        {
+            throw Fail.With("Directory",
+                "ارتباط با سامانه نظام مهندسی برقرار نشد. لطفاً چند لحظه بعد دوباره تلاش کنید.");
+        }
+
+        var info = result.Engineer
             ?? throw Fail.With("NationalCode",
                 "برای این حساب پرونده مهندسی یافت نشد؛ خدمات رفاهی فقط با ورود مهندس (کد ملی و کد پیامکی) در دسترس است.");
 
@@ -96,8 +110,17 @@ public class CreateReservationCommandHandler(
             throw Fail.With("Date", "ظرفیت این استخر برای روز انتخابی تکمیل شده است.");
 
         // Snapshot the engineer from the org DB — the ticket keeps saying who bought it even if
-        // the membership record changes later.
-        var info = await directory.GetByNationalCodeAsync(nationalCode, cancellationToken)
+        // the membership record changes later. LookupAsync for the same reason as the `me` handler
+        // above: an outage must not be reported as "you have no membership record".
+        var lookup = await directory.LookupAsync(nationalCode, cancellationToken);
+
+        if (lookup.Outcome == DirectoryOutcome.Unavailable)
+        {
+            throw Fail.With("Directory",
+                "ارتباط با سامانه نظام مهندسی برقرار نشد. لطفاً چند لحظه بعد دوباره تلاش کنید.");
+        }
+
+        var info = lookup.Engineer
             ?? throw Fail.With("NationalCode",
                 "برای این حساب پرونده مهندسی یافت نشد؛ خدمات رفاهی فقط با ورود مهندس (کد ملی و کد پیامکی) در دسترس است.");
 

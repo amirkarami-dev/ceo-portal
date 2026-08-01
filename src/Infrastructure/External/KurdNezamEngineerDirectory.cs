@@ -64,7 +64,30 @@ public sealed class KurdNezamEngineerDirectory(
                 return r.IsDBNull(i) ? null : Convert.ToString(r.GetValue(i))?.Trim();
             }
 
-            var codeMeli = S("CodeMeli");
+            // ── EVERY field comes out of THIS row, before the reader is touched again. ──
+            //
+            // The multi-row check below calls ReadAsync, which ADVANCES the reader. For the normal
+            // single-row answer it returns false — and leaves the reader positioned past the end, so
+            // any S(...) after it throws "Invalid attempt to read when no data is present". That
+            // exception was caught below and reported as Unavailable, which
+            // GetByNationalCodeAsync flattens to null, which the welfare page renders as
+            // «این حساب، حساب مهندس نیست».
+            //
+            // So a reader-position slip told every engineer on the platform that they were not a
+            // member. Read first, advance second; do not reorder these.
+            var codeMeli   = S("CodeMeli");
+            var nam        = S("Nam");
+            var famName    = S("NameKhanevadegi");
+            var firstName  = S("FirstName");
+            var lastName   = S("LastName");
+            var reshteId   = S("ReshteID");
+            var mobile     = S("Mob");
+            var vazeyat    = S("Vazeyat");
+            // Jalali string, e.g. 1405/05/01. Kept as text on purpose — parsing it here with
+            // DateTime would read 1405 as a Gregorian year.
+            var prvExp     = S("PrvExp");
+            var madrakNam  = S("MadrakNam");
+
             if (string.IsNullOrWhiteSpace(codeMeli)) return new(DirectoryOutcome.NotFound, null);
 
             // The SP takes an int @Code AS WELL AS a national code, and this repo has already been
@@ -79,6 +102,7 @@ public sealed class KurdNezamEngineerDirectory(
                 return new(DirectoryOutcome.Unavailable, null);
             }
 
+            // Safe now: every value above is already captured.
             if (await r.ReadAsync(ct))
             {
                 logger.LogError("KurdNezam directory returned more than one row for a single national code.");
@@ -88,7 +112,7 @@ public sealed class KurdNezamEngineerDirectory(
             // Vazeyat: 0 = active, anything else = not active. Read as a nullable int so a missing or
             // non-numeric value stays null, which IsActiveMember treats as NOT active — failing closed.
             int? status = null;
-            if (int.TryParse(S("Vazeyat"), out var parsedStatus))
+            if (int.TryParse(vazeyat, out var parsedStatus))
             {
                 status = parsedStatus;
             }
@@ -96,15 +120,13 @@ public sealed class KurdNezamEngineerDirectory(
             // Nam/NameKhanevadegi hold the Persian names; FirstName/LastName are usually empty.
             return new(DirectoryOutcome.Found, new EngineerInfo(
                 codeMeli!,
-                S("Nam") is { Length: > 0 } nam ? nam : S("FirstName") ?? string.Empty,
-                S("NameKhanevadegi") is { Length: > 0 } fam ? fam : S("LastName") ?? string.Empty,
-                S("ReshteID") ?? string.Empty,
-                S("Mob"),
+                nam is { Length: > 0 } ? nam : firstName ?? string.Empty,
+                famName is { Length: > 0 } ? famName : lastName ?? string.Empty,
+                reshteId ?? string.Empty,
+                mobile,
                 status,
-                // Jalali string, e.g. 1405/05/01. Kept as text on purpose — parsing it here with
-                // DateTime would read 1405 as a Gregorian year.
-                S("PrvExp"),
-                S("MadrakNam")));
+                prvExp,
+                madrakNam));
         }
         catch (Exception ex)
         {
