@@ -49,9 +49,9 @@ Clean Architecture. A feature normally touches all four layers.
 | **Welfare** | `Application/Walfare` | `/api/walfare/*` | `walfare-web/` |
 | **Elections** | `Application/Elections` | `/api/ElectionAdmin`, `/api/Election`, `/api/BaleWebhook` | `election-web/`, Bale bot |
 | **Rooms** | `Application/Rooms` | `/api/RoomAdmin`, `/api/Room` | `room-web/` (dev port 5277) |
-| **VMS** (in build — steps 1–5 of 9) | `Application/Vms` | `/api/VmsAdmin`, `/api/VmsGateway`, `/api/VmsMedia` | none yet (`vms-web` is step 6) |
+| **VMS** (in build — steps 1–6 of 9) | `Application/Vms` | `/api/VmsAdmin`, `/api/VmsGateway`, `/api/VmsMedia` | `vms-web/` (dev port 5278) |
 
-## VMS — camera viewing (in build, steps 1–5 done)
+## VMS — camera viewing (in build, steps 1–6 done)
 
 Live camera viewing at `vms.myceo.ir`, cameras classified by city. Design:
 `docs/superpowers/specs/2026-08-01-vms-service-design.md`. **Nothing is deployed.**
@@ -63,6 +63,12 @@ Live camera viewing at `vms.myceo.ir`, cameras classified by city. Design:
 - **Traefik there calls `/api/VmsMedia/check` (forwardAuth) before any stream request.** A browser
   cannot put a bearer token on a `<video>` request, so the SPA trades its JWT for a short-lived
   HMAC-signed cookie on `.myceo.ir` and the browser attaches it by itself. No cookie ⇒ 401.
+- **The router is ONE path wide** — `Host(cam.myceo.ir) && Path(/api/ws)`. Everything else is
+  *unrouted*, not merely forbidden, because go2rtc's `/api/streams` returns each source URL **with
+  the camera password in it**. Step 8 will need `/api/frame.jpeg` added, deliberately.
+- **`vms-web` is the eighth SPA** (dev 5278), Administrator-only on every route including the wall.
+  Its player is a hand-written MSE-over-WebSocket client, not go2rtc's script — loading that would
+  reopen the surface just closed. Tiles disconnect when scrolled away or when the tab is hidden.
 - **Docker on that VPS is Docker Desktop under a user session**: `sudo docker` sees nothing, and it
   bind-mounts only shared host paths — `/srv/...` mounts as an EMPTY DIRECTORY with no error. The
   generated go2rtc config therefore lives at `/home/amirserver/vms-config/go2rtc.yaml`.

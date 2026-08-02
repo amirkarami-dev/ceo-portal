@@ -1,6 +1,6 @@
 # VMS — video management service — design
 
-> **Date:** 2026-08-01 · **Status:** steps 1–5 done (2026-08-02), steps 6–9 open · **Author:** Amir + Claude
+> **Date:** 2026-08-01 · **Status:** steps 1–6 done (2026-08-02), steps 7–9 open · **Author:** Amir + Claude
 > Live camera viewing at **vms.myceo.ir**, cameras classified by city.
 >
 > **Step 1 overturned three assumptions in this document.** §2.2, §2.3 and §3 have been rewritten and
@@ -243,7 +243,7 @@ needed**. MSE over 443 is the whole transport story.
 | 3 | Admin CRUD, by city | a camera can be added and tagged | **done 2026-08-02** |
 | 4 | go2rtc config generated from the database, run as a service | adding a camera does not mean hand-editing YAML — **and any `CredentialKey` the VPS does not hold is reported, not silently written** | **done 2026-08-02** |
 | 5 | Traefik forwardAuth against the API | an unauthenticated stream request is refused | **done 2026-08-02** |
-| 6 | `vms-web`: city list → paged camera grid on substreams | an admin sees live video, filtered by city — **and the Traefik router is narrowed to the player's paths, so `/api/streams` stops handing out camera passwords** | |
+| 6 | `vms-web`: city list → paged camera grid on substreams | an admin sees live video, filtered by city — **and the Traefik router is narrowed to the player's paths, so `/api/streams` stops handing out camera passwords** | **done 2026-08-02** (UI unseen signed in) |
 | 7 | Fullscreen = a bigger tile of the **same substream**, plus a one-viewer-per-camera cap | no camera is ever pulled twice at once | rescoped by §2.2 |
 | 8 | Scheduled health sweep + «آخرین اتصال» per camera | a dead camera is visible as dead, not as a black square | |
 | 9 | Deploy: compose, OIDC client, CORS, DNS, AppSwitcher ×8 | `https://vms.myceo.ir` serves it | |

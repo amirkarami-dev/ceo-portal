@@ -198,6 +198,24 @@
       "autoPort": false
     },
     {
+      "name": "vms-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "vms-web",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5278",
+        "--strictPort",
+        "--host",
+        "127.0.0.1"
+      ],
+      "port": 5278,
+      "autoPort": false
+    },
+    {
       "name": "docs",
       "runtimeExecutable": "python",
       "runtimeArgs": [

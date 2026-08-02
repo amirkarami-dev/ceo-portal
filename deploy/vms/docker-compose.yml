@@ -32,7 +32,14 @@ services:
     labels:
       - traefik.enable=true
       - traefik.docker.network=traefik
-      - "traefik.http.routers.vms-cam.rule=Host(`cam.myceo.ir`)"
+      # ONE path, not the whole host. The player speaks go2rtc's WebSocket protocol and needs
+      # nothing else — while `/api/streams` returns each source URL **with the camera password in
+      # it**, and `/api/config` and `/api/restart` would let a viewer reconfigure the gateway.
+      # Narrowing the router means those are not merely forbidden, they are unrouted: Traefik has
+      # nowhere to send them.
+      #
+      # Step 8 will want `/api/frame.jpeg` for thumbnails. Add it here then, and only then.
+      - "traefik.http.routers.vms-cam.rule=Host(`cam.myceo.ir`) && Path(`/api/ws`)"
       - traefik.http.routers.vms-cam.entrypoints=websecure
       - traefik.http.routers.vms-cam.tls=true
       # tlsChallenge, like lk.myceo.ir. cam.myceo.ir must therefore be a GREY record at the DNS

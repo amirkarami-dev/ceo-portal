@@ -22,6 +22,7 @@ Also, when a task teaches something reusable:
 
 | Date | Record | Area | Status |
 |---|---|---|---|
+| 2026-08-02 | [VMS step 6: vms-web and the narrowed gateway](2026-08-02-vms-step-6.md) | vms | built; gateway proven, UI not seen signed in |
 | 2026-08-02 | [VMS step 5: forwardAuth on the media gateway](2026-08-02-vms-step-5.md) | vms / infra | done — cam.myceo.ir refuses without a cookie, proven from the internet |
 | 2026-08-02 | [VMS step 4: go2rtc config from the database](2026-08-02-vms-step-4.md) | vms / infra | done — proven end to end; go2rtc is a service on the VPS |
 | 2026-08-02 | [VMS step 3: admin CRUD, by city](2026-08-02-vms-step-3.md) | vms | done — /api/VmsAdmin, 43 tests, not deployed |

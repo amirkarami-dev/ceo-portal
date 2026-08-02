@@ -151,6 +151,23 @@ const SERVICES: Svc[] = [
     ),
   },
   {
+    key: "vms",
+    nameFa: "دوربین‌های نظارتی",
+    nameEn: "Cameras",
+    href: "https://vms.myceo.ir",
+    color: "#0f766e",
+    // Administrators only, and that is the whole authorisation model for this service — the design
+    // settled that nobody else watches. A city is classification and filtering, never a permission.
+    adminOnly: true,
+    icon: (
+      <svg {...ic}>
+        <path d="M3 7h11a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H3z" />
+        <path d="m16 11 5-3v8l-5-3z" />
+        <circle cx="8" cy="12" r="2" />
+      </svg>
+    ),
+  },
+  {
     key: "admin",
     nameFa: "مدیریت کاربران",
     nameEn: "User Admin",

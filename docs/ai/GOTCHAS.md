@@ -441,11 +441,11 @@ complete — those must use `myresolver` (DNS-01). Copying the `walfare-web` com
 `myceo.ir` SPA therefore breaks certificate issuance; copy `mun-sanandaj-web`'s instead.
 **Where:** `deploy/docker-compose.newserver.yml`.
 
-### The app launcher exists six times
-`src/layout/AppSwitcher.tsx` is byte-identical in all six SPAs (`admin-web`, `analytics-web`,
-`election-web`, `landing-panel`, `mun-sanandaj-web`, `walfare-web`). Change one → copy to all →
-**rebuild all six**, or the panels you skipped keep serving the old list.
-Check with `md5sum */src/layout/AppSwitcher.tsx` — all six hashes must match.
+### The app launcher exists eight times
+`src/layout/AppSwitcher.tsx` is byte-identical in all eight SPAs (`admin-web`, `analytics-web`,
+`election-web`, `landing-panel`, `mun-sanandaj-web`, `room-web`, `vms-web`, `walfare-web`). Change
+one → copy to all → **rebuild all eight**, or the panels you skipped keep serving the old list.
+Check with `md5sum */src/layout/AppSwitcher.tsx` — all eight hashes must match.
 
 ---
 
