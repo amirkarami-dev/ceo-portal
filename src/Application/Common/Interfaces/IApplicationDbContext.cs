@@ -4,6 +4,7 @@ using Mabhas19.Domain.Kurdnezam;
 using Mabhas19.Domain.MunSanandaj;
 using Mabhas19.Domain.Elections;
 using Mabhas19.Domain.Rooms;
+using Mabhas19.Domain.Vms;
 using Mabhas19.Domain.Walfare;
 
 namespace Mabhas19.Application.Common.Interfaces;
@@ -70,6 +71,10 @@ public interface IApplicationDbContext
     DbSet<RoomInvite> RoomInvites { get; }
 
     DbSet<RoomMessage> RoomMessages { get; }
+
+    DbSet<VmsCity> VmsCities { get; }
+
+    DbSet<Camera> VmsCameras { get; }
 
     DbSet<KurdnezamSlide> KurdnezamSlides { get; }
 

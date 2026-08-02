@@ -62,5 +62,8 @@ public class ApplicationDbContextInitialiser
         // are owned by the central OIDC IdP (src/Auth); this API is a pure JWT resource server
         // and no longer seeds identity data.
         await KurdnezamSeeder.SeedAsync(_context);
+
+        // The eight cities the cameras are spread across. Cameras themselves are never seeded.
+        await VmsSeeder.SeedAsync(_context);
     }
 }

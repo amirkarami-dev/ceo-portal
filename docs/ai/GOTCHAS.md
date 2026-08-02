@@ -525,3 +525,10 @@ containers you already have. `CeoDb` + `CeoAuthDb` live in `mabhas19_sqldata`.
   follows from that, and it is invisible if you only look at the VPS's 44–62 Mbit/s.
 - **`go2rtc`'s `/api/streams` echoes source URLs with the password in them.** It must never be
   reachable without auth in front of it.
+- **`dotnet ef --no-build` silently uses stale binaries, and lies about it.** After adding an entity,
+  `migrations add … --no-build` produced an **empty** `Up()`/`Down()`, and a later
+  `database update --no-build` printed `Done.` having applied nothing — `migrations list` did not even
+  show the migration. The cause is the **startup** project's `bin`, which still holds the previous
+  `Infrastructure.dll`; building only `src/Infrastructure` does not refresh it.
+  **Build `src/Web` after every model change**, then check `migrations list` for `(Pending)` before
+  and its absence after. An empty migration commits and deploys perfectly happily.

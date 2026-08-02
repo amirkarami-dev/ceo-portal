@@ -49,6 +49,24 @@ Clean Architecture. A feature normally touches all four layers.
 | **Welfare** | `Application/Walfare` | `/api/walfare/*` | `walfare-web/` |
 | **Elections** | `Application/Elections` | `/api/ElectionAdmin`, `/api/Election`, `/api/BaleWebhook` | `election-web/`, Bale bot |
 | **Rooms** | `Application/Rooms` | `/api/RoomAdmin`, `/api/Room` | `room-web/` (dev port 5277) |
+| **VMS** (in build — steps 1–2 of 9) | `Domain/Vms` only so far | none yet | none yet |
+
+## VMS — camera viewing (in build, steps 1–2 done)
+
+Live camera viewing at `vms.myceo.ir`, cameras classified by city. Design:
+`docs/superpowers/specs/2026-08-01-vms-service-design.md`. **Nothing is deployed.**
+
+- **Media never touches this box.** Cameras are pulled by **go2rtc on the VPS** (`185.182.220.182`,
+  `~/vms`, `127.0.0.1:1984`), the same machine that runs LiveKit for the room service. `cam.myceo.ir`
+  will point there with the CDN **off**; `vms.myceo.ir` is a normal SPA on this box with the CDN on.
+- **`VmsCameras` holds no password.** `CredentialKey` names an entry in a secrets file on the VPS;
+  step 4 joins the two to write go2rtc's config. A test fails the build if a password-ish column
+  appears.
+- **`VmsCities` is a table, seeded with eight cities** by `VmsSeeder` at API startup — all-or-nothing,
+  so a city an admin removes is never resurrected. A ninth city is an INSERT, not a release.
+- **The binding constraint is each camera site's own upload (~0.41 Mbit/s measured), not the VPS's.**
+  Only the 704×576 substream is viewable; the 2560×1440 main stream needs ~11.2 Mbit/s and cannot be
+  watched at all. Cameras are H.265, so **MSE only — WebRTC is ruled out** and no new port is needed.
 
 ## Election service (in build — steps 1–6 done, 7–9 open)
 

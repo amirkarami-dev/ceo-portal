@@ -197,9 +197,10 @@ address. Worth doing once the gateway is proven — it is a firewall change per 
 the only stream the site's uplink can carry (§2.2), so a camera without one cannot be shown at all.
 That is an `IsActive = false` situation, not a display mode.
 
-**City** is a stored **code with a display map**, not a C# enum. The election work taught this the hard
-way: a code list that belongs to the organisation should not be frozen into the type system. Adding a
-ninth city must be a row, not a deployment.
+**City** is a **table** (`VmsCities`), not a C# enum and not a C# display map either — step 2 resolved
+that. A display map still needs a release to add a ninth city, and "a row, not a deployment" was the
+point. `Camera.CityCode` is a real foreign key to `VmsCity.Code`, `Restrict` on delete, seeded with
+the eight below.
 
 | Code | City |
 |---|---|
@@ -230,7 +231,7 @@ needed**. MSE over 443 is the whole transport story.
 | # | Step | Done when | Status |
 |---|---|---|---|
 | 1 | Confirm one camera end to end: find the RTSP path, main + substream, and how many sessions it tolerates | go2rtc on the VPS plays one camera in a browser | **done 2026-08-02** |
-| 2 | `Cameras` + city model + migration | a camera exists in `CeoDb` | |
+| 2 | `Cameras` + city model + migration | a camera exists in `CeoDb` | **done 2026-08-02** |
 | 3 | Admin CRUD, by city | a camera can be added and tagged | |
 | 4 | go2rtc config generated from the database, run as a service | adding a camera does not mean hand-editing YAML | |
 | 5 | Traefik forwardAuth against the API | an unauthenticated stream request is refused | |

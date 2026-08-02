@@ -6,6 +6,7 @@ using Mabhas19.Domain.Rooms;
 using Mabhas19.Domain.Entities;
 using Mabhas19.Domain.Kurdnezam;
 using Mabhas19.Domain.MunSanandaj;
+using Mabhas19.Domain.Vms;
 using Mabhas19.Domain.Walfare;
 using Microsoft.EntityFrameworkCore;
 
@@ -75,6 +76,10 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<RoomInvite> RoomInvites => Set<RoomInvite>();
 
     public DbSet<RoomMessage> RoomMessages => Set<RoomMessage>();
+
+    public DbSet<VmsCity> VmsCities => Set<VmsCity>();
+
+    public DbSet<Camera> VmsCameras => Set<Camera>();
 
     public DbSet<KurdnezamSlide> KurdnezamSlides => Set<KurdnezamSlide>();
 
