@@ -232,8 +232,8 @@ needed**. MSE over 443 is the whole transport story.
 |---|---|---|---|
 | 1 | Confirm one camera end to end: find the RTSP path, main + substream, and how many sessions it tolerates | go2rtc on the VPS plays one camera in a browser | **done 2026-08-02** |
 | 2 | `Cameras` + city model + migration | a camera exists in `CeoDb` | **done 2026-08-02** |
-| 3 | Admin CRUD, by city | a camera can be added and tagged | |
-| 4 | go2rtc config generated from the database, run as a service | adding a camera does not mean hand-editing YAML | |
+| 3 | Admin CRUD, by city | a camera can be added and tagged | **done 2026-08-02** |
+| 4 | go2rtc config generated from the database, run as a service | adding a camera does not mean hand-editing YAML — **and any `CredentialKey` the VPS does not hold is reported, not silently written** | |
 | 5 | Traefik forwardAuth against the API | an unauthenticated stream request is refused | |
 | 6 | `vms-web`: city list → paged camera grid on substreams | an admin sees live video, filtered by city | |
 | 7 | Fullscreen = a bigger tile of the **same substream**, plus a one-viewer-per-camera cap | no camera is ever pulled twice at once | rescoped by §2.2 |

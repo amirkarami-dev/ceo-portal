@@ -49,9 +49,9 @@ Clean Architecture. A feature normally touches all four layers.
 | **Welfare** | `Application/Walfare` | `/api/walfare/*` | `walfare-web/` |
 | **Elections** | `Application/Elections` | `/api/ElectionAdmin`, `/api/Election`, `/api/BaleWebhook` | `election-web/`, Bale bot |
 | **Rooms** | `Application/Rooms` | `/api/RoomAdmin`, `/api/Room` | `room-web/` (dev port 5277) |
-| **VMS** (in build — steps 1–2 of 9) | `Domain/Vms` only so far | none yet | none yet |
+| **VMS** (in build — steps 1–3 of 9) | `Application/Vms` | `/api/VmsAdmin` | none yet (`vms-web` is step 6) |
 
-## VMS — camera viewing (in build, steps 1–2 done)
+## VMS — camera viewing (in build, steps 1–3 done)
 
 Live camera viewing at `vms.myceo.ir`, cameras classified by city. Design:
 `docs/superpowers/specs/2026-08-01-vms-service-design.md`. **Nothing is deployed.**
