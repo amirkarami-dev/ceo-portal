@@ -542,7 +542,26 @@ containers you already have. `CeoDb` + `CeoAuthDb` live in `mabhas19_sqldata`.
   over plain HTTP, no RTSP), while its main stream is ~11.2 Mbit/s. Everything about the VMS design
   follows from that, and it is invisible if you only look at the VPS's 44–62 Mbit/s.
 - **`go2rtc`'s `/api/streams` echoes source URLs with the password in them.** It must never be
-  reachable without auth in front of it.
+  reachable without auth in front of it. Corollary: **never port-forward 1984.** Nothing needs it
+  public — Traefik reaches the container over the docker network.
+- **go2rtc refuses the MSE WebSocket when the page is on a different subdomain.** The player is on
+  `vms.myceo.ir`, the stream on `cam.myceo.ir`, so every upgrade arrives with a foreign `Origin` and
+  go2rtc's default `Upgrader.CheckOrigin` rejects it. The tile just says «بی‌ارتباط»; the only place
+  the reason appears is go2rtc's own log:
+  `ws.go:106 > host=cam.myceo.ir origin=https://vms.myceo.ir error="websocket: request origin not
+  allowed by Upgrader.CheckOrigin"`. **Fix: `origin: "*"` under `api:` in `base.yaml`.** That is
+  go2rtc's only setting — there is no allow-list — and it is safe here because Traefik routes one
+  path and calls forwardAuth first, and the media cookie is `SameSite=Lax` on `.myceo.ir`, so a
+  genuinely third-party page cannot send it.
+- **You cannot curl go2rtc from the VPS host.** Docker Desktop puts containers in a VM, so neither
+  `127.0.0.1:1984` nor the container's bridge IP answers — both give `000`, which reads exactly like
+  "the service is down" when it is fine. The image is distroless too: no shell, no `wget`, so
+  `docker exec` fails with `executable file not found`. Probe with a sidecar instead:
+  `docker run --rm --network traefik --entrypoint sh curlimages/curl:latest -c "curl … http://vms-go2rtc:1984/…"`.
+- **`/api/frame.jpeg` returns 500 `exec: "ffmpeg": executable file not found`, and that is harmless.**
+  JPEG needs a transcode the image does not ship. It proves nothing about the camera. To test the
+  real path use `/api/stream.mp4?src=<key>&video=h265` — a working camera returns a couple of hundred
+  KB of `video/mp4; codecs="hvc1…"`.
 - **`dotnet ef --no-build` silently uses stale binaries, and lies about it.** After adding an entity,
   `migrations add … --no-build` produced an **empty** `Up()`/`Down()`, and a later
   `database update --no-build` printed `Done.` having applied nothing — `migrations list` did not even

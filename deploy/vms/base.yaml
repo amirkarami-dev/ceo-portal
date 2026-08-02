@@ -12,6 +12,16 @@ api:
   # included. Whatever can reach this port can read every camera password.
   listen: ":1984"
 
+  # The player is served from vms.myceo.ir and the stream from cam.myceo.ir, so every MSE WebSocket
+  # arrives with an Origin that is not this host. go2rtc's default Upgrader.CheckOrigin rejects that
+  # outright — "websocket: request origin not allowed" — and the tile stays black with no clue why.
+  #
+  # "*" is go2rtc's only setting here; there is no allow-list. It is acceptable because it is not
+  # what protects this port: Traefik routes exactly one path in and calls the API's forwardAuth
+  # first, and the media cookie is scoped to .myceo.ir with SameSite=Lax — so a genuinely
+  # third-party page cannot send it, and its upgrade is rejected before go2rtc is reached.
+  origin: "*"
+
 rtsp:
   # go2rtc's own RTSP server. Not needed by browsers and not published; left off so there is one
   # fewer listener holding camera streams.
