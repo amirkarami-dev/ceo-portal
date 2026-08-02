@@ -139,6 +139,30 @@ ensure_env LIVEKIT_PUBLIC_WS_URL wss://lk.myceo.ir
 ensure_env LIVEKIT_API_KEY ""
 ensure_env LIVEKIT_API_SECRET ""
 
+# ── VMS (دوربین‌های نظارتی) ───────────────────────────────────────────────────
+# The SPA is here; the video is not. Cameras are pulled by go2rtc on the same machine as LiveKit,
+# and the browser reaches it at cam.myceo.ir — which must stay a GREY (unproxied) record, because
+# that box issues its own certificate over TLS-ALPN and the CDN cannot pass that challenge.
+ensure_env VMS_DOMAIN vms.myceo.ir
+ensure_env VMS_CAM_DOMAIN cam.myceo.ir
+
+# Two secrets, both empty here and pasted in out-of-band like the LiveKit pair.
+#
+#   VMS_GATEWAY_TOKEN      must equal /srv/vms/gateway.token on the media VPS. That machine presents
+#                          it to ask for the camera list; a mismatch means the list is refused and
+#                          go2rtc keeps whatever config it already had.
+#   VMS_MEDIA_TOKEN_SECRET base64 of 32 bytes (openssl rand -base64 32). Signs the short-lived
+#                          cookie a browser shows the gateway.
+#
+# Empty ⇒ the routes refuse in both directions, which is the safe direction: no cookie is minted
+# that the gateway would reject, and the camera inventory is not served to anybody who asks.
+ensure_env VMS_GATEWAY_TOKEN ""
+ensure_env VMS_MEDIA_TOKEN_SECRET ""
+
+# The cookie is set by api.myceo.ir and has to be sent to cam.myceo.ir, so it must be scoped to the
+# parent domain. Host-only would leave every camera tile unauthorised.
+ensure_env VMS_COOKIE_DOMAIN .myceo.ir
+
 # msgway direct SMS — backfill the new keys for .env files created before direct sending existed.
 # (SMS_MSGWAY_APIKEY stays empty here — the real key is a secret set out-of-band; ensure_env never
 # overwrites a live value, so an already-configured key is preserved.)

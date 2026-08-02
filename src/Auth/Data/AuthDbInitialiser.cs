@@ -472,6 +472,48 @@ public class AuthDbInitialiser(
 
             await EnsureClientAsync(roomClient);
         }
+
+        // vms-web — دوربین‌های نظارتی (vms.myceo.ir). Administrator-only on every route including the
+        // camera wall, so unlike election-web and room-web it is NOT routed to the engineer login:
+        // its users are staff with ordinary accounts, and offering them a کد ملی form would be a door
+        // they cannot open. It is also not in ServiceKeys' client map, so it never gates at authorize
+        // — the Administrator role is what decides, and the API enforces it independently.
+        // Optional: only seeded when its redirect is set.
+        var vmsRedirect   = configuration["Clients:VmsWeb:Redirect"]   ?? string.Empty;
+        var vmsSilent     = configuration["Clients:VmsWeb:Silent"]     ?? string.Empty;
+        var vmsPostLogout = configuration["Clients:VmsWeb:PostLogout"] ?? string.Empty;
+
+        if (!string.IsNullOrWhiteSpace(vmsRedirect))
+        {
+            var vmsClient = new OpenIddictApplicationDescriptor
+            {
+                ClientId    = "vms-web",
+                ClientType  = ClientTypes.Public,
+                DisplayName = "Cameras",
+                Permissions =
+                {
+                    Permissions.Endpoints.Authorization,
+                    Permissions.Endpoints.Token,
+                    Permissions.Endpoints.EndSession,
+                    Permissions.GrantTypes.AuthorizationCode,
+                    Permissions.GrantTypes.RefreshToken,
+                    Permissions.ResponseTypes.Code,
+                    Permissions.Scopes.Email,
+                    Permissions.Scopes.Profile,
+                    Permissions.Scopes.Roles,
+                    Permissions.Prefixes.Scope + "mabhas19.api",
+                    Permissions.Prefixes.Scope + "ceo.api"
+                },
+                Requirements = { Requirements.Features.ProofKeyForCodeExchange }
+            };
+            vmsClient.RedirectUris.Add(new Uri(vmsRedirect));
+            if (!string.IsNullOrWhiteSpace(vmsSilent))
+                vmsClient.RedirectUris.Add(new Uri(vmsSilent));
+            if (!string.IsNullOrWhiteSpace(vmsPostLogout))
+                vmsClient.PostLogoutRedirectUris.Add(new Uri(vmsPostLogout));
+
+            await EnsureClientAsync(vmsClient);
+        }
     }
 
     private async Task EnsureClientAsync(OpenIddictApplicationDescriptor descriptor)

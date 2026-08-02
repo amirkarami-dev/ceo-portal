@@ -144,6 +144,14 @@ services:
       Clients__RoomWeb__Silent: "https://${ROOM_DOMAIN}/auth/silent"
       Clients__RoomWeb__PostLogout: "https://${ROOM_DOMAIN}"
       Cors__AllowedOrigins__6: "https://${ROOM_DOMAIN}"
+      # vms-web public PKCE client (vms.myceo.ir) — دوربین‌های نظارتی.
+      # Unlike election-web and room-web this one is NOT routed to the engineer login: every route
+      # in that panel is Administrator-only, so its users are staff with ordinary accounts. Sending
+      # them to /Account/EngineerLogin would offer a کد ملی form they cannot satisfy.
+      Clients__VmsWeb__Redirect: "https://${VMS_DOMAIN}/auth/callback"
+      Clients__VmsWeb__Silent: "https://${VMS_DOMAIN}/auth/silent"
+      Clients__VmsWeb__PostLogout: "https://${VMS_DOMAIN}"
+      Cors__AllowedOrigins__7: "https://${VMS_DOMAIN}"
       # KurdNezam membership SQL (same server the API's mun-sanandaj sync reads) — lets the IdP
       # provision engineer logins from a کد ملی via WebS_GetEngineerInfo. Empty = disabled.
       ConnectionStrings__KurdNezamDb: "${KURDNEZAM_DB_CONN:-}"
@@ -217,6 +225,11 @@ services:
       # room-web SPA (room.myceo.ir) calls /api/Room* from the browser — including two ANONYMOUS
       # routes (the link landing page and the link join), which a guest with no account opens.
       Cors__AllowedOrigins__9: "https://${ROOM_DOMAIN}"
+      # vms-web SPA (vms.myceo.ir) calls /api/VmsAdmin and /api/VmsMedia from the browser. The media
+      # session route answers with a Set-Cookie the browser must keep across origins, so this entry
+      # is load-bearing rather than routine — without it every camera tile fails with a 401 that
+      # looks like a broken gateway.
+      Cors__AllowedOrigins__10: "https://${VMS_DOMAIN}"
       # Where a meeting's join link points. Unset ⇒ every link comes back null, which looks like a
       # broken feature rather than a missing setting.
       Rooms__PublicBaseUrl: "https://${ROOM_DOMAIN}"
@@ -233,6 +246,16 @@ services:
       # ballots under a default key — deliberate: an unusable election beats an unsafe one.
       Elections__VoterPepper: "${ELECTIONS_VOTER_PEPPER:-}"
       Elections__BallotMasterKey: "${ELECTIONS_BALLOT_MASTER_KEY:-}"
+      # VMS. The gateway token is what the media VPS presents when it asks for the camera list; it
+      # must equal the contents of /srv/vms/gateway.token on that machine. Empty ⇒ the route refuses
+      # everybody, which is the safe direction for a half-configured deploy.
+      Vms__GatewayToken: "${VMS_GATEWAY_TOKEN:-}"
+      # Signs the short-lived cookie a browser shows the media gateway. Empty ⇒ /api/VmsMedia refuses
+      # in BOTH directions, so no cookie is ever minted that the gateway would reject.
+      VmsMedia__TokenSecret: "${VMS_MEDIA_TOKEN_SECRET:-}"
+      # The parent domain, because the cookie is set by api.myceo.ir and has to be sent to
+      # cam.myceo.ir. Host-only (the default) would leave every camera tile unauthorised.
+      VmsMedia__CookieDomain: "${VMS_COOKIE_DOMAIN:-.myceo.ir}"
       # Bale bot — the second voting channel. Empty BotToken/WebhookPath makes the webhook 404, which is
       # the safe default. The webhook path is not a secret in the security sense (getWebhookInfo returns
       # it and it appears in proxy logs) but keeping it out of the repo still stops casual probing.
@@ -527,6 +550,40 @@ services:
       - "traefik.http.routers.ceoportal-room.tls.certresolver=myresolver"
       - "traefik.http.routers.ceoportal-room.service=ceoportal-room"
       - "traefik.http.services.ceoportal-room.loadbalancer.server.port=80"
+    networks: [traefik]
+
+  # vms-web — دوربین‌های نظارتی (vms.myceo.ir). React/Vite + Ant Design, served static by nginx.
+  # Administrator-only on every route, including the camera wall — there is no lighter audience.
+  # Video never touches this box: the browser talks to cam.myceo.ir (go2rtc on the same machine that
+  # runs LiveKit), and Traefik there calls this API's /api/VmsMedia/check before letting it through.
+  vms-web:
+    build:
+      context: ..
+      dockerfile: vms-web/deploy/Dockerfile.vms-web
+      args:
+        # Baked into the static bundle at build time (PUBLIC values only — never secrets).
+        VITE_API_BASE: "https://${API_DOMAIN}"
+        VITE_AUTH_AUTHORITY: "https://${AUTH_DOMAIN}"
+        VITE_AUTH_CLIENT_ID: "vms-web"
+        VITE_AUTH_SCOPE: "openid profile email roles ceo.api"
+        # The media gateway, NOT this API. Wrong or missing and every tile fails to connect with
+        # nothing on screen to explain it.
+        VITE_MEDIA_BASE: "https://${VMS_CAM_DOMAIN:-cam.myceo.ir}"
+    image: ceo-portal-vms-web:newserver
+    container_name: ceo-portal-vms-web
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.ceoportal-vms.rule=Host(`${VMS_DOMAIN}`)"
+      - "traefik.http.routers.ceoportal-vms.entrypoints=websecure"
+      # myresolver (DNS-01), like every myceo.ir host: HTTP-01 cannot complete through the CDN.
+      # Note that issuance is currently failing box-wide (the ArvanCloud DNS token is refused) — the
+      # CDN terminates public TLS, so this host serves exactly like its neighbours until that is
+      # fixed. See GOTCHAS.
+      - "traefik.http.routers.ceoportal-vms.tls.certresolver=myresolver"
+      - "traefik.http.routers.ceoportal-vms.service=ceoportal-vms"
+      - "traefik.http.services.ceoportal-vms.loadbalancer.server.port=80"
     networks: [traefik]
 
   # admin-web — the central user-management SPA (admin.myceo.ir). React/Vite + Ant Design, served
