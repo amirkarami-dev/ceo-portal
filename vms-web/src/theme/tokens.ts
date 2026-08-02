@@ -15,12 +15,21 @@ const BRAND = {
   error: "#DC2626",
 } as const;
 
-/** AntD theme config for the given mode (light/dark), shared across the app. */
-export function buildTheme(mode: ThemeMode): ThemeConfig {
+/**
+ * AntD theme config for the given mode (light/dark), shared across the app.
+ *
+ * @param reducedMotion Turns AntD's own animation off at the source.
+ *   Not a nicety: AntD parks a drawer or modal off-screen with a transform and removes it when the
+ *   motion ENDS. Suppressing that motion with CSS instead leaves the transform in place for ever —
+ *   on a phone that was a menu button that opened nothing. With `motion: false` there is no
+ *   transform to strand, so the panel simply appears, which is what "reduce motion" should mean.
+ */
+export function buildTheme(mode: ThemeMode, reducedMotion = false): ThemeConfig {
   const isDark = mode === "dark";
   return {
     algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
     token: {
+      motion: !reducedMotion,
       colorPrimary: BRAND.primary,
       colorSuccess: BRAND.success,
       colorWarning: BRAND.warning,

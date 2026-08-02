@@ -271,6 +271,24 @@ remove the Sider from the flex row entirely. Also set `min-width: 0` on the main
 otherwise a wide table expands that child and pushes the mobile menu trigger off-screen.
 **Where:** `analytics-web/src/layout/AppLayout.tsx`, `Topbar.tsx`, `Sidebar.tsx`.
 
+### A blanket `prefers-reduced-motion` rule parks every AntD Drawer off-screen
+**Symptom:** the mobile menu button "does nothing". The DOM is right — `.ant-drawer` is mounted and
+carries `ant-drawer-open` — but the panel sits at `transform: matrix(1,0,0,1,260,0)`, exactly its own
+width outside the viewport. Only for users with "reduce motion" on, which is why it survives review.
+**Cause:** the `global.css` block that crushes `transition-duration` to `0.001ms !important` for `*`.
+AntD opens a drawer by *removing* the closed transform, and it only removes it when the transition
+**ends**. rc-motion attaches that `transitionend` listener in an effect, one frame later; at 0.001ms
+the event has already fired, so it is never heard and the transform is never cleared.
+**Fix:** turn the library's motion off at the source — `token: { motion: !reducedMotion }` in the AntD
+theme, fed by a `matchMedia("(prefers-reduced-motion: reduce)")` hook. With `motion: false` there is
+no transform to strand, so the panel just appears, which is what the preference should mean.
+**What does NOT work:** restoring the duration for `.ant-drawer, .ant-drawer *` inside the same media
+query. Tried and measured — the drawer stays parked. Restoring it *globally* does work, but that
+throws the accessibility preference away. Do not reach for the CSS exemption.
+**Where:** `vms-web/src/theme/tokens.ts` + `src/app/providers.tsx`, same pair in `room-web`.
+`election-web` and `mun-sanandaj-web` carry the same blanket CSS but render no Drawer or Modal, so
+they have nothing to strand — add the theme fix at the same time as the first one.
+
 ### `process is not defined` breaks react-grid-layout dragging
 **Symptom:** dashboard widgets would not drag or resize; no console error.
 **Cause:** `react-draggable` reads `process.env` at drag time; the browser has no `process`,

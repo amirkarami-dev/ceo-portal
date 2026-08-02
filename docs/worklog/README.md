@@ -22,6 +22,7 @@ Also, when a task teaches something reusable:
 
 | Date | Record | Area | Status |
 |---|---|---|---|
+| 2026-08-03 | [VMS: the mobile menu, and a drawer bug that was never about the drawer](2026-08-03-vms-mobile-menu.md) | vms / room | built and verified; **not yet deployed** |
 | 2026-08-03 | [VMS: the CORS credentials bug, and a mobile pass](2026-08-03-vms-cors-and-mobile.md) | vms | fixed and deployed |
 | 2026-08-02 | [VMS step 9: deployed, and an IdP outage on the way](2026-08-02-vms-step-9-deploy.md) | vms / infra | **live** at vms.myceo.ir; auth crash fixed |
 | 2026-08-02 | [VMS step 8: health sweep and «آخرین اتصال»](2026-08-02-vms-step-8.md) | vms | done — timer installed, enabled at step 9 |

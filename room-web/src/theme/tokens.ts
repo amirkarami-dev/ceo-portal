@@ -15,12 +15,22 @@ const BRAND = {
   error: "#DC2626",
 } as const;
 
-/** AntD theme config for the given mode (light/dark), shared across the app. */
-export function buildTheme(mode: ThemeMode): ThemeConfig {
+/**
+ * AntD theme config for the given mode (light/dark), shared across the app.
+ *
+ * @param reducedMotion Turns AntD's own animation off at the source.
+ *   Not a nicety: AntD parks a drawer off-screen with a transform and only removes it when the
+ *   motion ENDS. global.css crushes every duration to 0.001ms under `prefers-reduced-motion`, the
+ *   end event is missed, and the transform stays — the participants/chat drawer in a meeting would
+ *   never appear. With `motion: false` there is no transform to strand, so the panel simply shows,
+ *   which is what "reduce motion" should mean.
+ */
+export function buildTheme(mode: ThemeMode, reducedMotion = false): ThemeConfig {
   const isDark = mode === "dark";
   return {
     algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
     token: {
+      motion: !reducedMotion,
       colorPrimary: BRAND.primary,
       colorSuccess: BRAND.success,
       colorWarning: BRAND.warning,
