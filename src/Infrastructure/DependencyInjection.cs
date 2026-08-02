@@ -136,6 +136,11 @@ public static class DependencyInjection
         // request that reached us through the CDN with a rewritten host.
         services.Configure<RoomLinkOptions>(config.GetSection(RoomLinkOptions.SectionName));
 
+        // The shared token the media VPS presents when it rebuilds go2rtc's config. Empty refuses
+        // every request, so a half-configured deployment never serves the camera inventory.
+        services.Configure<Mabhas19.Application.Vms.VmsGatewayOptions>(
+            config.GetSection(Mabhas19.Application.Vms.VmsGatewayOptions.SectionName));
+
         // Singleton, and the SAME instance serves both interfaces: RoomTokenService also mints the
         // server-wide admin token, which must stay reachable only from Infrastructure.
         services.AddSingleton<RoomTokenService>();

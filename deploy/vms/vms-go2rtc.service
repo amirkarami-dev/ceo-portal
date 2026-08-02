@@ -1,0 +1,36 @@
+[Unit]
+Description=go2rtc — VMS camera gateway
+Documentation=https://github.com/AlexxIT/go2rtc
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/srv/vms/go2rtc -c /srv/vms/go2rtc.yaml
+WorkingDirectory=/srv/vms
+Restart=always
+RestartSec=5
+
+# The config file holds every camera password, so the process reads it as a user that owns nothing
+# else. Not root: a gateway that talks to devices on the public internet is the wrong thing to run
+# with the whole machine behind it.
+User=vms
+Group=vms
+
+# It needs to reach cameras and to listen on 127.0.0.1. It does not need to write anywhere, load
+# kernel modules, or see other users' processes.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/srv/vms
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=false
+
+[Install]
+WantedBy=multi-user.target

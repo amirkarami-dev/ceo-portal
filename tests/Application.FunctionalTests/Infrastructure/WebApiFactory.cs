@@ -51,7 +51,10 @@ public class WebApiFactory(string connectionString) : WebApplicationFactory<Prog
             // these only let the REAL token be minted and inspected.
             .UseSetting("LiveKit:ApiKey", TestKeys.LiveKitApiKey)
             .UseSetting("LiveKit:ApiSecret", TestKeys.LiveKitApiSecret)
-            .UseSetting("LiveKit:PublicWsUrl", TestWsUrl);
+            .UseSetting("LiveKit:PublicWsUrl", TestWsUrl)
+            // The media gateway's shared token. Unset means the route refuses everything, so without
+            // this the "a valid token gets the config" test would pass for the wrong reason.
+            .UseSetting("Vms:GatewayToken", TestVmsGatewayToken);
 
         builder.ConfigureTestServices(services =>
         {
@@ -116,6 +119,9 @@ public class WebApiFactory(string connectionString) : WebApplicationFactory<Prog
 
     /// <summary>What a join result should report as the browser's socket address.</summary>
     internal const string TestWsUrl = "wss://lk.test";
+
+    /// <summary>Throwaway shared token for the media gateway route. Not a camera credential.</summary>
+    internal const string TestVmsGatewayToken = "test-vms-gateway-token-not-a-real-one";
 
     /// <summary>Test-only key material. Base64 of 32 bytes each, and deliberately different.</summary>
     internal static class TestKeys

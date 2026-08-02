@@ -49,9 +49,9 @@ Clean Architecture. A feature normally touches all four layers.
 | **Welfare** | `Application/Walfare` | `/api/walfare/*` | `walfare-web/` |
 | **Elections** | `Application/Elections` | `/api/ElectionAdmin`, `/api/Election`, `/api/BaleWebhook` | `election-web/`, Bale bot |
 | **Rooms** | `Application/Rooms` | `/api/RoomAdmin`, `/api/Room` | `room-web/` (dev port 5277) |
-| **VMS** (in build — steps 1–3 of 9) | `Application/Vms` | `/api/VmsAdmin` | none yet (`vms-web` is step 6) |
+| **VMS** (in build — steps 1–4 of 9) | `Application/Vms` | `/api/VmsAdmin`, `/api/VmsGateway` | none yet (`vms-web` is step 6) |
 
-## VMS — camera viewing (in build, steps 1–3 done)
+## VMS — camera viewing (in build, steps 1–4 done)
 
 Live camera viewing at `vms.myceo.ir`, cameras classified by city. Design:
 `docs/superpowers/specs/2026-08-01-vms-service-design.md`. **Nothing is deployed.**
@@ -59,8 +59,12 @@ Live camera viewing at `vms.myceo.ir`, cameras classified by city. Design:
 - **Media never touches this box.** Cameras are pulled by **go2rtc on the VPS** (`185.182.220.182`,
   `~/vms`, `127.0.0.1:1984`), the same machine that runs LiveKit for the room service. `cam.myceo.ir`
   will point there with the CDN **off**; `vms.myceo.ir` is a normal SPA on this box with the CDN on.
-- **`VmsCameras` holds no password.** `CredentialKey` names an entry in a secrets file on the VPS;
-  step 4 joins the two to write go2rtc's config. A test fails the build if a password-ish column
+- **`VmsCameras` holds no password.** `CredentialKey` names an entry in `/srv/vms/credentials.env`
+  on the VPS. **The VPS pulls**: `vms-sync` (`scripts/vms-sync.sh`, installed at
+  `/usr/local/bin/vms-sync`) fetches the streams block from `/api/VmsGateway/config` with a shared
+  token, substitutes the credentials, and writes `/srv/vms/go2rtc.yaml`. It **refuses to write a
+  config whose credential keys it does not hold** (exit 3), and only restarts go2rtc when the
+  rendered file actually changed. A test fails the build if a password-ish column or DTO field
   appears.
 - **`VmsCities` is a table, seeded with eight cities** by `VmsSeeder` at API startup — all-or-nothing,
   so a city an admin removes is never resurrected. A ninth city is an INSERT, not a release.

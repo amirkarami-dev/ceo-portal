@@ -532,3 +532,12 @@ containers you already have. `CeoDb` + `CeoAuthDb` live in `mabhas19_sqldata`.
   `Infrastructure.dll`; building only `src/Infrastructure` does not refresh it.
   **Build `src/Web` after every model change**, then check `migrations list` for `(Pending)` before
   and its absence after. An empty migration commits and deploys perfectly happily.
+- **`printf pw | sudo -S tee <file>` writes the password INTO the file when sudo's cache is warm.**
+  The pattern relies on `sudo -S` consuming the first stdin line — but a recent successful `sudo` in
+  the same session means it never reads stdin at all, so `tee` receives the password line *and* the
+  data. It happened twice here: the VPS login password became line 1 of `/srv/vms/credentials.env`
+  and `/srv/vms/gateway.token`. Nothing failed loudly; it was caught only because a 43-character
+  token sat in a 48-byte file.
+  **Never pipe data through `sudo`.** Build the file as the ordinary user under `umask 077`, then
+  `sudo install -m 600 -o root -g root <tmp> <target>`. Verify by digest afterwards, and check the
+  *shape* of the file (`sed 's/./x/g'`) rather than printing it.
