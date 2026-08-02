@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { MEDIA_BASE } from "../../lib/api";
+import { acquireStream } from "./streamLease";
 
 /**
  * The codecs we tell the gateway we can decode.
@@ -74,6 +75,29 @@ export function CameraPlayer({ streamKey, active, onState, muted = true }: Props
     let sourceBuffer: SourceBuffer | null = null;
     let disposed = false;
     const queue: ArrayBuffer[] = [];
+
+    /** Everything that has to stop, whether we are unmounting or being preempted. */
+    const teardown = () => {
+      disposed = true;
+      try {
+        socket?.close();
+      } catch {
+        /* already closing */
+      }
+      try {
+        if (mediaSource && mediaSource.readyState === "open") mediaSource.endOfStream();
+      } catch {
+        /* nothing to end */
+      }
+    };
+
+    // At most one connection per camera in this tab. If a second player wants the same stream — the
+    // fullscreen modal over a tile that is still on screen, or StrictMode's double mount — this one
+    // gives it up rather than doubling the pull. See streamLease.ts.
+    const lease = acquireStream(streamKey, () => {
+      teardown();
+      set("connecting");
+    });
 
     const drain = () => {
       if (!sourceBuffer || sourceBuffer.updating || queue.length === 0) return;
@@ -169,20 +193,11 @@ export function CameraPlayer({ streamKey, active, onState, muted = true }: Props
     });
 
     return () => {
-      disposed = true;
+      teardown();
+      lease.release();
       window.clearInterval(catchUp);
       video.removeEventListener("playing", onPlaying);
       video.removeEventListener("waiting", onWaiting);
-      try {
-        socket?.close();
-      } catch {
-        /* already closing */
-      }
-      try {
-        if (mediaSource && mediaSource.readyState === "open") mediaSource.endOfStream();
-      } catch {
-        /* nothing to end */
-      }
       video.removeAttribute("src");
       video.load();
     };

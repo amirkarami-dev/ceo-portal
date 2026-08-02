@@ -1,6 +1,6 @@
 # VMS — video management service — design
 
-> **Date:** 2026-08-01 · **Status:** steps 1–6 done (2026-08-02), steps 7–9 open · **Author:** Amir + Claude
+> **Date:** 2026-08-01 · **Status:** steps 1–7 done (2026-08-02), steps 8–9 open · **Author:** Amir + Claude
 > Live camera viewing at **vms.myceo.ir**, cameras classified by city.
 >
 > **Step 1 overturned three assumptions in this document.** §2.2, §2.3 and §3 have been rewritten and
@@ -76,7 +76,10 @@ Three consequences, and they are the product:
 So the camera is not the session bottleneck. **The gateway is still mandatory, but for §2.2's reason
 rather than this one:** the site has ~0.41 Mbit/s of upload, the substream eats ~86 % of it, and a
 second simultaneous pull starves both. go2rtc holds *one* connection per camera, fans it out to every
-browser, and drops it when the last viewer leaves. Ten people watching one camera must never mean two
+browser, and drops it when the last viewer leaves. **Measured in step 7**, not assumed: one
+producer for four simultaneous viewers, each viewer receiving the same bytes as a single one
+would; and the producer carries no connection at all — `url` only — ten seconds after the last
+viewer leaves. Ten people watching one camera must never mean two
 RTSP sessions to it, let alone ten.
 
 ## 3. The stream URL — found 2026-08-02
@@ -244,7 +247,7 @@ needed**. MSE over 443 is the whole transport story.
 | 4 | go2rtc config generated from the database, run as a service | adding a camera does not mean hand-editing YAML — **and any `CredentialKey` the VPS does not hold is reported, not silently written** | **done 2026-08-02** |
 | 5 | Traefik forwardAuth against the API | an unauthenticated stream request is refused | **done 2026-08-02** |
 | 6 | `vms-web`: city list → paged camera grid on substreams | an admin sees live video, filtered by city — **and the Traefik router is narrowed to the player's paths, so `/api/streams` stops handing out camera passwords** | **done 2026-08-02** (UI unseen signed in) |
-| 7 | Fullscreen = a bigger tile of the **same substream**, plus a one-viewer-per-camera cap | no camera is ever pulled twice at once | rescoped by §2.2 |
+| 7 | Fullscreen = a bigger tile of the **same substream**, plus a one-viewer-per-camera cap | no camera is ever pulled twice at once | **done 2026-08-02** (rescoped by §2.2) |
 | 8 | Scheduled health sweep + «آخرین اتصال» per camera | a dead camera is visible as dead, not as a black square | |
 | 9 | Deploy: compose, OIDC client, CORS, DNS, AppSwitcher ×8 | `https://vms.myceo.ir` serves it | |
 

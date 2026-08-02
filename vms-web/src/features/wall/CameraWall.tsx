@@ -84,7 +84,14 @@ export function CameraWall() {
               <Col key={camera.id} xs={24} sm={12} lg={8}>
                 <CameraTile
                   camera={camera}
-                  enabled={session.status === "ready"}
+                  // Suspended while this same camera is open fullscreen. The modal is about to pull
+                  // it, and pulling one camera twice is bandwidth spent twice for one picture.
+                  //
+                  // The lease in streamLease.ts would prevent the duplicate anyway, but only by
+                  // preempting — and a preempted tile has no reason to reconnect when the modal
+                  // closes. Flipping `enabled` re-runs the tile's effect, so it comes back by
+                  // itself. The lease stays as the guarantee; this is the mechanism.
+                  enabled={session.status === "ready" && expanded?.id !== camera.id}
                   onExpand={setExpanded}
                 />
               </Col>
