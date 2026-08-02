@@ -133,10 +133,18 @@ export function CameraTile({ camera, enabled, onExpand }: Props) {
         }}
       >
         <Badge status={live ? "processing" : state === "stalled" ? "warning" : "default"} />
-        <Text style={{ color: "#fff", fontSize: 13, flex: 1 }} ellipsis>
+
+        {/* minWidth 0 is what lets the name actually ellipsis: a flex item defaults to min-width
+            auto, so without it a long name refuses to shrink and squeezes its neighbours instead. */}
+        <Text style={{ color: "#fff", fontSize: 13, flex: 1, minWidth: 0 }} ellipsis>
           {camera.name}
         </Text>
-        <Text style={{ color: "rgba(255,255,255,.65)", fontSize: 11 }}>{camera.cityName}</Text>
+
+        {/* flexShrink 0, or the city is the item that gets crushed. On a 327px tile it was
+            collapsing to 15px — present, unreadable, and worse than absent. */}
+        <Text style={{ color: "rgba(255,255,255,.65)", fontSize: 11, flexShrink: 0, whiteSpace: "nowrap" }}>
+          {camera.cityName}
+        </Text>
 
         {active && !live && (
           <Tooltip title={LABEL[state]}>

@@ -89,3 +89,13 @@ html[data-theme="dark"] body {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* Shown only where the admin table has dropped its own شهر column.
+   AntD's `md` breakpoint is min-width 768, and `responsive: ["md"]` shows a column at or above it —
+   so the inline city belongs to everything below that, and nowhere else. Keeping the two rules on
+   the same number is the whole point: if they drift, the city either vanishes on a phone or appears
+   twice on a laptop. */
+.only-narrow { display: none; }
+@media (max-width: 767.98px) {
+  .only-narrow { display: inline; }
+}

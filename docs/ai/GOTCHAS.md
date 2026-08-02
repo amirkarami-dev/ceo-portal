@@ -573,3 +573,28 @@ warning that names both accounts. An ambiguous admin address is worth a warning,
 **The wider trap: nothing enforces one user per email here.** Engineer logins are created with a
 placeholder and **112 accounts share `a@b.com`**. Any new code that looks a user up by email is the
 same landmine — use `Where(...).FirstOrDefaultAsync()`, never `FindByEmailAsync`.
+
+### A cross-origin `Set-Cookie` needs `AllowCredentials`, or the browser throws the response away
+**Symptom:** the camera panel showed «سرویس تصویر در دسترس نیست / ارتباط با سرویس تصویر برقرار نشد».
+The route was live and the origin was allowed — `curl -H "Origin: https://vms.myceo.ir"` returned
+`Access-Control-Allow-Origin: https://vms.myceo.ir` — so it looked like a network or gateway fault.
+**Cause:** the API's CORS policy had `WithOrigins().AllowAnyHeader().AllowAnyMethod()` and **no
+`AllowCredentials()`**. `vms-web` is the only SPA that sends `credentials: "include"`, and it must:
+`/api/VmsMedia/session` answers with a `Set-Cookie` the browser has to keep for a *different* host.
+A browser discards a cookie from a cross-origin response unless the response also carries
+`Access-Control-Allow-Credentials: true`, and it rejects the whole fetch — so no application code
+ever sees a status to report.
+**Fix:** `policy.AllowCredentials()` alongside `WithOrigins`. Safe because the origin list is
+explicit; ASP.NET refuses `AllowCredentials` next to `AllowAnyOrigin`, so it cannot widen by accident.
+**Check it with curl, not the browser:** `curl -i -H "Origin: https://<spa>" https://api.myceo.ir/...`
+and look for **both** `Allow-Origin` and `Allow-Credentials`. Only one of them present is the trap.
+
+### go2rtc over MSE needs `video=` or the tile stays black
+`/api/ws?src=X` alone negotiates every track the camera publishes — on this estate H.265 video, PCMA
+audio and an ONVIF metadata track. MSE then receives the init segment, reports the correct
+dimensions, and **never paints a frame**. Adding `&video=h265,h264` restricts it to video and it
+plays. go2rtc's own `stream.html?mode=mse&video=h265` does the same thing, which is why that URL
+works while a hand-rolled client does not.
+Related: do not offer an audio codec in the MSE codec list while filtering audio out, and keep the
+`<video>` **muted** — an unmuted element on a stream with no audio only gives the browser grounds to
+refuse autoplay.

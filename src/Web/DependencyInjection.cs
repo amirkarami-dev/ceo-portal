@@ -41,6 +41,18 @@ public static class DependencyInjection
                 if (allowedOrigins.Length > 0)
                 {
                     policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod();
+
+                    // Needed by ONE route, and without it that route cannot work at all:
+                    // /api/VmsMedia/session answers with a Set-Cookie the browser must keep, and a
+                    // browser discards a cookie from a cross-origin response unless the response
+                    // also says Access-Control-Allow-Credentials. The camera panel is a different
+                    // origin from this API by design — video never touches the main box — so the
+                    // media session is always cross-origin.
+                    //
+                    // Safe here because the origin list is explicit: WithOrigins echoes only the
+                    // hosts above, and AllowCredentials is illegal alongside AllowAnyOrigin, so
+                    // this cannot silently widen if the list is ever replaced by a wildcard.
+                    policy.AllowCredentials();
                 }
             }));
 

@@ -4,6 +4,7 @@ import { App as AntApp, Badge, Button, Card, Popconfirm, Select, Space, Table, T
 import { DeleteOutlined, EditOutlined, PlayCircleOutlined, PlusOutlined, StopOutlined } from "@ant-design/icons";
 import { PageHeader } from "../../components/PageHeader";
 import { useCameras, useCities, useDeleteCamera, useSetCameraActive } from "../../lib/queries";
+import type { ColumnsType } from "antd/es/table";
 import type { CameraListItem } from "../../lib/types";
 import { ApiError } from "../../lib/api";
 import { lastSeenInfo } from "../../lib/lastSeen";
@@ -24,24 +25,43 @@ export function CamerasList() {
 
   const fail = (e: unknown) => message.error(e instanceof ApiError ? e.message : "انجام نشد");
 
-  const columns = [
+  const columns: ColumnsType<CameraListItem> = [
     {
       title: "نام",
       dataIndex: "name",
+      // Bounded, or a long camera name widens the whole table on a phone. max-content sizing is
+      // what makes an AntD table grow to fit its longest cell.
+      ellipsis: true,
+      width: 220,
       render: (_: unknown, row: CameraListItem) => (
-        <Space direction="vertical" size={0}>
-          <Text strong>{row.name}</Text>
+        <Space direction="vertical" size={0} style={{ maxWidth: "100%" }}>
+          <Text strong ellipsis={{ tooltip: row.name }}>
+            {row.name}
+          </Text>
           {/* The go2rtc stream name. Shown because it is what appears in the gateway's logs, and an
-              admin chasing a dead tile needs to match the two up. */}
-          <Text type="secondary" style={{ fontSize: 12 }} code>
-            {row.streamKey}
+              admin chasing a dead tile needs to match the two up.
+              The city rides along here so the شهر column can be dropped on a phone without losing
+              it — seven columns in a 325px window is a table nobody reads. */}
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            <span style={{ fontFamily: "monospace" }}>{row.streamKey}</span>
+            <span className="only-narrow"> · {row.cityName}</span>
+            {/* The وضعیت column is hidden below sm. "Active" is the unremarkable default, so only
+                the exception needs carrying — an admin scanning a phone has to be able to see that
+                a camera is switched off. */}
+            {!row.isActive && <span className="only-narrow"> · غیرفعال</span>}
           </Text>
         </Space>
       ),
     },
-    { title: "شهر", dataIndex: "cityName", render: (v: string) => <Tag>{v}</Tag> },
+    {
+      title: "شهر",
+      dataIndex: "cityName",
+      responsive: ["md"],
+      render: (v: string) => <Tag>{v}</Tag>,
+    },
     {
       title: "آدرس",
+      responsive: ["lg"],
       render: (_: unknown, row: CameraListItem) => (
         <Text type="secondary" style={{ fontSize: 12 }}>
           {row.host}:{row.rtspPort} · کانال {row.channel}
@@ -50,6 +70,7 @@ export function CamerasList() {
     },
     {
       title: "جریان اصلی",
+      responsive: ["lg"],
       render: (_: unknown, row: CameraListItem) =>
         row.mainStreamId === null ? (
           <Tooltip title="پهنای باند محل دوربین اجازهٔ پخش جریان اصلی را نمی‌دهد؛ فقط زیرجریان قابل تماشاست">
@@ -87,12 +108,13 @@ export function CamerasList() {
     },
     {
       title: "وضعیت",
+      responsive: ["sm"],
       render: (_: unknown, row: CameraListItem) =>
         row.isActive ? <Tag color="green">فعال</Tag> : <Tag>غیرفعال</Tag>,
     },
     {
       title: "",
-      align: "end" as const,
+      align: "end",
       render: (_: unknown, row: CameraListItem) => (
         <Space size={4}>
           <Tooltip title={row.isActive ? "غیرفعال کردن" : "فعال کردن"}>

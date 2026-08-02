@@ -126,7 +126,7 @@ export function CameraWall() {
         {expanded && (
           <>
             <div style={{ aspectRatio: "4 / 3", background: "#000" }}>
-              <CameraPlayer streamKey={expanded.streamKey} active muted={false} />
+              <CameraPlayer streamKey={expanded.streamKey} active />
             </div>
             {/* Said plainly, because somebody will expect a sharper picture here. The main stream is
                 ~11.2 Mbit/s against a site uplink of ~0.41 — it is not a setting, it is not possible. */}

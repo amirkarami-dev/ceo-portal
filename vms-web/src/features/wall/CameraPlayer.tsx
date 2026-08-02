@@ -8,8 +8,12 @@ import { acquireStream } from "./streamLease";
  * H.265 first, because that is what the cameras actually send — verified in step 1, and it is the
  * reason WebRTC is not an option here at all (Chrome will not carry HEVC over WebRTC). The list is
  * filtered by what this browser really supports, so a machine with no hardware HEVC decoder simply
- * does not offer it and the gateway can answer with something else rather than sending frames
- * nothing can decode.
+ * does not offer it and the gateway can answer with H.264 instead of sending frames nothing can
+ * decode.
+ *
+ * Video only. No audio codec is offered because none is ever requested — see the `video=` filter on
+ * the socket URL below. Offering one and then filtering it out is the kind of contradiction that
+ * makes a negotiation fail in a way nothing reports.
  */
 const CANDIDATES = [
   'hvc1.1.6.L153.B0',
@@ -17,7 +21,6 @@ const CANDIDATES = [
   'avc1.640029',
   'avc1.64002A',
   'avc1.4D401E',
-  'mp4a.40.2',
 ];
 
 function supportedCodecs(): string {
@@ -32,7 +35,6 @@ interface Props {
   /** False parks the player: no socket, no camera connection. */
   active: boolean;
   onState?: (state: PlayerState) => void;
-  muted?: boolean;
 }
 
 /**
@@ -46,7 +48,7 @@ interface Props {
  * being pulled, and a camera site has room for one puller at about 0.41 Mbit/s. Off-screen tiles,
  * other pages and hidden tabs must all disconnect.</p>
  */
-export function CameraPlayer({ streamKey, active, onState, muted = true }: Props) {
+export function CameraPlayer({ streamKey, active, onState }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [state, setState] = useState<PlayerState>("connecting");
 
@@ -136,6 +138,17 @@ export function CameraPlayer({ streamKey, active, onState, muted = true }: Props
       url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
       url.searchParams.set("src", streamKey);
 
+      // Video only, and this is not an optimisation — without it the tile stays black.
+      //
+      // The cameras publish three tracks: H.265 video, PCMA audio and an ONVIF metadata track. Ask
+      // for all of them and MSE receives the init segment, reports the right dimensions, and then
+      // never paints a frame. Naming the video codecs restricts the negotiation to video, which is
+      // exactly what go2rtc's own player does with `&video=h265` — the form Amir confirmed working.
+      //
+      // Both codecs, not just H.265: a camera switched to H.264 later must not go dark because this
+      // string was pinned to what the estate happened to publish today.
+      url.searchParams.set("video", "h265,h264");
+
       socket = new WebSocket(url.toString());
       socket.binaryType = "arraybuffer";
 
@@ -206,7 +219,10 @@ export function CameraPlayer({ streamKey, active, onState, muted = true }: Props
   return (
     <video
       ref={videoRef}
-      muted={muted}
+      // Always muted, and there is no option to unmute: the service carries no audio at all, so
+      // the only thing an unmuted <video> would achieve is letting the browser refuse to autoplay
+      // it. A tile that needs a click to start is a tile that looks broken.
+      muted
       playsInline
       // Cameras are 4:3-ish (704x576). `contain` keeps the whole frame rather than cropping the
       // edges of a scene somebody put the camera there to watch.
