@@ -1,0 +1,19 @@
+[Unit]
+Description=VMS camera health sweep (one pass)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+
+# Root, because it reads /srv/vms/credentials.env and /srv/vms/gateway.token — both 600 root:root —
+# and because it has to reach the docker daemon through the desktop user to ask go2rtc which
+# cameras are already being watched.
+User=root
+
+# The API's gateway group. The script appends /config and /health.
+Environment=VMS_API_URL=https://api.myceo.ir/api/VmsGateway
+ExecStart=/usr/local/bin/vms-health
+
+# A sweep that hangs must not stop the next one from ever running.
+TimeoutStartSec=180

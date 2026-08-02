@@ -147,3 +147,69 @@ public class GetVmsGatewayConfigQueryHandler(IApplicationDbContext context, Time
             Go2RtcConfig.Render(cameras));
     }
 }
+
+// ── health ───────────────────────────────────────────────────────────────────
+
+/// <summary>One camera's result from a sweep.</summary>
+public sealed record CameraHealthDto(string StreamKey, bool Online);
+
+public sealed record VmsHealthResultDto(int Reported, int Recorded, int Unknown);
+
+/// <summary>
+/// Records which cameras the media VPS could reach.
+/// </summary>
+/// <remarks>
+/// <para>
+/// The sweep runs <b>on the VPS</b>, not here. That machine already holds the credentials and already
+/// talks to the cameras, and probing a hundred devices from the production box is exactly the traffic
+/// this service was designed to keep off it.
+/// </para>
+/// <para>
+/// <b>Only success moves the clock.</b> <c>LastSeenUtc</c> answers "when did this camera last
+/// work" — so a failed sweep leaves it alone and the UI shows the gap growing. Writing "now" on a
+/// failure would erase the one fact an operator needs.
+/// </para>
+/// <para>
+/// <b>Deliberately not <c>[Authorize]</c>.</b> Same as the config query: the only route here is
+/// <c>/api/VmsGateway</c>, which checks the shared token first.
+/// </para>
+/// </remarks>
+public record ReportVmsHealthCommand(IReadOnlyList<CameraHealthDto> Cameras) : IRequest<VmsHealthResultDto>;
+
+public class ReportVmsHealthCommandHandler(IApplicationDbContext context, TimeProvider clock)
+    : IRequestHandler<ReportVmsHealthCommand, VmsHealthResultDto>
+{
+    public async Task<VmsHealthResultDto> Handle(
+        ReportVmsHealthCommand request, CancellationToken cancellationToken)
+    {
+        var online = request.Cameras
+            .Where(x => x.Online)
+            .Select(x => x.StreamKey)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        if (online.Count == 0)
+        {
+            return new VmsHealthResultDto(request.Cameras.Count, 0, 0);
+        }
+
+        // Deleted cameras are excluded but INACTIVE ones are not. A camera switched off is still a
+        // camera somebody may switch back on, and knowing it was reachable while it was off is
+        // exactly what tells them whether to expect a picture.
+        var cameras = await context.VmsCameras
+            .Where(x => !x.IsDeleted && online.Contains(x.StreamKey))
+            .ToListAsync(cancellationToken);
+
+        var now = clock.GetUtcNow();
+        foreach (var camera in cameras)
+        {
+            camera.LastSeenUtc = now;
+        }
+
+        await context.SaveChangesAsync(cancellationToken);
+
+        // A key we do not know is not an error — the sweep may be running against a config written
+        // before a camera was deleted here. Counting it is how that shows up without failing.
+        return new VmsHealthResultDto(request.Cameras.Count, cameras.Count, online.Count - cameras.Count);
+    }
+}

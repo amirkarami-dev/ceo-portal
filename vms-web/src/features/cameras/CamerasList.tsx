@@ -6,23 +6,11 @@ import { PageHeader } from "../../components/PageHeader";
 import { useCameras, useCities, useDeleteCamera, useSetCameraActive } from "../../lib/queries";
 import type { CameraListItem } from "../../lib/types";
 import { ApiError } from "../../lib/api";
+import { lastSeenInfo } from "../../lib/lastSeen";
 
 const { Text } = Typography;
 
 const ALL = "__all__";
-
-/** «۲ ساعت پیش», or «هرگز» when the sweep has never reached it. */
-function lastSeen(value: string | null): { label: string; tone: "success" | "warning" | "default" } {
-  if (!value) return { label: "هنوز بررسی نشده", tone: "default" };
-
-  const minutes = Math.round((Date.now() - new Date(value).getTime()) / 60000);
-  if (minutes < 10) return { label: "چند دقیقه پیش", tone: "success" };
-  if (minutes < 60) return { label: `${minutes} دقیقه پیش`, tone: "warning" };
-
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return { label: `${hours} ساعت پیش`, tone: "warning" };
-  return { label: `${Math.round(hours / 24)} روز پیش`, tone: "warning" };
-}
 
 export function CamerasList() {
   const navigate = useNavigate();
@@ -74,10 +62,22 @@ export function CamerasList() {
     {
       title: "آخرین اتصال",
       render: (_: unknown, row: CameraListItem) => {
-        const s = lastSeen(row.lastSeenUtc);
+        const s = lastSeenInfo(row.lastSeenUtc);
         return (
           <Space size={6}>
-            <Badge status={s.tone === "success" ? "success" : s.tone === "warning" ? "warning" : "default"} />
+            {/* "never checked" is grey, not red: it means the sweep has not reached this camera
+                yet, which is not the same as the camera being down. */}
+            <Badge
+              status={
+                s.freshness === "fresh"
+                  ? "success"
+                  : s.freshness === "never"
+                    ? "default"
+                    : s.freshness === "stale"
+                      ? "warning"
+                      : "error"
+              }
+            />
             <Text type="secondary" style={{ fontSize: 12 }}>
               {s.label}
             </Text>

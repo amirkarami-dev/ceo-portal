@@ -177,6 +177,104 @@ public class VmsGatewayTests : TestBase
         names.ShouldBe(["cameraCount", "credentialKeys", "generatedAtUtc", "streamsYaml"]);
     }
 
+    // ── the health sweep reports back ────────────────────────────────────────
+
+    private const string HealthPath = "/api/VmsGateway/health";
+
+    private static StringContent Report(params (string Key, bool Online)[] cameras) =>
+        new(
+            System.Text.Json.JsonSerializer.Serialize(new
+            {
+                cameras = cameras.Select(c => new { streamKey = c.Key, online = c.Online }),
+            }),
+            System.Text.Encoding.UTF8,
+            "application/json");
+
+    [Test]
+    public async Task A_health_report_without_the_token_is_refused()
+    {
+        using var client = Client(null);
+
+        // Same gate as the config route. An open one would let anyone declare every camera healthy
+        // and hide a whole city going dark.
+        (await client.PostAsync(HealthPath, Report(("baneh-01", true)))).StatusCode
+            .ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
+    [Test]
+    public async Task A_reachable_camera_gets_its_last_seen_stamped()
+    {
+        await SeedCameraAsync();
+
+        using var client = Client(WebApiFactory.TestVmsGatewayToken);
+        var response = await client.PostAsync(HealthPath, Report(("baneh-01", true)));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var camera = (await TestApp.AllAsync<Camera>()).Single();
+        camera.LastSeenUtc.ShouldNotBeNull();
+        camera.LastSeenUtc!.Value.ShouldBeGreaterThan(DateTimeOffset.UtcNow.AddMinutes(-1));
+    }
+
+    [Test]
+    public async Task A_camera_reported_down_keeps_the_time_it_was_last_up()
+    {
+        await SeedCameraAsync();
+
+        using var client = Client(WebApiFactory.TestVmsGatewayToken);
+        await client.PostAsync(HealthPath, Report(("baneh-01", true)));
+        var stamped = (await TestApp.AllAsync<Camera>()).Single().LastSeenUtc;
+
+        await client.PostAsync(HealthPath, Report(("baneh-01", false)));
+
+        // LastSeenUtc answers "when did this camera last work". Writing "now" on a failure would
+        // erase the one fact an operator needs — how long it has been gone.
+        (await TestApp.AllAsync<Camera>()).Single().LastSeenUtc.ShouldBe(stamped);
+    }
+
+    [Test]
+    public async Task A_camera_that_has_never_answered_stays_null_rather_than_looking_checked()
+    {
+        await SeedCameraAsync();
+
+        using var client = Client(WebApiFactory.TestVmsGatewayToken);
+        await client.PostAsync(HealthPath, Report(("baneh-01", false)));
+
+        // Null means "never reached", which the UI shows differently from "down". A zero or a
+        // creation timestamp here would make an unchecked camera look checked.
+        (await TestApp.AllAsync<Camera>()).Single().LastSeenUtc.ShouldBeNull();
+    }
+
+    [Test]
+    public async Task A_switched_off_camera_still_records_that_it_answered()
+    {
+        await SeedCameraAsync(active: false);
+
+        using var client = Client(WebApiFactory.TestVmsGatewayToken);
+        await client.PostAsync(HealthPath, Report(("baneh-01", true)));
+
+        // Switched off is a decision about showing it, not about whether it exists on the network.
+        // Knowing it was reachable while off is what tells an admin whether to expect a picture when
+        // they switch it back on.
+        (await TestApp.AllAsync<Camera>()).Single().LastSeenUtc.ShouldNotBeNull();
+    }
+
+    [Test]
+    public async Task An_unknown_stream_key_is_counted_rather_than_failing_the_whole_sweep()
+    {
+        await SeedCameraAsync();
+
+        using var client = Client(WebApiFactory.TestVmsGatewayToken);
+        var result = await (await client.PostAsync(HealthPath, Report(("baneh-01", true), ("ghost-99", true))))
+            .Content.ReadFromJsonAsync<VmsHealthResultDto>();
+
+        // The VPS may be sweeping a config written before a camera was deleted here. Rejecting the
+        // batch would lose the good half of the report over a race nobody can prevent.
+        result!.Reported.ShouldBe(2);
+        result.Recorded.ShouldBe(1);
+        result.Unknown.ShouldBe(1);
+    }
+
     [Test]
     public async Task An_empty_estate_still_returns_a_config_go2rtc_can_load()
     {

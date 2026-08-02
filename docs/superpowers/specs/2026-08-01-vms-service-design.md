@@ -1,6 +1,6 @@
 # VMS — video management service — design
 
-> **Date:** 2026-08-01 · **Status:** steps 1–7 done (2026-08-02), steps 8–9 open · **Author:** Amir + Claude
+> **Date:** 2026-08-01 · **Status:** steps 1–8 done (2026-08-02), step 9 open · **Author:** Amir + Claude
 > Live camera viewing at **vms.myceo.ir**, cameras classified by city.
 >
 > **Step 1 overturned three assumptions in this document.** §2.2, §2.3 and §3 have been rewritten and
@@ -248,7 +248,7 @@ needed**. MSE over 443 is the whole transport story.
 | 5 | Traefik forwardAuth against the API | an unauthenticated stream request is refused | **done 2026-08-02** |
 | 6 | `vms-web`: city list → paged camera grid on substreams | an admin sees live video, filtered by city — **and the Traefik router is narrowed to the player's paths, so `/api/streams` stops handing out camera passwords** | **done 2026-08-02** (UI unseen signed in) |
 | 7 | Fullscreen = a bigger tile of the **same substream**, plus a one-viewer-per-camera cap | no camera is ever pulled twice at once | **done 2026-08-02** (rescoped by §2.2) |
-| 8 | Scheduled health sweep + «آخرین اتصال» per camera | a dead camera is visible as dead, not as a black square | |
+| 8 | Scheduled health sweep + «آخرین اتصال» per camera | a dead camera is visible as dead, not as a black square | **done 2026-08-02** (timer enabled at step 9) |
 | 9 | Deploy: compose, OIDC client, CORS, DNS, AppSwitcher ×8 | `https://vms.myceo.ir` serves it | |
 
 Step 7 changed. It was "fullscreen on the main stream, with a concurrency cap"; the main stream needs
@@ -272,7 +272,9 @@ camera's uplink rather than the VPS's.
   somebody opens the site would be 100 outbound connections per visit. A background sweep on a slow
   interval writes `LastSeenUtc`, and the UI reads that column. With §2.2's numbers this matters more,
   not less: a health probe is a *second* puller, so the sweep must skip any camera currently being
-  watched.
+  watched. **Built in step 8** — it runs on the VPS every five minutes, reads go2rtc's `consumers`
+  count to skip watched cameras, probes the rest with a single `DESCRIBE` (never `PLAY`), and only a
+  success moves `LastSeenUtc`, so a failure leaves the gap visible instead of erasing it.
 - **The concurrency cap survives, with a different job.** It is no longer about the VPS's 44–62
   Mbit/s. It is **one puller per camera**, because the camera's own 0.41 Mbit/s cannot serve two.
 

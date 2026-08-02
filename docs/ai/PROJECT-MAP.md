@@ -49,9 +49,9 @@ Clean Architecture. A feature normally touches all four layers.
 | **Welfare** | `Application/Walfare` | `/api/walfare/*` | `walfare-web/` |
 | **Elections** | `Application/Elections` | `/api/ElectionAdmin`, `/api/Election`, `/api/BaleWebhook` | `election-web/`, Bale bot |
 | **Rooms** | `Application/Rooms` | `/api/RoomAdmin`, `/api/Room` | `room-web/` (dev port 5277) |
-| **VMS** (in build — steps 1–7 of 9) | `Application/Vms` | `/api/VmsAdmin`, `/api/VmsGateway`, `/api/VmsMedia` | `vms-web/` (dev port 5278) |
+| **VMS** (in build — steps 1–8 of 9) | `Application/Vms` | `/api/VmsAdmin`, `/api/VmsGateway`, `/api/VmsMedia` | `vms-web/` (dev port 5278) |
 
-## VMS — camera viewing (in build, steps 1–7 done)
+## VMS — camera viewing (in build, steps 1–8 done)
 
 Live camera viewing at `vms.myceo.ir`, cameras classified by city. Design:
 `docs/superpowers/specs/2026-08-01-vms-service-design.md`. **Nothing is deployed.**
@@ -71,6 +71,10 @@ Live camera viewing at `vms.myceo.ir`, cameras classified by city. Design:
   reopen the surface just closed. Tiles disconnect when scrolled away or when the tab is hidden,
   and a per-tab lease keeps one camera to one connection. **Measured:** four viewers = one RTSP
   session, each getting full bandwidth; the camera is released ten seconds after the last one.
+- **`vms-health` sweeps every five minutes** from the VPS (`vms-health.timer`, **installed but
+  not enabled until step 9**) and posts to `/api/VmsGateway/health`. It skips any camera with a
+  live consumer — a probe is a second puller — and only a success moves `LastSeenUtc`, so a
+  failure leaves the gap visible. `null` means never checked, which the UI shows grey, not red.
 - **Docker on that VPS is Docker Desktop under a user session**: `sudo docker` sees nothing, and it
   bind-mounts only shared host paths — `/srv/...` mounts as an EMPTY DIRECTORY with no error. The
   generated go2rtc config therefore lives at `/home/amirserver/vms-config/go2rtc.yaml`.

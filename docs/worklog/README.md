@@ -22,6 +22,7 @@ Also, when a task teaches something reusable:
 
 | Date | Record | Area | Status |
 |---|---|---|---|
+| 2026-08-02 | [VMS step 8: health sweep and «آخرین اتصال»](2026-08-02-vms-step-8.md) | vms | done — timer installed, enabled at step 9 |
 | 2026-08-02 | [VMS step 7: one puller per camera, measured](2026-08-02-vms-step-7.md) | vms | done — go2rtc fan-out proven; SPA lease added |
 | 2026-08-02 | [VMS step 6: vms-web and the narrowed gateway](2026-08-02-vms-step-6.md) | vms | built; gateway proven, UI not seen signed in |
 | 2026-08-02 | [VMS step 5: forwardAuth on the media gateway](2026-08-02-vms-step-5.md) | vms / infra | done — cam.myceo.ir refuses without a cookie, proven from the internet |

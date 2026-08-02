@@ -39,6 +39,7 @@ public class VmsGateway : Mabhas19.Web.Infrastructure.IEndpointGroup
     public static void Map(RouteGroupBuilder groupBuilder)
     {
         groupBuilder.MapGet(GetVmsGatewayConfig, "config").AllowAnonymous();
+        groupBuilder.MapPost(ReportVmsGatewayHealth, "health").AllowAnonymous();
     }
 
     public static async Task<Results<Ok<VmsGatewayConfigDto>, UnauthorizedHttpResult>> GetVmsGatewayConfig(
@@ -62,6 +63,28 @@ public class VmsGateway : Mabhas19.Web.Infrastructure.IEndpointGroup
         }
 
         return TypedResults.Ok(await sender.Send(new GetVmsGatewayConfigQuery(), cancellationToken));
+    }
+
+    public sealed record HealthReportRequest(IReadOnlyList<CameraHealthDto> Cameras);
+
+    /// <summary>What the sweep on the VPS could reach. Same token, same fail-closed rule.</summary>
+    public static async Task<Results<Ok<VmsHealthResultDto>, UnauthorizedHttpResult>> ReportVmsGatewayHealth(
+        ISender sender,
+        IOptions<VmsGatewayOptions> options,
+        HttpContext http,
+        HealthReportRequest request,
+        CancellationToken cancellationToken)
+    {
+        var expected = options.Value.GatewayToken;
+
+        if (string.IsNullOrWhiteSpace(expected)
+            || !FixedTimeEquals(http.Request.Headers[TokenHeader].ToString(), expected))
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        return TypedResults.Ok(
+            await sender.Send(new ReportVmsHealthCommand(request.Cameras ?? []), cancellationToken));
     }
 
     /// <summary>Length-independent comparison, so a timing difference cannot reveal the token.</summary>

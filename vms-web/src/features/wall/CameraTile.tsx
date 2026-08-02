@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Badge, Button, Tooltip, Typography, theme } from "antd";
-import { ExpandOutlined, WifiOutlined } from "@ant-design/icons";
+import { DisconnectOutlined, ExpandOutlined, WifiOutlined } from "@ant-design/icons";
+import { lastSeenLabel } from "../../lib/lastSeen";
 import { CameraPlayer, type PlayerState } from "./CameraPlayer";
 import type { CameraListItem } from "../../lib/types";
 
@@ -70,7 +71,37 @@ export function CameraTile({ camera, enabled, onExpand }: Props) {
       }}
     >
       {active ? (
-        <CameraPlayer streamKey={camera.streamKey} active onState={setState} />
+        <>
+          <CameraPlayer streamKey={camera.streamKey} active onState={setState} />
+
+          {/* A camera that is down must not look like a camera that is dark. Without this the tile
+              is a black rectangle, which is also what a night-time courtyard looks like — and the
+              person who has to go and fix it cannot tell the difference. */}
+          {(state === "error" || state === "unsupported") && (
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                display: "grid",
+                placeItems: "center",
+                gap: 6,
+                background: "rgba(0,0,0,.55)",
+                textAlign: "center",
+                padding: 12,
+              }}
+            >
+              <div>
+                <DisconnectOutlined style={{ color: "#ff7875", fontSize: 22 }} />
+                <div style={{ color: "#fff", fontSize: 13, marginTop: 6 }}>{LABEL[state]}</div>
+                <div style={{ color: "rgba(255,255,255,.65)", fontSize: 11, marginTop: 2 }}>
+                  {/* The sweep's answer, not this tile's. A tile that just failed says nothing about
+                      whether the camera has been gone for a minute or since Tuesday. */}
+                  آخرین اتصال: {lastSeenLabel(camera.lastSeenUtc)}
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       ) : (
         <div
           style={{

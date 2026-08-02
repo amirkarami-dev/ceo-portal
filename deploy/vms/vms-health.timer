@@ -1,0 +1,19 @@
+[Unit]
+Description=VMS camera health sweep
+Documentation=file:///srv/ceo-portal/scripts/vms-health.sh
+
+[Timer]
+# Every five minutes. Slow on purpose: this is the interval an operator waits before «آخرین اتصال»
+# tells them something has gone, and a probe is an outbound connection per unwatched camera. At a
+# hundred cameras that is twenty connections a minute, which is nothing; at ten seconds it would be
+# six hundred, which is a scan.
+OnBootSec=2min
+OnUnitActiveSec=5min
+AccuracySec=30s
+
+# Without this every camera site is probed at exactly :00, :05, :10 across every future VPS.
+RandomizedDelaySec=30s
+Persistent=true
+
+[Install]
+WantedBy=timers.target
