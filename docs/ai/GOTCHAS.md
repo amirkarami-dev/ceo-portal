@@ -538,6 +538,17 @@ containers you already have. `CeoDb` + `CeoAuthDb` live in `mabhas19_sqldata`.
   uses. `var loginPort = 34567` on the login page identifies the family.
   The URL is `rtsp://user:pass@host:554/mode=real&idc=<channel>&ids=<stream>`, and the
   `Authorization` header is **required** — URL userinfo alone gets 401.
+- **The endpoints are DVRs, not cameras — one host carries many channels.** `78.39.233.70` is a
+  Sofia/Xiongmai DVR: port **34567 open** (its control port), web UI built for **8 channels**
+  (`chSc:8`, `chPy:4` in `js/Common.js`), brand overlay TANTOS, firmware `V8.8.5.61.26.1`. That is
+  why the RTSP URL carries `idc=<channel>` — a standalone camera would not need a selector. **To add
+  a second camera at the same site, reuse the host and port and change کانال (`idc`).** Do not expect
+  one IP per camera.
+- **No password is ever typed into the admin panel, and none is stored in CeoDb.** The form takes a
+  *credential key*; the media server maps it in `/srv/vms/credentials.env` as `key=user:password`.
+  Today there is exactly one: `default` → `admin`. A site with a different login needs a new key
+  added on the VPS **first** — `vms-sync` refuses to write a config whose key it cannot resolve, and
+  says so, rather than producing a stream that silently fails to authenticate.
 - **Measure the camera's uplink, not just ours.** The first site delivers **~0.41 Mbit/s** (timed
   over plain HTTP, no RTSP), while its main stream is ~11.2 Mbit/s. Everything about the VMS design
   follows from that, and it is invisible if you only look at the VPS's 44–62 Mbit/s.
