@@ -19,6 +19,7 @@ This is deliberately not where design or engineering notes live:
 |---|---|---|
 | [`election-service-fa.html`](election-service-fa.html) | فارسی، RTL | سامانهٔ انتخابات — رأی مخفی، گردش کار وب و ربات بله، شمارش، نگهداری ۳۰ روزه |
 | [`room-service-fa.html`](room-service-fa.html) | فارسی، RTL | جلسات آنلاین — جلسه و ارائه، سه راه ورود، گفتگو، سرور ویدیو |
+| [`vms-service-fa.html`](vms-service-fa.html) | فارسی، RTL | دوربین‌های نظارتی — دیوار تصویر به تفکیک شهر، محدودیت پهنای باند محل، مسیر تصویر، پایش سلامت |
 | [`mabhas19-guide.html`](mabhas19-guide.html) | English | Mabhas19 platform — system and developer guide |
 
 ## Rules for anything added here

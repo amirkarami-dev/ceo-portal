@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>دوربین‌های نظارتی — مستندات فنی</title>
+
+<style>
+  html, body { margin: 0; }
+
+  :root {
+    direction: rtl;
+
+    /* همان پالت خانوادگی مستندات سرویس‌ها. رنگ هشدار فقط جایی خرج می‌شود که یک محدودیت
+       فیزیکی در کار است — پهنای باند محل دوربین — چون تمام تصمیم‌های این سرویس از آنجا می‌آید. */
+    --paper:      #EDF0F0;
+    --paper-2:    #E2E7E7;
+    --card:       #F7F9F9;
+    --ink:        #12171A;
+    --mute:       #56676D;
+    --line:       #C7D2D4;
+    --petrol:     #145C63;
+    --petrol-soft:#D9E9EA;
+    --signal:     #B4531F;
+    --signal-soft:#F6E3D7;
+    --ok:         #1F6B4A;
+    --ok-soft:    #DCEDE4;
+
+    --fa: "Vazirmatn", "IRANSans", "Iranian Sans", "Sahel", "Segoe UI",
+          Tahoma, "Noto Naskh Arabic", sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, "Liberation Mono", monospace;
+
+    --measure: 68ch;
+    --rail: 15rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:      #0A1113;
+      --paper-2:    #0E1719;
+      --card:       #121D1F;
+      --ink:        #DEE7E8;
+      --mute:       #85969B;
+      --line:       #24383B;
+      --petrol:     #5FB3BC;
+      --petrol-soft:#122C2F;
+      --signal:     #E08A54;
+      --signal-soft:#2C1A11;
+      --ok:         #6FCF9A;
+      --ok-soft:    #14261E;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:      #0A1113;
+    --paper-2:    #0E1719;
+    --card:       #121D1F;
+    --ink:        #DEE7E8;
+    --mute:       #85969B;
+    --line:       #24383B;
+    --petrol:     #5FB3BC;
+    --petrol-soft:#122C2F;
+    --signal:     #E08A54;
+    --signal-soft:#2C1A11;
+    --ok:         #6FCF9A;
+    --ok-soft:    #14261E;
+  }
+  :root[data-theme="light"] {
+    --paper:      #EDF0F0;
+    --paper-2:    #E2E7E7;
+    --card:       #F7F9F9;
+    --ink:        #12171A;
+    --mute:       #56676D;
+    --line:       #C7D2D4;
+    --petrol:     #145C63;
+    --petrol-soft:#D9E9EA;
+    --signal:     #B4531F;
+    --signal-soft:#F6E3D7;
+    --ok:         #1F6B4A;
+    --ok-soft:    #DCEDE4;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--fa);
+    font-size: 16px;
+    line-height: 1.95;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  code, .m, .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  .m {
+    direction: ltr;
+    unicode-bidi: isolate;
+    display: inline-block;
+    font-size: 0.86em;
+    background: var(--petrol-soft);
+    color: var(--petrol);
+    border: 1px solid color-mix(in srgb, var(--petrol) 24%, transparent);
+    border-radius: 4px;
+    padding: 0.05em 0.4em;
+    line-height: 1.6;
+  }
+  .m.sig { background: var(--signal-soft); color: var(--signal); border-color: color-mix(in srgb, var(--signal) 30%, transparent); }
+
+  .shell {
+    display: grid;
+    grid-template-columns: 1fr;
+    max-width: 78rem;
+    margin-inline: auto;
+    padding: 0 1.25rem 6rem;
+  }
+  @media (min-width: 1100px) {
+    .shell { grid-template-columns: var(--rail) minmax(0, 1fr); gap: 3.5rem; padding-inline: 2rem; }
+  }
+
+  .mast {
+    grid-column: 1 / -1;
+    padding: 5rem 0 2.5rem;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 3rem;
+  }
+  .eyebrow {
+    font-size: 0.75rem; letter-spacing: 0.18em; color: var(--signal);
+    font-weight: 700; margin: 0 0 1.25rem;
+  }
+  .mast h1 {
+    font-size: clamp(2.2rem, 5.5vw, 3.6rem);
+    line-height: 1.35; font-weight: 800; letter-spacing: -0.01em;
+    margin: 0 0 1rem; text-wrap: balance;
+  }
+  .mast .lede {
+    font-size: clamp(1.05rem, 2vw, 1.2rem);
+    color: var(--mute); max-width: var(--measure); margin: 0 0 2rem;
+  }
+  .facts { display: flex; flex-wrap: wrap; gap: 0.5rem 2.5rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
+  .fact { display: flex; flex-direction: column; gap: 0.1rem; }
+  .fact dt { font-size: 0.72rem; letter-spacing: 0.1em; color: var(--mute); font-weight: 600; }
+  .fact dd { margin: 0; font-weight: 700; font-size: 0.95rem; }
+
+  .rail { display: none; }
+  @media (min-width: 1100px) {
+    .rail {
+      display: block; position: sticky; top: 2rem; align-self: start;
+      max-height: calc(100vh - 4rem); overflow-y: auto; font-size: 0.86rem;
+      border-inline-start: 1px solid var(--line); padding-inline-start: 1.25rem;
+    }
+  }
+  .rail p { font-size: 0.7rem; letter-spacing: 0.14em; color: var(--mute); font-weight: 700; margin: 0 0 0.85rem; }
+  .rail ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.55rem; }
+  .rail a { color: var(--mute); text-decoration: none; display: block; border-radius: 4px; }
+  .rail a:hover, .rail a:focus-visible { color: var(--petrol); }
+
+  main { min-width: 0; }
+  section { margin-bottom: 4.5rem; scroll-margin-top: 2rem; }
+  section > p, section > ul, section > ol, section > .note { max-width: var(--measure); }
+
+  h2 { font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 800; line-height: 1.45; margin: 0 0 0.4rem; text-wrap: balance; }
+  h2 .idx { font-family: var(--mono); font-size: 0.75rem; color: var(--signal); display: block; letter-spacing: 0.1em; margin-bottom: 0.35rem; }
+  h3 { font-size: 1.12rem; font-weight: 700; margin: 2.25rem 0 0.6rem; line-height: 1.6; }
+  p { margin: 0 0 1.1rem; }
+  ul, ol { margin: 0 0 1.1rem; padding-inline-start: 1.4rem; }
+  li { margin-bottom: 0.5rem; }
+  a { color: var(--petrol); }
+  .sub { color: var(--mute); max-width: var(--measure); margin: 0 0 1.75rem; }
+
+  .scroll { overflow-x: auto; margin: 0 0 1.25rem; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+  table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+  th, td { text-align: start; padding: 0.7rem 0.95rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  thead th { font-size: 0.72rem; letter-spacing: 0.09em; color: var(--mute); font-weight: 700; background: var(--paper-2); white-space: nowrap; }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.yes { color: var(--ok); font-weight: 700; }
+  td.no  { color: var(--signal); font-weight: 700; }
+
+  /* ── ترازوی پهنای باند: تز این سرویس ─────────────────────── */
+  .scale { display: grid; gap: 0.85rem; margin: 2rem 0 1.5rem; }
+  .bar {
+    border: 1px solid var(--line); background: var(--card);
+    border-radius: 12px; padding: 1rem 1.2rem;
+  }
+  .bar .top { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
+  .bar b { font-size: 0.98rem; }
+  .bar .val { font-family: var(--mono); font-size: 0.9rem; color: var(--mute); }
+  .bar .meter { height: 10px; border-radius: 999px; background: var(--paper-2); overflow: hidden; border: 1px solid var(--line); }
+  .bar .fill { height: 100%; background: var(--ok); }
+  .bar.over .fill { background: var(--signal); }
+  .bar.over b { color: var(--signal); }
+  .bar .after { margin: 0.55rem 0 0; font-size: 0.86rem; color: var(--mute); }
+
+  /* ── مسیر تصویر ──────────────────────────────────────────── */
+  .chain { display: grid; grid-template-columns: 1fr; gap: 0.75rem; margin: 2rem 0 1.5rem; align-items: stretch; }
+  @media (min-width: 900px) { .chain { grid-template-columns: 1fr auto 1fr auto 1fr; gap: 0; } }
+  .link { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 1.25rem 1.4rem; }
+  .link .who { font-size: 0.72rem; letter-spacing: 0.1em; color: var(--mute); font-weight: 700; margin: 0 0 0.5rem; }
+  .link h4 { margin: 0 0 0.5rem; font-size: 1rem; font-weight: 800; }
+  .link p { margin: 0; font-size: 0.88rem; color: var(--mute); }
+  .link.end { border-color: color-mix(in srgb, var(--signal) 45%, transparent); }
+  .link.end h4 { color: var(--signal); }
+  .arrow { display: grid; place-items: center; padding: 0.35rem 1rem; color: var(--mute); font-size: 1.15rem; }
+  @media (min-width: 900px) { .arrow { padding: 1.5rem 0.9rem; } }
+
+  .duo { display: grid; grid-template-columns: 1fr; gap: 1rem; margin: 1.5rem 0; }
+  @media (min-width: 720px) { .duo { grid-template-columns: 1fr 1fr; } }
+  .panel { border: 1px solid var(--line); border-radius: 12px; padding: 1.25rem 1.4rem; background: var(--card); }
+  .panel h4 { margin: 0 0 0.25rem; font-size: 1rem; font-weight: 800; }
+  .panel .cap { color: var(--mute); font-size: 0.85rem; margin: 0 0 1rem; }
+  .panel.speaker { border-color: color-mix(in srgb, var(--signal) 45%, transparent); }
+  .panel.speaker h4 { color: var(--signal); }
+  .panel ul { margin: 0; padding-inline-start: 1.1rem; }
+  .panel li { font-size: 0.92rem; }
+  .panel li.off { color: var(--mute); text-decoration: line-through; text-decoration-color: var(--mute); }
+
+  .note {
+    border-inline-start: 3px solid var(--petrol);
+    background: var(--card); padding: 1rem 1.2rem;
+    border-radius: 0 10px 10px 0; margin: 0 0 1.25rem;
+  }
+  .note.warn { border-inline-start-color: var(--signal); }
+  .note.warn strong:first-child { color: var(--signal); }
+  .note p:last-child { margin-bottom: 0; }
+  .note .tag { display: block; font-size: 0.72rem; letter-spacing: 0.1em; font-weight: 700; color: var(--mute); margin-bottom: 0.3rem; }
+
+  .track { display: flex; flex-direction: column; margin: 1.5rem 0; }
+  .step { display: grid; grid-template-columns: 2.4rem minmax(0, 1fr); gap: 1rem; padding-bottom: 1.5rem; position: relative; }
+  .step:not(:last-child)::before {
+    content: ""; position: absolute; inset-inline-start: 1.2rem; top: 2.4rem; bottom: 0; width: 1px; background: var(--line);
+  }
+  .step .dot {
+    width: 2.4rem; height: 2.4rem; border-radius: 50%; display: grid; place-items: center;
+    background: var(--card); border: 1px solid var(--line); color: var(--petrol);
+    font-family: var(--mono); font-size: 0.85rem; font-weight: 700; z-index: 1;
+  }
+  .step.crit .dot { border-color: color-mix(in srgb, var(--signal) 45%, transparent); color: var(--signal); }
+  .step h4 { margin: 0.35rem 0 0.3rem; font-size: 1rem; font-weight: 700; }
+  .step p { margin: 0; color: var(--mute); font-size: 0.93rem; max-width: 60ch; }
+
+  /* ── شهرها ───────────────────────────────────────────────── */
+  .cities { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1.25rem 0 1.5rem; }
+  .city {
+    border: 1px solid var(--line); background: var(--card); border-radius: 999px;
+    padding: 0.35rem 0.95rem; font-size: 0.9rem; font-weight: 600;
+  }
+
+  /* ── کاشی نمونه ──────────────────────────────────────────── */
+  .tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.6rem; margin: 1.5rem 0; max-width: 34rem; }
+  @media (min-width: 720px) { .tiles { grid-template-columns: repeat(3, 1fr); } }
+  .tile {
+    aspect-ratio: 4 / 3; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--paper-2); display: grid; place-items: center;
+    font-size: 0.75rem; color: var(--mute); position: relative; overflow: hidden;
+  }
+  .tile.live { background: color-mix(in srgb, var(--petrol) 14%, var(--card)); color: var(--petrol); font-weight: 700; }
+  .tile.dead { background: color-mix(in srgb, var(--signal) 12%, var(--card)); color: var(--signal); font-weight: 700; }
+  .tile.idle { font-style: normal; }
+
+  footer {
+    grid-column: 1 / -1; border-top: 1px solid var(--line);
+    padding-top: 1.75rem; margin-top: 2rem; color: var(--mute); font-size: 0.86rem;
+  }
+  footer p { max-width: var(--measure); }
+
+  :focus-visible { outline: 2px solid var(--petrol); outline-offset: 3px; border-radius: 3px; }
+
+  .themer {
+    position: fixed; top: 1rem; inset-inline-start: 1rem; z-index: 20;
+    background: var(--card); color: var(--mute); border: 1px solid var(--line);
+    border-radius: 999px; padding: 0.4rem 0.9rem;
+    font-family: var(--fa); font-size: 0.8rem; font-weight: 600; cursor: pointer;
+  }
+  .themer:hover { color: var(--petrol); border-color: var(--petrol); }
+  @media print { .themer, .rail { display: none; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+</style>
+</head>
+<body>
+
+<button class="themer" type="button" id="themer" aria-label="تغییر پوستهٔ روشن و تیره">پوستهٔ تیره / روشن</button>
+
+<div dir="rtl">
+  <div class="shell">
+
+    <header class="mast">
+      <p class="eyebrow">مستندات فنی — سازمان نظام مهندسی</p>
+      <h1>دوربین‌های نظارتی</h1>
+      <p class="lede">
+        تماشای زندهٔ دوربین‌های شهرستان‌ها از یک صفحه، به تفکیک شهر. دوربین‌ها روی نشانی‌های ثابت
+        اینترنتی در هشت شهر استان هستند و تصویرشان از یک ماشین واسط عبور می‌کند — نه از سرور اصلی
+        سازمان. دسترسی فقط برای <strong>مدیران سیستم</strong> است.
+      </p>
+      <dl class="facts">
+        <div class="fact"><dt>نشانی</dt><dd class="m">vms.myceo.ir</dd></div>
+        <div class="fact"><dt>سرور تصویر</dt><dd class="m">cam.myceo.ir</dd></div>
+        <div class="fact"><dt>دسترسی</dt><dd>فقط مدیر سیستم</dd></div>
+        <div class="fact"><dt>وضعیت</dt><dd>مستقر روی سرور</dd></div>
+      </dl>
+    </header>
+
+    <nav class="rail" aria-label="فهرست مطالب">
+      <p>فهرست</p>
+      <ol>
+        <li><a href="#chekar">۱ — این سرویس چه می‌کند</a></li>
+        <li><a href="#pahnaye-band">۲ — محدودیتی که همه چیز را تعیین کرد</a></li>
+        <li><a href="#chi-mibinim">۳ — چه تصویری دیده می‌شود</a></li>
+        <li><a href="#divar">۴ — دیوار تصویر</a></li>
+        <li><a href="#modiriyat">۵ — افزودن و ویرایش دوربین</a></li>
+        <li><a href="#gozarvazhe">۶ — گذرواژهٔ دوربین کجاست</a></li>
+        <li><a href="#masir">۷ — مسیر تصویر و اجازهٔ تماشا</a></li>
+        <li><a href="#yek-ettesal">۸ — یک دوربین، یک اتصال</a></li>
+        <li><a href="#salamat">۹ — پایش سلامت و «آخرین اتصال»</a></li>
+        <li><a href="#amaliyat">۱۰ — نکات عملیاتی و وضعیت فعلی</a></li>
+      </ol>
+    </nav>
+
+    <main>
+
+      <!-- ─────────────────────────────────────────────── -->
+      <section id="chekar">
+        <h2><span class="idx">۰۱</span>این سرویس چه می‌کند</h2>
+        <p class="sub">
+          مدیر، دوربین‌ها را در سامانه ثبت می‌کند و برای هرکدام شهر آن را مشخص می‌کند. سپس در صفحهٔ
+          اصلی، شهر را انتخاب می‌کند و تصویر زندهٔ دوربین‌های همان شهر را می‌بیند. همین.
+        </p>
+
+        <div class="cities">
+          <span class="city">بانه</span><span class="city">مریوان</span><span class="city">سقز</span>
+          <span class="city">دهگلان</span><span class="city">کامیاران</span><span class="city">قروه</span>
+          <span class="city">بیجار</span><span class="city">دیواندره</span>
+        </div>
+        <p class="sub">
+          شهرها در پایگاه داده به‌صورت <strong>ردیف</strong> نگهداری می‌شوند، نه در کد برنامه. افزودن
+          شهر نهم یک ردیف تازه است و نیازی به انتشار نسخهٔ جدید ندارد.
+        </p>
+
+        <div class="note">
+          <span class="tag">مهم‌ترین تصمیم معماری</span>
+          <p>
+            <strong>تصویر دوربین‌ها از سرور اصلی سازمان عبور نمی‌کند.</strong> یک ماشین واسط —
+            همان ماشینی که سرور ویدیوی جلسات آنلاین روی آن است — به دوربین‌ها وصل می‌شود و تصویر را
+            برای مرورگرها بازپخش می‌کند. سرور اصلی فقط فهرست دوربین‌ها را نگه می‌دارد و اجازهٔ
+            تماشا صادر می‌کند.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─────────────────────────────────────────────── -->
+      <section id="pahnaye-band">
+        <h2><span class="idx">۰۲</span>محدودیتی که همه چیز را تعیین کرد</h2>
+        <p class="sub">
+          پیش از نوشتن هر خط کد، پهنای باند یک دوربین واقعی اندازه‌گیری شد. نتیجه، شکل تمام سرویس را
+          عوض کرد و بهتر است پیش از هر انتظاری از این سامانه، خوانده شود.
+        </p>
+
+        <p>
+          <strong>پهنای باند ارسال محل دوربین حدود ۰٫۴۱ مگابیت بر ثانیه است.</strong> این عدد سه بار
+          و با دانلود یک فایل ساده از خودِ دوربین اندازه گرفته شد — بدون هیچ ارتباط ویدیویی — و هر
+          سه بار حدود ۵۱ کیلوبایت بر ثانیه بود. این سقفِ کل چیزی است که آن محل می‌تواند بفرستد: برای
+          همهٔ بیننده‌ها، همهٔ جریان‌ها، روی هم.
+        </p>
+
+        <div class="scale">
+          <div class="bar over">
+            <div class="top"><b>جریان اصلی دوربین</b><span class="val">۲۵۶۰×۱۴۴۰ — حدود ۱۱٫۲ مگابیت/ثانیه</span></div>
+            <div class="meter"><div class="fill" style="width:100%"></div></div>
+            <p class="after">حدود <strong>۲۷ برابر</strong> ظرفیت خط. قابل پخش نیست — نه در دیوار تصویر، نه تمام‌صفحه، نه حتی برای یک نفر.</p>
+          </div>
+          <div class="bar">
+            <div class="top"><b>زیرجریان دوربین</b><span class="val">۷۰۴×۵۷۶ — حدود ۳۵۴ کیلوبیت/ثانیه</span></div>
+            <div class="meter"><div class="fill" style="width:86%"></div></div>
+            <p class="after">حدود <strong>۸۶٪</strong> ظرفیت خط. جا می‌شود — اما جای اضافه‌ای باقی نمی‌گذارد.</p>
+          </div>
+        </div>
+
+        <div class="note warn">
+          <strong>نتیجهٔ عملی:</strong>
+          <p>
+            تصویری که می‌بینید <strong>زیرجریان</strong> است، با کیفیت ۷۰۴×۵۷۶. تمام‌صفحه هم همان
+            تصویر است، فقط بزرگ‌تر. «کیفیت بالاتر» یک تنظیم نیست که فراموش شده باشد؛ خط اینترنت آن
+            محل توان عبور دادنش را ندارد.
+          </p>
+        </div>
+
+        <p>
+          برای اینکه اندازهٔ مشکل روشن باشد: برنامهٔ استاندارد دریافت ویدیو برای گرفتن <strong>۱۵
+          ثانیه</strong> از جریان اصلی، <strong>۳۳۰ ثانیه</strong> وقت گرفت. همان برنامه ۴۰ ثانیه از
+          زیرجریان را در ۴۲ ثانیه گرفت — یعنی زیرجریان با زمان واقعی جلو می‌رود و جریان اصلی نه.
+        </p>
+
+        <div class="note">
+          <span class="tag">آنچه محدودیت نیست</span>
+          <p>
+            گلوگاه، سرور یا سرویس نیست. ماشین واسط ۴۴ تا ۶۲ مگابیت بر ثانیه ارسال دارد؛ بیست دوربین
+            روی زیرجریان حدود ۸ مگابیت می‌شود. <strong>محدودیت در خودِ محل دوربین است</strong>، و با
+            ارتقای اینترنت آن محل — نه با تغییر این سامانه — برطرف می‌شود.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─────────────────────────────────────────────── -->
+      <section id="chi-mibinim">
+        <h2><span class="idx">۰۳</span>چه تصویری دیده می‌شود</h2>
+
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr><th>ویژگی</th><th>مقدار</th><th>توضیح</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>کیفیت</td><td class="m">704×576</td><td>زیرجریان دوربین</td></tr>
+              <tr><td>نرخ تصویر</td><td class="m">9 fps</td><td>برای نظارت کافی است؛ حرکت روان سینمایی نیست</td></tr>
+              <tr><td>فشرده‌سازی</td><td class="m">H.265</td><td>پایین‌تر را ببینید — روی همهٔ رایانه‌ها پخش نمی‌شود</td></tr>
+              <tr><td>صدا</td><td>ندارد</td><td>سرویس فقط تصویر است</td></tr>
+              <tr><td>ضبط</td><td class="no">ندارد</td><td>فقط تماشای زنده؛ چیزی ذخیره نمی‌شود</td></tr>
+              <tr><td>تأخیر</td><td>حدود یک ثانیه</td><td>از طریق پخش زندهٔ مرورگر</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="note warn">
+          <strong>نکتهٔ مهم دربارهٔ H.265:</strong>
+          <p>
+            دوربین‌ها با استاندارد H.265 فشرده می‌کنند. مرورگر برای پخش آن به <strong>پشتیبانی سخت‌افزاری
+            کارت گرافیک</strong> نیاز دارد. روی رایانه‌های نسبتاً جدید مشکلی نیست، اما روی یک دستگاه
+            قدیمی ممکن است کاشی سیاه بماند. اگر برای کاربری این اتفاق افتاد، مشکل از دوربین یا شبکه
+            نیست — از آن رایانه است. راه‌حل ریشه‌ای، تغییر تنظیم دوربین‌ها به H.264 است.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─────────────────────────────────────────────── -->
+      <section id="divar">
+        <h2><span class="idx">۰۴</span>دیوار تصویر</h2>
+        <p class="sub">
+          صفحهٔ اصلی سامانه. یک نوار شهرها بالای صفحه است؛ با انتخاب هر شهر، فقط دوربین‌های همان شهر
+          نشان داده می‌شوند. کنار نام هر شهر، تعداد دوربین‌های آن آمده است.
+        </p>
+
+        <div class="tiles" aria-hidden="true">
+          <div class="tile live">زنده</div>
+          <div class="tile live">زنده</div>
+          <div class="tile dead">بی‌ارتباط</div>
+          <div class="tile live">زنده</div>
+          <div class="tile idle">متوقف — خارج از دید</div>
+          <div class="tile live">زنده</div>
+        </div>
+
+        <h3>هر صفحه حداکثر نُه دوربین</h3>
+        <p>
+          این یک تصمیم پهنای باندی است، نه ظاهری. هر کاشی یک ارتباط زنده با یک محل جداگانه است.
+          صفحه‌بندی همان چیزی است که جلوی باز شدن صد دوربین را — فقط به این دلیل که کسی صفحه را
+          پایین کشیده — می‌گیرد.
+        </p>
+
+        <h3>کاشی‌ای که دیده نمی‌شود، وصل نیست</h3>
+        <p>
+          اگر کاشی از دید خارج شود، یا زبانهٔ مرورگر به پس‌زمینه برود، ارتباط آن دوربین قطع می‌شود و
+          با بازگشت دوباره برقرار می‌شود. کاشی متوقف، پیام «متوقف — خارج از دید» را نشان می‌دهد.
+        </p>
+
+        <h3>تمام‌صفحه</h3>
+        <p>
+          با دکمهٔ بزرگ‌نمایی روی هر کاشی، همان تصویر در ابعاد بزرگ‌تر باز می‌شود. زیر تصویر نوشته
+          شده که این همان زیرجریان است — تا کسی منتظر کیفیت بالاتر نماند. تا وقتی پنجرهٔ بزرگ باز
+          است، کاشی پشت آن متوقف می‌شود تا یک دوربین دو بار گرفته نشود.
+        </p>
+      </section>
+
+      <!-- ─────────────────────────────────────────────── -->
+      <section id="modiriyat">
+        <h2><span class="idx">۰۵</span>افزودن و ویرایش دوربین</h2>
+        <p class="sub">
+          از منوی «مدیریت دوربین‌ها». فهرست، همهٔ دوربین‌ها را با شهر، آدرس، وضعیت و «آخرین اتصال»
+          نشان می‌دهد و امکان فیلتر بر اساس شهر دارد.
+        </p>
+
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr><th>فیلد</th><th>مثال</th><th>توضیح</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>نام دوربین</td><td>دوربین ورودی شهرداری</td><td>هر چه که برای کاربر معنا داشته باشد</td></tr>
+              <tr><td>شهر</td><td>بانه</td><td>از فهرست شهرها انتخاب می‌شود</td></tr>
+              <tr><td>آدرس دوربین</td><td class="m">78.39.233.70</td><td><strong>فقط نشانی</strong> — بدون <span class="m">http://</span> و بدون پورت</td></tr>
+              <tr><td>پورت RTSP</td><td class="m">554</td><td>پیش‌فرض استاندارد</td></tr>
+              <tr><td>کانال</td><td class="m">1</td><td>روی دوربین تک‌لنز همیشه ۱</td></tr>
+              <tr><td>زیرجریان</td><td class="m">2</td><td>همان تصویری که در دیوار دیده می‌شود</td></tr>
+              <tr><td>جریان اصلی</td><td>خالی</td><td><strong>خالی بگذارید</strong> مگر آنکه پهنای باند آن محل واقعاً اجازه بدهد</td></tr>
+              <tr><td>کلید اعتبارنامه</td><td class="m">default</td><td>نام گذرواژه روی سرور تصویر — خودِ گذرواژه نیست</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="note">
+          <span class="tag">نام پخش، خودکار ساخته می‌شود</span>
+          <p>
+            بعد از ذخیره، سامانه یک نام یکتا مثل <span class="m">baneh-01</span> برای دوربین می‌سازد.
+            این نام دیگر <strong>هرگز عوض نمی‌شود</strong> — حتی اگر دوربین را به شهر دیگری منتقل
+            کنید. دلیلش این است که همین نام در پیکربندی سرور تصویر و در نشانی مرورگر استفاده می‌شود
+            و تغییرش یک پخش سالم را قطع می‌کند. نام حذف‌شده‌ها هم دوباره استفاده نمی‌شود.
+          </p>
+        </div>
+
+        <h3>چند نکته که سامانه جلویشان را می‌گیرد</h3>
+        <ul>
+          <li><strong>دو دوربین با یک آدرس، پورت و کانال یکسان</strong> پذیرفته نمی‌شود. دو ردیف برای
+              یک دستگاه یعنی دو بار گرفتن یک خط که جا برای یکی دارد — و نتیجه‌اش قطع و وصل شدنی است
+              که به نظر خرابی دوربین می‌آید.</li>
+          <li><strong>شهری که در فهرست نیست</strong> یا شهری که غیرفعال شده، پذیرفته نمی‌شود.</li>
+          <li><strong>جریان اصلی و زیرجریان نمی‌توانند یکی باشند.</strong></li>
+        </ul>
+
+        <h3>غیرفعال کردن در برابر حذف</h3>
+        <p>
+          «غیرفعال» دوربین را از دیوار برمی‌دارد ولی در فهرست مدیریت می‌ماند. «حذف» آن را از فهرست
+          هم برمی‌دارد؛ نام پخشش برای همیشه رزرو می‌ماند تا با دوربین دیگری اشتباه نشود.
+        </p>
+      </section>
+
+      <!-- ─────────────────────────────────────────────── -->
+      <section id="gozarvazhe">
+        <h2><span class="idx">۰۶</span>گذرواژهٔ دوربین کجاست</h2>
+
+        <div class="duo">
+          <div class="panel">
+            <h4>پایگاه دادهٔ سازمان</h4>
+            <p class="cap">آنچه ذخیره می‌شود</p>
+            <ul>
+              <li>نام و شهر دوربین</li>
+              <li>آدرس، پورت، کانال</li>
+              <li>نام پخش</li>
+              <li><strong>کلید اعتبارنامه</strong> — فقط یک نام</li>
+              <li class="off">گذرواژهٔ دوربین</li>
+            </ul>
+          </div>
+          <div class="panel speaker">
+            <h4>سرور تصویر</h4>
+            <p class="cap">آنچه فقط آنجاست</p>
+            <ul>
+              <li><strong>گذرواژهٔ واقعی دوربین‌ها</strong></li>
+              <li>در یک فایل با دسترسی محدود</li>
+              <li>هرگز به سرور اصلی فرستاده نمی‌شود</li>
+              <li>هرگز در پاسخ هیچ درخواستی نمی‌آید</li>
+            </ul>
+          </div>
+        </div>
+
+        <p>
+          سرور اصلی می‌تواند همهٔ دوربین‌ها را توصیف کند، ولی نمی‌تواند هیچ‌کدام را باز کند. اگر
+          روزی از پایگاه داده نسخهٔ پشتیبان جایی برود، هیچ گذرواژهٔ دوربینی همراهش نیست.
+        </p>
+
+        <div class="note warn">
+          <strong>اگر «کلید اعتبارنامه» روی سرور تصویر تعریف نشده باشد،</strong>
+          <p>
+            پیکربندی <strong>به‌روزرسانی نمی‌شود</strong> و آن دوربین تصویری نخواهد داشت. سامانه
+            عمداً یک پیکربندی نیمه‌کاره نمی‌نویسد: نوشتنش یعنی همهٔ دوربین‌های سالم هم قطع شوند تا
+            یک دوربین خراب اضافه شود. در این حالت باید گذرواژهٔ آن محل را روی سرور تصویر ثبت کرد.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─────────────────────────────────────────────── -->
+      <section id="masir">
+        <h2><span class="idx">۰۷</span>مسیر تصویر و اجازهٔ تماشا</h2>
+
+        <div class="chain">
+          <div class="link">
+            <p class="who">مرورگر</p>
+            <h4>vms.myceo.ir</h4>
+            <p>صفحه، فهرست دوربین‌ها و ورود به سامانه. فقط مدیر سیستم.</p>
+          </div>
+          <div class="arrow">←</div>
+          <div class="link">
+            <p class="who">ماشین واسط</p>
+            <h4>cam.myceo.ir</h4>
+            <p>تصویر را از دوربین‌ها می‌گیرد و برای مرورگرها بازپخش می‌کند.</p>
+          </div>
+          <div class="arrow">←</div>
+          <div class="link end">
+            <p class="who">دروازه‌بان</p>
+            <h4>اجازهٔ تماشا</h4>
+            <p>پیش از هر تصویر، از سرور اصلی می‌پرسد: این شخص اجازه دارد؟</p>
+          </div>
+        </div>
+
+        <p>
+          نکتهٔ فنی که ارزش دانستن دارد: عنصر ویدیوی مرورگر نمی‌تواند «توکن ورود» بفرستد — مرورگر آن
+          درخواست را خودش می‌سازد. بنابراین سامانه هنگام باز شدن صفحه، یک <strong>مجوز کوتاه‌مدت</strong>
+          می‌گیرد که مرورگر خودش همراه هر درخواست تصویر می‌فرستد. بدون آن مجوز، سرور تصویر پاسخ
+          نمی‌دهد.
+        </p>
+
+        <div class="note">
+          <span class="tag">سطح تماس، عمداً باریک است</span>
+          <p>
+            روی <span class="m">cam.myceo.ir</span> فقط <strong>یک مسیر</strong> باز است: همان مسیری
+            که پخش‌کنندهٔ تصویر استفاده می‌کند. بقیهٔ مسیرهای آن نرم‌افزار — از جمله مسیری که فهرست
+            دوربین‌ها را همراه گذرواژه برمی‌گرداند — اصلاً مسیریابی نشده‌اند و پاسخ «یافت نشد»
+            می‌گیرند.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─────────────────────────────────────────────── -->
+      <section id="yek-ettesal">
+        <h2><span class="idx">۰۸</span>یک دوربین، یک اتصال</h2>
+        <p class="sub">
+          چون خط هر محل جا برای یک ارتباط دارد، اگر ده نفر یک دوربین را تماشا کنند نباید ده ارتباط
+          با آن دوربین باز شود. این ادعا اندازه‌گیری شده است، نه فرض.
+        </p>
+
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr><th>وضعیت</th><th>ارتباط با دوربین</th><th>بیننده</th><th>دریافتی هر بیننده در ۲۰ ثانیه</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>بدون بیننده</td><td class="yes">۰</td><td>۰</td><td>—</td></tr>
+              <tr><td>یک بیننده</td><td class="yes">۱</td><td>۱</td><td class="m">352,778</td></tr>
+              <tr><td><strong>چهار بیننده</strong></td><td class="yes">۱</td><td>۴</td><td class="m">352,397 / 370,624 / 370,624 / 370,624</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          هر چهار بیننده دقیقاً همان مقداری را گرفتند که یک بیننده به‌تنهایی می‌گیرد. اگر چهار ارتباط
+          جداگانه باز شده بود، سهم هرکدام حدود یک‌چهارم می‌شد. ضمناً ده ثانیه پس از رفتن آخرین
+          بیننده، ارتباط با دوربین بسته می‌شود — پس دوربینی که کسی تماشایش نمی‌کند، خط محل را
+          اشغال نمی‌کند.
+        </p>
+      </section>
+
+      <!-- ─────────────────────────────────────────────── -->
+      <section id="salamat">
+        <h2><span class="idx">۰۹</span>پایش سلامت و «آخرین اتصال»</h2>
+        <p class="sub">
+          هر پنج دقیقه، سرور تصویر از دوربین‌ها می‌پرسد که سرِ پا هستند یا نه و نتیجه را به سامانه
+          گزارش می‌دهد. ستون «آخرین اتصال» در فهرست مدیریت، همان را نشان می‌دهد.
+        </p>
+
+        <div class="track">
+          <div class="step">
+            <div class="dot">۱</div>
+            <div>
+              <h4>دوربینی که کسی تماشایش می‌کند، آزمایش نمی‌شود</h4>
+              <p>ارتباط زندهٔ موجود، از هر آزمایشی گویاتر است — و آزمایش کردنش یعنی گرفتن دوبارهٔ
+                 خطی که جا برای یکی دارد.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="dot">۲</div>
+            <div>
+              <h4>بقیه با یک پرسش کوتاه آزمایش می‌شوند</h4>
+              <p>حدود یک کیلوبایت. تصویر گرفته نمی‌شود؛ گرفتن تصویر برای سنجش امکان گرفتن تصویر،
+                 خودِ چیزی را که می‌سنجیم خرج می‌کند.</p>
+            </div>
+          </div>
+          <div class="step crit">
+            <div class="dot">۳</div>
+            <div>
+              <h4>فقط موفقیت، ساعت را جلو می‌برد</h4>
+              <p>«آخرین اتصال» یعنی «آخرین باری که این دوربین کار کرد». اگر آزمایش شکست بخورد، عدد
+                 دست‌نخورده می‌ماند و فاصله بزرگ‌تر دیده می‌شود. نوشتن «همین الان» روی یک شکست،
+                 تنها چیزی را که به درد می‌خورد پاک می‌کرد.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="scroll">
+          <table>
+            <thead><tr><th>نشانه</th><th>معنی</th></tr></thead>
+            <tbody>
+              <tr><td><strong>سبز</strong> — چند دقیقه پیش</td><td>در آخرین پویش پاسخ داده است</td></tr>
+              <tr><td><strong>نارنجی</strong> — چند ساعت پیش</td><td>مدتی است پاسخ نداده؛ ارزش بررسی دارد</td></tr>
+              <tr><td><strong>خاکستری</strong> — هنوز بررسی نشده</td><td><strong>یعنی هنوز آزمایش نشده، نه اینکه خراب است.</strong> دوربینی که تازه ثبت شده در همین حالت است.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          در دیوار تصویر، دوربینی که وصل نمی‌شود یک پیام روشن «بی‌ارتباط» می‌گیرد به‌همراه زمان آخرین
+          اتصال — نه یک مستطیل سیاه. دلیلش ساده است: <strong>مستطیل سیاه، شکل یک حیاط در شب هم
+          هست</strong>، و کسی که باید برود دوربین را درست کند نمی‌تواند این دو را از هم تشخیص دهد.
+        </p>
+      </section>
+
+      <!-- ─────────────────────────────────────────────── -->
+      <section id="amaliyat">
+        <h2><span class="idx">۱۰</span>نکات عملیاتی و وضعیت فعلی</h2>
+
+        <div class="scroll">
+          <table>
+            <thead><tr><th>موضوع</th><th>آنچه باید بدانید</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><strong>دوربین تازه، تا دو دقیقه</strong></td>
+                <td>پس از ذخیره، حداکثر دو دقیقه طول می‌کشد تا سرور تصویر آن را بشناسد. اگر بلافاصله
+                    تصویری ندیدید، کمی صبر کنید.</td>
+              </tr>
+              <tr>
+                <td><strong>ضبطی در کار نیست</strong></td>
+                <td>سرویس فقط تماشای زنده است. اگر روزی ضبط لازم شد، فضای ذخیره‌سازی و سیاست
+                    نگهداری تصمیم‌های تازه‌ای هستند.</td>
+              </tr>
+              <tr>
+                <td><strong>دسترسی فقط مدیر سیستم</strong></td>
+                <td>شهر، یک برچسب دسته‌بندی است و <strong>مجوز نیست</strong>. کسی که به سامانه دسترسی
+                    دارد، همهٔ شهرها را می‌بیند.</td>
+              </tr>
+              <tr>
+                <td><strong>پورت ۵۵۴ دوربین‌ها</strong></td>
+                <td>وقتی همهٔ تماشاها از ماشین واسط عبور می‌کند، می‌توان پورت دوربین‌ها را فقط به
+                    همان یک نشانی محدود کرد. کاری روی تنظیم شبکهٔ هر محل است، نه روی این سامانه —
+                    و امنیت را به‌طور محسوسی بالا می‌برد.</td>
+              </tr>
+              <tr>
+                <td><strong>گواهی امنیتی</strong></td>
+                <td><span class="m">cam.myceo.ir</span> باید مستقیم به ماشین واسط اشاره کند و از
+                    شبکهٔ توزیع محتوا عبور نکند، وگرنه گواهی صادر نمی‌شود.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>وضعیت فعلی</h3>
+        <p>
+          سرویس روی سرور مستقر است و <span class="m">vms.myceo.ir</span> بالا می‌آید. مسیر کامل —
+          از فهرست دوربین در پایگاه داده تا پخش تصویر در مرورگر — با یک دوربین واقعی آزمایش شده و
+          کار کرده است. آنچه هنوز انجام نشده:
+        </p>
+        <ul>
+          <li><strong>هیچ دوربینی هنوز از داخل پنل ثبت نشده است.</strong> اولین ثبت، آخرین حلقهٔ
+              آزمایش‌نشده را می‌بندد.</li>
+          <li><strong>پهنای باند فقط در یک محل اندازه‌گیری شده است.</strong> اگر بقیهٔ شهرها هم حدود
+              ۰٫۴۱ مگابیت باشند، انتظار از سرویس همین است که در این سند آمده؛ اگر بهتر باشند، می‌توان
+              کیفیت بالاتر را دوباره بررسی کرد. <strong>دو سه نشانی دیگر، این را روشن می‌کند.</strong></li>
+          <li><strong>پخش H.265 روی رایانه‌های کاربران واقعی آزمایش نشده است.</strong> پیش از معرفی
+              رسمی، بهتر است روی یکی دو دستگاه از همان‌هایی که استفاده خواهند کرد باز شود.</li>
+        </ul>
+      </section>
+
+    </main>
+
+    <footer>
+      <p>
+        مستندات فنی سرویس دوربین‌های نظارتی — سازمان نظام مهندسی. این سند رفتار واقعی سرویس
+        مستقرشده را توصیف می‌کند. اعدادِ پهنای باند، اندازه‌گیری‌شده‌اند و نه تخمینی؛ مواردی که
+        هنوز در عمل آزموده نشده‌اند، در بخش «وضعیت فعلی» صریح آمده‌اند.
+      </p>
+    </footer>
+
+  </div>
+</div>
+
+<script>
+  (function () {
+    var root = document.documentElement;
+    var key = "ceo-docs-theme";
+    var saved = null;
+    try { saved = localStorage.getItem(key); } catch (e) { /* private mode */ }
+    if (saved === "dark" || saved === "light") root.setAttribute("data-theme", saved);
+
+    document.getElementById("themer").addEventListener("click", function () {
+      var dark = root.getAttribute("data-theme") === "dark" ||
+                 (!root.hasAttribute("data-theme") &&
+                  window.matchMedia("(prefers-color-scheme: dark)").matches);
+      var next = dark ? "light" : "dark";
+      root.setAttribute("data-theme", next);
+      try { localStorage.setItem(key, next); } catch (e) { /* ignore */ }
+    });
+  })();
+</script>
+</body>
+</html>
