@@ -40,7 +40,14 @@ public class WelfarePoolReservation : BaseAuditableEntity
 
     public string NationalCode { get; set; } = string.Empty;
 
-    /// <summary>کد رشته (ReshteID from the org record).</summary>
+    /// <summary>
+    /// کد رشته — the org's 1–7 discipline code (<c>Reshte</c>), snapshotted at booking time.
+    /// </summary>
+    /// <remarks>
+    /// Rows written before 2026-08-01 hold the <c>ReshteID</c> value instead (e.g. <c>3000</c> rather
+    /// than <c>3</c>) — the directory read the wrong column until then. This field is display-only on
+    /// a historical ticket, so those rows are left as they are rather than migrated.
+    /// </remarks>
     public string ReshteCode { get; set; } = string.Empty;
 
     public string Mobile { get; set; } = string.Empty;

@@ -104,7 +104,16 @@ public sealed class KurdNezamEngineerDirectory(
             var famName    = S("NameKhanevadegi");
             var firstName  = S("FirstName");
             var lastName   = S("LastName");
-            var reshteId   = S("ReshteID");
+            // `Reshte`, NOT `ReshteID`. Three sources agree that Reshte is the 1–7 discipline code:
+            // the org's own data dictionary (1 معماری … 7 ترافیک), the analytics semantic model which
+            // has decoded this column in production since long before this file existed, and the live
+            // rows themselves — Reshte=3 sits beside ReshteNam="عمران-عمران", and عمران is 3.
+            //
+            // ReshteID is a رشته-گرایش id: the same row carries 3000, which reads as رشته 3 plus a
+            // گرایش, and matches NONE of the seven codes. Reading it here meant an election restricted
+            // by discipline would have compared "3000" against "4" and refused every single voter with
+            // «این انتخابات ویژهٔ مهندسان رشتهٔ … است».
+            var reshte     = S("Reshte");
             var mobile     = S("Mob");
             var vazeyat    = S("Vazeyat");
             // Jalali string, e.g. 1405/05/01. Kept as text on purpose — parsing it here with
@@ -146,7 +155,7 @@ public sealed class KurdNezamEngineerDirectory(
                 codeMeli!,
                 nam is { Length: > 0 } ? nam : firstName ?? string.Empty,
                 famName is { Length: > 0 } ? famName : lastName ?? string.Empty,
-                reshteId ?? string.Empty,
+                reshte ?? string.Empty,
                 mobile,
                 status,
                 prvExp,

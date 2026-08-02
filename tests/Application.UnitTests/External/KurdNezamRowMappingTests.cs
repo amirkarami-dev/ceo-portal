@@ -1,4 +1,5 @@
 using System.Data;
+using Mabhas19.Application.Common;
 using Mabhas19.Application.Common.Interfaces;
 using Mabhas19.Infrastructure.External;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -35,7 +36,11 @@ public class KurdNezamRowMappingTests
         foreach (var c in new[]
                  {
                      "CodeMeli", "Nam", "NameKhanevadegi", "FirstName", "LastName",
-                     "ReshteID", "Mob", "Vazeyat", "PrvExp", "MadrakNam",
+                     // BOTH discipline columns, because telling them apart is the point: Reshte is
+                     // the 1–7 code the election matches on; ReshteID is a رشته-گرایش id that
+                     // matches none of them.
+                     "Reshte", "ReshteID",
+                     "Mob", "Vazeyat", "PrvExp", "MadrakNam",
                  })
         {
             t.Columns.Add(c, typeof(string));
@@ -44,10 +49,12 @@ public class KurdNezamRowMappingTests
         return t;
     }
 
-    /// <summary>A row shaped like the real one, trailing spaces and all.</summary>
+    /// <summary>A row shaped like the real one — real values, trailing spaces and all.</summary>
     private static void AddRow(DataTable t, string code = Code) =>
-        // The live row really does carry trailing spaces on PrvExp — the mapper trims.
-        t.Rows.Add(code, "تست", "سیستم", "تست", "سیستم", "3000", "09120000000", "0", "1405/06/28  ", "کارشناسی پیوسته");
+        t.Rows.Add(code, "تست", "سیستم", "تست", "سیستم",
+            // The live row: Reshte=3 (عمران) alongside ReshteID=3000.
+            "3", "3000",
+            "09120000000", "0", "1405/06/28  ", "کارشناسی پیوسته");
 
     private static async Task<DirectoryResult> MapFirstRowAsync(DataTable t, string expected = Code)
     {
@@ -74,7 +81,9 @@ public class KurdNezamRowMappingTests
         result.Engineer!.NationalCode.ShouldBe(Code);
         result.Engineer.FirstName.ShouldBe("تست");
         result.Engineer.LastName.ShouldBe("سیستم");
-        result.Engineer.ReshteCode.ShouldBe("3000");
+        // Reshte, not ReshteID. If this ever reads "3000" again, a discipline-restricted election
+        // silently refuses every voter — see the class remarks.
+        result.Engineer.ReshteCode.ShouldBe("3");
         result.Engineer.Mobile.ShouldBe("09120000000");
         result.Engineer.MembershipStatus.ShouldBe(0);
         result.Engineer.EducationLevel.ShouldBe("کارشناسی پیوسته");
@@ -133,10 +142,25 @@ public class KurdNezamRowMappingTests
     }
 
     [Test]
+    public async Task The_discipline_code_is_the_one_the_election_matches_on()
+    {
+        var t = Table();
+        // مکانیک — the discipline «انتخاب هیئت رئیسه واحد گاز» restricts to.
+        t.Rows.Add(Code, "تست", "سیستم", "", "", "4", "4000", "09120000000", "0", "1405/06/28", "کارشناسی");
+
+        var code = (await MapFirstRowAsync(t)).Engineer!.ReshteCode;
+
+        // ElectionEligibleReshte stores "4" for مکانیک, and eligibility is an exact comparison.
+        // "4000" here would refuse every mechanical engineer from their own election.
+        code.ShouldBe("4");
+        ReshteNames.Describe(code).ShouldBe("مکانیک");
+    }
+
+    [Test]
     public async Task A_non_numeric_membership_status_fails_closed_rather_than_defaulting_to_active()
     {
         var t = Table();
-        t.Rows.Add(Code, "تست", "سیستم", "", "", "3000", "09120000000", "نامعلوم", "1405/06/28", "کارشناسی");
+        t.Rows.Add(Code, "تست", "سیستم", "", "", "3", "3000", "09120000000", "نامعلوم", "1405/06/28", "کارشناسی");
 
         // null, not 0. IsActiveMember treats null as NOT active, so an unreadable status keeps
         // somebody out rather than letting a suspended member through.
