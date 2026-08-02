@@ -1,11 +1,13 @@
 # VMS — video management service — design
 
-> **Date:** 2026-08-01 · **Status:** step 1 done (2026-08-02), steps 2–9 not started · **Author:** Amir + Claude
+> **Date:** 2026-08-01 · **Status:** steps 1–5 done (2026-08-02), steps 6–9 open · **Author:** Amir + Claude
 > Live camera viewing at **vms.myceo.ir**, cameras classified by city.
 >
 > **Step 1 overturned three assumptions in this document.** §2.2, §2.3 and §3 have been rewritten and
 > the corrections are marked inline rather than silently applied — the reasoning that was wrong is
-> worth keeping next to the reasoning that replaced it.
+> worth keeping next to the reasoning that replaced it. **Step 5 added the cookie §4 had glossed
+> over**, and found that the VPS runs Docker Desktop with Traefik as a container, so go2rtc is a
+> container too.
 
 ---
 
@@ -166,6 +168,12 @@ without that. Authorisation stays in the API where the city permissions live; me
 This also argues for **WebRTC or MSE over HLS**: those authorise once at the handshake, whereas HLS
 would re-authorise on every segment.
 
+> **Step 5 added the missing half.** "It carries the user's session" is not free: a `<video>`
+> element and a WebSocket handshake cannot send an `Authorization` header, so the SPA's bearer
+> token is unusable here. The API trades it for a short-lived HMAC-signed **cookie** on
+> `.myceo.ir`, which the browser attaches to `cam.myceo.ir` by itself. `SameSite=Lax` suffices
+> because both hosts share one registrable domain.
+
 ### Credentials never reach the database
 
 The camera passwords live **only** in go2rtc's config on the VPS (`chmod 600`), exactly like the
@@ -234,8 +242,8 @@ needed**. MSE over 443 is the whole transport story.
 | 2 | `Cameras` + city model + migration | a camera exists in `CeoDb` | **done 2026-08-02** |
 | 3 | Admin CRUD, by city | a camera can be added and tagged | **done 2026-08-02** |
 | 4 | go2rtc config generated from the database, run as a service | adding a camera does not mean hand-editing YAML — **and any `CredentialKey` the VPS does not hold is reported, not silently written** | **done 2026-08-02** |
-| 5 | Traefik forwardAuth against the API | an unauthenticated stream request is refused | |
-| 6 | `vms-web`: city list → paged camera grid on substreams | an admin sees live video, filtered by city | |
+| 5 | Traefik forwardAuth against the API | an unauthenticated stream request is refused | **done 2026-08-02** |
+| 6 | `vms-web`: city list → paged camera grid on substreams | an admin sees live video, filtered by city — **and the Traefik router is narrowed to the player's paths, so `/api/streams` stops handing out camera passwords** | |
 | 7 | Fullscreen = a bigger tile of the **same substream**, plus a one-viewer-per-camera cap | no camera is ever pulled twice at once | rescoped by §2.2 |
 | 8 | Scheduled health sweep + «آخرین اتصال» per camera | a dead camera is visible as dead, not as a black square | |
 | 9 | Deploy: compose, OIDC client, CORS, DNS, AppSwitcher ×8 | `https://vms.myceo.ir` serves it | |

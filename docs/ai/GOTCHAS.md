@@ -541,3 +541,19 @@ containers you already have. `CeoDb` + `CeoAuthDb` live in `mabhas19_sqldata`.
   **Never pipe data through `sudo`.** Build the file as the ordinary user under `umask 077`, then
   `sudo install -m 600 -o root -g root <tmp> <target>`. Verify by digest afterwards, and check the
   *shape* of the file (`sed 's/./x/g'`) rather than printing it.
+- **Docker Desktop bind-mounts only shared host paths, and an unshared one mounts as an EMPTY
+  DIRECTORY.** No error, no warning. On the media VPS, `-v /srv/vms/go2rtc.yaml:/config/go2rtc.yaml`
+  gave go2rtc an empty directory, so it started on its **defaults**: `/api/streams` returned `{}` and
+  the log showed `[rtsp] listen addr=:8554` even though the config disables it. Both are the tell —
+  a service running on defaults has read no config at all. The docker user's home **is** shared;
+  `/srv` is not. Check with
+  `docker run --rm -v <path>:/c curlimages/curl sh -c 'test -f /c && wc -c </c || echo DIRECTORY'`.
+- **Docker creates a missing bind-mount source as a directory.** Start the container before the file
+  exists and that path *becomes* a directory, so a later `install`/`cp` writes the file **inside** it
+  and the mount stays empty for ever. Render the config first, mount second.
+- **A helper like `sud() { printf pw | sudo -S "$@"; }` replaces stdin, so `sud tee f <<EOF` writes
+  nothing.** It produced a silent 0-byte file. Same root cause as the password-in-the-file bug above:
+  never pass data through a sudo wrapper — build the file as the ordinary user, then `sudo install`.
+- **`sudo docker ps` on the media VPS returns nothing, and that does NOT mean docker is down.** It is
+  Docker **Desktop**, running under the `amirserver` session with its own socket. Run docker as that
+  user; from root use `runuser -l amirserver -c 'docker ...'`.

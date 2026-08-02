@@ -34,6 +34,9 @@ public sealed class JwtWebApiFactory : WebApplicationFactory<Program>
     /// <summary>The expected audience accepted by the API under test.</summary>
     public const string TestAudience = "ceo.api";
 
+    /// <summary>Throwaway base64 signing key for the VMS media cookie. 32 bytes.</summary>
+    public const string TestMediaSecret = "ZmFrZS1tZWRpYS1zaWduaW5nLWtleS0zMi1ieXRlcyE=";
+
     public JwtWebApiFactory(string connectionString, RsaSecurityKey signingKey)
     {
         _connectionString = connectionString;
@@ -44,6 +47,10 @@ public sealed class JwtWebApiFactory : WebApplicationFactory<Program>
     {
         // Point the app at the Aspire-provisioned SQL Server so EF migrations run fine.
         builder.UseSetting("ConnectionStrings:CeoDb", _connectionString);
+
+        // The media cookie's signing key. Unset makes /api/VmsMedia refuse in both directions, so
+        // without this a "the gateway accepts the cookie" test would pass for the wrong reason.
+        builder.UseSetting("VmsMedia:TokenSecret", TestMediaSecret);
 
         builder.ConfigureTestServices(services =>
         {

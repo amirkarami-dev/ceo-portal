@@ -141,6 +141,12 @@ public static class DependencyInjection
         services.Configure<Mabhas19.Application.Vms.VmsGatewayOptions>(
             config.GetSection(Mabhas19.Application.Vms.VmsGatewayOptions.SectionName));
 
+        // Signs the short-lived cookie a browser shows the media gateway. Empty refuses in both
+        // directions — minting under a default key would produce cookies the gateway rejects, which
+        // is video that never starts and nothing on screen to say why.
+        services.Configure<Mabhas19.Application.Vms.VmsMediaOptions>(
+            config.GetSection(Mabhas19.Application.Vms.VmsMediaOptions.SectionName));
+
         // Singleton, and the SAME instance serves both interfaces: RoomTokenService also mints the
         // server-wide admin token, which must stay reachable only from Infrastructure.
         services.AddSingleton<RoomTokenService>();

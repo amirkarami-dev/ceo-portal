@@ -21,8 +21,18 @@ set -euo pipefail
 VMS_DIR="${VMS_DIR:-/srv/vms}"
 BASE="$VMS_DIR/base.yaml"
 CREDS="$VMS_DIR/credentials.env"
-TARGET="$VMS_DIR/go2rtc.yaml"
-SERVICE="${VMS_SERVICE:-vms-go2rtc}"
+SERVICE="${VMS_SERVICE:-vms-go2rtc}"   # the container name, see deploy/vms/docker-compose.yml
+
+# go2rtc runs as a container, and Docker on this machine is Docker Desktop, which only bind-mounts
+# host paths it has been told to share. A path outside that list does not fail — it silently mounts
+# as an EMPTY DIRECTORY, and go2rtc then starts on its defaults with no cameras and no error.
+# So the generated config lives under the docker user's home, which is shared.
+#
+# Everything secret stays in $VMS_DIR, root-only. That is not weakened by this: the docker user
+# controls the daemon and is therefore root-equivalent already, so hiding the generated file from
+# them would buy nothing.
+DOCKER_USER="${VMS_DOCKER_USER:-amirserver}"
+TARGET="${VMS_TARGET:-/home/$DOCKER_USER/vms-config/go2rtc.yaml}"
 
 # Where to get the streams block. A file instead of a URL is how this is tested without the API.
 API_URL="${VMS_API_URL:-}"
@@ -134,15 +144,20 @@ if [ -f "$TARGET" ] && cmp -s "$new" "$TARGET"; then
   exit 0
 fi
 
-# 640 root:vms — go2rtc runs as `vms` and has to read it, and nobody else has any business doing so.
-# install() sets the mode as the content lands, so the file is never briefly world-readable with
-# camera credentials in it.
-install -m 640 -o root -g "${VMS_GROUP:-vms}" "$new" "$TARGET"
+# 600, owned by the docker user — the only account that needs it. install() sets the mode as the
+# content lands, so the file is never briefly world-readable with camera credentials in it.
+install -d -m 700 -o "$DOCKER_USER" -g "$DOCKER_USER" "$(dirname "$TARGET")"
+install -m 600 -o "$DOCKER_USER" -g "$DOCKER_USER" "$new" "$TARGET"
 log "wrote $TARGET"
 
-if systemctl is-active --quiet "$SERVICE"; then
-  systemctl restart "$SERVICE"
+# go2rtc runs as a container so that Traefik's docker provider can route to it without the shared
+# reverse proxy being reconfigured. Docker here is Docker Desktop under a user session, so root
+# cannot reach the daemon — the restart has to be run as that user.
+DOCKER_USER="${VMS_DOCKER_USER:-amirserver}"
+
+if runuser -l "$DOCKER_USER" -c "docker inspect -f '{{.State.Running}}' $SERVICE" 2>/dev/null | grep -q true; then
+  runuser -l "$DOCKER_USER" -c "docker restart $SERVICE" > /dev/null
   log "restarted $SERVICE"
 else
-  log "$SERVICE is not running; start it with: systemctl start $SERVICE"
+  log "$SERVICE is not running; start it with: docker compose -f /srv/sites/vms/docker-compose.yml up -d"
 fi

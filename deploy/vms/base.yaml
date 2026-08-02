@@ -4,12 +4,13 @@
 # credentials.env next to this file. Editing this file is how you change how go2rtc listens.
 
 api:
-  # Localhost only. Traefik on this machine terminates TLS for cam.myceo.ir and will call our API's
-  # forwardAuth before anything reaches here (step 5). Until then, nothing outside can talk to it.
+  # All interfaces — but inside a container that publishes no ports, so the only route in is Traefik,
+  # which calls our API's forwardAuth first. Binding to loopback here would mean loopback *of the
+  # container*, which Traefik cannot reach.
   #
   # This matters more than it looks: go2rtc's /api/streams echoes each source URL back, credentials
-  # included. An exposed API is an exposed camera password.
-  listen: "127.0.0.1:1984"
+  # included. Whatever can reach this port can read every camera password.
+  listen: ":1984"
 
 rtsp:
   # go2rtc's own RTSP server. Not needed by browsers and not published; left off so there is one

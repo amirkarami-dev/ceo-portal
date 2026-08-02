@@ -49,16 +49,23 @@ Clean Architecture. A feature normally touches all four layers.
 | **Welfare** | `Application/Walfare` | `/api/walfare/*` | `walfare-web/` |
 | **Elections** | `Application/Elections` | `/api/ElectionAdmin`, `/api/Election`, `/api/BaleWebhook` | `election-web/`, Bale bot |
 | **Rooms** | `Application/Rooms` | `/api/RoomAdmin`, `/api/Room` | `room-web/` (dev port 5277) |
-| **VMS** (in build — steps 1–4 of 9) | `Application/Vms` | `/api/VmsAdmin`, `/api/VmsGateway` | none yet (`vms-web` is step 6) |
+| **VMS** (in build — steps 1–5 of 9) | `Application/Vms` | `/api/VmsAdmin`, `/api/VmsGateway`, `/api/VmsMedia` | none yet (`vms-web` is step 6) |
 
-## VMS — camera viewing (in build, steps 1–4 done)
+## VMS — camera viewing (in build, steps 1–5 done)
 
 Live camera viewing at `vms.myceo.ir`, cameras classified by city. Design:
 `docs/superpowers/specs/2026-08-01-vms-service-design.md`. **Nothing is deployed.**
 
-- **Media never touches this box.** Cameras are pulled by **go2rtc on the VPS** (`185.182.220.182`,
-  `~/vms`, `127.0.0.1:1984`), the same machine that runs LiveKit for the room service. `cam.myceo.ir`
-  will point there with the CDN **off**; `vms.myceo.ir` is a normal SPA on this box with the CDN on.
+- **Media never touches this box.** Cameras are pulled by **go2rtc on the VPS** (`185.182.220.182`),
+  the same machine that runs LiveKit. It is a **container** (`vms-go2rtc`, `/srv/sites/vms`) on that
+  box's `traefik` network, publishing nothing — the only way in is Traefik at **`cam.myceo.ir`**
+  (CDN **off**, real Let's Encrypt cert via TLS-ALPN).
+- **Traefik there calls `/api/VmsMedia/check` (forwardAuth) before any stream request.** A browser
+  cannot put a bearer token on a `<video>` request, so the SPA trades its JWT for a short-lived
+  HMAC-signed cookie on `.myceo.ir` and the browser attaches it by itself. No cookie ⇒ 401.
+- **Docker on that VPS is Docker Desktop under a user session**: `sudo docker` sees nothing, and it
+  bind-mounts only shared host paths — `/srv/...` mounts as an EMPTY DIRECTORY with no error. The
+  generated go2rtc config therefore lives at `/home/amirserver/vms-config/go2rtc.yaml`.
 - **`VmsCameras` holds no password.** `CredentialKey` names an entry in `/srv/vms/credentials.env`
   on the VPS. **The VPS pulls**: `vms-sync` (`scripts/vms-sync.sh`, installed at
   `/usr/local/bin/vms-sync`) fetches the streams block from `/api/VmsGateway/config` with a shared
