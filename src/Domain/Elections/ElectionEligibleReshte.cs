@@ -6,16 +6,18 @@ namespace Mabhas19.Domain.Elections;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <see cref="ReshteCode"/> is an <b>opaque string</b>, compared against the <c>Reshte</c> column of
-/// <c>WebS_GetEngineerInfo</c> — the org's 1–7 discipline code (1 معماری … 7 ترافیک), per its own data
-/// dictionary. There is deliberately no enum and no lookup table: the org's real code list is not this
-/// repo's to own, and the client's discipline names do not match it. Adding a discipline is an admin
-/// typing a code — never a code change.
+/// <see cref="ReshteCode"/> is an <b>opaque string</b>, compared against
+/// <c>tblDW_OzviatInfo.Reshte</c> — the org's 1–7 discipline code (1 معماری … 7 ترافیک) per its own
+/// data dictionary. There is deliberately no enum and no lookup table: the org's real code list is not
+/// this repo's to own, and the client's discipline names do not match it. Adding a discipline is an
+/// admin typing a code — never a code change.
 /// </para>
 /// <para>
-/// <b>Not <c>ReshteID</c>.</b> That column is a رشته-گرایش id — a live row carries <c>3000</c> beside
-/// <c>ReshteNam = عمران-عمران</c> — and matches none of the seven codes. The directory read it for a
-/// while, which would have refused every voter in a discipline-restricted election.
+/// <b>It does not come from <c>WebS_GetEngineerInfo</c>.</b> That procedure returns a
+/// <c>ReshteID</c> (a رشته-گرایش id — a live row carries <c>3000</c>), and reaching the real code means
+/// taking its <c>CodeOzveyat</c> and joining to <c>tblDW_OzviatInfo</c>. The directory briefly read
+/// <c>ReshteID</c> instead, which would have compared «۴ = مکانیک» against <c>4000</c> and refused
+/// every mechanical engineer from their own election.
 /// </para>
 /// <para>
 /// Deliberately NOT a <c>BaseEntity</c>. A surrogate <c>Id</c> would buy nothing here and the natural

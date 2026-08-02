@@ -1,5 +1,4 @@
 using System.Data;
-using Mabhas19.Application.Common;
 using Mabhas19.Application.Common.Interfaces;
 using Mabhas19.Infrastructure.External;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -24,22 +23,24 @@ namespace Mabhas19.Application.UnitTests.External;
 /// <see cref="System.Data.Common.DbDataReader"/>, and it reproduces the exact behaviour — read after
 /// the reader is exhausted and it throws, same as SQL Server.
 /// </para>
+/// <para>
+/// <b>The discipline is deliberately not asserted here.</b> It does not come from this stored
+/// procedure at all: <c>CodeOzveyat</c> leads to <c>tblDW_OzviatInfo.Reshte</c>, which needs a
+/// database. What this file pins is that <c>CodeOzveyat</c> survives the mapping — without it the
+/// discipline can never be resolved, and a discipline-restricted election would refuse everyone.
+/// </para>
 /// </remarks>
 public class KurdNezamRowMappingTests
 {
     private const string Code = "3732087395";
 
-    /// <summary>The ten columns the directory reads, in the shape the real SP returns them.</summary>
+    /// <summary>The columns the mapper reads, in the shape the real SP returns them.</summary>
     private static DataTable Table()
     {
         var t = new DataTable();
         foreach (var c in new[]
                  {
-                     "CodeMeli", "Nam", "NameKhanevadegi", "FirstName", "LastName",
-                     // BOTH discipline columns, because telling them apart is the point: Reshte is
-                     // the 1–7 code the election matches on; ReshteID is a رشته-گرایش id that
-                     // matches none of them.
-                     "Reshte", "ReshteID",
+                     "CodeMeli", "CodeOzveyat", "Nam", "NameKhanevadegi", "FirstName", "LastName",
                      "Mob", "Vazeyat", "PrvExp", "MadrakNam",
                  })
         {
@@ -51,12 +52,11 @@ public class KurdNezamRowMappingTests
 
     /// <summary>A row shaped like the real one — real values, trailing spaces and all.</summary>
     private static void AddRow(DataTable t, string code = Code) =>
-        t.Rows.Add(code, "تست", "سیستم", "تست", "سیستم",
-            // The live row: Reshte=3 (عمران) alongside ReshteID=3000.
-            "3", "3000",
+        t.Rows.Add(code, "499", "تست", "سیستم", "تست", "سیستم",
             "09120000000", "0", "1405/06/28  ", "کارشناسی پیوسته");
 
-    private static async Task<DirectoryResult> MapFirstRowAsync(DataTable t, string expected = Code)
+    private static async Task<KurdNezamEngineerDirectory.EngineerRow> MapFirstRowAsync(
+        DataTable t, string expected = Code)
     {
         using var r = t.CreateDataReader();
         r.Read().ShouldBeTrue("the fixture must have a first row");
@@ -71,25 +71,22 @@ public class KurdNezamRowMappingTests
         var t = Table();
         AddRow(t);
 
-        var result = await MapFirstRowAsync(t);
+        var row = await MapFirstRowAsync(t);
 
         // Before the fix this was Unavailable, because reading Vazeyat after the multi-row check
         // threw and the catch swallowed it.
-        result.Outcome.ShouldBe(DirectoryOutcome.Found);
-        result.Engineer.ShouldNotBeNull();
+        row.Outcome.ShouldBe(DirectoryOutcome.Found);
+        row.Engineer.ShouldNotBeNull();
 
-        result.Engineer!.NationalCode.ShouldBe(Code);
-        result.Engineer.FirstName.ShouldBe("تست");
-        result.Engineer.LastName.ShouldBe("سیستم");
-        // Reshte, not ReshteID. If this ever reads "3000" again, a discipline-restricted election
-        // silently refuses every voter — see the class remarks.
-        result.Engineer.ReshteCode.ShouldBe("3");
-        result.Engineer.Mobile.ShouldBe("09120000000");
-        result.Engineer.MembershipStatus.ShouldBe(0);
-        result.Engineer.EducationLevel.ShouldBe("کارشناسی پیوسته");
+        row.Engineer!.NationalCode.ShouldBe(Code);
+        row.Engineer.FirstName.ShouldBe("تست");
+        row.Engineer.LastName.ShouldBe("سیستم");
+        row.Engineer.Mobile.ShouldBe("09120000000");
+        row.Engineer.MembershipStatus.ShouldBe(0);
+        row.Engineer.EducationLevel.ShouldBe("کارشناسی پیوسته");
 
         // Trimmed, and NOT parsed as a date — 1405 would be read as a Gregorian year.
-        result.Engineer.LicenceExpiryJalali.ShouldBe("1405/06/28");
+        row.Engineer.LicenceExpiryJalali.ShouldBe("1405/06/28");
     }
 
     [Test]
@@ -103,6 +100,25 @@ public class KurdNezamRowMappingTests
         (await MapFirstRowAsync(t)).Engineer!.MembershipStatus.ShouldBe(0);
     }
 
+    // ── the discipline has to be resolvable afterwards ───────────────────────
+
+    [Test]
+    public async Task CodeOzveyat_survives_because_it_is_the_only_route_to_the_discipline()
+    {
+        var t = Table();
+        AddRow(t);
+
+        var row = await MapFirstRowAsync(t);
+
+        // CodeOzveyat -> tblDW_OzviatInfo.Ozviat -> Reshte (1 معماری … 7 ترافیک). Lose this and a
+        // discipline-restricted election compares an empty string against "4" and refuses every
+        // mechanical engineer from their own election.
+        row.CodeOzveyat.ShouldBe("499");
+
+        // Left empty on purpose at this stage; the caller fills it from the warehouse table.
+        row.Engineer!.ReshteCode.ShouldBeEmpty();
+    }
+
     // ── the guards the ordering must not break ───────────────────────────────
 
     [Test]
@@ -114,10 +130,10 @@ public class KurdNezamRowMappingTests
 
         // A person holding two membership rows could otherwise answer as someone else. During an
         // election that would consume the wrong voter's one-vote slot.
-        var result = await MapFirstRowAsync(t);
+        var row = await MapFirstRowAsync(t);
 
-        result.Outcome.ShouldBe(DirectoryOutcome.Unavailable);
-        result.Engineer.ShouldBeNull();
+        row.Outcome.ShouldBe(DirectoryOutcome.Unavailable);
+        row.Engineer.ShouldBeNull();
     }
 
     [Test]
@@ -126,10 +142,10 @@ public class KurdNezamRowMappingTests
         var t = Table();
         AddRow(t, "1111111111");
 
-        var result = await MapFirstRowAsync(t, expected: Code);
+        var row = await MapFirstRowAsync(t, expected: Code);
 
-        result.Outcome.ShouldBe(DirectoryOutcome.Unavailable);
-        result.Engineer.ShouldBeNull();
+        row.Outcome.ShouldBe(DirectoryOutcome.Unavailable);
+        row.Engineer.ShouldBeNull();
     }
 
     [Test]
@@ -142,25 +158,10 @@ public class KurdNezamRowMappingTests
     }
 
     [Test]
-    public async Task The_discipline_code_is_the_one_the_election_matches_on()
-    {
-        var t = Table();
-        // مکانیک — the discipline «انتخاب هیئت رئیسه واحد گاز» restricts to.
-        t.Rows.Add(Code, "تست", "سیستم", "", "", "4", "4000", "09120000000", "0", "1405/06/28", "کارشناسی");
-
-        var code = (await MapFirstRowAsync(t)).Engineer!.ReshteCode;
-
-        // ElectionEligibleReshte stores "4" for مکانیک, and eligibility is an exact comparison.
-        // "4000" here would refuse every mechanical engineer from their own election.
-        code.ShouldBe("4");
-        ReshteNames.Describe(code).ShouldBe("مکانیک");
-    }
-
-    [Test]
     public async Task A_non_numeric_membership_status_fails_closed_rather_than_defaulting_to_active()
     {
         var t = Table();
-        t.Rows.Add(Code, "تست", "سیستم", "", "", "3", "3000", "09120000000", "نامعلوم", "1405/06/28", "کارشناسی");
+        t.Rows.Add(Code, "499", "تست", "سیستم", "", "", "09120000000", "نامعلوم", "1405/06/28", "کارشناسی");
 
         // null, not 0. IsActiveMember treats null as NOT active, so an unreadable status keeps
         // somebody out rather than letting a suspended member through.
