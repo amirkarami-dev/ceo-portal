@@ -41,6 +41,23 @@ one-row and a two-row `DataTable.CreateDataReader()` — a real `DbDataReader` t
 read-past-end exactly like SQL Server, so no fake is needed.
 **Shipped broken in** `d02e88a` (2026-07-30) and live for about a day.
 
+### The engineer's رشته is NOT in `WebS_GetEngineerInfo`
+**Symptom:** none yet — a discipline-restricted election would simply have refused every voter.
+**Cause:** the procedure returns two رشته-ish columns and **neither is the discipline code**.
+A live row carries `ReshteID = 3000` and `Reshte = 3` beside `ReshteNam = عمران-عمران`; matching an
+election's «۴ = مکانیک» against either is wrong.
+**The real path is a join:**
+```
+WebS_GetEngineerInfo.CodeOzveyat  →  tblDW_OzviatInfo.Ozviat  →  Reshte      (1 معماری … 7 ترافیک)
+```
+`tblDW_OzviatInfo` is the same table the analytics semantic model reads (`oz_info`), and its `Reshte`
+is the dictionary-coded column — so analytics has been right about this all along; only the engineer
+directory was not.
+**Implementation note:** two commands on one connection means the **reader must be closed first** —
+without MARS a second command on an open reader fails outright.
+**Data note:** 6,938 members, no null `Reshte`, but **six carry `Reshte = 8`**, which is not in the
+seven-code dictionary and has no option in the admin picker.
+
 ### `new SqlParameter("@Code", 0)` silently sends NO value
 **Symptom:** every engineer lookup failed → «این کد ملی در سامانه نظام مهندسی یافت نشد».
 **Cause:** the literal `0` binds to `SqlParameter(string, SqlDbType)`, not `(string, object)`.

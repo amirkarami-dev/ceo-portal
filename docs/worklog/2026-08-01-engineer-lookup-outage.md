@@ -76,37 +76,60 @@ Unit **332 passed**; functional **145 passed / 3 failed** (the same three pre-ex
 **Not yet confirmed:** nobody has logged in since the deploy. The proof that matters is Amir
 retrying `refahi.kurdnezam.ir` and reaching the booking page.
 
-## A second problem the same data exposed — not yet fixed
+## A second problem the same data exposed — fixed, not yet deployed
 
-Amir ran the SP by hand and shared the row. It contains:
+Amir ran the SP by hand while we were diagnosing the outage, and the row shape gave the election
+service away. It carries `ReshteID = 3000` next to `ReshteNam = عمران-عمران`, while the election
+matches `EngineerInfo.ReshteCode` against the seven codes `1`–`7` (عمران = `3`).
 
-| Column | Value |
+So «انتخاب هیئت رئیسه واحد گاز» — eligibility مکانیک, code `4` — would have compared `"4"` against a
+`ReshteID` and **refused every mechanical engineer from their own election** with «این انتخابات ویژهٔ
+مهندسان رشتهٔ … است». Nothing had broken yet only because no election has been run.
+
+### The discipline is not in the procedure at all
+
+The first attempt at this fix read the SP's own `Reshte` column, which happened to be `3` on the
+sample row. **That was wrong too**, and Amir corrected it: the real path is two steps.
+
+```
+WebS_GetEngineerInfo.CodeOzveyat  →  tblDW_OzviatInfo.Ozviat  →  Reshte
+```
+
+Verified against production:
+
+| Check | Result |
 |---|---|
-| `ReshteID` | **3000** |
-| `Reshte` | **3** |
-| `ReshteNam` | عمران-عمران |
+| `tblDW_OzviatInfo` readable by the API's account | 6,938 rows |
+| `Ozviat = 499` (the sample member) | `Reshte = 3` — agrees with `ReshteNam = عمران-عمران` |
+| `Reshte` across the whole membership | `3`→3321, `1`→1934, `5`→763, `4`→538, `6`→264, `2`→108, `8`→6, `7`→4 — **no nulls** |
 
-`EngineerInfo.ReshteCode` is populated from **`ReshteID`**, and the election compares it against the
-seven discipline codes `1`–`7` (عمران = `3`). On this row `ReshteID` is `3000`, not `3`.
+It is also the same table and column the **analytics** semantic model has read in production since
+long before the election service existed (`oz_info → tblDW_OzviatInfo`, `Reshte` decoded through
+`ReshteNames`). Three things now agree: the org's data dictionary, analytics, and the live rows.
 
-If that holds across the membership, **a `ByReshte` election would refuse every voter** with «این
-انتخابات ویژهٔ مهندسان رشتهٔ … است» — including exactly the election that motivated the service
-(«انتخاب هیئت رئیسه واحد گاز», eligibility = مکانیک). Nothing has broken yet only because no
-election has been run.
+The lookup is therefore two commands on one connection. The reader must be **closed** before the
+second runs — without MARS a second command on an open reader fails outright.
 
-This is **not** changed on one sample. `Reshte = 3` agreeing with `ReshteNam = عمران-عمران` is strong,
-but eligibility is the wrong thing to guess at. Schema exploration is blocked — the `KurdWebSUsr`
-account has EXEC rights only and returns nothing from `INFORMATION_SCHEMA`.
+Failure behaviour, deliberately asymmetric:
 
-**What would settle it:** a few more rows across different disciplines. If `Reshte` is consistently
-`1`–`7` and matches `ReshteNam`, then `EngineerInfo.ReshteCode` should come from `Reshte`, and the
-design doc's claim that «`ReshteCode` is stored exactly as `ReshteID` arrives» is simply wrong about
-this database.
+- a membership row with **no** warehouse row leaves `ReshteCode` empty, which fails *closed* for a
+  discipline-restricted election and is harmless for an all-members one;
+- a SQL failure still throws and surfaces as `Unavailable`, so an outage is never reported as
+  "wrong discipline".
+
+### ⚠ Six members carry `Reshte = 8`
+
+That value is not in the seven-code dictionary and has no option in the admin picker, so those six
+**cannot be included in any `ByReshte` election** as things stand. Worth resolving with the
+organisation before the first real election rather than discovering it on the day.
 
 ## Follow-ups
 
 - Confirm the welfare login works again (Amir).
-- Settle `Reshte` vs `ReshteID` **before any real election** — see above.
+- **Deploy `321c819`.** The running API has only the outage fix (`28b7c5e`); the discipline fix is
+  committed and tested but not live. It cannot matter until an election is created, so it was held
+  rather than restarting the API twice.
+- Ask the organisation what `Reshte = 8` is.
 - Consider deleting `GetByNationalCodeAsync` outright and making `LookupAsync` the only way in. Its
   remaining callers are the IdP's engineer login, where "unknown" and "unavailable" also deserve
   different messages.
