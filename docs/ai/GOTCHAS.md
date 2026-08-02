@@ -557,3 +557,19 @@ containers you already have. `CeoDb` + `CeoAuthDb` live in `mabhas19_sqldata`.
 - **`sudo docker ps` on the media VPS returns nothing, and that does NOT mean docker is down.** It is
   Docker **Desktop**, running under the `amirserver` session with its own socket. Run docker as that
   user; from root use `runuser -l amirserver -c 'docker ...'`.
+
+### `FindByEmailAsync` is `SingleOrDefault`, and this database has duplicate emails
+**Symptom:** `ceo-portal-auth` crash-loops with **exit 139** on restart — every login for every
+service down. The container had been up 47 hours; nothing changed in that code path.
+**Cause:** `AuthDbInitialiser.SeedAdminUserAsync` called `userManager.FindByEmailAsync(adminEmail)`,
+which is `SingleOrDefault` underneath. **Two accounts share `amirkarami.dev@gmail.com`** (`admin` and
+one named after the address). It throws `Sequence contains more than one element`, `SeedAsync`
+rethrows, and `Program.cs` lets that kill the process.
+**Why it hides:** the seeder only runs at **startup**. A duplicate created at any point sits there
+harmlessly until something restarts the IdP — so the deploy that triggers it is never the one that
+caused it, and rolling the image back does not help.
+**Fix:** `userManager.Users.Where(u => u.NormalizedEmail == normalised)` + `FirstOrDefault`, with a
+warning that names both accounts. An ambiguous admin address is worth a warning, not a total outage.
+**The wider trap: nothing enforces one user per email here.** Engineer logins are created with a
+placeholder and **112 accounts share `a@b.com`**. Any new code that looks a user up by email is the
+same landmine — use `Where(...).FirstOrDefaultAsync()`, never `FindByEmailAsync`.

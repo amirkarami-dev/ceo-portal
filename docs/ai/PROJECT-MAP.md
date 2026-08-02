@@ -20,6 +20,7 @@ if you add a service, a route group, or a page, update the tables here.
 | Kurdnezam public site | `kurdnezam.ir` | `kurdnezam-web/` |
 | **Engineers' welfare** | **`refahi.kurdnezam.ir`** | `walfare-web/` |
 | **Elections** (not deployed yet) | **`election.myceo.ir`** | `election-web/` |
+| **Cameras (VMS)** | **`vms.myceo.ir`** | `vms-web/` |
 | Object storage (S3) | `s3.myceo.ir` | MinIO |
 
 Server: `/data/apps/ceo-portal` on the production host, behind a **shared** Traefik. The Compose
@@ -49,12 +50,13 @@ Clean Architecture. A feature normally touches all four layers.
 | **Welfare** | `Application/Walfare` | `/api/walfare/*` | `walfare-web/` |
 | **Elections** | `Application/Elections` | `/api/ElectionAdmin`, `/api/Election`, `/api/BaleWebhook` | `election-web/`, Bale bot |
 | **Rooms** | `Application/Rooms` | `/api/RoomAdmin`, `/api/Room` | `room-web/` (dev port 5277) |
-| **VMS** (in build — steps 1–8 of 9) | `Application/Vms` | `/api/VmsAdmin`, `/api/VmsGateway`, `/api/VmsMedia` | `vms-web/` (dev port 5278) |
+| **VMS** | `Application/Vms` | `/api/VmsAdmin`, `/api/VmsGateway`, `/api/VmsMedia` | `vms-web/` (dev port 5278) |
 
-## VMS — camera viewing (in build, steps 1–8 done)
+## VMS — camera viewing — **live** at `vms.myceo.ir`
 
 Live camera viewing at `vms.myceo.ir`, cameras classified by city. Design:
-`docs/superpowers/specs/2026-08-01-vms-service-design.md`. **Nothing is deployed.**
+`docs/superpowers/specs/2026-08-01-vms-service-design.md`. **Live since 2026-08-02** — no camera has
+been added through the panel yet, so the wall is empty until one is.
 
 - **Media never touches this box.** Cameras are pulled by **go2rtc on the VPS** (`185.182.220.182`),
   the same machine that runs LiveKit. It is a **container** (`vms-go2rtc`, `/srv/sites/vms`) on that
@@ -75,6 +77,8 @@ Live camera viewing at `vms.myceo.ir`, cameras classified by city. Design:
   not enabled until step 9**) and posts to `/api/VmsGateway/health`. It skips any camera with a
   live consumer — a probe is a second puller — and only a success moves `LastSeenUtc`, so a
   failure leaves the gap visible. `null` means never checked, which the UI shows grey, not red.
+- **Two timers on the VPS, both enabled:** `vms-sync.timer` every 2 min (a camera added in the
+  panel reaches go2rtc within that) and `vms-health.timer` every 5 min.
 - **Docker on that VPS is Docker Desktop under a user session**: `sudo docker` sees nothing, and it
   bind-mounts only shared host paths — `/srv/...` mounts as an EMPTY DIRECTORY with no error. The
   generated go2rtc config therefore lives at `/home/amirserver/vms-config/go2rtc.yaml`.

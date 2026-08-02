@@ -1,6 +1,6 @@
 # VMS — video management service — design
 
-> **Date:** 2026-08-01 · **Status:** steps 1–8 done (2026-08-02), step 9 open · **Author:** Amir + Claude
+> **Date:** 2026-08-01 · **Status:** **all nine steps done, live at vms.myceo.ir** (2026-08-02) · **Author:** Amir + Claude
 > Live camera viewing at **vms.myceo.ir**, cameras classified by city.
 >
 > **Step 1 overturned three assumptions in this document.** §2.2, §2.3 and §3 have been rewritten and
@@ -249,7 +249,7 @@ needed**. MSE over 443 is the whole transport story.
 | 6 | `vms-web`: city list → paged camera grid on substreams | an admin sees live video, filtered by city — **and the Traefik router is narrowed to the player's paths, so `/api/streams` stops handing out camera passwords** | **done 2026-08-02** (UI unseen signed in) |
 | 7 | Fullscreen = a bigger tile of the **same substream**, plus a one-viewer-per-camera cap | no camera is ever pulled twice at once | **done 2026-08-02** (rescoped by §2.2) |
 | 8 | Scheduled health sweep + «آخرین اتصال» per camera | a dead camera is visible as dead, not as a black square | **done 2026-08-02** (timer enabled at step 9) |
-| 9 | Deploy: compose, OIDC client, CORS, DNS, AppSwitcher ×8 | `https://vms.myceo.ir` serves it | |
+| 9 | Deploy: compose, OIDC client, CORS, DNS, AppSwitcher ×8 | `https://vms.myceo.ir` serves it | **done 2026-08-02** |
 
 Step 7 changed. It was "fullscreen on the main stream, with a concurrency cap"; the main stream needs
 27× the bandwidth the site has, so fullscreen shows the substream larger and the cap protects the

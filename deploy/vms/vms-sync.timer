@@ -1,0 +1,18 @@
+[Unit]
+Description=VMS config sync
+
+[Timer]
+# Two minutes. Without this an admin adds a camera in the panel and nothing ever picks it up — the
+# whole point of step 4 was that adding a camera is not a YAML edit, and a sync that only runs by
+# hand puts the YAML edit back with extra steps.
+#
+# Faster than the health sweep on purpose: this is the delay between saving a camera and seeing it,
+# and it costs one HTTPS request when nothing changed. The sweep is slower because each of its runs
+# opens a connection per unwatched camera.
+OnBootSec=1min
+OnUnitActiveSec=2min
+AccuracySec=15s
+Persistent=true
+
+[Install]
+WantedBy=timers.target

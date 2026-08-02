@@ -542,7 +542,33 @@ public class AuthDbInitialiser(
             return;
         }
 
-        var administrator = await userManager.FindByEmailAsync(adminEmail);
+        // NOT FindByEmailAsync. That is SingleOrDefault underneath, and it throws
+        // "Sequence contains more than one element" when two accounts share an address — which took
+        // the whole identity provider down on 2026-08-02, on a restart, long after the duplicate was
+        // created. Nothing in this database enforces one user per email: engineer logins are created
+        // with a placeholder (a@b.com is on 112 of them), and an admin can add a second account with
+        // an address that already exists.
+        //
+        // An ambiguous admin address is a problem worth a warning. It is not worth refusing every
+        // login for every service, which is what throwing here does.
+        var normalised = userManager.NormalizeEmail(adminEmail);
+        var matches = await userManager.Users
+            .Where(u => u.NormalizedEmail == normalised)
+            .OrderBy(u => u.UserName)
+            .ToListAsync();
+
+        if (matches.Count > 1)
+        {
+            logger.LogWarning(
+                "{Count} accounts share the administrator address {Email} ({UserNames}). Using {Chosen}. "
+                + "Resolve the duplicate: whichever one is not the administrator should have its email changed.",
+                matches.Count,
+                adminEmail,
+                string.Join(", ", matches.Select(u => u.UserName)),
+                matches[0].UserName);
+        }
+
+        var administrator = matches.FirstOrDefault();
         if (administrator is null)
         {
             administrator = new AuthUser

@@ -1,0 +1,18 @@
+[Unit]
+Description=VMS — regenerate go2rtc's config from the camera list in CeoDb
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+
+# Root: it reads /srv/vms/credentials.env and /srv/vms/gateway.token (both 600 root:root) and
+# restarts the container through the desktop user's docker.
+User=root
+
+Environment=VMS_API_URL=https://api.myceo.ir/api/VmsGateway/config
+ExecStart=/usr/local/bin/vms-sync
+
+# It only restarts go2rtc when the rendered config actually changed, so a run that finds nothing new
+# costs one HTTPS request and nothing else.
+TimeoutStartSec=120
