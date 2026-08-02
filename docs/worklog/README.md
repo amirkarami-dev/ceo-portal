@@ -22,6 +22,7 @@ Also, when a task teaches something reusable:
 
 | Date | Record | Area | Status |
 |---|---|---|---|
+| 2026-08-02 | [VMS step 1: one camera, end to end](2026-08-02-vms-step-1.md) | vms / infra | done — stream URL found, camera uplink is the real limit |
 | 2026-08-01 | [Outage: every engineer was told they were not an engineer](2026-08-01-engineer-lookup-outage.md) | welfare / election / room | **fixed and deployed** |
 | 2026-07-31 | [Room step 10: deploy — room.myceo.ir](2026-07-31-room-step-10-deploy.md) | room / infra | **live** at room.myceo.ir |
 | 2026-07-31 | [Room step 9: saved chat](2026-07-31-room-step-9-chat.md) | room | **observed** — a guest's message survived a reload |

@@ -502,3 +502,26 @@ containers you already have. `CeoDb` + `CeoAuthDb` live in `mabhas19_sqldata`.
 - **Deploying the API is not enough.** A shared component (like the launcher) needs every SPA
   that embeds it rebuilt.
 - **Never restart the shared Docker daemon or Traefik** — other production stacks run there.
+
+## IP cameras / VMS
+
+- **`ffmpeg` reads stdin, and that will eat your script.** Remote work here runs `bash -s` with the
+  script arriving *on stdin*. An `ffmpeg` (or `ffprobe`) call inside such a script consumes the
+  remaining lines as keyboard input — the symptom is a nonsense `bash: syntax error near unexpected
+  token` pointing at a line that is fine. **Always `-nostdin` and `</dev/null`.**
+- **A URL-encoded password breaks a second `%`-format pass.** `s@5190` percent-encodes to `s%405190`;
+  feed that through `"...%s..." % pw` and then format the result again and Python reads `%40` as a
+  width specifier (`unsupported format character`). Build URLs by concatenation, never by nesting
+  `%` substitutions.
+- **The camera stack here (Xiongmai / "QV RTSP Server") tells you nothing by probing.** `OPTIONS`
+  returns **200 for every URI**, including nonsense, and `DESCRIBE` returns **400 for every wrong
+  path** — never 401, never 404, with or without credentials. 51 guessed paths all failed.
+  **Read `http://<cam>/js/Common.js` instead**: `geturlStr()` builds the URL the device's own player
+  uses. `var loginPort = 34567` on the login page identifies the family.
+  The URL is `rtsp://user:pass@host:554/mode=real&idc=<channel>&ids=<stream>`, and the
+  `Authorization` header is **required** — URL userinfo alone gets 401.
+- **Measure the camera's uplink, not just ours.** The first site delivers **~0.41 Mbit/s** (timed
+  over plain HTTP, no RTSP), while its main stream is ~11.2 Mbit/s. Everything about the VMS design
+  follows from that, and it is invisible if you only look at the VPS's 44–62 Mbit/s.
+- **`go2rtc`'s `/api/streams` echoes source URLs with the password in them.** It must never be
+  reachable without auth in front of it.
