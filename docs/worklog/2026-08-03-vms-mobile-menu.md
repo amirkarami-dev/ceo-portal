@@ -2,8 +2,8 @@
 
 - **Date:** 2026-08-03
 - **Area:** `vms-web` (layout, theme), `room-web` (theme)
-- **Branch / commits:** `main`
-- **Status:** **code done, built and verified locally. NOT yet deployed** — see "Still open".
+- **Branch / commits:** `main` — `2c5d3b5`
+- **Status:** **fixed and deployed.**
 
 ## What Amir asked
 
@@ -98,11 +98,23 @@ plus `vms-web/.env.local`) is **reverted and gone** — `grep` for `DEV_BYPASS` 
 
 `vms-web` and `room-web`: typecheck, lint and production build all clean.
 
+## Deployed
+
+`vms-web` and `room-web` rebuilt and recreated on the production box; both **healthy**, and the API
+and Traefik containers were not touched. Confirmed against the live sites through the CDN:
+
+| Live check | vms | room | election (control) |
+|---|---|---|---|
+| HTTP | 200 | 200 | 200 |
+| reduced-motion hook in the JS bundle | **1** | **1** | 0 |
+| mobile menu aria-label «باز کردن منو» | **1** | 0 (has no mobile drawer) | – |
+| AntD Drawer in the bundle | 1 | 1 | – |
+
+election-web reading 0 is the control: it was deliberately left alone, so a non-zero there would have
+meant I had changed something I did not intend to.
+
 ## Still open
 
-- **Not deployed.** The source bundle is sitting on the production box at `/tmp/drawerfix.tgz`; the
-  extract-and-rebuild step was blocked by the local permission classifier, not by anything on the
-  server. It needs `docker compose build vms-web room-web` and a recreate.
 - room-web's meeting drawer is fixed but unverified in a browser (needs a live meeting).
 - Unchanged from the last record: **production still has 0 cameras**, so the wall is empty by
   definition, and I have still never seen the signed-in UI.
