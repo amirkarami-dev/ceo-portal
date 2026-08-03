@@ -49,6 +49,11 @@ export const queryKeys = {
     list: () => ["tab-groups", "list"] as const,
     byId: (id: number) => ["tab-groups", "detail", id] as const,
   },
+  contactSections: {
+    all: () => ["contact-sections"] as const,
+    list: () => ["contact-sections", "list"] as const,
+    byId: (id: number) => ["contact-sections", "detail", id] as const,
+  },
   orgPages: {
     all: () => ["org-pages"] as const,
     list: () => ["org-pages", "list"] as const,

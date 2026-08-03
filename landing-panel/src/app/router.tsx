@@ -21,6 +21,7 @@ import { TabGroupsPage } from "@/pages/TabGroupsPage";
 import { OrgPagesPage } from "@/pages/OrgPagesPage";
 import { FormsPage } from "@/pages/FormsPage";
 import { SubmissionsPage } from "@/pages/SubmissionsPage";
+import { ContactSectionsPage } from "@/pages/ContactSectionsPage";
 import { MessagesPage } from "@/pages/MessagesPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 
@@ -49,6 +50,7 @@ export const router = createBrowserRouter([
           { path: "org-pages", element: <OrgPagesPage /> },
           { path: "forms", element: <FormsPage /> },
           { path: "submissions", element: <SubmissionsPage /> },
+          { path: "contact-sections", element: <ContactSectionsPage /> },
           { path: "messages", element: <MessagesPage /> },
           { path: "settings", element: <SettingsPage /> },
           { path: "*", element: <NotFoundScreen /> },

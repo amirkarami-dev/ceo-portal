@@ -2,8 +2,11 @@ import { api, qs, uploadMedia, mediaUrl, KURDNEZAM_PREFIX } from "./client";
 import type {
   Category,
   CategoryInput,
+  ContactChannelInput,
   ContactListParams,
   ContactMessage,
+  ContactSection,
+  ContactSectionInput,
   FooterLink,
   FooterLinkInput,
   FormSubmission,
@@ -138,6 +141,32 @@ export const tabGroupsApi = {
   updateItem: (itemId: number, input: TabItemInput): Promise<void> =>
     api.put(`${P}/tab-groups/items/${itemId}`, input),
   removeItem: (itemId: number): Promise<void> => api.del(`${P}/tab-groups/items/${itemId}`),
+};
+
+// ── contact sections ─────────────────────────────────────────────────────────
+
+export const contactSectionsApi = {
+  /**
+   * Sections come back WITH their nested `channels`.
+   * `includeInactive` is what the panel wants — without it a retired section is invisible here too
+   * and could never be switched back on.
+   */
+  list: (): Promise<ContactSection[]> =>
+    api.get<ContactSection[]>(`${P}/contact-sections?includeInactive=true`),
+  byId: (id: number): Promise<ContactSection> =>
+    api.get<ContactSection>(`${P}/contact-sections/${id}`),
+  create: (input: ContactSectionInput): Promise<number> =>
+    api.post<number>(`${P}/contact-sections`, input),
+  update: (id: number, input: ContactSectionInput): Promise<void> =>
+    api.put(`${P}/contact-sections/${id}`, input),
+  remove: (id: number): Promise<void> => api.del(`${P}/contact-sections/${id}`),
+
+  createChannel: (sectionId: number, input: ContactChannelInput): Promise<number> =>
+    api.post<number>(`${P}/contact-sections/${sectionId}/channels`, input),
+  updateChannel: (channelId: number, input: ContactChannelInput): Promise<void> =>
+    api.put(`${P}/contact-sections/channels/${channelId}`, input),
+  removeChannel: (channelId: number): Promise<void> =>
+    api.del(`${P}/contact-sections/channels/${channelId}`),
 };
 
 // ── org pages ────────────────────────────────────────────────────────────────

@@ -22,6 +22,7 @@ Also, when a task teaches something reusable:
 
 | Date | Record | Area | Status |
 |---|---|---|---|
+| 2026-08-03 | [Kurdnezam step 3: the بخش‌های تماس admin screen, and a panel that never worked on a phone](2026-08-03-kurdnezam-step-3-contact-admin.md) | kurdnezam / landing-panel | built and verified; deploys with step 4 |
 | 2026-08-03 | [Kurdnezam step 2: the API for contact sections and managed ارکان](2026-08-03-kurdnezam-step-2-api.md) | kurdnezam | done and deployed |
 | 2026-08-03 | [Kurdnezam step 1: schema for managed contact sections and ارکان](2026-08-03-kurdnezam-step-1-schema.md) | kurdnezam | done — verified on prod data, applies at next deploy |
 | 2026-08-03 | [VMS: the first real camera, and the WebSocket go2rtc would not open](2026-08-03-vms-first-camera-ws-origin.md) | vms / media VPS | fixed — **first camera proven end to end** |

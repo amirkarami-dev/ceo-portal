@@ -316,6 +316,62 @@ export interface TabGroupInput {
   sortOrder: number;
 }
 
+// ── contact sections (/p/tamas) ──────────────────────────────────────────────
+
+/**
+ * What a contact row holds. Drives the icon, whether the value is forced to LTR, and whether it
+ * becomes a tel: / mailto: / external link. Kept in step with
+ * `Domain/Kurdnezam/KurdnezamContactChannel.cs`, which the API also enforces with a CHECK constraint.
+ */
+export const CONTACT_CHANNEL_KINDS = [
+  "phone",
+  "mobile",
+  "fax",
+  "email",
+  "address",
+  "postal",
+  "hours",
+  "telegram",
+  "instagram",
+  "website",
+] as const;
+
+export type ContactChannelKind = (typeof CONTACT_CHANNEL_KINDS)[number];
+
+export interface ContactChannel {
+  id: number;
+  kind: ContactChannelKind;
+  label?: string | null;
+  value: string;
+  sortOrder: number;
+}
+
+export interface ContactChannelInput {
+  kind: ContactChannelKind;
+  label?: string | null;
+  value: string;
+  sortOrder: number;
+}
+
+/** GET /contact-sections returns sections WITH their nested channels. */
+export interface ContactSection {
+  id: number;
+  title: string;
+  description?: string | null;
+  icon?: string | null;
+  sortOrder: number;
+  isActive: boolean;
+  channels: ContactChannel[];
+}
+
+export interface ContactSectionInput {
+  title: string;
+  description?: string | null;
+  icon?: string | null;
+  sortOrder: number;
+  isActive: boolean;
+}
+
 // ── org pages ────────────────────────────────────────────────────────────────
 
 export interface OrgPage {
@@ -324,6 +380,11 @@ export interface OrgPage {
   title: string;
   group?: string | null;
   intro: string;
+  /** Slug of the hub this page sits under — "arkan" for the five organs. */
+  parentSlug?: string | null;
+  icon?: string | null;
+  /** One-line card text shown on the parent page. */
+  summary: string;
   sortOrder: number;
 }
 
@@ -333,6 +394,9 @@ export interface OrgPageInput {
   intro: string;
   sortOrder: number;
   group?: string | null;
+  parentSlug?: string | null;
+  icon?: string | null;
+  summary?: string;
 }
 
 // ── forms + submissions ──────────────────────────────────────────────────────
@@ -426,4 +490,5 @@ export interface SiteContent {
   tabGroups: TabGroup[];
   forms: SiteForm[];
   orgPages: OrgPage[];
+  contactSections: ContactSection[];
 }

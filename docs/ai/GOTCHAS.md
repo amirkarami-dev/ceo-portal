@@ -271,6 +271,22 @@ remove the Sider from the flex row entirely. Also set `min-width: 0` on the main
 otherwise a wide table expands that child and pushes the mobile menu trigger off-screen.
 **Where:** `analytics-web/src/layout/AppLayout.tsx`, `Topbar.tsx`, `Sidebar.tsx`.
 
+### A preview pane that is not displayed has NO `requestAnimationFrame`, so no AntD motion completes
+**Symptom:** a Drawer opens with the right title and fields but sits off-screen at
+`transform: translateX(±width)`, its wrapper stuck on `…-appear-start`; a Sider's collapse changes no
+width. Reads exactly like the reduced-motion bug below — and is not it.
+**Tell them apart:** here the transitions are a normal `0.2s` (no blanket duration override), and
+`document.querySelector('.ant-drawer-content-wrapper')` carries `-appear-start` rather than a
+finished class. Confirm in one line:
+```js
+await new Promise(res => { requestAnimationFrame(() => res(true)); setTimeout(() => res(false), 1200) })
+```
+`false` means the pane is not compositing — rc-motion advances on the next frame and never gets one.
+The matching giveaway is `computer{action:"screenshot"}` failing with *"the Browser pane is not
+displayed"*.
+**Fix:** display the pane, or verify the panel's *content* by reading the DOM and accept that the
+slide cannot be seen. Do not "fix" working motion code.
+
 ### A blanket `prefers-reduced-motion` rule parks every AntD Drawer off-screen
 **Symptom:** the mobile menu button "does nothing". The DOM is right — `.ant-drawer` is mounted and
 carries `ant-drawer-open` — but the panel sits at `transform: matrix(1,0,0,1,260,0)`, exactly its own

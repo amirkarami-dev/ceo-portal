@@ -7,6 +7,7 @@ import {
   FormOutlined,
   LinkOutlined,
   MailOutlined,
+  PhoneOutlined,
   PictureOutlined,
   ProfileOutlined,
   SettingOutlined,
@@ -37,6 +38,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "/org-pages", label: "صفحات سازمان", icon: <ProfileOutlined /> },
   { key: "/forms", label: "فرم‌ها", icon: <FormOutlined /> },
   { key: "/submissions", label: "ثبت‌نام‌ها", icon: <SolutionOutlined /> },
+  { key: "/contact-sections", label: "بخش‌های تماس", icon: <PhoneOutlined /> },
   { key: "/messages", label: "پیام‌ها", icon: <MailOutlined /> },
   { key: "/settings", label: "تنظیمات", icon: <SettingOutlined /> },
 ];
