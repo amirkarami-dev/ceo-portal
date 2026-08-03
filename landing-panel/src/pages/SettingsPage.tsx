@@ -38,6 +38,8 @@ const FORM_FIELDS: readonly string[] = [
   "postalCode",
   "telegram",
   "instagram",
+  "mapLabel",
+  "mapUrl",
 ];
 
 /** Server payload -> form values (an empty phone row so the field is never a blank void). */
@@ -52,6 +54,8 @@ function toFormValues(settings: Settings): SettingsFormValues {
     postalCode: settings.postalCode ?? "",
     telegram: settings.telegram ?? "",
     instagram: settings.instagram ?? "",
+    mapLabel: settings.mapLabel ?? "",
+    mapUrl: settings.mapUrl ?? "",
   };
 }
 
@@ -67,6 +71,8 @@ function toInput(values: SettingsFormValues): SettingsInput {
     postalCode: values.postalCode?.trim() ?? "",
     telegram: values.telegram?.trim() ?? "",
     instagram: values.instagram?.trim() ?? "",
+    mapLabel: values.mapLabel?.trim() ?? "",
+    mapUrl: values.mapUrl?.trim() ?? "",
   };
 }
 
@@ -279,6 +285,28 @@ export function SettingsPage() {
               <Col xs={24} md={12}>
                 <Form.Item name="instagram" label="اینستاگرام">
                   <Input placeholder="https://instagram.com/…" style={LTR_INPUT} dir="ltr" />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Typography.Title level={5}>نقشه در صفحهٔ تماس با ما</Typography.Title>
+            <Row gutter={16}>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  name="mapLabel"
+                  label="نشانی کوتاه روی نقشه"
+                  tooltip="اگر خالی بماند، همان «نشانی» کامل بالا نمایش داده می‌شود."
+                >
+                  <Input placeholder="سنندج، میدان کوهنورد — جنب بانک مسکن" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  name="mapUrl"
+                  label="پیوند نقشه (اختیاری)"
+                  tooltip="با پر کردن این فیلد، کادر نقشه در سایت قابل کلیک می‌شود و کاربر را به این نشانی می‌برد."
+                >
+                  <Input placeholder="https://neshan.org/…" style={LTR_INPUT} dir="ltr" />
                 </Form.Item>
               </Col>
             </Row>

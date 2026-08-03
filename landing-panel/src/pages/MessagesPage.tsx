@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Button, Col, Row, Segmented, Tag, Tooltip, Typography } from "antd";
+import { Button, Col, Row, Segmented, Space, Tag, Tooltip, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
   CheckCircleOutlined,
@@ -120,10 +120,30 @@ export function MessagesPage() {
       ),
     },
     {
+      title: "بخش مربوطه",
+      dataIndex: "sectionTitle",
+      key: "sectionTitle",
+      width: 150,
+      responsive: ["lg"],
+      render: (sectionTitle?: string | null, record?: ContactMessage) =>
+        sectionTitle ? (
+          <Tag color="purple">{sectionTitle}</Tag>
+        ) : record?.sectionId ? (
+          // The id survived but the block did not: SET NULL only clears the column when the row is
+          // deleted through the API, so a stale id here means something else removed it.
+          <Tooltip title="بخش مربوط به این پیام حذف شده است">
+            <Typography.Text type="secondary">حذف‌شده</Typography.Text>
+          </Tooltip>
+        ) : (
+          <Typography.Text type="secondary">—</Typography.Text>
+        ),
+    },
+    {
       title: "تاریخ",
       dataIndex: "created",
       key: "created",
       width: 170,
+      responsive: ["md"],
       render: (value: string) => (
         <Typography.Text type="secondary">{formatDateTime(value)}</Typography.Text>
       ),
@@ -223,6 +243,21 @@ export function MessagesPage() {
         expandable={{
           expandedRowRender: (record) => (
             <div style={{ padding: "4px 8px 8px" }}>
+              {/* Repeated here because the columns that carry them are hidden below `lg`/`md`.
+                  Expanding a row must never be the only thing a phone user cannot reach. */}
+              <Space size={[16, 4]} wrap style={{ marginBottom: 10 }}>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  بخش مربوطه:{" "}
+                  {record.sectionTitle ?? (record.sectionId ? "حذف‌شده" : "—")}
+                </Typography.Text>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  تلفن: <Ltr>{record.phone || "—"}</Ltr>
+                </Typography.Text>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  تاریخ: {formatDateTime(record.created)}
+                </Typography.Text>
+              </Space>
+              <br />
               <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                 متن پیام
               </Typography.Text>

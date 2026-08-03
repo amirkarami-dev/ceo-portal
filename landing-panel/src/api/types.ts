@@ -53,6 +53,13 @@ export interface Settings {
   postalCode: string;
   telegram: string;
   instagram: string;
+  /**
+   * Caption on the contact page's map panel. Already resolved by the API — it substitutes the full
+   * `address` when the stored short form is blank, so this is never empty in practice.
+   */
+  mapLabel: string;
+  /** Optional outbound map link; empty means the panel is not clickable. */
+  mapUrl: string;
   /** Read-only here — edit through `footerLinksApi` (own resource). */
   footerLinks: FooterLinkItem[];
   /** Read-only — server-computed visit counters. */
@@ -70,6 +77,8 @@ export interface SettingsInput {
   postalCode: string;
   telegram: string;
   instagram: string;
+  mapLabel: string;
+  mapUrl: string;
 }
 
 // ── categories ───────────────────────────────────────────────────────────────
@@ -453,6 +462,13 @@ export interface ContactMessage {
   phone: string;
   subject: string;
   message: string;
+  /** Which contact block the sender picked, if any. */
+  sectionId?: number | null;
+  /**
+   * Title of that block, resolved by the API. Null both when the sender chose nothing and when the
+   * block has since been deleted — the FK is ON DELETE SET NULL, so old messages outlive it.
+   */
+  sectionTitle?: string | null;
   isRead: boolean;
   /** ISO-8601. */
   created: string;
