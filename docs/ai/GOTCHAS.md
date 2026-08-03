@@ -271,6 +271,19 @@ remove the Sider from the flex row entirely. Also set `min-width: 0` on the main
 otherwise a wide table expands that child and pushes the mobile menu trigger off-screen.
 **Where:** `analytics-web/src/layout/AppLayout.tsx`, `Topbar.tsx`, `Sidebar.tsx`.
 
+### Resolving an icon component in a render body trips `Cannot create components during render`
+**Symptom:** `const Icon = siteIcon(section.icon); return <Icon />` fails lint with
+*"Error: Cannot create components during render"*, even though the helper only **looks up** an
+existing component in a fixed map and creates nothing.
+**Cause:** the React Compiler lint cannot tell a lookup from a factory — any call returning a
+component, assigned to a capitalised local inside render, reads the same to it.
+**Fix:** do the lookup *inside* a component — `<SiteIcon name={…} />` — instead of in the caller.
+Call sites end up plainer too.
+**Also:** `lucide-react` has ~6,000 exports and cannot resolve a runtime string without bundling all
+of them, so the map must be a fixed registry; and lucide has **dropped its brand icons**, so there is
+no `Instagram` — this repo uses `Send`/`AtSign` for Telegram/Instagram.
+**Where:** `kurdnezam-web/src/lib/siteIcons.tsx`.
+
 ### A preview pane that is not displayed has NO `requestAnimationFrame`, so no AntD motion completes
 **Symptom:** a Drawer opens with the right title and fields but sits off-screen at
 `transform: translateX(±width)`, its wrapper stuck on `…-appear-start`; a Sider's collapse changes no

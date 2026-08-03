@@ -134,7 +134,54 @@ export interface OrgPage {
   title: string;
   group: PersonGroup | null;
   intro: string;
+  /**
+   * Slug of the hub this page sits under — "arkan" for the five organs, null for a top-level page.
+   * A page with a parent is ALSO a card on the parent's page and an entry in the header dropdown,
+   * so all three come from this one field instead of three hard-coded lists.
+   */
+  parentSlug: string | null;
+  /** Icon key, resolved by `siteIcon()`; unknown or null falls back to a default. */
+  icon: string | null;
+  /** One-line card text shown on the parent page. Empty for pages that are never a card. */
+  summary: string;
   sortOrder: number;
+}
+
+/**
+ * What a contact row holds. Decides the icon, whether the value is forced to LTR, and whether it
+ * becomes a tel: / mailto: / external link. Mirrors `KurdnezamContactChannelKinds` on the server,
+ * which also enforces it with a CHECK constraint.
+ */
+export type ContactChannelKind =
+  | "phone"
+  | "mobile"
+  | "fax"
+  | "email"
+  | "address"
+  | "postal"
+  | "hours"
+  | "telegram"
+  | "instagram"
+  | "website";
+
+export interface ContactChannel {
+  id: number;
+  kind: ContactChannelKind;
+  /** Optional qualifier beside the value — «داخلی ۱۰۳». */
+  label: string | null;
+  value: string;
+  sortOrder: number;
+}
+
+/** A block of contact details on /p/tamas. Only active sections reach the site. */
+export interface ContactSection {
+  id: number;
+  title: string;
+  description: string | null;
+  icon: string | null;
+  sortOrder: number;
+  isActive: boolean;
+  channels: ContactChannel[];
 }
 
 export interface Settings {
@@ -147,6 +194,13 @@ export interface Settings {
   postalCode: string;
   telegram: string;
   instagram: string;
+  /**
+   * Caption on the contact page's map panel. Already resolved by the API — it substitutes the full
+   * `address` when the stored short form is blank, so this is never empty in practice.
+   */
+  mapLabel: string;
+  /** Optional outbound map link; empty means the panel is not clickable. */
+  mapUrl: string;
   footerLinks: { title: string; href: string }[];
   /** Raw counters — format in the UI with `toLocaleString("fa-IR" | "ckb-IR")`. */
   stats: { totalVisits: number; todayVisits: number; online: number };
@@ -163,4 +217,5 @@ export interface Content {
   tabGroups: TabGroup[];
   forms: FormItem[];
   orgPages: OrgPage[];
+  contactSections: ContactSection[];
 }

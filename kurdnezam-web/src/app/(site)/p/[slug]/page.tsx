@@ -5,26 +5,33 @@ import { useParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import {
   AlertCircle,
+  Building,
   Check,
   Gavel,
   Landmark,
   Loader2,
-  Mail,
   MapPin,
-  Phone,
   ScrollText,
   Users,
   UsersRound,
   Vote,
 } from "lucide-react";
 import { ApiError, sendContactMessage } from "@/lib/api";
+import type { ContactChannel, ContactSection } from "@/data/content";
+import {
+  CHANNEL_LABELS,
+  ChannelIcon,
+  SiteIcon,
+  channelHref,
+  isLtrChannel,
+} from "@/lib/siteIcons";
 import { useContent } from "@/lib/store";
 import { Breadcrumb, PersonCard, Reveal, SectionHeading } from "@/components/ui";
 
 /* ── contact page ──────────────────────────────────────── */
 
 /** DOM field names — identical to the API payload keys. */
-const CONTACT_FIELDS = ["name", "phone", "subject", "message"] as const;
+const CONTACT_FIELDS = ["name", "phone", "subject", "message", "sectionId"] as const;
 type ContactField = (typeof CONTACT_FIELDS)[number];
 type ContactErrors = Partial<Record<ContactField, string>>;
 
@@ -33,6 +40,7 @@ const EMPTY_CONTACT: Record<ContactField, string> = {
   phone: "",
   subject: "",
   message: "",
+  sectionId: "",
 };
 
 const CONTACT_GENERIC_ERROR =
@@ -97,9 +105,153 @@ function ContactFieldError({ id, message }: { id: string; message?: string }) {
   );
 }
 
+/* ── one row inside a contact block ────────────────────── */
+
+function ChannelRow({ channel }: { channel: ContactChannel }) {
+  const href = channelHref(channel.kind, channel.value);
+  const ltr = isLtrChannel(channel.kind);
+
+  const value = (
+    <span dir={ltr ? "ltr" : undefined} className={ltr ? "inline-block" : undefined}>
+      {channel.value}
+    </span>
+  );
+
+  return (
+    <li className="flex items-start gap-3">
+      <ChannelIcon kind={channel.kind} className="mt-1 size-4 shrink-0 text-copper" />
+      <div className="min-w-0 text-sm leading-7">
+        {/* The kind is announced to a screen reader but not repeated on screen — the icon and the
+            value already say what it is, and «تلفن ثابت: ۰۸۷…» on every row is noise. */}
+        <span className="sr-only">{CHANNEL_LABELS[channel.kind]}: </span>
+        {href ? (
+          <a
+            href={href}
+            {...(channel.kind === "telegram" ||
+            channel.kind === "instagram" ||
+            channel.kind === "website"
+              ? { target: "_blank", rel: "noreferrer" }
+              : {})}
+            className="break-words text-ink underline-offset-4 transition-colors hover:text-copper hover:underline"
+          >
+            {value}
+          </a>
+        ) : (
+          <span className="break-words text-steel">{value}</span>
+        )}
+        {channel.label ? (
+          <span className="me-2 text-xs text-mist"> — {channel.label}</span>
+        ) : null}
+      </div>
+    </li>
+  );
+}
+
+function ContactSectionCard({ section }: { section: ContactSection }) {
+  const channels = [...section.channels].sort(
+    (a, b) => a.sortOrder - b.sortOrder || a.id - b.id,
+  );
+
+  return (
+    <div className="rounded-2xl border border-line bg-white p-5 shadow-card">
+      <div className="flex gap-4">
+        <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-ink text-gold">
+          <SiteIcon name={section.icon} fallback={Building} className="size-5" />
+        </span>
+        <div className="min-w-0">
+          <h2 className="font-bold">{section.title}</h2>
+          {section.description ? (
+            <p className="mt-0.5 text-xs leading-6 text-mist">{section.description}</p>
+          ) : null}
+        </div>
+      </div>
+      {channels.length ? (
+        <ul className="mt-4 space-y-2.5 border-t border-line pt-4">
+          {channels.map((c) => (
+            <ChannelRow key={c.id} channel={c} />
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
+/** The blueprint panel under the contact blocks. A link only when a map URL has been set. */
+function MapPanel({ label, href }: { label: string; href: string }) {
+  if (!label) return null;
+
+  const caption = (
+    <span className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-sm">
+      <MapPin className="size-4 shrink-0 text-gold" aria-hidden />
+      {label}
+    </span>
+  );
+
+  if (!href) {
+    return <div className="blueprint grid h-56 place-items-center rounded-2xl text-mist">{caption}</div>;
+  }
+
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      aria-label={`نمایش «${label}» روی نقشه`}
+      className="blueprint grid h-56 place-items-center rounded-2xl text-mist transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-copper"
+    >
+      {caption}
+    </a>
+  );
+}
+
 function ContactPage() {
   const { content } = useContent();
   const s = content.settings;
+
+  const page = content.orgPages.find((p) => p.slug === "tamas");
+  const sections = [...content.contactSections]
+    .filter((x) => x.isActive)
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
+
+  /**
+   * If every block has been switched off, fall back to the organisation-wide details rather than
+   * showing a contact page with no way to make contact.
+   */
+  const fallback: ContactSection | null = sections.length
+    ? null
+    : {
+        id: 0,
+        title: "تماس با سازمان",
+        description: null,
+        icon: "building",
+        sortOrder: 0,
+        isActive: true,
+        channels: [
+          ...(s.address
+            ? [{ id: -1, kind: "address" as const, label: null, value: s.address, sortOrder: 1 }]
+            : []),
+          ...s.phones.map((phone, i) => ({
+            id: -(i + 2),
+            kind: "phone" as const,
+            label: null,
+            value: phone,
+            sortOrder: i + 2,
+          })),
+          ...(s.postalCode
+            ? [
+                {
+                  id: -99,
+                  kind: "postal" as const,
+                  label: null,
+                  value: s.postalCode,
+                  sortOrder: 99,
+                },
+              ]
+            : []),
+        ],
+      };
+
+  const blocks = fallback ? [fallback] : sections;
 
   const [values, setValues] =
     useState<Record<ContactField, string>>(EMPTY_CONTACT);
@@ -132,6 +284,8 @@ function ContactPage() {
         phone: values.phone.trim(),
         subject: values.subject.trim(),
         message: values.message.trim(),
+        // "" means the visitor left it on «انتخاب کنید»; the API wants null, not 0.
+        sectionId: values.sectionId ? Number(values.sectionId) : null,
       });
       setSent(true);
     } catch (err) {
@@ -145,49 +299,23 @@ function ContactPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10">
-      <Breadcrumb items={[{ title: "تماس با ما" }]} />
-      <h1 className="font-display text-5xl">تماس با ما</h1>
-      <p className="mt-3 max-w-2xl leading-8 text-steel">
-        برای طرح پرسش، پیشنهاد یا شکایت می‌توانید از راه‌های زیر با سازمان در
-        ارتباط باشید؛ کارشناسان ما در ساعات اداری پاسخگوی شما هستند.
-      </p>
+      <Breadcrumb items={[{ title: page?.title ?? "تماس با ما" }]} />
+      <h1 className="font-display text-5xl">{page?.title ?? "تماس با ما"}</h1>
+      {page?.intro ? (
+        <p className="mt-3 max-w-2xl leading-8 text-steel">{page.intro}</p>
+      ) : null}
 
       <div className="mt-10 grid gap-8 lg:grid-cols-[1fr_1.2fr]">
-        {/* info */}
+        {/* the contact blocks, in the order the panel gives them */}
         <Reveal>
           <div className="space-y-4">
-            {[
-              { icon: MapPin, title: "نشانی", value: s.address },
-              {
-                icon: Phone,
-                title: "تلفن تماس",
-                value: s.phones.join(" — "),
-                dir: "ltr" as const,
-              },
-              { icon: Mail, title: "کدپستی", value: s.postalCode },
-            ].map((row) => (
-              <div
-                key={row.title}
-                className="flex gap-4 rounded-2xl border border-line bg-white p-5 shadow-card"
-              >
-                <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-ink text-gold">
-                  <row.icon className="size-5" aria-hidden />
-                </span>
-                <div>
-                  <h2 className="font-bold">{row.title}</h2>
-                  <p className="mt-1 text-sm leading-7 text-steel" dir={row.dir}>
-                    {row.value}
-                  </p>
-                </div>
-              </div>
+            {blocks.map((section) => (
+              <ContactSectionCard key={section.id} section={section} />
             ))}
-            {/* map placeholder */}
-            <div className="blueprint grid h-56 place-items-center rounded-2xl text-mist">
-              <span className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-sm">
-                <MapPin className="size-4 text-gold" aria-hidden />
-                سنندج، میدان کوهنورد — جنب بانک مسکن
-              </span>
-            </div>
+
+            {/* Still a styled placeholder rather than an embedded map — but the caption is editable
+                now, and it becomes a link once a map URL is set. */}
+            <MapPanel label={s.mapLabel || s.address} href={s.mapUrl} />
           </div>
         </Reveal>
 
@@ -248,6 +376,36 @@ function ContactPage() {
                   message={fieldErrors.phone}
                 />
               </label>
+              {/* Only offered when there is a real choice to make: with one block, or none, the
+                  dropdown would be a control whose answer is already known. */}
+              {sections.length > 1 && (
+                <label htmlFor="contact-section" className="block text-sm sm:col-span-2">
+                  <span className="font-medium">بخش مربوطه</span>
+                  <select
+                    id="contact-section"
+                    name="sectionId"
+                    value={values.sectionId}
+                    onChange={(e) => setValue("sectionId", e.target.value)}
+                    disabled={submitting || sent}
+                    aria-invalid={fieldErrors.sectionId ? true : undefined}
+                    aria-describedby={
+                      fieldErrors.sectionId ? "contact-error-sectionId" : undefined
+                    }
+                    className={contactInputClass(Boolean(fieldErrors.sectionId))}
+                  >
+                    <option value="">انتخاب کنید (اختیاری)</option>
+                    {sections.map((section) => (
+                      <option key={section.id} value={section.id}>
+                        {section.title}
+                      </option>
+                    ))}
+                  </select>
+                  <ContactFieldError
+                    id="contact-error-sectionId"
+                    message={fieldErrors.sectionId}
+                  />
+                </label>
+              )}
               <label htmlFor="contact-subject" className="block text-sm sm:col-span-2">
                 <span className="font-medium">موضوع</span>
                 <input

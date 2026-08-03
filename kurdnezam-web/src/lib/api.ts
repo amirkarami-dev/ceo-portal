@@ -135,6 +135,8 @@ export const EMPTY_CONTENT: Content = {
     postalCode: "",
     telegram: "",
     instagram: "",
+    mapLabel: "",
+    mapUrl: "",
     footerLinks: [],
     stats: { totalVisits: 0, todayVisits: 0, online: 0 },
   },
@@ -147,6 +149,7 @@ export const EMPTY_CONTENT: Content = {
   tabGroups: [],
   forms: [],
   orgPages: [],
+  contactSections: [],
 };
 
 /* ── news ───────────────────────────────────────────────── */
@@ -222,6 +225,11 @@ export interface ContactMessageInput {
   phone: string;
   subject: string;
   message: string;
+  /**
+   * Which contact block the sender picked. Optional: the API defaults it, so an older cached copy
+   * of this page posting the previous four-field shape keeps working.
+   */
+  sectionId?: number | null;
 }
 
 /** 201 on success. Throws `ApiError` on validation failure. */
