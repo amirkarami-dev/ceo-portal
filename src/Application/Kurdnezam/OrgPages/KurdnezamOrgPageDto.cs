@@ -15,5 +15,17 @@ public sealed class KurdnezamOrgPageDto
 
     public string Intro { get; init; } = string.Empty;
 
+    /// <summary>
+    /// Slug of the hub page this one sits under — <c>arkan</c> for the five organs, null for a
+    /// top-level page. The site builds both the hub's card grid and its nav dropdown from this.
+    /// </summary>
+    public string? ParentSlug { get; init; }
+
+    /// <summary>An icon key the site maps to a lucide icon; unknown or null falls back to a default.</summary>
+    public string? Icon { get; init; }
+
+    /// <summary>One-line card text on the parent page. Empty for pages that are never a card.</summary>
+    public string Summary { get; init; } = string.Empty;
+
     public int SortOrder { get; init; }
 }

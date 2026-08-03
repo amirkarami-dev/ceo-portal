@@ -51,6 +51,12 @@ public class GetKurdnezamSettingsQueryHandler(IApplicationDbContext context, Tim
             PostalCode = settings?.PostalCode ?? string.Empty,
             Telegram = settings?.Telegram ?? string.Empty,
             Instagram = settings?.Instagram ?? string.Empty,
+            // The caption falls back to the full address here rather than in the site, so every
+            // consumer gets the same non-empty string without repeating the rule.
+            MapLabel = string.IsNullOrWhiteSpace(settings?.MapLabel)
+                ? settings?.Address ?? string.Empty
+                : settings.MapLabel,
+            MapUrl = settings?.MapUrl ?? string.Empty,
             FooterLinks = footerLinks,
             Stats = new KurdnezamStatsDto
             {

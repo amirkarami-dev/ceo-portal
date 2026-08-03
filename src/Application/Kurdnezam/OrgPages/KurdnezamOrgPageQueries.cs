@@ -4,7 +4,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Mabhas19.Application.Kurdnezam.OrgPages;
 
-/// <summary>Every org page, in menu order. Small, fixed-size set — no paging.</summary>
+/// <summary>
+/// Every org page, in menu order. Small, fixed-size set — no paging.
+/// </summary>
+/// <remarks>
+/// Ordered by <c>ParentSlug</c> first (SQL Server sorts NULL first, so the top-level pages lead),
+/// then by <c>SortOrder</c>. Without that, a child with SortOrder 1 would interleave with a
+/// top-level page with SortOrder 1 and the admin list would read as noise.
+/// </remarks>
 public record GetKurdnezamOrgPagesQuery : IRequest<IReadOnlyList<KurdnezamOrgPageDto>>;
 
 public class GetKurdnezamOrgPagesQueryHandler(IApplicationDbContext context)
@@ -13,7 +20,8 @@ public class GetKurdnezamOrgPagesQueryHandler(IApplicationDbContext context)
     public async Task<IReadOnlyList<KurdnezamOrgPageDto>> Handle(GetKurdnezamOrgPagesQuery request, CancellationToken cancellationToken)
         => await context.KurdnezamOrgPages
             .AsNoTracking()
-            .OrderBy(p => p.SortOrder)
+            .OrderBy(p => p.ParentSlug)
+            .ThenBy(p => p.SortOrder)
             .ThenBy(p => p.Id)
             .Select(p => new KurdnezamOrgPageDto
             {
@@ -22,6 +30,9 @@ public class GetKurdnezamOrgPagesQueryHandler(IApplicationDbContext context)
                 Title = p.Title,
                 Group = p.Group,
                 Intro = p.Intro,
+                ParentSlug = p.ParentSlug,
+                Icon = p.Icon,
+                Summary = p.Summary,
                 SortOrder = p.SortOrder
             })
             .ToListAsync(cancellationToken);
@@ -45,6 +56,9 @@ public class GetKurdnezamOrgPageBySlugQueryHandler(IApplicationDbContext context
                 Title = p.Title,
                 Group = p.Group,
                 Intro = p.Intro,
+                ParentSlug = p.ParentSlug,
+                Icon = p.Icon,
+                Summary = p.Summary,
                 SortOrder = p.SortOrder
             })
             .FirstOrDefaultAsync(cancellationToken);

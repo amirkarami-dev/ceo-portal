@@ -16,7 +16,9 @@ public sealed record KurdnezamSettingsInput(
     IReadOnlyList<string> Phones,
     string PostalCode,
     string Telegram,
-    string Instagram);
+    string Instagram,
+    string MapLabel = "",
+    string MapUrl = "");
 
 [Authorize(Roles = Roles.Administrator)]
 public record UpdateKurdnezamSettingsCommand(KurdnezamSettingsInput Input) : IRequest;
@@ -48,6 +50,8 @@ public class UpdateKurdnezamSettingsCommandHandler(IApplicationDbContext context
         entity.PostalCode = i.PostalCode;
         entity.Telegram = i.Telegram;
         entity.Instagram = i.Instagram;
+        entity.MapLabel = i.MapLabel;
+        entity.MapUrl = i.MapUrl;
 
         await context.SaveChangesAsync(cancellationToken);
     }
@@ -65,6 +69,10 @@ public class UpdateKurdnezamSettingsCommandValidator : AbstractValidator<UpdateK
         RuleFor(x => x.Input.PostalCode).NotEmpty().MaximumLength(20);
         RuleFor(x => x.Input.Telegram).NotEmpty().MaximumLength(500);
         RuleFor(x => x.Input.Instagram).NotEmpty().MaximumLength(500);
+
+        // Both optional: the map caption falls back to Address, and the link is genuinely optional.
+        RuleFor(x => x.Input.MapLabel).MaximumLength(500);
+        RuleFor(x => x.Input.MapUrl).MaximumLength(1000);
 
         RuleForEach(x => x.Input.Phones).NotEmpty().MaximumLength(30);
     }

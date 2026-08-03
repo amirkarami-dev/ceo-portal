@@ -13,6 +13,15 @@ public sealed class KurdnezamContactMessageDto
 
     public string Message { get; init; } = string.Empty;
 
+    /// <summary>The contact block the sender chose, if any.</summary>
+    public int? SectionId { get; init; }
+
+    /// <summary>
+    /// Title of that block, resolved for display. Null both when the sender chose nothing and when
+    /// the block has since been deleted — the FK is <c>SET NULL</c>, so old messages survive it.
+    /// </summary>
+    public string? SectionTitle { get; init; }
+
     public bool IsRead { get; init; }
 
     public DateTimeOffset Created { get; init; }

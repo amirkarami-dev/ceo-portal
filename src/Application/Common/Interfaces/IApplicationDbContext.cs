@@ -96,6 +96,10 @@ public interface IApplicationDbContext
 
     DbSet<KurdnezamOrgPage> KurdnezamOrgPages { get; }
 
+    DbSet<KurdnezamContactSection> KurdnezamContactSections { get; }
+
+    DbSet<KurdnezamContactChannel> KurdnezamContactChannels { get; }
+
     DbSet<KurdnezamVisit> KurdnezamVisits { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);

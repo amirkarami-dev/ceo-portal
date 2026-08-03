@@ -8,11 +8,16 @@ using Microsoft.EntityFrameworkCore;
 namespace Mabhas19.Application.Kurdnezam.Contact;
 
 /// <summary>Fields the public contact form submits.</summary>
+/// <param name="SectionId">
+/// Which contact block the sender chose, if any. Optional with a default so the old three-field
+/// payload still validates — an older cached copy of the site must not start failing to send.
+/// </param>
 public sealed record KurdnezamContactMessageInput(
     string Name,
     string Phone,
     string Subject,
-    string Message);
+    string Message,
+    int? SectionId = null);
 
 /// <summary>Body of the admin read/unread toggle.</summary>
 public sealed record KurdnezamContactMessageReadInput(bool IsRead);
@@ -38,6 +43,7 @@ public class CreateKurdnezamContactMessageCommandHandler(IApplicationDbContext c
             Phone = i.Phone,
             Subject = i.Subject,
             Message = i.Message,
+            SectionId = i.SectionId,
             IsRead = false
         };
 
@@ -50,9 +56,18 @@ public class CreateKurdnezamContactMessageCommandHandler(IApplicationDbContext c
 
 public class CreateKurdnezamContactMessageCommandValidator : AbstractValidator<CreateKurdnezamContactMessageCommand>
 {
-    public CreateKurdnezamContactMessageCommandValidator()
+    public CreateKurdnezamContactMessageCommandValidator(IApplicationDbContext context)
     {
         RuleFor(x => x.Input).SetValidator(new KurdnezamContactMessageInputValidator());
+
+        // Only an active section may be chosen. This endpoint is anonymous, so the id is attacker
+        // controlled: without the check anyone could pin messages to a retired block, or to any
+        // integer at all.
+        RuleFor(x => x.Input.SectionId)
+            .MustAsync(async (sectionId, ct) =>
+                sectionId is null
+                || await context.KurdnezamContactSections.AnyAsync(s => s.Id == sectionId && s.IsActive, ct))
+            .WithMessage("The selected section does not exist.");
     }
 }
 

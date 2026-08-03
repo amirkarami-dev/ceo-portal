@@ -1,4 +1,5 @@
 using Mabhas19.Application.Kurdnezam.Categories;
+using Mabhas19.Application.Kurdnezam.ContactSections;
 using Mabhas19.Application.Kurdnezam.Forms;
 using Mabhas19.Application.Kurdnezam.News;
 using Mabhas19.Application.Kurdnezam.OrgPages;
@@ -40,6 +41,9 @@ public sealed class KurdnezamContentDto
     public IReadOnlyList<KurdnezamFormDto> Forms { get; init; } = [];
 
     public IReadOnlyList<KurdnezamOrgPageDto> OrgPages { get; init; } = [];
+
+    /// <summary>Active contact blocks for <c>/p/tamas</c>; retired ones are not sent to the site.</summary>
+    public IReadOnlyList<KurdnezamContactSectionDto> ContactSections { get; init; } = [];
 }
 
 /// <param name="NewsLimit">
@@ -68,6 +72,7 @@ public class GetKurdnezamContentQueryHandler(ISender sender)
         var tabGroups = await sender.Send(new GetKurdnezamTabGroupsQuery(), cancellationToken);
         var forms = await sender.Send(new GetKurdnezamFormsQuery(), cancellationToken);
         var orgPages = await sender.Send(new GetKurdnezamOrgPagesQuery(), cancellationToken);
+        var contactSections = await sender.Send(new GetKurdnezamContactSectionsQuery(), cancellationToken);
 
         return new KurdnezamContentDto
         {
@@ -80,7 +85,8 @@ public class GetKurdnezamContentQueryHandler(ISender sender)
             Units = units,
             TabGroups = tabGroups,
             Forms = forms,
-            OrgPages = orgPages
+            OrgPages = orgPages,
+            ContactSections = contactSections
         };
     }
 }

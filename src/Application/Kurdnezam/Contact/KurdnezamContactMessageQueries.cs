@@ -43,6 +43,10 @@ public class GetKurdnezamContactMessagesQueryHandler(IApplicationDbContext conte
                 Phone = m.Phone,
                 Subject = m.Subject,
                 Message = m.Message,
+                SectionId = m.SectionId,
+                // Navigation property, so EF turns this into a LEFT JOIN — null both when nothing
+                // was chosen and when the section has since been deleted.
+                SectionTitle = m.Section != null ? m.Section.Title : null,
                 IsRead = m.IsRead,
                 Created = m.Created
             })

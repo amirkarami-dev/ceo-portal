@@ -141,7 +141,7 @@ Each step ends buildable, and nothing is half-wired at a step boundary.
 | Step | What |
 |---|---|
 | **1** ✅ | Domain + EF config + migration for contact sections/channels, the 3 `OrgPage` columns, the message `SectionId`, the 2 settings fields. Backfill the 5 organs and insert the `tamas` row. **Shipped as two migrations** — SQL Server compiles a batch before running it, so the backfill cannot name a column the same batch adds. See the [step-1 worklog](../../worklog/2026-08-03-kurdnezam-step-1-schema.md). |
-| **2** | Application layer + endpoints for contact sections/channels; extend the OrgPage and Settings DTOs; add `contactSections` to the content payload. |
+| **2** ✅ | Application layer + endpoints for contact sections/channels; extend the OrgPage and Settings DTOs; add `contactSections` to the content payload. Deployed, and the step-1 migrations applied with it. See the [step-2 worklog](../../worklog/2026-08-03-kurdnezam-step-2-api.md). |
 | **3** | Admin: new **بخش‌های تماس** page — master/detail CRUD, drag-free ordering by number, icon picker. Router + nav entry. |
 | **4** | Admin: **صفحات سازمانی** gains Parent / Icon / Summary; **تنظیمات** gains the map fields; **پیام‌ها** shows the section. |
 | **5** | Public `/p/tamas` rebuilt from the API — sections, intro, map caption, and the section dropdown on the form. |

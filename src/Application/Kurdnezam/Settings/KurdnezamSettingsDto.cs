@@ -24,6 +24,15 @@ public sealed class KurdnezamSettingsDto
 
     public string Instagram { get; init; } = string.Empty;
 
+    /// <summary>
+    /// Caption on the contact page's map panel. Already resolved: the query substitutes
+    /// <see cref="Address"/> when the stored short form is blank, so this is never empty in practice.
+    /// </summary>
+    public string MapLabel { get; init; } = string.Empty;
+
+    /// <summary>Optional outbound map link; empty means the panel is not clickable.</summary>
+    public string MapUrl { get; init; } = string.Empty;
+
     public IReadOnlyList<KurdnezamFooterLinkItemDto> FooterLinks { get; init; } = [];
 
     public KurdnezamStatsDto Stats { get; init; } = new();

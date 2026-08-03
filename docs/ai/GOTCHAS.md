@@ -416,6 +416,15 @@ overrides that method and returns a string. Format directly.
 Gregorian year 1405. Only convert values that are actually Gregorian.
 **Where:** `analytics-web/src/presentation/format.ts`.
 
+### A new `DbSet` must be added to `IApplicationDbContext` too, or you get twenty misleading errors
+`ApplicationDbContext` alone is not enough — the Application layer only ever sees the **interface**.
+Miss it and the build returns a wall of `CS1061`, most of which point at the wrong thing:
+`'CancellationToken' does not contain a definition for 'Id'` is simply what a failed
+`FirstOrDefaultAsync` overload resolution looks like once the receiver type is unknown.
+**Where:** `src/Infrastructure/Data/ApplicationDbContext.cs` **and**
+`src/Application/Common/Interfaces/IApplicationDbContext.cs`. Costly here because every build is a
+round-trip to the server.
+
 ### A Bale bot token is `<bot_id>:<secret>`; the safir key is a separate 16-char string
 Two different credentials on two different dashboard pages, and pasting one where the other belongs
 fails in a way that looks like nothing: `https://tapi.bale.ai/bot<wrong-token>/setWebhook` answers
