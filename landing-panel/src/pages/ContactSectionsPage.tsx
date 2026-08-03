@@ -257,12 +257,22 @@ export function ContactSectionsPage() {
       dataIndex: "value",
       key: "value",
       render: (value: string, channel) => (
-        <Typography.Text
-          copyable
-          style={LTR_KINDS.includes(channel.kind) ? LTR : undefined}
-        >
-          {value}
-        </Typography.Text>
+        <Space direction="vertical" size={0}>
+          <Typography.Text
+            copyable
+            style={LTR_KINDS.includes(channel.kind) ? LTR : undefined}
+          >
+            {value}
+          </Typography.Text>
+          {/* The برچسب column hides below `md`; without this the label would be unreachable on a
+              phone. Same rule as the Messages screen: a hidden column's information has to go
+              somewhere, and it must not show twice. */}
+          {channel.label ? (
+            <Typography.Text type="secondary" className="only-narrow" style={{ fontSize: 12 }}>
+              {channel.label}
+            </Typography.Text>
+          ) : null}
+        </Space>
       ),
     },
     {

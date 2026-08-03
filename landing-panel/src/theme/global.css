@@ -76,3 +76,13 @@ body {
   pointer-events: none;
   height: 0;
 }
+
+/* Shown only where a table has dropped the column that normally carries this information.
+   767.98px is AntD's `md` boundary, so this and `responsive: ["md"]` switch on the same pixel —
+   pick one breakpoint and the pair stays honest. Without it a hidden column's data is unreachable
+   on a phone; with a mismatched breakpoint it shows twice. */
+@media (min-width: 768px) {
+  .only-narrow {
+    display: none !important;
+  }
+}

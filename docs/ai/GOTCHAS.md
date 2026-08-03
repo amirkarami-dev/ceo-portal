@@ -271,6 +271,36 @@ remove the Sider from the flex row entirely. Also set `min-width: 0` on the main
 otherwise a wide table expands that child and pushes the mobile menu trigger off-screen.
 **Where:** `analytics-web/src/layout/AppLayout.tsx`, `Topbar.tsx`, `Sidebar.tsx`.
 
+### A table that always scrolls but pins its actions column *conditionally*
+**Symptom:** on a phone the ویرایش and حذف buttons are 500-740px past the edge of the screen. The
+table scrolls, so they are reachable — after dragging the whole row across.
+**Cause:** `scroll={{ x: scrollX ?? 900 }}` has no falsy case, but the actions column read
+`fixed: scrollX ? "right" : undefined` — the *prop*, not the effective value. Almost no page passed
+one, so almost no table pinned.
+**Fix:** `fixed: "right"` unconditionally. One line, ~9 tables.
+**When checking it, note RTL:** AntD emits `ant-table-cell-fix-**left**` for `fixed: "right"` in an
+RTL table. Looking for `fix-right` finds nothing and reads as "the fix did not work".
+**Where:** `landing-panel/src/components/ui/CrudTable.tsx`.
+
+### A comment saying "admin-only in practice" on an anonymous route
+**Symptom:** none — which is the point. `GET /contact-sections?includeInactive=true` is
+`AllowAnonymous` and binds the flag from the query string, so anyone could read every *retired*
+contact block with its real addresses and phone numbers.
+**Cause:** the guarantee lived in an XML doc comment instead of in code.
+**Fix:** `includeInactive && httpContext.User.IsInRole(Roles.Administrator)`, and 404 the by-id route
+for a retired row so it cannot return what the list refuses. If a parameter is only safe for admins
+on an anonymous route, the route must **enforce** it — a caller-controlled flag is not a contract.
+**Where:** `src/Web/Endpoints/Kurdnezam/KurdnezamContactSections.cs`.
+
+### Measuring a touch target with getBoundingClientRect misses the `before:-inset` hit area
+**Symptom:** header buttons measure 36x36 and 40x40 and look like they fail the 44px minimum.
+**Cause:** this repo extends hit areas with `before:absolute before:-inset-1` pseudo-elements, which
+`getBoundingClientRect()` on the button does not see. Probing outward with `elementFromPoint` also
+under-reads by a pixel per side, so a true 44px box measures 42.
+**Fix:** read the pseudo-element — `getComputedStyle(el, "::before").top` is negative by the amount
+it extends. 40px visual + `-inset-0.5` and 36px + `-inset-1` are both exactly 44.
+**Where:** `kurdnezam-web/src/components/Header.tsx`. Do not "fix" targets that already pass.
+
 ### An empty `children` array still renders a dropdown, and the obvious guard crashes the header
 **Symptom:** whenever the content fetch fails, a nav dropdown opens onto a blank white box.
 **Cause:** `item.children ? (…) : (…)` — `[]` is **truthy**, so an empty array takes the dropdown

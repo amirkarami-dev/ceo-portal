@@ -5,16 +5,17 @@ import { useParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { AlertCircle, Building, Check, Landmark, Loader2, MapPin, Users } from "lucide-react";
 import { ApiError, sendContactMessage } from "@/lib/api";
-import type { ContactChannel, ContactSection } from "@/data/content";
+import type { ContactChannel, ContactSection, OrgPage as OrgPageDto } from "@/data/content";
 import {
   CHANNEL_LABELS,
   ChannelIcon,
   SiteIcon,
   channelHref,
+  externalHref,
   isLtrChannel,
 } from "@/lib/siteIcons";
 import { useI18n } from "@/lib/i18n";
-import { ARKAN_SLUG, childrenOf, findOrgPage, orgPageTitle } from "@/lib/orgPages";
+import { childrenOf, findOrgPage, orgPageTitle } from "@/lib/orgPages";
 import { useContent } from "@/lib/store";
 import { Breadcrumb, PersonCard, Reveal, SectionHeading } from "@/components/ui";
 
@@ -169,6 +170,8 @@ function ContactSectionCard({ section }: { section: ContactSection }) {
 /** The blueprint panel under the contact blocks. A link only when a map URL has been set. */
 function MapPanel({ label, href }: { label: string; href: string }) {
   if (!label) return null;
+  // Same rule the contact rows use: a bare «neshan.org/…» must not resolve against our own origin.
+  const url = externalHref(href);
 
   const caption = (
     <span className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-sm">
@@ -177,13 +180,13 @@ function MapPanel({ label, href }: { label: string; href: string }) {
     </span>
   );
 
-  if (!href) {
+  if (!url) {
     return <div className="blueprint grid h-56 place-items-center rounded-2xl text-mist">{caption}</div>;
   }
 
   return (
     <a
-      href={href}
+      href={url}
       target="_blank"
       rel="noreferrer"
       aria-label={`نمایش «${label}» روی نقشه`}
@@ -478,53 +481,57 @@ function ContactPage() {
   );
 }
 
-/* ── arkan overview ────────────────────────────────────── */
+/* ── a hub's child cards ───────────────────────────────── */
 
 /**
- * The cards are the hub's child org pages — the same rows that build the header dropdown, through
- * the same helper, so the two can never drift. Adding a page with parent «ارکان سازمان» in the panel
- * creates a card here, an entry in the menu and its own /p/{slug} page together.
+ * The cards are a page's child org pages — the same rows that build the header dropdown, through the
+ * same helper, so the two can never drift.
+ *
+ * Not limited to «ارکان سازمان»: the admin panel offers *any* top-level page as a parent and tells
+ * the editor their page will appear as a card on it, so every hub renders its children. (Only ارکان
+ * additionally gets a menu dropdown — that is one fixed slot in the site's navigation, not a
+ * property of being a hub.)
  */
-function ArkanPage() {
-  const { content } = useContent();
+function HubCards({ cards }: { cards: OrgPageDto[] }) {
   const { t, lang } = useI18n();
-
-  const hub = findOrgPage(content.orgPages, ARKAN_SLUG);
-  const cards = childrenOf(content.orgPages, ARKAN_SLUG);
-  const title = hub ? orgPageTitle(hub, lang, t) : t("nav.organs");
+  if (cards.length === 0) return null;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10">
-      <Breadcrumb items={[{ title }]} />
-      <h1 className="font-display text-5xl">{title}</h1>
-      {hub?.intro ? (
-        <p className="mt-3 max-w-3xl leading-8 text-steel">{hub.intro}</p>
-      ) : null}
+    <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      {cards.map((card, i) => (
+        <Reveal key={card.id} delay={i * 0.07}>
+          <Link
+            href={`/p/${card.slug}`}
+            className="group block h-full rounded-2xl border border-line bg-white p-6 shadow-card transition-shadow hover:shadow-lift"
+          >
+            <span className="grid size-12 place-items-center rounded-xl bg-ink text-gold transition-colors group-hover:bg-copper group-hover:text-white">
+              <SiteIcon name={card.icon} fallback={Landmark} className="size-6" />
+            </span>
+            <h2 className="mt-4 font-bold text-lg break-words">{orgPageTitle(card, lang, t)}</h2>
+            {/* Guarded: «متن کارت» is optional in the panel, and an unconditional <p> leaves a stray
+                gap under the title for a card that has none. */}
+            {card.summary ? (
+              <p className="mt-2 break-words text-sm leading-7 text-steel">{card.summary}</p>
+            ) : null}
+          </Link>
+        </Reveal>
+      ))}
+    </div>
+  );
+}
 
-      {/* Only when there is something to show: an empty grid still emits its margin, and this page
-          renders with no cards at all whenever the content fetch failed. */}
-      {cards.length > 0 ? (
-        <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {cards.map((card, i) => (
-            <Reveal key={card.id} delay={i * 0.07}>
-              <Link
-                href={`/p/${card.slug}`}
-                className="group block h-full rounded-2xl border border-line bg-white p-6 shadow-card transition-shadow hover:shadow-lift"
-              >
-                <span className="grid size-12 place-items-center rounded-xl bg-ink text-gold transition-colors group-hover:bg-copper group-hover:text-white">
-                  <SiteIcon name={card.icon} fallback={Landmark} className="size-6" />
-                </span>
-                <h2 className="mt-4 font-bold text-lg">{orgPageTitle(card, lang, t)}</h2>
-                {/* Guarded: «متن کارت» is optional in the panel, and an unconditional <p> leaves a
-                    stray gap under the title for a card that has none. */}
-                {card.summary ? (
-                  <p className="mt-2 text-sm leading-7 text-steel">{card.summary}</p>
-                ) : null}
-              </Link>
-            </Reveal>
-          ))}
-        </div>
-      ) : null}
+/** Shown when a slug does not resolve — see the note in OrgPage about telling the two cases apart. */
+function OrgPageMessage({ title, body }: { title: string; body?: string }) {
+  return (
+    <div className="mx-auto max-w-3xl px-4 py-24 text-center">
+      <h1 className="font-display text-3xl leading-snug sm:text-4xl">{title}</h1>
+      {body ? <p className="mt-3 leading-8 text-steel">{body}</p> : null}
+      <Link
+        href="/"
+        className="mt-6 inline-block rounded-xl bg-copper px-6 py-3 font-semibold text-white"
+      >
+        بازگشت به خانه
+      </Link>
     </div>
   );
 }
@@ -535,31 +542,29 @@ export default function OrgPage() {
   const { content } = useContent();
   const { t, lang } = useI18n();
 
+  // The contact page is a genuinely different layout; every other slug — including «ارکان سازمان» —
+  // is this one page, which shows an intro, then its child cards, then its people, rendering only
+  // the parts it actually has.
   if (slug === "tamas") return <ContactPage />;
-  if (slug === ARKAN_SLUG) return <ArkanPage />;
 
-  const page = content.orgPages.find((p) => p.slug === slug);
+  const page = findOrgPage(content.orgPages, slug);
+
   if (!page) {
-    return (
-      <div className="mx-auto max-w-3xl px-4 py-24 text-center">
-        <h1 className="font-display text-4xl">صفحه یافت نشد</h1>
-        <Link
-          href="/"
-          className="mt-6 inline-block rounded-xl bg-copper px-6 py-3 font-semibold text-white"
-        >
-          بازگشت به خانه
-        </Link>
-      </div>
+    // «صفحه یافت نشد» would be a lie when we simply have no content: layout.tsx falls back to
+    // EMPTY_CONTENT on any fetch failure, and /p/modir certainly exists.
+    return content.orgPages.length === 0 ? (
+      <OrgPageMessage
+        title="اطلاعات این صفحه در دسترس نیست"
+        body="ارتباط با سرویس محتوا برقرار نشد؛ لطفاً چند لحظه بعد دوباره تلاش کنید."
+      />
+    ) : (
+      <OrgPageMessage title="صفحه یافت نشد" />
     );
   }
 
-  // A page needs no group: `arkan` and `tamas` return above, but an admin can create a prose-only
-  // page from the panel at any time.
-  const { group } = page;
-  const people = group
-    ? content.people.filter((p) => p.group === group)
-    : [];
-
+  const cards = childrenOf(content.orgPages, slug);
+  // A page needs no group — «ارکان سازمان» has none, and an admin can create a prose-only page.
+  const people = page.group ? content.people.filter((p) => p.group === page.group) : [];
   // Same rule as the menu and the cards, so a Kurdish reader who clicked «دەستەی بەڕێوەبردن» does
   // not land on a page headed «هیئت مدیره». In Persian this is exactly `page.title`.
   const title = orgPageTitle(page, lang, t);
@@ -567,10 +572,17 @@ export default function OrgPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-10">
       <Breadcrumb items={[{ title }]} />
-      <h1 className="font-display text-5xl">{title}</h1>
+      {/* text-5xl has line-height 1 in Tailwind, so a long admin-entered title collides with its
+          own second line at 375px. */}
+      <h1 className="font-display text-3xl leading-snug break-words sm:text-4xl lg:text-5xl">
+        {title}
+      </h1>
       {page.intro ? (
-        <p className="mt-3 max-w-3xl leading-8 text-steel">{page.intro}</p>
+        <p className="mt-3 max-w-3xl break-words leading-8 text-steel">{page.intro}</p>
       ) : null}
+
+      <HubCards cards={cards} />
+
       {people.length > 0 ? (
         <div className="mt-10">
           <SectionHeading icon={Users} title="معرفی اعضا و مسئولین" />

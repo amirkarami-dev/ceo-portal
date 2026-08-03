@@ -1,5 +1,5 @@
 import { useMemo, useState, type CSSProperties } from "react";
-import { Alert, Form, Input, InputNumber, Select, Space, Tag, Typography } from "antd";
+import { Alert, Form, Grid, Input, InputNumber, Select, Space, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { orgPagesApi } from "@/api/endpoints";
 import { PERSON_GROUPS, PERSON_GROUP_LABELS } from "@/api/types";
@@ -58,6 +58,11 @@ function inOutlineOrder(pages: OrgPage[]): OrgPage[] {
 
 export function OrgPagesPage() {
   const [form] = Form.useForm<OrgPageFormValues>();
+  // Five of the seven columns hide below md/lg/xl, but rc-table sizes the table element to exactly
+  // `scroll.x` regardless of how many columns actually rendered — so a flat 1100 kept a phone
+  // dragging across 1100px of mostly empty table.
+  const screens = Grid.useBreakpoint();
+  const scrollX = screens.xl ? 1100 : screens.lg ? 900 : screens.md ? 760 : 560;
   const [drawer, setDrawer] = useState<{ open: boolean; editing: OrgPage | null }>({
     open: false,
     editing: null,
@@ -250,7 +255,7 @@ export function OrgPagesPage() {
     <>
       <PageHeader
         title="صفحات سازمان"
-        subtitle="صفحات ثابت معرفی سازمان — صفحه‌ای که والد داشته باشد، روی صفحهٔ والد به شکل کارت و در منوی بالای سایت هم دیده می‌شود"
+        subtitle="صفحات ثابت معرفی سازمان — صفحه‌ای که والد داشته باشد، روی صفحهٔ والد به شکل کارت دیده می‌شود؛ زیرمجموعه‌های «ارکان سازمان» در منوی بالای سایت هم می‌آیند"
       />
 
       <CrudTable<OrgPage>
@@ -274,7 +279,7 @@ export function OrgPagesPage() {
         }
         deleting={crud.deleting}
         emptyText="هنوز صفحه‌ای ثبت نشده است"
-        scrollX={1100}
+        scrollX={scrollX}
       />
 
       <FormDrawer<OrgPageFormValues>
@@ -310,7 +315,7 @@ export function OrgPagesPage() {
         <Form.Item
           name="parentSlug"
           label="زیرمجموعهٔ کدام صفحه؟ (اختیاری)"
-          tooltip="با انتخاب والد، این صفحه روی صفحهٔ والد به شکل کارت و در منوی بالای سایت هم نمایش داده می‌شود. برای ارکان سازمان، «ارکان سازمان» را انتخاب کنید."
+          tooltip="با انتخاب والد، این صفحه روی صفحهٔ والد به شکل کارت نمایش داده می‌شود. اگر والد «ارکان سازمان» باشد، در منوی بالای سایت هم دیده می‌شود."
           extra={
             editingHasChildren
               ? "این صفحه خودش زیرمجموعه دارد، بنابراین نمی‌تواند زیر صفحهٔ دیگری برود."
@@ -365,7 +370,12 @@ export function OrgPagesPage() {
           <Select options={GROUP_OPTIONS} placeholder="بدون گروه" />
         </Form.Item>
 
-        <Form.Item name="intro" label="معرفی">
+        <Form.Item
+          name="intro"
+          label="معرفی"
+          tooltip="متن بالای صفحه. سرور این فیلد را الزامی می‌داند."
+          rules={[{ required: true, message: "معرفی الزامی است" }]}
+        >
           <Input.TextArea rows={5} placeholder="متن معرفی صفحه" />
         </Form.Item>
 

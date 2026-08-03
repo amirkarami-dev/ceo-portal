@@ -229,12 +229,19 @@ export function SettingsPage() {
                     {(fields, { add, remove }, { errors }) => (
                       <>
                         {/* `key` must not be spread into <Form.Item> (React 19 warns) — pull it out. */}
+                        {/* A plain flex row, not <Space>: Space's item wrappers are shrink-to-fit,
+                            so a 260px input beside a 32px button was ~300px of non-shrinkable
+                            content inside ~311px of column and overflowed the page on a phone.
+                            `flex:1 minWidth:0` lets the input give way instead. */}
                         {fields.map(({ key, ...field }) => (
-                          <Space key={key} align="baseline" style={{ display: "flex", marginBottom: 8 }}>
+                          <div
+                            key={key}
+                            style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}
+                          >
                             <Form.Item {...field} noStyle>
                               <Input
                                 placeholder="۰۸۷-۳۳۲۸۰۰۰۰"
-                                style={{ ...LTR_INPUT, width: 260 }}
+                                style={{ ...LTR_INPUT, flex: 1, minWidth: 0 }}
                               />
                             </Form.Item>
                             <Button
@@ -243,14 +250,15 @@ export function SettingsPage() {
                               aria-label="حذف شماره"
                               icon={<MinusCircleOutlined />}
                               onClick={() => remove(field.name)}
+                              style={{ flex: "none" }}
                             />
-                          </Space>
+                          </div>
                         ))}
                         <Button
                           type="dashed"
                           icon={<PlusOutlined />}
                           onClick={() => add("")}
-                          style={{ width: 260 }}
+                          style={{ width: "100%" }}
                         >
                           افزودن شماره
                         </Button>

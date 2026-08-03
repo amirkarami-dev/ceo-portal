@@ -386,7 +386,7 @@ export default function Header() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-ink/70 backdrop-blur-sm"
+            className="fixed inset-0 z-50 bg-ink/70 px-4 backdrop-blur-sm"
             onClick={() => setSearchOpen(false)}
           >
             <motion.form
@@ -457,12 +457,12 @@ export default function Header() {
                         {item.title}
                         <ChevronDown className="size-4 transition-transform group-open:rotate-180" />
                       </summary>
-                      <ul className="pb-2 ps-4">
+                      <ul className="space-y-1 pb-2 ps-4">
                         {item.children.map((child) => (
                           <li key={child.key}>
                             <Link
                               href={child.href}
-                              className="block rounded-lg px-2 py-2 text-sm text-steel hover:text-copper"
+                              className="block rounded-lg px-2 py-3 text-sm text-steel hover:text-copper"
                             >
                               {child.title}
                             </Link>

@@ -35,6 +35,9 @@ export const CHANNEL_KIND_PLACEHOLDERS: Record<ContactChannelKind, string> = {
 export const LINKED_CHANNEL_KINDS: ContactChannelKind[] = [
   "phone",
   "mobile",
+  // The site dials a fax like any other number (siteIcons.channelHref groups fax with phone/mobile),
+  // so the hint has to say so — these two lists disagreeing is how an admin gets surprised.
+  "fax",
   "email",
   "telegram",
   "instagram",

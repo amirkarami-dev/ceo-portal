@@ -1,4 +1,5 @@
 using Mabhas19.Application.Kurdnezam.ContactSections;
+using Mabhas19.Domain.Constants;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Mabhas19.Web.Endpoints.Kurdnezam;
@@ -33,15 +34,32 @@ public class KurdnezamContactSections : Mabhas19.Web.Infrastructure.IEndpointGro
     }
 
     /// <param name="includeInactive">
-    /// Admin-only in practice: the public site must not see a retired section. Defaults to false, so
-    /// omitting it under-shares rather than over-shares.
+    /// Retired sections are for the panel only, and this route is anonymous so the flag is
+    /// caller-controlled — it is therefore <b>enforced</b>, not merely documented. A retired block
+    /// still holds real numbers and addresses; "we took it off the page" has to mean it is gone.
     /// </param>
     public static async Task<Ok<IReadOnlyList<KurdnezamContactSectionDto>>> GetKurdnezamContactSections(
-        ISender sender, bool includeInactive = false)
-        => TypedResults.Ok(await sender.Send(new GetKurdnezamContactSectionsQuery(includeInactive)));
+        ISender sender, HttpContext httpContext, bool includeInactive = false)
+    {
+        var admin = httpContext.User.IsInRole(Roles.Administrator);
+        return TypedResults.Ok(await sender.Send(new GetKurdnezamContactSectionsQuery(includeInactive && admin)));
+    }
 
-    public static async Task<Ok<KurdnezamContactSectionDto>> GetKurdnezamContactSectionById(ISender sender, int id)
-        => TypedResults.Ok(await sender.Send(new GetKurdnezamContactSectionByIdQuery(id)));
+    /// <summary>
+    /// A retired section is hidden from anyone but an administrator here too — otherwise the id
+    /// route would hand back exactly what the list route refuses.
+    /// </summary>
+    public static async Task<Results<Ok<KurdnezamContactSectionDto>, NotFound>> GetKurdnezamContactSectionById(
+        ISender sender, HttpContext httpContext, int id)
+    {
+        var section = await sender.Send(new GetKurdnezamContactSectionByIdQuery(id));
+        if (!section.IsActive && !httpContext.User.IsInRole(Roles.Administrator))
+        {
+            return TypedResults.NotFound();
+        }
+
+        return TypedResults.Ok(section);
+    }
 
     public static async Task<Created<int>> CreateKurdnezamContactSection(
         ISender sender, KurdnezamContactSectionInput body)

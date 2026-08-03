@@ -174,6 +174,7 @@ export function MessagesPage() {
         subtitle="پیام‌های دریافتی از فرم تماس با ما"
         actions={
           <Segmented<ReadFilter>
+            block
             options={FILTER_OPTIONS}
             value={filter}
             onChange={(value) => {

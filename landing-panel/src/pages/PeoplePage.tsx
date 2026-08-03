@@ -185,6 +185,7 @@ export function PeoplePage() {
         searchFields={["name", "role"]}
         toolbarExtra={
           <Segmented
+            block
             options={FILTER_OPTIONS}
             value={filter}
             onChange={(value) => setFilter(value as GroupFilter)}

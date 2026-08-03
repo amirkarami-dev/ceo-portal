@@ -26,6 +26,7 @@ import {
   UsersRound,
   Vote,
   Wrench,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
 import type { ContactChannelKind } from "@/data/content";
@@ -63,7 +64,7 @@ const ICONS: Record<string, LucideIcon> = {
   scale: Scale,
   // work areas
   "hard-hat": HardHat,
-  zap: Flame, // "zap" reads as electricity; Flame is the closer shape for the gas/power tiles
+  zap: Zap,
   flame: Flame,
   ruler: Ruler,
   "file-text": FileText,
@@ -177,6 +178,16 @@ export function channelHref(kind: ContactChannelKind, value: string): string | n
     default:
       return null;
   }
+}
+
+/**
+ * An admin-entered URL, made absolute. Without this, «neshan.org/@35.31,46.99» is resolved by the
+ * browser *relative to kurdnezam.ir* and the link silently 404s.
+ */
+export function externalHref(value: string): string | null {
+  const v = value.trim();
+  if (!v) return null;
+  return /^https?:\/\//i.test(v) ? v : `https://${v}`;
 }
 
 /** ۰۹۱۲… → 0912…, so `tel:` gets something a dialler understands. */

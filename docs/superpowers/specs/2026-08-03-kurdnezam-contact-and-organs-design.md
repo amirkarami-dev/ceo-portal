@@ -3,7 +3,7 @@
 - **Date:** 2026-08-03
 - **Asked for:** three things — (1) the favicon, (2) `/p/tamas` fully editable from the panel with
   contact details classified by section, (3) «ارکان سازمان» able to add / edit / delete its sections.
-- **Status:** design. Item 1 is already done (see §8); items 2 and 3 are built one step at a time.
+- **Status:** **complete.** All seven steps shipped 2026-08-03; item 1 in §8, items 2 and 3 across steps 1-7.
 
 ## 1. What is hard-coded today
 
@@ -115,10 +115,15 @@ already does. It becomes editable in the existing **صفحات سازمانی** 
 
 ## 5. Icons
 
-`lucide-react` cannot resolve an arbitrary runtime string without bundling the whole library. So a
-fixed registry of ~24 icons lives in the site (`ICONS: Record<string, LucideIcon>`), the admin offers
-exactly those names in a picker with a live preview, and an unknown or empty name falls back to a
-default. Adding a new icon is a one-line change in one file.
+`lucide-react` cannot resolve an arbitrary runtime string without bundling the whole library (it has
+~6,000 exports). So a fixed registry of 25 icons lives in the site (`src/lib/siteIcons.tsx`), and the
+same 25 keys live in `KurdnezamContactIcons` on the server and `landing-panel/src/lib/siteMeta.ts`.
+An unknown or empty key falls back to a default rather than crashing.
+
+**Shipped without the live preview** the first draft of this section promised: `landing-panel` does
+not carry lucide, and a preview drawn from a *different* icon set would be a picture of something the
+visitor never sees. The picker is grouped, with a Persian description of each real icon. Adding an
+icon means editing **three** files — that is the cost of the fixed registry.
 
 ## 6. API surface
 
@@ -146,7 +151,7 @@ Each step ends buildable, and nothing is half-wired at a step boundary.
 | **4** ✅ | Admin: **صفحات سازمان** gains Parent / Icon / Summary — which is the whole of the ارکان request; **تنظیمات** gains the map fields; **پیام‌ها** shows the section. Panel deployed with step 3. See the [step-4 worklog](../../worklog/2026-08-03-kurdnezam-step-4-admin-fields.md). |
 | **5** ✅ | Public `/p/tamas` rebuilt from the API — blocks, intro, map caption, and the section dropdown (shown only when there is more than one block). **Live.** See the [step-5 worklog](../../worklog/2026-08-03-kurdnezam-step-5-contact-page.md). |
 | **6** ✅ | Public `/p/arkan` + `Header.tsx` nav driven by `parentSlug` through one shared helper; both hard-coded lists deleted. Kurdish titles preserved via a **ku-only** override — a Persian-wide override would have stopped panel renames reaching the menu. **Live.** See the [step-6 worklog](../../worklog/2026-08-03-kurdnezam-step-6-arkan-nav.md). |
-| **7** | Mobile pass at 375 px on every page and component touched, then deploy, worklog, commit. |
+| **7** ✅ | Mobile pass at 375 px on every page and component touched, then deploy, worklog, commit. An audit of all 14 panel pages also found a one-line bug putting ویرایش/حذف off-screen on ~9 tables, and a retired contact block readable anonymously. See the [step-7 worklog](../../worklog/2026-08-03-kurdnezam-step-7-mobile-and-closeout.md). |
 
 Steps 1–2 are backend and cannot be seen; step 5 is the first visible change. Steps 3–4 need the API
 from step 2, and 5–6 need step 2 but not 3–4.

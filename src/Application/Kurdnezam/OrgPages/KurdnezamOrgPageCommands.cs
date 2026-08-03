@@ -119,6 +119,26 @@ public class UpdateKurdnezamOrgPageCommandValidator : AbstractValidator<UpdateKu
             .MustAsync((parent, ct) => KurdnezamOrgPageParentRules.ParentIsTopLevelAsync(context, parent, ct))
             .WithMessage("The parent page is itself a child; only one level is supported.");
 
+        // Children point at their parent by SLUG, and nothing cascades a rename. Changing the slug
+        // of a page that has children would leave every one of them pointing at a slug that no
+        // longer exists: their cards and menu entries vanish and the pages become reachable only by
+        // typing the URL. Refused rather than cascaded, because a slug is a public URL and silently
+        // rewriting six of them is worse than saying no.
+        RuleFor(x => x.Input.Slug)
+            .MustAsync(async (command, slug, ct) =>
+            {
+                var current = await context.KurdnezamOrgPages
+                    .AsNoTracking()
+                    .Where(p => p.Id == command.Id)
+                    .Select(p => p.Slug)
+                    .FirstOrDefaultAsync(ct);
+
+                if (current is null || current == slug) return true;
+
+                return !await context.KurdnezamOrgPages.AnyAsync(p => p.ParentSlug == current, ct);
+            })
+            .WithMessage("This page has children that refer to its current slug, so the slug cannot be changed. Move them to another parent first.");
+
         // Demoting a hub that still has children would orphan them: their cards and dropdown entries
         // would vanish while the pages stayed reachable only by typing the URL.
         RuleFor(x => x.Input)

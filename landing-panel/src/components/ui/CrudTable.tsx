@@ -133,7 +133,11 @@ export function CrudTable<T extends object>({
           key: "__actions",
           width: actionsWidth,
           align: "center",
-          fixed: scrollX ? "right" : undefined,
+          // Unconditional, because the table below ALWAYS scrolls: `scroll={{ x: scrollX ?? 900 }}`
+          // has no falsy case. Pinning off the `scrollX` *prop* meant that on every page which did
+          // not happen to pass one, ویرایش and حذف sat hundreds of pixels past the edge of a phone
+          // and could only be reached by dragging the table all the way across.
+          fixed: "right",
           render: (_: unknown, record: T) => (
             <Space size={0}>
               {rowActions?.(record)}
