@@ -27,4 +27,13 @@ public class KurdnezamSettings : BaseAuditableEntity
     public string Telegram { get; set; } = string.Empty;
 
     public string Instagram { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Caption on the contact page's map panel. Empty falls back to <see cref="Address"/>, so the
+    /// panel is never blank and the short form stays optional.
+    /// </summary>
+    public string MapLabel { get; set; } = string.Empty;
+
+    /// <summary>Optional outbound map link, which turns the placeholder panel into something clickable.</summary>
+    public string MapUrl { get; set; } = string.Empty;
 }

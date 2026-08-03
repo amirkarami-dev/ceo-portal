@@ -15,5 +15,13 @@ public class KurdnezamContactMessage : BaseAuditableEntity
 
     public string Message { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Which contact block the sender picked, if any. Nullable and <c>ON DELETE SET NULL</c>:
+    /// retiring a section must never delete the messages people sent to it.
+    /// </summary>
+    public int? SectionId { get; set; }
+
+    public KurdnezamContactSection? Section { get; set; }
+
     public bool IsRead { get; set; }
 }

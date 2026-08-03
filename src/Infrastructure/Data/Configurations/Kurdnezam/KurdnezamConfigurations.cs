@@ -19,6 +19,8 @@ public class KurdnezamSettingsConfiguration : IEntityTypeConfiguration<Kurdnezam
         b.Property(x => x.PostalCode).HasMaxLength(20).IsRequired();
         b.Property(x => x.Telegram).HasMaxLength(500).IsRequired();
         b.Property(x => x.Instagram).HasMaxLength(500).IsRequired();
+        b.Property(x => x.MapLabel).HasMaxLength(500).IsRequired().HasDefaultValue(string.Empty);
+        b.Property(x => x.MapUrl).HasMaxLength(1000).IsRequired().HasDefaultValue(string.Empty);
     }
 }
 
@@ -247,7 +249,15 @@ public class KurdnezamContactMessageConfiguration : IEntityTypeConfiguration<Kur
         b.Property(x => x.Subject).HasMaxLength(300).IsRequired();
         b.Property(x => x.Message).HasColumnType("nvarchar(max)").IsRequired();
 
+        // SetNull, not Cascade: a message is a record of something a member of the public did, and
+        // it has to outlive the contact block it was addressed to.
+        b.HasOne(x => x.Section)
+            .WithMany()
+            .HasForeignKey(x => x.SectionId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         b.HasIndex(x => x.IsRead);
+        b.HasIndex(x => x.SectionId);
     }
 }
 
@@ -261,8 +271,53 @@ public class KurdnezamOrgPageConfiguration : IEntityTypeConfiguration<KurdnezamO
         b.Property(x => x.Title).HasMaxLength(300).IsRequired();
         b.Property(x => x.Group).HasMaxLength(50);
         b.Property(x => x.Intro).HasColumnType("nvarchar(max)").IsRequired();
+        b.Property(x => x.ParentSlug).HasMaxLength(100);
+        b.Property(x => x.Icon).HasMaxLength(50);
+        b.Property(x => x.Summary).HasMaxLength(500).IsRequired().HasDefaultValue(string.Empty);
 
         b.HasIndex(x => x.Slug).IsUnique();
+
+        // The arkan page and the header dropdown both read "children of this slug, in order".
+        b.HasIndex(x => new { x.ParentSlug, x.SortOrder });
+    }
+}
+
+public class KurdnezamContactSectionConfiguration : IEntityTypeConfiguration<KurdnezamContactSection>
+{
+    public void Configure(EntityTypeBuilder<KurdnezamContactSection> b)
+    {
+        b.ToTable("KurdnezamContactSections");
+
+        b.Property(x => x.Title).HasMaxLength(300).IsRequired();
+        b.Property(x => x.Description).HasMaxLength(500);
+        b.Property(x => x.Icon).HasMaxLength(50);
+
+        b.HasIndex(x => x.SortOrder);
+    }
+}
+
+public class KurdnezamContactChannelConfiguration : IEntityTypeConfiguration<KurdnezamContactChannel>
+{
+    public void Configure(EntityTypeBuilder<KurdnezamContactChannel> b)
+    {
+        b.ToTable("KurdnezamContactChannels");
+
+        b.Property(x => x.Kind).HasMaxLength(20).IsRequired();
+        b.Property(x => x.Label).HasMaxLength(200);
+        b.Property(x => x.Value).HasMaxLength(1000).IsRequired();
+
+        b.HasOne(x => x.Section)
+            .WithMany(s => s.Channels)
+            .HasForeignKey(x => x.SectionId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        b.HasIndex(x => x.SectionId);
+
+        // The validator rejects a bad kind first; this stops anything that reaches the database
+        // another way, because the site switches on this value to pick tel:/mailto:/plain text.
+        b.ToTable(t => t.HasCheckConstraint(
+            "CK_KurdnezamContactChannels_Kind",
+            $"[Kind] IN ({string.Join(", ", KurdnezamContactChannelKinds.All.Select(k => $"'{k}'"))})"));
     }
 }
 

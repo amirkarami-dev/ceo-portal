@@ -39,7 +39,9 @@ internal static class KurdnezamSeeder
             PhonesJson = JsonSerializer.Serialize(new[] { "08733564876", "08733564874", "08733564878" }),
             PostalCode = "6619775411",
             Telegram = "https://t.me/kurdnezam",
-            Instagram = "https://instagram.com/kurdnezam"
+            Instagram = "https://instagram.com/kurdnezam",
+            MapLabel = "سنندج، میدان کوهنورد — جنب بانک مسکن",
+            MapUrl = string.Empty
         });
 
         context.KurdnezamFooterLinks.AddRange(
@@ -212,6 +214,9 @@ internal static class KurdnezamSeeder
             });
 
         // ── Organisation pages (/p/{slug}) ───────────────────────────────────────────────────
+        // A page with a ParentSlug is also a card on its parent and an entry in the parent's nav
+        // dropdown. SortOrder within "arkan" follows the order the hub's own Intro lists them in,
+        // which is the order the law gives: مجمع عمومی first, بازرسان last.
         context.KurdnezamOrgPages.AddRange(
             new KurdnezamOrgPage
             {
@@ -219,6 +224,18 @@ internal static class KurdnezamSeeder
                 Title = "ارکان سازمان",
                 Group = null,
                 Intro = "ارکان سازمان نظام مهندسی ساختمان استان کردستان بر اساس قانون نظام مهندسی و کنترل ساختمان عبارت‌اند از: مجمع عمومی، هیئت مدیره، هیئت رئیسه، شورای انتظامی و بازرسان.",
+                Icon = "landmark",
+                SortOrder = 1
+            },
+            new KurdnezamOrgPage
+            {
+                Slug = "majmaeomumi",
+                Title = "مجمع عمومی",
+                Group = KurdnezamPersonGroups.MajmaeOmumi,
+                Intro = "مجمع عمومی سازمان از کلیه اعضای دارای پروانه اشتغال تشکیل می‌شود و عالی‌ترین رکن تصمیم‌گیری سازمان است.",
+                ParentSlug = "arkan",
+                Icon = "vote",
+                Summary = "عالی‌ترین رکن سازمان، متشکل از کلیه اعضای دارای پروانه اشتغال.",
                 SortOrder = 1
             },
             new KurdnezamOrgPage
@@ -227,6 +244,9 @@ internal static class KurdnezamSeeder
                 Title = "هیئت مدیره",
                 Group = KurdnezamPersonGroups.Modir,
                 Intro = "اعضای هیئت مدیره سازمان نظام مهندسی ساختمان استان کردستان — معرفی اعضا و مسئولین.",
+                ParentSlug = "arkan",
+                Icon = "users-round",
+                Summary = "اداره امور سازمان و اجرای مصوبات مجمع عمومی.",
                 SortOrder = 2
             },
             new KurdnezamOrgPage
@@ -235,15 +255,10 @@ internal static class KurdnezamSeeder
                 Title = "هیئت رئیسه",
                 Group = KurdnezamPersonGroups.HayatRaise,
                 Intro = "اعضای هیئت رئیسه سازمان نظام مهندسی ساختمان استان کردستان.",
+                ParentSlug = "arkan",
+                Icon = "landmark",
+                Summary = "مدیریت اجرایی و راهبری روزانه سازمان.",
                 SortOrder = 3
-            },
-            new KurdnezamOrgPage
-            {
-                Slug = "bazrsin",
-                Title = "بازرسین",
-                Group = KurdnezamPersonGroups.Bazrsin,
-                Intro = "بازرسان قانونی سازمان نظام مهندسی ساختمان استان کردستان.",
-                SortOrder = 4
             },
             new KurdnezamOrgPage
             {
@@ -251,16 +266,69 @@ internal static class KurdnezamSeeder
                 Title = "شورای انتظامی",
                 Group = KurdnezamPersonGroups.ShorayeEntezami,
                 Intro = "شورای انتظامی سازمان، مرجع رسیدگی به تخلفات حرفه‌ای اعضا است.",
-                SortOrder = 5
+                ParentSlug = "arkan",
+                Icon = "gavel",
+                Summary = "مرجع رسیدگی به تخلفات حرفه‌ای اعضای سازمان.",
+                SortOrder = 4
             },
             new KurdnezamOrgPage
             {
-                Slug = "majmaeomumi",
-                Title = "مجمع عمومی",
-                Group = KurdnezamPersonGroups.MajmaeOmumi,
-                Intro = "مجمع عمومی سازمان از کلیه اعضای دارای پروانه اشتغال تشکیل می‌شود و عالی‌ترین رکن تصمیم‌گیری سازمان است.",
-                SortOrder = 6
+                Slug = "bazrsin",
+                Title = "بازرسین",
+                Group = KurdnezamPersonGroups.Bazrsin,
+                Intro = "بازرسان قانونی سازمان نظام مهندسی ساختمان استان کردستان.",
+                ParentSlug = "arkan",
+                Icon = "scroll-text",
+                Summary = "نظارت بر عملکرد مالی و اجرایی سازمان.",
+                SortOrder = 5
+            },
+            // The contact page's intro paragraph, which until now was a string literal in the site.
+            // Group is null and it is never a card, so it renders as prose only.
+            new KurdnezamOrgPage
+            {
+                Slug = "tamas",
+                Title = "تماس با ما",
+                Group = null,
+                Intro = "برای طرح پرسش، پیشنهاد یا شکایت می‌توانید از راه‌های زیر با سازمان در ارتباط باشید؛ کارشناسان ما در ساعات اداری پاسخگوی شما هستند.",
+                Icon = "headset",
+                SortOrder = 2
             });
+
+        // ── Contact sections (/p/tamas) ──────────────────────────────────────────────────────
+        // Only the details the organisation actually publishes. Extra sections — روابط عمومی,
+        // per-unit numbers — are added from the admin panel rather than invented here.
+        var contactHead = new KurdnezamContactSection
+        {
+            Title = "دفتر مرکزی",
+            Description = "پاسخگویی در ساعات اداری",
+            Icon = "building",
+            SortOrder = 1,
+            IsActive = true
+        };
+        contactHead.Channels.Add(new KurdnezamContactChannel
+        {
+            Kind = KurdnezamContactChannelKinds.Address,
+            Value = "سنندج - میدان کوهنورد - جنب بانک مسکن - سازمان نظام مهندسی ساختمان استان کردستان",
+            SortOrder = 1
+        });
+        contactHead.Channels.Add(new KurdnezamContactChannel
+        {
+            Kind = KurdnezamContactChannelKinds.Phone, Value = "08733564876", SortOrder = 2
+        });
+        contactHead.Channels.Add(new KurdnezamContactChannel
+        {
+            Kind = KurdnezamContactChannelKinds.Phone, Value = "08733564874", SortOrder = 3
+        });
+        contactHead.Channels.Add(new KurdnezamContactChannel
+        {
+            Kind = KurdnezamContactChannelKinds.Phone, Value = "08733564878", SortOrder = 4
+        });
+        contactHead.Channels.Add(new KurdnezamContactChannel
+        {
+            Kind = KurdnezamContactChannelKinds.Postal, Value = "6619775411", SortOrder = 5
+        });
+
+        context.KurdnezamContactSections.Add(contactHead);
 
         // ── Categories (parents of news — saved first so the FKs exist) ──────────────────────
         var catNews = new KurdnezamCategory { Title = "اخبار و اطلاعیه", SortOrder = 1 };

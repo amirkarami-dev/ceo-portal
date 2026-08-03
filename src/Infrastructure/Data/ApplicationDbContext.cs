@@ -101,6 +101,10 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<KurdnezamOrgPage> KurdnezamOrgPages => Set<KurdnezamOrgPage>();
 
+    public DbSet<KurdnezamContactSection> KurdnezamContactSections => Set<KurdnezamContactSection>();
+
+    public DbSet<KurdnezamContactChannel> KurdnezamContactChannels => Set<KurdnezamContactChannel>();
+
     public DbSet<KurdnezamVisit> KurdnezamVisits => Set<KurdnezamVisit>();
 
     protected override void OnModelCreating(ModelBuilder builder)
