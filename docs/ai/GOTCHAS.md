@@ -271,6 +271,30 @@ remove the Sider from the flex row entirely. Also set `min-width: 0` on the main
 otherwise a wide table expands that child and pushes the mobile menu trigger off-screen.
 **Where:** `analytics-web/src/layout/AppLayout.tsx`, `Topbar.tsx`, `Sidebar.tsx`.
 
+### An empty `children` array still renders a dropdown, and the obvious guard crashes the header
+**Symptom:** whenever the content fetch fails, a nav dropdown opens onto a blank white box.
+**Cause:** `item.children ? (…) : (…)` — `[]` is **truthy**, so an empty array takes the dropdown
+branch. `layout.tsx` catches any content failure and seeds `EMPTY_CONTENT`, so this is a live
+production state, not a theoretical one.
+**The trap in the fix:** switching to `item.children?.length ?` sends those entries down the `:`
+branch, which is `<Link href={item.href!} />` — and a dropdown entry has **no** `href`. Next throws
+E319 in dev; in production `formatUrl(undefined)` dereferences `undefined`.
+**Fix both halves:** test `.length` in *every* renderer (desktop and mobile are separate call sites),
+**and** filter the nav so an entry with neither `href` nor children never reaches the renderer. Give
+any dropdown that must survive an outage a static first child.
+**Where:** `kurdnezam-web/src/components/Header.tsx`.
+
+### A translated menu built from database titles silently stops following the database
+**Symptom:** an admin renames a page; its heading and its card update, the **menu does not**.
+**Cause:** an i18n override applied in *both* languages. `t("organs.board")` returns the Persian
+dictionary string, so `page.title` is never read in Persian — the language the site is actually
+written in. The override looks like i18n but is really a hard-coded label with two spellings.
+**Fix:** gate it on the non-default language — `lang === "ku" && key ? t(key) : page.title` — so the
+default language always reflects the database. Type the slug→key map `Partial<Record<…>>`, or
+`t(MAP[slug])` type-checks for an unknown slug and `t(undefined)` renders **blank**, not an error.
+**Where:** `kurdnezam-web/src/lib/orgPages.ts`. The principled fix is a `TitleKu` column beside
+`Settings.NameKu`, which is this repo's one existing field-level translation mechanism.
+
 ### Resolving an icon component in a render body trips `Cannot create components during render`
 **Symptom:** `const Icon = siteIcon(section.icon); return <Icon />` fails lint with
 *"Error: Cannot create components during render"*, even though the helper only **looks up** an

@@ -145,7 +145,7 @@ Each step ends buildable, and nothing is half-wired at a step boundary.
 | **3** ✅ | Admin: new **بخش‌های تماس** page — master/detail CRUD, ordering by number, grouped icon picker (no preview: the panel has no lucide). Router + nav entry. Also fixed the panel's mobile layout, which was broken on **every** page. See the [step-3 worklog](../../worklog/2026-08-03-kurdnezam-step-3-contact-admin.md). |
 | **4** ✅ | Admin: **صفحات سازمان** gains Parent / Icon / Summary — which is the whole of the ارکان request; **تنظیمات** gains the map fields; **پیام‌ها** shows the section. Panel deployed with step 3. See the [step-4 worklog](../../worklog/2026-08-03-kurdnezam-step-4-admin-fields.md). |
 | **5** ✅ | Public `/p/tamas` rebuilt from the API — blocks, intro, map caption, and the section dropdown (shown only when there is more than one block). **Live.** See the [step-5 worklog](../../worklog/2026-08-03-kurdnezam-step-5-contact-page.md). |
-| **6** | Public `/p/arkan` + `Header.tsx` nav driven by `parentSlug`; both hard-coded lists deleted. |
+| **6** ✅ | Public `/p/arkan` + `Header.tsx` nav driven by `parentSlug` through one shared helper; both hard-coded lists deleted. Kurdish titles preserved via a **ku-only** override — a Persian-wide override would have stopped panel renames reaching the menu. **Live.** See the [step-6 worklog](../../worklog/2026-08-03-kurdnezam-step-6-arkan-nav.md). |
 | **7** | Mobile pass at 375 px on every page and component touched, then deploy, worklog, commit. |
 
 Steps 1–2 are backend and cannot be seen; step 5 is the first visible change. Steps 3–4 need the API

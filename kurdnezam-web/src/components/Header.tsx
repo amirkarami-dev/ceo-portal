@@ -17,8 +17,12 @@ import {
 } from "lucide-react";
 import { useContent } from "@/lib/store";
 import { useI18n, type Lang } from "@/lib/i18n";
+import { ARKAN_SLUG, childrenOf, findOrgPage, orgPageTitle } from "@/lib/orgPages";
 
 interface NavChild {
+  /** Stable React key. NOT the title — titles are admin-editable and can collide (production
+   *  already has both «هیئت مدیره» and «هیئت مدیره ادوار»). */
+  key: string;
   title: string;
   href: string;
 }
@@ -30,39 +34,56 @@ interface NavItem {
 
 function useNav(): NavItem[] {
   const { content } = useContent();
-  const { t } = useI18n();
-  return [
-    { title: t("nav.home"), href: "/" },
+  const { t, lang } = useI18n();
+
+  const hub = findOrgPage(content.orgPages, ARKAN_SLUG);
+
+  // The hub is always the first entry, even when the API is down and `orgPages` is empty — so the
+  // dropdown can never open onto nothing. Its own label still comes from the database when there is
+  // one, so renaming the page in the panel reaches the menu too.
+  const organs: NavChild[] = [
     {
-      title: t("nav.news"),
-      children: [
-        { title: t("nav.allNews"), href: "/news" },
-        ...content.categories.map((c) => ({
-          title: c.title,
-          href: `/news?category=${c.id}`,
-        })),
-      ],
+      key: ARKAN_SLUG,
+      title: hub ? orgPageTitle(hub, lang, t) : t("nav.organs"),
+      href: `/p/${ARKAN_SLUG}`,
     },
-    {
-      title: t("nav.organs"),
-      children: [
-        { title: t("nav.organs"), href: "/p/arkan" },
-        { title: t("organs.board"), href: "/p/modir" },
-        { title: t("organs.presidium"), href: "/p/hayatraise" },
-        { title: t("organs.inspectors"), href: "/p/bazrsin" },
-        { title: t("organs.disciplinary"), href: "/p/shorayeentezami" },
-        { title: t("organs.assembly"), href: "/p/majmaeomumi" },
-      ],
-    },
-    {
-      title: t("nav.units"),
-      children: content.units.map((u) => ({
-        title: u.title,
-        href: `/tab-item/${u.id}`,
-      })),
-    },
-    { title: t("nav.contact"), href: "/p/tamas" },
+    ...childrenOf(content.orgPages, ARKAN_SLUG).map((p) => ({
+      key: p.slug,
+      title: orgPageTitle(p, lang, t),
+      href: `/p/${p.slug}`,
+    })),
   ];
+
+  // A dropdown whose children are all gone must not fall through to the plain-link branch — that
+  // branch is `<Link href={item.href!} />`, and these entries have no href, so an undefined href
+  // throws in dev and dereferences undefined in production. Dropping the entry is the only safe
+  // degradation, and it can only happen when the content fetch failed (units/categories empty).
+  return (
+    [
+      { title: t("nav.home"), href: "/" },
+      {
+        title: t("nav.news"),
+        children: [
+          { key: "all", title: t("nav.allNews"), href: "/news" },
+          ...content.categories.map((c) => ({
+            key: `c${c.id}`,
+            title: c.title,
+            href: `/news?category=${c.id}`,
+          })),
+        ],
+      },
+      { title: t("nav.organs"), children: organs },
+      {
+        title: t("nav.units"),
+        children: content.units.map((u) => ({
+          key: `u${u.id}`,
+          title: u.title,
+          href: `/tab-item/${u.id}`,
+        })),
+      },
+      { title: t("nav.contact"), href: "/p/tamas" },
+    ] satisfies NavItem[]
+  ).filter((item) => item.href || item.children?.length);
 }
 
 function LangSwitch() {
@@ -235,7 +256,6 @@ function TopStrip() {
 
 export default function Header() {
   const nav = useNav();
-  const { content } = useContent();
   const { t } = useI18n();
   const pathname = usePathname();
   const [open, setOpen] = useState<string | null>(null);
@@ -281,7 +301,7 @@ export default function Header() {
           {/* Desktop nav */}
           <nav aria-label="ناوبری اصلی" className="hidden items-center gap-1 lg:flex">
             {nav.map((item) =>
-              item.children ? (
+              item.children?.length ? (
                 <div key={item.title} className="relative">
                   <button
                     type="button"
@@ -311,7 +331,7 @@ export default function Header() {
                         className="absolute end-0 top-full mt-2 w-56 overflow-hidden rounded-xl border border-line bg-white py-2 text-ink shadow-lift"
                       >
                         {item.children.map((child) => (
-                          <li key={child.title}>
+                          <li key={child.key}>
                             <Link
                               href={child.href}
                               className="block px-4 py-2 text-sm transition-colors hover:bg-paper hover:text-copper"
@@ -431,7 +451,7 @@ export default function Header() {
               </div>
               <nav aria-label="ناوبری موبایل" className="p-4">
                 {nav.map((item) =>
-                  item.children ? (
+                  item.children?.length ? (
                     <details key={item.title} className="group border-b border-line py-1">
                       <summary className="flex cursor-pointer list-none items-center justify-between rounded-lg px-2 py-3 font-medium hover:bg-paper">
                         {item.title}
@@ -439,7 +459,7 @@ export default function Header() {
                       </summary>
                       <ul className="pb-2 ps-4">
                         {item.children.map((child) => (
-                          <li key={child.title}>
+                          <li key={child.key}>
                             <Link
                               href={child.href}
                               className="block rounded-lg px-2 py-2 text-sm text-steel hover:text-copper"

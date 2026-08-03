@@ -22,6 +22,7 @@ Also, when a task teaches something reusable:
 
 | Date | Record | Area | Status |
 |---|---|---|---|
+| 2026-08-03 | [Kurdnezam step 6: the last two hard-coded lists deleted](2026-08-03-kurdnezam-step-6-arkan-nav.md) | kurdnezam-web | **live** — ارکان fully manageable |
 | 2026-08-03 | [Kurdnezam step 5: /p/tamas rebuilt from the database](2026-08-03-kurdnezam-step-5-contact-page.md) | kurdnezam-web | **live** at kurdnezam.ir/p/tamas |
 | 2026-08-03 | [Kurdnezam step 4: ارکان becomes editable, and the panel ships](2026-08-03-kurdnezam-step-4-admin-fields.md) | kurdnezam / landing-panel | done and deployed |
 | 2026-08-03 | [Kurdnezam step 3: the بخش‌های تماس admin screen, and a panel that never worked on a phone](2026-08-03-kurdnezam-step-3-contact-admin.md) | kurdnezam / landing-panel | built and verified; deploys with step 4 |
