@@ -137,6 +137,23 @@ public class MunSanandajSyncServiceTests
         _gateway.Verify(g => g.AddEngineerAsync(It.IsAny<MunEngineerInfoDto>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    [TestCase("")]
+    [TestCase("   ")]
+    public async Task ProcessSaveEngineerReportRowAsync_refuses_an_empty_ReqId_before_calling_anyone(string reqId)
+    {
+        // The municipality answers {"success":false,"msg":"melk_id is empty..."}; saying so ourselves
+        // is clearer and skips rendering a PDF to earn the same refusal.
+        var row = Row with { ReqId = reqId };
+
+        var (status, _, _, _, error, _) = await _sut.ProcessSaveEngineerReportRowAsync(row, 1, CancellationToken.None);
+
+        status.ShouldBe(Mabhas19.Domain.MunSanandaj.MunLogStatus.Failed);
+        error.ShouldNotBeNull();
+        error!.ShouldContain("melk_id");
+        _pdfFetcher.Verify(f => f.FetchAsBase64Async(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _gateway.Verify(g => g.SaveEngineerReportAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     // ── Describe: what an operator reads when a row throws ───────────────────
     //
     // A throwing row used to vanish — the run showed Failed with 0 successes and 0 failures and no

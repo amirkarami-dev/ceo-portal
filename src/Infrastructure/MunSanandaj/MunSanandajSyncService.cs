@@ -153,6 +153,15 @@ internal sealed class MunSanandajSyncService : IMunSanandajSyncService
     /// control flow directly, without a database.</summary>
     internal async Task<RowResult> ProcessSaveEngineerReportRowAsync(MunSourceRowDto row, int attemptNumber, CancellationToken ct)
     {
+        // ReqId goes out as the municipality's `melk_id`, and they reject an empty one with
+        // {"success":false,"msg":"melk_id is empty..."}. WebS_GetListRepToShahrdari can return it as
+        // NULL, which the reader turns into "". Stop here and name OUR data as the cause, instead of
+        // rendering a PDF and spending a round-trip to be told the same thing less clearly.
+        if (string.IsNullOrWhiteSpace(row.ReqId))
+            return RowResult.Failed(attemptNumber,
+                $"ReqId is empty for Peygiri {row.Peygiri} — the municipality requires it as melk_id. "
+                + "Fix it in the source data (WebS_GetListRepToShahrdari returns it as NULL).");
+
         // The PDF is named by Peygiri (tracking code), not ProjectNo.
         var pdfBase64 = await _pdfFetcher.FetchAsBase64Async(row.Peygiri, ct);
         if (pdfBase64 is null)

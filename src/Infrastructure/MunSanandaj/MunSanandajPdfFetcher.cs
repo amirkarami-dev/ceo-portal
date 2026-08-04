@@ -1,7 +1,11 @@
 using System.Diagnostics;
 using System.Net;
+using System.Net.Security;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using Mabhas19.Application.Common.Interfaces.MunSanandaj;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Mabhas19.Infrastructure.MunSanandaj;
 
@@ -11,29 +15,106 @@ namespace Mabhas19.Infrastructure.MunSanandaj;
 /// (<c>data:image/jpg;base64,…</c>), not a PDF. Rendering uses <c>pdftoppm</c> (poppler-utils),
 /// installed in the API image.
 /// </summary>
+/// <remarks>
+/// The host serves the same file under <c>/pdf/…</c> and <c>/sm/pdf/…</c> (verified byte-for-byte);
+/// the shorter one is used. A missing report is a real 404 on both, which is why "pdf not found" is
+/// a returned failure rather than an error.
+/// </remarks>
 internal sealed class MunSanandajPdfFetcher : IMunSanandajPdfFetcher
 {
-    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(60) };
     private const int RenderDpi = 150;
 
+    private readonly HttpClient _http;
     private readonly ILogger<MunSanandajPdfFetcher> _logger;
 
-    public MunSanandajPdfFetcher(ILogger<MunSanandajPdfFetcher> logger)
+    public MunSanandajPdfFetcher(IOptions<MunSanandajOptions> options, ILogger<MunSanandajPdfFetcher> logger)
     {
         _logger = logger;
+        _http = BuildClient(options.Value, logger);
     }
 
     public async Task<string?> FetchAsBase64Async(string peygiri, CancellationToken ct = default)
     {
         // The PDF file is named by the Peygiri (tracking code), not the ProjectNo.
-        var url = $"https://eservice.kurdnezam.ir/sm/pdf/{peygiri}.pdf";
-        using var response = await Http.GetAsync(url, ct);
+        // https only: port 80 on this host is firewalled (connect times out), so an http:// fallback
+        // would only add 20s to every failure and still not work.
+        var url = $"https://eservice.kurdnezam.ir/pdf/{peygiri}.pdf";
+        using var response = await _http.GetAsync(url, ct);
         if (response.StatusCode == HttpStatusCode.NotFound) return null;
         response.EnsureSuccessStatusCode();
         var pdfBytes = await response.Content.ReadAsByteArrayAsync(ct);
 
         var jpgBytes = await RenderFirstPageToJpegAsync(pdfBytes, ct);
         return Convert.ToBase64String(jpgBytes);
+    }
+
+    /// <summary>
+    /// Ordinary <see cref="HttpClient"/> unless the expired-certificate stopgap is switched on, in
+    /// which case certificate validation is <b>narrowed</b>, not removed — see
+    /// <see cref="MunSanandajOptions.AllowExpiredPdfCertificate"/>.
+    /// </summary>
+    private static HttpClient BuildClient(MunSanandajOptions options, ILogger logger)
+    {
+        var timeout = TimeSpan.FromSeconds(60);
+
+        if (!options.AllowExpiredPdfCertificate)
+            return new HttpClient { Timeout = timeout };
+
+        var pin = options.PdfCertificatePublicKeyPin?.Replace(":", "").Trim().ToLowerInvariant();
+        if (string.IsNullOrEmpty(pin))
+        {
+            // Fail closed. An operator who turns the switch on but forgets the pin gets normal,
+            // strict validation — never "accept anything".
+            logger.LogError(
+                "MunSanandaj:AllowExpiredPdfCertificate is on but PdfCertificatePublicKeyPin is empty. "
+                + "Falling back to strict certificate validation.");
+            return new HttpClient { Timeout = timeout };
+        }
+
+        logger.LogWarning(
+            "MunSanandaj PDF downloads will accept an EXPIRED certificate whose public key matches "
+            + "the configured pin. This is a stopgap — turn it off once the certificate is renewed.");
+
+        var handler = new SocketsHttpHandler
+        {
+            SslOptions = new SslClientAuthenticationOptions
+            {
+                RemoteCertificateValidationCallback = (_, cert, chain, errors) =>
+                    IsExpiredButPinned(cert, chain, errors, pin, logger)
+            }
+        };
+
+        return new HttpClient(handler) { Timeout = timeout };
+    }
+
+    /// <summary>
+    /// True only when every one of these holds:
+    /// the handshake's sole complaint is a chain error; every chain error is <c>NotTimeValid</c>
+    /// (i.e. expiry, nothing else); and the presented certificate's SPKI SHA-256 equals the pin.
+    /// A wrong host name, an untrusted root, a revoked certificate or a substituted one — including
+    /// a currently-valid certificate from a real CA — all fail here.
+    /// </summary>
+    private static bool IsExpiredButPinned(
+        X509Certificate? cert, X509Chain? chain, SslPolicyErrors errors, string pin, ILogger logger)
+    {
+        if (errors == SslPolicyErrors.None) return true;
+        if (errors != SslPolicyErrors.RemoteCertificateChainErrors) return false;
+        if (cert is not X509Certificate2 cert2) return false;
+
+        var statuses = chain?.ChainStatus ?? [];
+        if (statuses.Length == 0) return false;
+        if (statuses.Any(s => s.Status != X509ChainStatusFlags.NotTimeValid)) return false;
+
+        var spki = Convert.ToHexString(
+            SHA256.HashData(cert2.PublicKey.ExportSubjectPublicKeyInfo())).ToLowerInvariant();
+
+        if (spki == pin) return true;
+
+        logger.LogError(
+            "Refused the PDF host's certificate: it is expired AND its public key does not match the "
+            + "configured pin (presented {Presented}). Someone else may be answering for that host.",
+            spki);
+        return false;
     }
 
     /// <summary>Renders page 1 of the PDF to a JPG using <c>pdftoppm</c> via temp files.</summary>

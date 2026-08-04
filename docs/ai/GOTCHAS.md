@@ -687,6 +687,24 @@ nothing, and the reason lived only in the container log. That is how an expired 
 counters that don't sum to `TotalRows`, look for an exception, not for missing data.
 **Where:** `src/Infrastructure/MunSanandaj/MunSanandajSyncService.cs`.
 
+### `eservice.kurdnezam.ir` has no port 80 — "just use http" is not an escape hatch
+Measured: 443 open, 80 times out after 20 s, while the same server reaches port 80 on `example.com`,
+`kurdnezam.ir` and `myceo.ir`. It is that host's firewall, not our egress. The report PDF is served
+only over TLS. When its certificate expired we narrowed validation instead — expiry-only **plus** an
+SPKI pin (`MunSanandaj:AllowExpiredPdfCertificate` + `PdfCertificatePublicKeyPin`), which refuses a
+substituted certificate and reverts to strict validation if the pin is missing. Turn it off after
+renewal: the new key will not match the pin, so downloads fail closed instead of silently staying on
+the weaker path. The host serves the same file at `/pdf/…` and `/sm/pdf/…`.
+**Where:** `src/Infrastructure/MunSanandaj/MunSanandajPdfFetcher.cs`.
+
+### `melk_id` is `ReqId`, and the source procedure can return it NULL
+`saveEngineerReport` is called as `…&darkhast_id={ProjectNo}&melk_id={ReqId}`. `WebS_GetListRepToShahrdari`
+can return `ReqId` as NULL; `reader["ReqId"].ToString()` turns that into `""` (not null — no
+exception, which is why it looks harmless), and the municipality answers
+`{"success":false,"msg":"melk_id is empty..."}`. The row is now refused locally with a message that
+names the source data. A NULL here is a data problem in KurdNezam, not a bug in the worker.
+**Where:** `src/Infrastructure/MunSanandaj/MunSanandajSyncService.cs`, `Sql/MunSanandajSourceReader.cs`.
+
 ### A worker that looks like it never fires may just be failing invisibly
 `SaveEngineerReportWorker` is `do { … } while (await timer.WaitForNextTickAsync(...))`, so it runs
 **once at startup** and then every `MunSanandaj:IntervalHours`. Every container restart therefore

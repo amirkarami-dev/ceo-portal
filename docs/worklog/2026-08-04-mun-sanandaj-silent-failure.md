@@ -90,11 +90,75 @@ Triggered on production after deploying:
   municipality accepts an empty `reqId` is a separate question that cannot be answered until the
   certificate is renewed and a row actually reaches them.
 
+## Follow-up the same day: getting past the certificate
+
+Asked to fall back to plain HTTP when TLS fails. **That cannot work** — measured, not assumed:
+
+```
+eservice.kurdnezam.ir -> 185.172.69.253
+  port 443  OPEN
+  port 80   connect timed out after 20 s
+```
+
+The same server reaches port 80 on `example.com`, `kurdnezam.ir` and `myceo.ir` fine, so it is that
+host's firewall, not our egress. An `http://` fallback would only add 20 s to every failure.
+
+What *is* true: the file is perfectly serviceable over HTTPS —
+`curl -k` returns `200, 120091 bytes, application/pdf, %PDF-1.4`. The chain verifies at both CA
+levels (`verify return:1`); the single error is `certificate has expired` at depth 0.
+
+So instead of downgrading the transport, certificate validation was **narrowed**. A download is
+accepted only when *all* of these hold:
+
+1. the sole handshake complaint is a chain error,
+2. every chain error is `NotTimeValid` — expiry and nothing else,
+3. the certificate's SPKI SHA-256 equals a configured pin.
+
+The pin is the safety: an attacker cannot complete a handshake with that certificate without its
+private key, and a substituted certificate — even a currently-valid one from a real CA — has a
+different key and is refused. A wrong host name, untrusted root or revoked certificate all still
+fail. If the switch is on but the pin is missing, it logs an error and reverts to strict validation:
+it never degrades to "accept anything".
+
+```
+MUN_SANANDAJ_ALLOW_EXPIRED_PDF_CERT=true
+MUN_SANANDAJ_PDF_CERT_PIN=baf1e02d166994e600b84ca0a0ab91af81d7c439b41c692654ed0f9198832ad6
+```
+
+**Set the switch to false once the certificate is renewed.** Renewal changes the key, so the pin
+stops matching and downloads fail closed rather than quietly staying on the weaker path.
+
+Also this round:
+
+- URL shortened to `/pdf/{peygiri}.pdf`. Verified both paths serve the identical file (same 120091
+  bytes, same `%PDF-` magic); a missing report is a real 404 on both.
+- Interval default 12 h → **2 h**, and exposed as `MUN_SANANDAJ_INTERVAL_HOURS` so it is tunable
+  without a rebuild.
+
+## What the certificate was hiding
+
+With TLS working, the row finally reached the municipality — and was refused:
+
+```
+{"success":false,"msg":"melk_id is empty..."}
+```
+
+`MunSanandajGatewayClient` sends `melk_id={reqId}`, and `WebS_GetListRepToShahrdari` returns
+`ReqId` as **NULL**, which the reader turns into `""`. So the NULL flagged in the original report
+*was* a real blocker after all — just not the one causing the "Failed" status. It could not have
+been diagnosed before, because nothing ever got far enough to be refused.
+
+`ProcessSaveEngineerReportRowAsync` now checks `ReqId` first and fails the row with a message naming
+our own data, rather than rendering a PDF and spending a round-trip to be told the same thing less
+clearly. 11/11 tests pass.
+
 ## Left to do
 
-- **Renew the certificate on `eservice.kurdnezam.ir`.** Until then every run will keep failing —
-  now visibly, with the reason on screen.
-- Once renewed, re-trigger and confirm the row either succeeds or fails for a real business reason.
+- **Populate `ReqId` in `WebS_GetListRepToShahrdari`.** As of 2026-08-04 08:15 UTC the procedure on
+  `185.10.73.114 / KurdNezam` still returns
+  `90043205090804023803 | 90043205 | - | NULL`. Nothing can be submitted until it has a value.
+- **Renew the certificate on `eservice.kurdnezam.ir`**, then set
+  `MUN_SANANDAJ_ALLOW_EXPIRED_PDF_CERT=false`.
 - Consider an `ErrorMessage` column on `mun_sync_runs`: a failure *before* the row loop (e.g. the
   stored procedure itself failing) still leaves a bare "Failed" with no text. Needs a migration, so
   not done here.

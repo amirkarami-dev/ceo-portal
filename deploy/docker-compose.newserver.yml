@@ -269,6 +269,15 @@ services:
       # MunSanandaj: KurdNezam read-only SQL + mahyapardaz REST bearer token (empty = feature disabled).
       ConnectionStrings__KurdNezamDb: "${KURDNEZAM_DB_CONN:-}"
       MunSanandaj__ApiToken: "${MUN_SANANDAJ_API_TOKEN:-}"
+      # Hours between automatic runs (the worker also fires once at every container start).
+      MunSanandaj__IntervalHours: "${MUN_SANANDAJ_INTERVAL_HOURS:-2}"
+      # Stopgap: the report-PDF host's certificate expired 21 Jul 2026 and port 80 there is
+      # firewalled, so there is no http:// alternative. When this is "true" AND the pin below
+      # matches, an EXPIRED certificate is accepted for that host — and nothing else is: any other
+      # chain error, or a different public key, still fails. Set to "false" once it is renewed
+      # (renewal changes the key, so the pin stops matching and downloads fail closed).
+      MunSanandaj__AllowExpiredPdfCertificate: "${MUN_SANANDAJ_ALLOW_EXPIRED_PDF_CERT:-false}"
+      MunSanandaj__PdfCertificatePublicKeyPin: "${MUN_SANANDAJ_PDF_CERT_PIN:-}"
       # Iran Kish gateway for the welfare module. Terminal/acceptor ids + the RSA PUBLIC key are
       # public values shipped in appsettings.json; only the pass phrase is a secret (deploy/.env).
       IranKish__PassPhrase: "${IRK_PASSPHRASE:-}"
