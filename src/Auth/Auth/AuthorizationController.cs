@@ -122,30 +122,66 @@ public class AuthorizationController(
         var user = await userManager.GetUserAsync(result.Principal!)
                    ?? throw new InvalidOperationException("User not found.");
 
-        // Per-service access gate. Map the requesting client_id -> product service key; a user with a
-        // NON-EMPTY grant list may only reach services in it. Grandfather rule: an empty grant list
-        // (existing / self-provisioned users) allows everything. Clients not tied to a grantable
-        // service (e.g. admin-web) map to null and are never blocked here. The login itself already
-        // happened above — only issuing the token for this service is denied.
-        var serviceKey = ServiceKeys.ServiceKeyForClient(request.ClientId);
-        if (serviceKey is not null)
-        {
-            var grants = await serviceAccess.GetServiceKeysAsync(user.Id, HttpContext.RequestAborted);
-            if (grants.Count > 0 && !grants.Contains(serviceKey, StringComparer.OrdinalIgnoreCase))
-            {
-                return Forbid(
-                    authenticationSchemes: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme,
-                    properties: new AuthenticationProperties(new Dictionary<string, string?>
-                    {
-                        [OpenIddictServerAspNetCoreConstants.Properties.Error] = Errors.AccessDenied,
-                        [OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription] =
-                            "شما به این سرویس دسترسی ندارید."
-                    }));
-            }
-        }
+        if (await DenyServiceAsync(user, request.ClientId) is { } denied)
+            return denied;
 
         var principal = await BuildPrincipalAsync(user, request.GetScopes());
         return SignIn(principal, OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
+    }
+
+    /// <summary>
+    /// Per-service access gate. Maps the requesting <c>client_id</c> to a product service key; a
+    /// user with a NON-EMPTY grant list may only reach services in it. Returns the <c>Forbid</c>
+    /// result to send back, or <c>null</c> when the user may proceed.
+    /// </summary>
+    /// <remarks>
+    /// Three rules, in order:
+    /// <list type="bullet">
+    /// <item>A <c>SuperUser</c> is never gated. That is the role's entire purpose — without it,
+    /// narrowing an administrator's grants could leave nobody able to widen them again.</item>
+    /// <item>Grandfather rule: an EMPTY grant list allows everything. Most accounts have one, and
+    /// this is what "add an admin, assign nothing, they get everything" means.</item>
+    /// <item>Some clients gate administrators only (<c>election-web</c>, <c>room-web</c>,
+    /// <c>vms-web</c>) — never engineers. See <c>ServiceKeys.AdminGatedClientToKey</c>.</item>
+    /// </list>
+    /// The login itself has already happened by the time this runs — only issuing the token for
+    /// this one service is denied, so the person stays signed in and can switch service.
+    /// <para>
+    /// This gates the <b>authorize</b> and <b>token</b> endpoints, i.e. who may sign in to a
+    /// service. It is NOT an API-level permission: the resource server validates issuer and
+    /// audience only (see <c>Infrastructure/DependencyInjection.cs</c>), so it does not care which
+    /// client minted a token. Per-endpoint authorisation stays the job of the role checks on the
+    /// API itself.
+    /// </para>
+    /// </remarks>
+    private async Task<IActionResult?> DenyServiceAsync(AuthUser user, string? clientId)
+    {
+        var roles = await userManager.GetRolesAsync(user);
+
+        if (roles.Any(r => string.Equals(r, "SuperUser", StringComparison.OrdinalIgnoreCase)))
+            return null;
+
+        var hasAdminPowers = roles.Any(r =>
+            string.Equals(r, "Administrator", StringComparison.OrdinalIgnoreCase));
+
+        var serviceKey = ServiceKeys.ServiceKeyForClient(clientId)
+                         ?? (hasAdminPowers ? ServiceKeys.AdminGatedServiceKeyForClient(clientId) : null);
+
+        if (serviceKey is null)
+            return null;
+
+        var grants = await serviceAccess.GetServiceKeysAsync(user.Id, HttpContext.RequestAborted);
+        if (grants.Count == 0 || grants.Contains(serviceKey, StringComparer.OrdinalIgnoreCase))
+            return null;
+
+        return Forbid(
+            authenticationSchemes: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme,
+            properties: new AuthenticationProperties(new Dictionary<string, string?>
+            {
+                [OpenIddictServerAspNetCoreConstants.Properties.Error] = Errors.AccessDenied,
+                [OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription] =
+                    "شما به این سرویس دسترسی ندارید."
+            }));
     }
 
     [HttpPost("connect/token"), Produces("application/json")]
@@ -158,6 +194,15 @@ public class AuthorizationController(
         var auth = await HttpContext.AuthenticateAsync(OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
         var user = await userManager.GetUserAsync(auth.Principal!)
                    ?? throw new InvalidOperationException("User not found.");
+
+        // Re-check the grant on every exchange, not just at authorize. On the refresh_token grant
+        // this is the ONLY place the check can happen — without it, narrowing someone's services
+        // would not take effect until their refresh token expired, and a revoked service would keep
+        // renewing itself in the background. (No client currently requests `offline_access`, so no
+        // refresh token is issued today and this is belt-and-braces — but every client is registered
+        // with the RefreshToken grant, so the hole is one scope string away from being real.)
+        if (await DenyServiceAsync(user, request.ClientId) is { } denied)
+            return denied;
 
         var principal = await BuildPrincipalAsync(user, auth.Principal!.GetScopes());
         return SignIn(principal, OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);

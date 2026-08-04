@@ -479,12 +479,29 @@ its users welfare access. The page now takes a `service` hint, matched against a
 query string cannot grant an arbitrary key.
 **Where:** `src/Auth/Pages/Account/EngineerLogin.cshtml.cs`.
 
-### A service key in `ServiceKeys.All` is not the same as one in `ClientToKey`
-`All` makes a service **grantable** (admin UI, launcher tiles). `ClientToKey` makes it **gating** at
-authorize. Adding `election-web` to `ClientToKey` would refuse every engineer provisioned before the
-election service existed, because they all carry `["walfare"]` — a silent disenfranchisement, at the IdP,
-of people the API considers eligible. Grantable-but-not-gating is deliberate; keep it.
-**Where:** `src/Auth/Data/ServiceKeys.cs`.
+### `ServiceKeys` has THREE tiers, and which one a client sits in decides who gets refused
+- `All` makes a service **grantable** — admin-UI checkboxes, and `ServiceAccessStore.ReplaceAsync`
+  silently **drops any key not in this list on write**, so a key must land here before anyone can hold it.
+- `ClientToKey` gates **everyone**.
+- `AdminGatedClientToKey` gates **administrators only** — `election-web`, `room-web`, `vms-web`.
+  Putting any of those in `ClientToKey` would refuse every engineer provisioned before that service
+  existed, because they carry `["walfare"]` (or the single service they signed in through): a silent
+  disenfranchisement, at the IdP, of people the API considers eligible.
+- In **neither** map = never gated. `admin-web` lives here on purpose: it is the only way a
+  narrowed administrator can widen their own grants again.
+
+⚠ The admin/engineer split is by **role**, not by how the account signs in. Today no administrator is
+an engineer (all six have a `PasswordHash`; all 413 granted users have none). The day you give
+`Administrator` to an engineer's account, grant them `election` and `room` too, or you take away
+their ballot and their meetings.
+**Where:** `src/Auth/Data/ServiceKeys.cs`, gate in `AuthorizationController.DenyServiceAsync`.
+
+### The service gate is login-time only — it is not an API permission
+`DenyServiceAsync` decides which app you may **sign in to**. The resource server validates issuer and
+audience only (`src/Infrastructure/DependencyInjection.cs:57`) and never looks at which client minted
+the token, so a token obtained from one SPA is accepted by every API endpoint. Per-endpoint
+authorisation is the role checks on the API, and nothing else. Do not describe service grants as if
+they firewall the API.
 
 ### `[Authorize(Roles = "A,B")]` is split on `,` with **no trimming**
 `AuthorizationBehaviour.cs:37` does `a.Roles.Split(',')` then compares with `==`. A space after the

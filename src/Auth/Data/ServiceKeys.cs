@@ -23,8 +23,18 @@ public static class ServiceKeys
     public const string Walfare      = "walfare";
     public const string Election     = "election";
     public const string Room         = "room";
+    public const string Vms          = "vms";
 
-    /// <summary>The grantable services, in display order, with Persian + English names.</summary>
+    /// <summary>
+    /// The grantable services, in display order, with Persian + English names.
+    /// </summary>
+    /// <remarks>
+    /// Membership here is what makes a key <b>storable</b>: <c>ServiceAccessStore.ReplaceAsync</c>
+    /// normalises on write and silently drops anything not in this list, so a key must land here
+    /// before anyone can be granted it. It is also what the admin UI offers as checkboxes
+    /// (<c>AdminController.GetServices</c>), which is why <c>vms</c> appears even though only an
+    /// administrator can use it — the checkbox is inert on an engineer's row.
+    /// </remarks>
     public static readonly IReadOnlyList<ServiceKey> All =
     [
         new(Mabhas19,     "مبحث ۱۹",           "Mabhas 19"),
@@ -35,21 +45,16 @@ public static class ServiceKeys
         new(Walfare,      "سامانه رفاهی مهندسین", "Engineers' Welfare"),
         new(Election,     "سامانه انتخابات",     "Elections"),
         new(Room,         "جلسات آنلاین",        "Meetings"),
+        new(Vms,          "دوربین‌های نظارتی",    "Cameras"),
     ];
 
-    // Maps an OIDC client_id -> the product service key it belongs to. admin-web is absent on
-    // purpose (role-gated, not service-gated) so it is never blocked by the authorize enforcement.
+    // Maps an OIDC client_id -> the product service key it belongs to, for EVERYONE. admin-web is
+    // absent on purpose (role-gated, not service-gated) so it is never blocked by the authorize
+    // enforcement — an administrator whose grants were narrowed must always keep a way back in to
+    // widen them again.
     //
-    // election-web is absent for a DIFFERENT and deliberate reason: `election` is grantable (so an
-    // admin can grant it and the launcher can show its tile) but it must never GATE. Every engineer
-    // provisioned before the election service existed carries a grant list of ["walfare"]; mapping
-    // election-web here would refuse all of them at authorize and silently disenfranchise them.
-    // Eligibility for an election is decided per election by the API from the org directory — a
-    // membership list in the IdP is not allowed to be a second, invisible voter roll.
-    //
-    // room-web is absent for exactly the same reason, and the argument is even simpler there: who may
-    // attend a meeting is the invite list on that meeting, or the link. An engineer carrying
-    // ["walfare"] who is invited to a جلسه must be able to sign in and attend it.
+    // election-web, room-web and vms-web are absent here on purpose too, and are gated for
+    // administrators only via AdminGatedClientToKey below. See the comment there.
     private static readonly IReadOnlyDictionary<string, string> ClientToKey =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -62,6 +67,34 @@ public static class ServiceKeys
             ["walfare-web"]      = Walfare,
         };
 
+    // Gated for ADMINISTRATORS ONLY. These three clients must never gate an engineer:
+    //
+    // - Every engineer provisioned before the election service existed carries a grant list of
+    //   ["walfare"], and a fresh one carries exactly the single service they signed in through
+    //   (EngineerLogin). Gating election-web for them would refuse all of them at authorize and
+    //   silently disenfranchise them — eligibility for an election is decided per election by the
+    //   API from the org directory, and a membership list in the IdP is not allowed to become a
+    //   second, invisible voter roll.
+    // - Who may attend a meeting is the invite list on that meeting, or the link. An engineer
+    //   carrying ["walfare"] who is invited to a جلسه must be able to sign in and attend it.
+    // - vms-web is admin-only in its own right (RequireAdmin in the SPA, RequireRole on both API
+    //   groups), so gating it for engineers would only swap a /403 page for an IdP error.
+    //
+    // For an ADMINISTRATOR with a non-empty grant list, all three are gated, because "assign a
+    // service to an admin and they get only that service" is the whole point of the feature.
+    //
+    // ⚠ TRAP: this splits on ROLE, not on how the account logs in. Today no administrator is an
+    // engineer (all six have a PasswordHash; all 413 granted users have none), so nobody loses a
+    // ballot. The day you give Administrator to an engineer's account, grant them `election` and
+    // `room` too, or you take away their vote and their meetings.
+    private static readonly IReadOnlyDictionary<string, string> AdminGatedClientToKey =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["election-web"] = Election,
+            ["room-web"]     = Room,
+            ["vms-web"]      = Vms,
+        };
+
     /// <summary>
     /// Returns the product service key for an OIDC <c>client_id</c>, or <c>null</c> when the client
     /// is not tied to a grantable service (e.g. <c>admin-web</c>) and must therefore never be
@@ -69,6 +102,15 @@ public static class ServiceKeys
     /// </summary>
     public static string? ServiceKeyForClient(string? clientId) =>
         clientId is not null && ClientToKey.TryGetValue(clientId, out var key) ? key : null;
+
+    /// <summary>
+    /// Returns the service key for a client that gates <b>administrators only</b>, or <c>null</c>.
+    /// Call this only after establishing that the user holds administrative powers — passing an
+    /// engineer through it would disenfranchise them. See the comment on
+    /// <c>AdminGatedClientToKey</c>.
+    /// </summary>
+    public static string? AdminGatedServiceKeyForClient(string? clientId) =>
+        clientId is not null && AdminGatedClientToKey.TryGetValue(clientId, out var key) ? key : null;
 
     /// <summary>Returns the canonical key for a (possibly differently-cased) key, or <c>null</c> if invalid.</summary>
     public static string? Normalize(string? key) =>

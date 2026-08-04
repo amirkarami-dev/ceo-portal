@@ -521,3 +521,6 @@ $RECYCLE.BIN/
 /mabhas19-mobile/android/
 /mabhas19-mobile/ios/
 .superpowers/
+
+# TypeScript incremental build state (emitted by `tsc -b`)
+*.tsbuildinfo

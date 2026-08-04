@@ -82,6 +82,15 @@ public class AdminController(
         if (await FirstInvalidRoleAsync(roles) is { } badRole)
             return Fail($"نقش نامعتبر: {badRole}");
 
+        // Same rule as SetRoles: only a SuperUser may hand out SuperUser. Guarding the edit path
+        // alone would be pointless when a restricted administrator can simply create a fresh
+        // SuperUser account and sign in as it.
+        if (roles.Any(r => string.Equals(r, SuperUser, StringComparison.OrdinalIgnoreCase))
+            && !User.IsInRole(SuperUser))
+        {
+            return Fail("فقط کاربر ارشد می‌تواند نقش کاربر ارشد را به کسی بدهد.");
+        }
+
         if (request.Services?.FirstOrDefault(s => !ServiceKeys.IsValidKey(s)) is { } badService)
             return Fail($"سرویس نامعتبر: {badService}");
 
@@ -176,6 +185,17 @@ public class AdminController(
         var toRemove = current.Except(desired, StringComparer.OrdinalIgnoreCase).ToList();
         var toAdd    = desired.Except(current, StringComparer.OrdinalIgnoreCase).ToList();
 
+        // Only a SuperUser may hand out SuperUser. Without this the service gate is decorative: an
+        // administrator restricted to two services opens this very panel (admin-web is never gated,
+        // by design, so they can always reach it), ticks SuperUser on their own row, and is exempt
+        // from every grant for good. Checking the CALLER rather than IsSelf matters — two restricted
+        // administrators could otherwise promote each other and neither call would be "self".
+        if (toAdd.Any(r => string.Equals(r, SuperUser, StringComparison.OrdinalIgnoreCase))
+            && !User.IsInRole(SuperUser))
+        {
+            return Fail("فقط کاربر ارشد می‌تواند نقش کاربر ارشد را به کسی بدهد.");
+        }
+
         if (toRemove.Count > 0)
         {
             var result = await userManager.RemoveFromRolesAsync(user, toRemove);
@@ -250,12 +270,24 @@ public class AdminController(
 
     // ── Reference data ───────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// The roles the CALLER may assign. <c>SuperUser</c> is withheld from anyone who is not already
+    /// one, so the picker cannot offer a role the API would refuse (see <c>SetRoles</c>). This is
+    /// presentation only — the refusal itself lives on the write endpoints.
+    /// </summary>
     [HttpGet("roles")]
-    public async Task<ActionResult<IEnumerable<string>>> GetRoles() =>
-        Ok(await roleManager.Roles
+    public async Task<ActionResult<IEnumerable<string>>> GetRoles()
+    {
+        var roles = await roleManager.Roles
             .OrderBy(r => r.Name)
             .Select(r => r.Name)
-            .ToListAsync(HttpContext.RequestAborted));
+            .ToListAsync(HttpContext.RequestAborted);
+
+        if (!User.IsInRole(SuperUser))
+            roles = roles.Where(r => !string.Equals(r, SuperUser, StringComparison.OrdinalIgnoreCase)).ToList();
+
+        return Ok(roles);
+    }
 
     [HttpGet("services")]
     public ActionResult<IReadOnlyList<ServiceKey>> GetServices() => Ok(ServiceKeys.All);

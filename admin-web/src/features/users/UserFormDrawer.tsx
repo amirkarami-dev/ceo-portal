@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Checkbox, Divider, Form, Input, Select, Switch, Typography } from "antd";
+import { Alert, Checkbox, Divider, Form, Input, Select, Switch, Typography } from "antd";
 import { FormDrawer } from "@/components/ui";
 import type { ServiceKey, UserDto } from "@/api/types";
 import { roleLabel } from "./labels";
@@ -141,8 +141,44 @@ export function UserFormDrawer({
         دسترسی به سرویس‌ها
       </Typography.Text>
       <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 12 }}>
-        سرویس‌هایی که این کاربر به آن‌ها دسترسی دارد را انتخاب کنید.
+        سرویس‌هایی که این کاربر به آن‌ها دسترسی دارد را انتخاب کنید. اگر هیچ سرویسی انتخاب نشود،
+        کاربر به همهٔ سرویس‌ها دسترسی دارد.
       </Typography.Paragraph>
+
+      {/*
+        An empty service list means "everything", so the first tick on an administrator's row is not
+        an addition — it is a restriction, and it silently removes elections, meetings and cameras
+        too. The operator's mental model is "I gave them a permission", so say the opposite out loud
+        while they can still undo it. A SuperUser is never gated, so the warning would be a lie there.
+      */}
+      <Form.Item
+        noStyle
+        shouldUpdate={(prev, cur) => prev.roles !== cur.roles || prev.services !== cur.services}
+      >
+        {({ getFieldValue }) => {
+          const rowRoles: string[] = getFieldValue("roles") ?? [];
+          const rowServices: string[] = getFieldValue("services") ?? [];
+          const restricts =
+            rowRoles.includes("Administrator") &&
+            !rowRoles.includes("SuperUser") &&
+            rowServices.length > 0;
+
+          return restricts ? (
+            <Alert
+              type="warning"
+              showIcon
+              style={{ marginBottom: 12 }}
+              message="این کاربر مدیر است"
+              description={
+                "با انتخاب سرویس، دسترسی این مدیر فقط به همین سرویس‌ها محدود می‌شود و بقیهٔ سرویس‌ها — " +
+                "از جمله انتخابات، جلسات آنلاین و دوربین‌ها — برای او بسته می‌شود. " +
+                "برای دسترسی کامل، هیچ سرویسی را انتخاب نکنید."
+              }
+            />
+          ) : null;
+        }}
+      </Form.Item>
+
       <Form.Item name="services" noStyle>
         <Checkbox.Group style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {serviceOptions.map((s) => (

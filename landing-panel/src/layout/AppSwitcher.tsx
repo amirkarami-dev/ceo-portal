@@ -1,10 +1,9 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Button, Popover, theme } from "antd";
-import { getUserManager } from "../auth/oidc";
+import { ADMIN_ROLES, getUserManager } from "../auth/oidc";
 
 // One product service the user can switch to. `key` matches the IdP `svc` grant key
-// (src/Auth/Data/ServiceKeys.cs); `href` is the live subdomain. `adminOnly` services are gated by
-// the central Administrator role instead of a `svc` grant. Shared verbatim across the SPAs.
+// (src/Auth/Data/ServiceKeys.cs); `href` is the live subdomain. Shared verbatim across the SPAs.
 type Svc = {
   key: string;
   nameFa: string;
@@ -12,9 +11,19 @@ type Svc = {
   href: string;
   color: string;
   icon: ReactNode;
+  /** Requires an admin role to appear at all. */
   adminOnly?: boolean;
-  /** Shown to every signed-in user, because the service is not gated by a `svc` grant at all. */
+  /**
+   * Never hidden from a NON-admin, because the service does not gate engineers at authorize.
+   * Administrators are still filtered by their grants — see `canSee`.
+   */
   ungated?: boolean;
+  /**
+   * Never hidden from an admin, whatever their grants. Only the user-admin panel carries this: it
+   * is the one place a narrowed administrator can widen their own services again, so hiding it
+   * would make a mistaken grant unrecoverable from the UI.
+   */
+  alwaysForAdmin?: boolean;
 };
 
 const ic = {
@@ -117,11 +126,10 @@ const SERVICES: Svc[] = [
     nameEn: "Elections",
     href: "https://election.myceo.ir",
     color: "#0d9488",
-    // Ungated on purpose. `election` IS grantable (an admin can assign it, and a new engineer who
-    // signs in through the election service gets it) but it is deliberately NOT in ServiceKeys'
-    // client map, so it never blocks anyone at authorize — every engineer provisioned before this
-    // service existed carries ["walfare"] and must still be able to vote. Hiding the tile behind a
-    // grant would therefore hide a service the person can actually use.
+    // Ungated for ENGINEERS only. `election` never blocks a non-admin at authorize — every engineer
+    // provisioned before this service existed carries ["walfare"] and must still be able to vote, so
+    // hiding the tile would hide a service they can actually use. An administrator with an explicit
+    // grant list IS filtered here and gated at authorize (ServiceKeys.AdminGatedClientToKey).
     ungated: true,
     icon: (
       <svg {...ic}>
@@ -138,10 +146,10 @@ const SERVICES: Svc[] = [
     nameEn: "Meetings",
     href: "https://room.myceo.ir",
     color: "#4f46e5",
-    // Ungated, for the same reason as `election`. `room` IS grantable so an admin can assign it and
-    // this tile can appear, but it is deliberately NOT in ServiceKeys' client map, so it never blocks
-    // anyone at authorize — every engineer provisioned before this service existed carries
-    // ["walfare"], and who may attend a meeting is decided per meeting by the API, not by a grant.
+    // Ungated for ENGINEERS only, for the same reason as `election`, and the argument is simpler
+    // here: who may attend a meeting is the invite list on that meeting, or the link. An engineer
+    // carrying ["walfare"] who is invited to a جلسه must be able to sign in and attend it.
+    // Administrators with an explicit grant list are filtered and gated like any other service.
     ungated: true,
     icon: (
       <svg {...ic}>
@@ -156,8 +164,10 @@ const SERVICES: Svc[] = [
     nameEn: "Cameras",
     href: "https://vms.myceo.ir",
     color: "#0f766e",
-    // Administrators only, and that is the whole authorisation model for this service — the design
-    // settled that nobody else watches. A city is classification and filtering, never a permission.
+    // Administrators only — the design settled that nobody else watches, and both the SPA route
+    // guard and the API enforce that. On top of the role, an administrator with an explicit grant
+    // list must also hold `vms`, so cameras can be handed to one admin without handing over the
+    // rest of the platform.
     adminOnly: true,
     icon: (
       <svg {...ic}>
@@ -174,6 +184,10 @@ const SERVICES: Svc[] = [
     href: "https://admin.myceo.ir",
     color: "#64748b",
     adminOnly: true,
+    // Never filtered by grants: this panel is where a narrowed administrator widens their services
+    // again. Hide it and one mistaken checkbox becomes unrecoverable without a database edit.
+    // `admin-web` is absent from BOTH client maps in ServiceKeys for the same reason.
+    alwaysForAdmin: true,
     icon: (
       <svg {...ic}>
         <circle cx="9" cy="8" r="3.2" />
@@ -183,6 +197,19 @@ const SERVICES: Svc[] = [
     ),
   },
 ];
+
+/**
+ * Mirrors the IdP gate in `AuthorizationController.DenyServiceAsync`. Display only — the IdP is
+ * what actually enforces this — but the two must agree, or a tile appears that leads to a refusal.
+ */
+function canSee(s: Svc, isAdmin: boolean, isSuper: boolean, svc: string[]): boolean {
+  if (s.adminOnly && !isAdmin) return false;
+  if (isSuper) return true;                       // never gated, by design
+  if (s.alwaysForAdmin && isAdmin) return true;   // the way back in
+  if (svc.length === 0) return true;              // grandfathered: no grants = everything
+  if (!isAdmin && s.ungated) return true;         // engineers keep the ballot and their meetings
+  return svc.includes(s.key);
+}
 
 function toArr(v: unknown): string[] {
   if (Array.isArray(v)) return v.map(String);
@@ -199,15 +226,19 @@ function WaffleIcon() {
 }
 
 /**
- * Header "waffle" launcher: shows the product services the signed-in user may open (from the
- * `svc` grant on the OIDC id_token; empty = all/grandfathered), each with a distinct icon/accent,
- * and switches to them. Display-only — the IdP still enforces access at authorize.
+ * Header "waffle" launcher: shows the product services the signed-in user may open (from the `svc`
+ * grant on the OIDC id_token; empty = all/grandfathered), each with a distinct icon/accent, and
+ * switches to them. Display-only — the IdP still enforces access at authorize; see `canSee`.
+ *
+ * This file is duplicated verbatim in all eight SPAs. Change one, copy to the other seven, and
+ * rebuild every one of them — a panel that is not rebuilt keeps serving the old tile list.
  */
 export function AppSwitcher({ currentKey, locale = "fa" }: { currentKey: string; locale?: string }) {
   const { token } = theme.useToken();
   const isFa = locale.startsWith("fa");
   const [svc, setSvc] = useState<string[] | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isSuper, setIsSuper] = useState(false);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -217,8 +248,10 @@ export function AppSwitcher({ currentKey, locale = "fa" }: { currentKey: string;
         const u = await getUserManager().getUser();
         if (!alive) return;
         const p = (u && !u.expired ? u.profile : {}) as Record<string, unknown>;
+        const roles = toArr(p.role ?? p.roles);
         setSvc(toArr(p.svc));
-        setIsAdmin(toArr(p.role ?? p.roles).includes("Administrator"));
+        setIsAdmin(roles.some((r) => (ADMIN_ROLES as readonly string[]).includes(r)));
+        setIsSuper(roles.includes("SuperUser"));
       } catch {
         if (alive) setSvc([]);
       }
@@ -229,10 +262,7 @@ export function AppSwitcher({ currentKey, locale = "fa" }: { currentKey: string;
   }, []);
 
   if (svc === null) return null;
-  const grantAll = svc.length === 0;
-  const visible = SERVICES.filter((s) =>
-    s.adminOnly ? isAdmin : s.ungated || grantAll || svc.includes(s.key),
-  );
+  const visible = SERVICES.filter((s) => canSee(s, isAdmin, isSuper, svc));
   if (visible.length < 2) return null;
 
   const label = isFa ? "سرویس‌ها" : "Apps";
