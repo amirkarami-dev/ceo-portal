@@ -6,7 +6,7 @@ using Mabhas19.Domain.Constants;
 
 namespace Mabhas19.Application.Analytics.AiProviders.Queries.GetAiProviders;
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record GetAiProvidersQuery : IRequest<IReadOnlyList<AiProviderDto>>;
 
 public class GetAiProvidersQueryHandler : IRequestHandler<GetAiProvidersQuery, IReadOnlyList<AiProviderDto>>

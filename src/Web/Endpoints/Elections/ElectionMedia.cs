@@ -54,7 +54,7 @@ public partial class ElectionMedia : Mabhas19.Web.Infrastructure.IEndpointGroup
     public static void Map(RouteGroupBuilder groupBuilder)
     {
         groupBuilder.MapPost(UploadElectionMedia, string.Empty)
-            .RequireAuthorization(policy => policy.RequireRole(Roles.Administrator))
+            .RequireAuthorization(policy => policy.RequireRole(Roles.Administrator, Roles.SuperUser))
             .DisableAntiforgery();
 
         groupBuilder.MapGet(GetElectionMedia, "{fileName}").AllowAnonymous();

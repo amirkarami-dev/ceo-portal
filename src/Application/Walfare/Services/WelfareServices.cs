@@ -51,7 +51,7 @@ public class GetActiveWelfareServicesQueryHandler(IApplicationDbContext context)
 
 // ── admin CRUD ───────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record GetWelfareServicesAdminQuery : IRequest<IReadOnlyList<WelfareServiceDto>>;
 
 public class GetWelfareServicesAdminQueryHandler(IApplicationDbContext context)
@@ -75,7 +75,7 @@ public class GetWelfareServicesAdminQueryHandler(IApplicationDbContext context)
             .ToListAsync(cancellationToken);
 }
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record CreateWelfareServiceCommand(WelfareServiceInput Input) : IRequest<int>;
 
 public class CreateWelfareServiceCommandHandler(IApplicationDbContext context)
@@ -90,7 +90,7 @@ public class CreateWelfareServiceCommandHandler(IApplicationDbContext context)
     }
 }
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record UpdateWelfareServiceCommand(int Id, WelfareServiceInput Input) : IRequest;
 
 public class UpdateWelfareServiceCommandHandler(IApplicationDbContext context)
@@ -107,7 +107,7 @@ public class UpdateWelfareServiceCommandHandler(IApplicationDbContext context)
     }
 }
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record DeleteWelfareServiceCommand(int Id) : IRequest;
 
 public class DeleteWelfareServiceCommandHandler(IApplicationDbContext context)

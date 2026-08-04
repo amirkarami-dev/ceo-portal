@@ -167,7 +167,7 @@ public class GetMyReservationsQueryHandler(IApplicationDbContext context, IUser 
 
 // ── admin: all reservations, paged ──────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record GetReservationsAdminQuery(
     int? PoolId = null,
     ReservationStatus? Status = null,

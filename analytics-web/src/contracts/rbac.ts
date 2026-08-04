@@ -85,7 +85,12 @@ export function mapLegacyRoles(claimRoles: string[]): AppRole[] {
       // Runtime membership check — only accept values that are real AppRoles.
       // An unsafe `as AppRole` cast would silently inject arbitrary strings.
       if (sliced in ROLE_PERMISSIONS) mapped.push(sliced as AppRole);
-    } else if (r === "Administrator") mapped.push("SuperAdmin"); // or "TenantAdmin" per deployment
+    }
+    // The IdP's SuperUser is strictly above its Administrator, so both land on this app's own
+    // top role. (Different vocabularies: "SuperAdmin" is analytics-web's name, not the IdP's.)
+    else if (r === "Administrator" || r === "SuperUser") {
+      mapped.push("SuperAdmin"); // or "TenantAdmin" per deployment
+    }
     else if (r === "User") mapped.push("PowerUser"); // or "Viewer"
   }
   return mapped.length ? Array.from(new Set(mapped)) : ["Viewer"]; // safe default

@@ -159,7 +159,7 @@ public class GetMyRoomsQueryHandler(
             return [];
         }
 
-        var isAdministrator = user.Roles?.Contains(Roles.Administrator) == true;
+        var isAdministrator = Roles.HasAdminPowers(user.Roles);
 
         var rooms = await context.Rooms
             .AsNoTracking()

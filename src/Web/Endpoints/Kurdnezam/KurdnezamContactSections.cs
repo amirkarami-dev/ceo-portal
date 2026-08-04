@@ -41,7 +41,8 @@ public class KurdnezamContactSections : Mabhas19.Web.Infrastructure.IEndpointGro
     public static async Task<Ok<IReadOnlyList<KurdnezamContactSectionDto>>> GetKurdnezamContactSections(
         ISender sender, HttpContext httpContext, bool includeInactive = false)
     {
-        var admin = httpContext.User.IsInRole(Roles.Administrator);
+        var admin = httpContext.User.IsInRole(Roles.Administrator)
+                    || httpContext.User.IsInRole(Roles.SuperUser);
         return TypedResults.Ok(await sender.Send(new GetKurdnezamContactSectionsQuery(includeInactive && admin)));
     }
 
@@ -53,7 +54,9 @@ public class KurdnezamContactSections : Mabhas19.Web.Infrastructure.IEndpointGro
         ISender sender, HttpContext httpContext, int id)
     {
         var section = await sender.Send(new GetKurdnezamContactSectionByIdQuery(id));
-        if (!section.IsActive && !httpContext.User.IsInRole(Roles.Administrator))
+        if (!section.IsActive
+            && !httpContext.User.IsInRole(Roles.Administrator)
+            && !httpContext.User.IsInRole(Roles.SuperUser))
         {
             return TypedResults.NotFound();
         }

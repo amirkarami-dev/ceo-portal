@@ -82,7 +82,7 @@ public class RoomJoiner(
         }
     }
 
-    private bool IsAdministrator => user.Roles?.Contains(Roles.Administrator) == true;
+    private bool IsAdministrator => Roles.HasAdminPowers(user.Roles);
 
     public async Task<JoinDenyReason> PeekAsync(Room? room, CancellationToken cancellationToken)
         => RoomJoinRules.Check(

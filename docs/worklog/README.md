@@ -22,6 +22,7 @@ Also, when a task teaches something reusable:
 
 | Date | Record | Area | Status |
 |---|---|---|---|
+| 2026-08-04 | [Access step 1: a working `SuperUser` role](2026-08-04-superuser-role.md) | auth / api / all 8 SPAs | **shipped and verified live**; inert until step 2 gates |
 | 2026-08-04 | [The access-denied login loop, and the reason nobody could see](2026-08-04-access-denied-loop.md) | auth / all 8 SPAs | **fixed and deployed**; service-grant half staged |
 | 2026-08-03 | [Kurdnezam step 7: the mobile sweep, and what an audit found](2026-08-03-kurdnezam-step-7-mobile-and-closeout.md) | kurdnezam / panel / api | **live** — feature complete |
 | 2026-08-03 | [Kurdnezam step 6: the last two hard-coded lists deleted](2026-08-03-kurdnezam-step-6-arkan-nav.md) | kurdnezam-web | **live** — ارکان fully manageable |

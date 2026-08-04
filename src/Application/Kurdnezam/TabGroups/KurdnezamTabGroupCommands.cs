@@ -22,7 +22,7 @@ public sealed record KurdnezamTabItemInput(
 
 // ── create group ─────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record CreateKurdnezamTabGroupCommand(KurdnezamTabGroupInput Input) : IRequest<int>;
 
 public class CreateKurdnezamTabGroupCommandHandler(IApplicationDbContext context)
@@ -60,7 +60,7 @@ public class CreateKurdnezamTabGroupCommandValidator : AbstractValidator<CreateK
 
 // ── update group ─────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record UpdateKurdnezamTabGroupCommand(int Id, KurdnezamTabGroupInput Input) : IRequest;
 
 public class UpdateKurdnezamTabGroupCommandHandler(IApplicationDbContext context)
@@ -99,7 +99,7 @@ public class UpdateKurdnezamTabGroupCommandValidator : AbstractValidator<UpdateK
 // ── delete group ─────────────────────────────────────────────────────────────
 
 /// <summary>Deleting a group takes its items with it (cascade).</summary>
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record DeleteKurdnezamTabGroupCommand(int Id) : IRequest;
 
 public class DeleteKurdnezamTabGroupCommandHandler(IApplicationDbContext context)
@@ -119,7 +119,7 @@ public class DeleteKurdnezamTabGroupCommandHandler(IApplicationDbContext context
 
 // ── create item ──────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record CreateKurdnezamTabItemCommand(int TabGroupId, KurdnezamTabItemInput Input) : IRequest<int>;
 
 public class CreateKurdnezamTabItemCommandHandler(IApplicationDbContext context)
@@ -160,7 +160,7 @@ public class CreateKurdnezamTabItemCommandValidator : AbstractValidator<CreateKu
 
 // ── update item ──────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record UpdateKurdnezamTabItemCommand(int ItemId, KurdnezamTabItemInput Input) : IRequest;
 
 public class UpdateKurdnezamTabItemCommandHandler(IApplicationDbContext context)
@@ -194,7 +194,7 @@ public class UpdateKurdnezamTabItemCommandValidator : AbstractValidator<UpdateKu
 
 // ── delete item ──────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record DeleteKurdnezamTabItemCommand(int ItemId) : IRequest;
 
 public class DeleteKurdnezamTabItemCommandHandler(IApplicationDbContext context)

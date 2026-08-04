@@ -80,7 +80,7 @@ public sealed class RoomLinkOptions
 
 // ── list ─────────────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record GetRoomsQuery : IRequest<IReadOnlyList<RoomListItemDto>>;
 
 public class GetRoomsQueryHandler(
@@ -135,7 +135,7 @@ public class GetRoomsQueryHandler(
 
 // ── detail ───────────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record GetRoomQuery(int Id) : IRequest<RoomDetailDto>;
 
 public class GetRoomQueryHandler(
@@ -201,7 +201,7 @@ public sealed record RoomPersonDto(string NationalCode, string FullName);
 /// into a downloadable membership list.
 /// </para>
 /// </remarks>
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record LookupRoomPersonQuery(string NationalCode) : IRequest<RoomPersonDto>;
 
 public class LookupRoomPersonQueryHandler(IEngineerDirectory directory)

@@ -10,7 +10,7 @@ namespace Mabhas19.Application.Kurdnezam.Contact;
 /// The admin inbox: every message the public contact form has submitted, newest first, optionally
 /// narrowed to the unread ones. Paged in SQL.
 /// </summary>
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record GetKurdnezamContactMessagesQuery(
     bool? IsRead = null,
     int Page = 1,

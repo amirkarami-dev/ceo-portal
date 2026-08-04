@@ -34,7 +34,7 @@ public sealed record KurdnezamNewsAttachmentInput(
 
 // ── create ───────────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record CreateKurdnezamNewsCommand(KurdnezamNewsInput Input) : IRequest<int>;
 
 public class CreateKurdnezamNewsCommandHandler(IApplicationDbContext context)
@@ -78,7 +78,7 @@ public class CreateKurdnezamNewsCommandValidator : AbstractValidator<CreateKurdn
 
 // ── update ───────────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record UpdateKurdnezamNewsCommand(int Id, KurdnezamNewsInput Input) : IRequest;
 
 public class UpdateKurdnezamNewsCommandHandler(IApplicationDbContext context)
@@ -127,7 +127,7 @@ public class UpdateKurdnezamNewsCommandValidator : AbstractValidator<UpdateKurdn
 
 // ── delete ───────────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record DeleteKurdnezamNewsCommand(int Id) : IRequest;
 
 public class DeleteKurdnezamNewsCommandHandler(IApplicationDbContext context)

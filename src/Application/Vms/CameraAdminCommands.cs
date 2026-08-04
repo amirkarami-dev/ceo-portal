@@ -155,7 +155,7 @@ internal static class CameraChecks
 
 // ── create ───────────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record CreateCameraCommand(CameraInput Input) : IRequest<int>;
 
 public class CreateCameraCommandHandler(IApplicationDbContext context)
@@ -206,7 +206,7 @@ public class CreateCameraCommandValidator : AbstractValidator<CreateCameraComman
 
 // ── update ───────────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record UpdateCameraCommand(int Id, CameraInput Input) : IRequest;
 
 public class UpdateCameraCommandHandler(IApplicationDbContext context)
@@ -240,7 +240,7 @@ public class UpdateCameraCommandValidator : AbstractValidator<UpdateCameraComman
 
 // ── switch off / delete ──────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record SetCameraActiveCommand(int Id, bool IsActive) : IRequest;
 
 public class SetCameraActiveCommandHandler(IApplicationDbContext context)
@@ -258,7 +258,7 @@ public class SetCameraActiveCommandHandler(IApplicationDbContext context)
     }
 }
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record DeleteCameraCommand(int Id) : IRequest;
 
 public class DeleteCameraCommandHandler(IApplicationDbContext context)

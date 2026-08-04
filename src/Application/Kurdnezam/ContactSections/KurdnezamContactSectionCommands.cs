@@ -24,7 +24,7 @@ public sealed record KurdnezamContactChannelInput(
 
 // ── create section ───────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record CreateKurdnezamContactSectionCommand(KurdnezamContactSectionInput Input) : IRequest<int>;
 
 public class CreateKurdnezamContactSectionCommandHandler(IApplicationDbContext context)
@@ -58,7 +58,7 @@ public class CreateKurdnezamContactSectionCommandValidator : AbstractValidator<C
 
 // ── update section ───────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record UpdateKurdnezamContactSectionCommand(int Id, KurdnezamContactSectionInput Input) : IRequest;
 
 public class UpdateKurdnezamContactSectionCommandHandler(IApplicationDbContext context)
@@ -95,7 +95,7 @@ public class UpdateKurdnezamContactSectionCommandValidator : AbstractValidator<U
 /// Takes the section's channels with it (cascade), but <b>not</b> the messages sent to it — that FK
 /// is <c>SET NULL</c>, so the inbox keeps its history.
 /// </summary>
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record DeleteKurdnezamContactSectionCommand(int Id) : IRequest;
 
 public class DeleteKurdnezamContactSectionCommandHandler(IApplicationDbContext context)
@@ -115,7 +115,7 @@ public class DeleteKurdnezamContactSectionCommandHandler(IApplicationDbContext c
 
 // ── create channel ───────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record CreateKurdnezamContactChannelCommand(int SectionId, KurdnezamContactChannelInput Input) : IRequest<int>;
 
 public class CreateKurdnezamContactChannelCommandHandler(IApplicationDbContext context)
@@ -154,7 +154,7 @@ public class CreateKurdnezamContactChannelCommandValidator : AbstractValidator<C
 
 // ── update channel ───────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record UpdateKurdnezamContactChannelCommand(int ChannelId, KurdnezamContactChannelInput Input) : IRequest;
 
 public class UpdateKurdnezamContactChannelCommandHandler(IApplicationDbContext context)
@@ -186,7 +186,7 @@ public class UpdateKurdnezamContactChannelCommandValidator : AbstractValidator<U
 
 // ── delete channel ───────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record DeleteKurdnezamContactChannelCommand(int ChannelId) : IRequest;
 
 public class DeleteKurdnezamContactChannelCommandHandler(IApplicationDbContext context)

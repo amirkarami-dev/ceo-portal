@@ -22,6 +22,14 @@ export function getUserManager(): UserManager {
 }
 
 /** The role the API requires for every kurdnezam write. */
+/**
+ * Roles that carry administrator powers. SuperUser is strictly above Administrator — it is never
+ * restricted by per-service grants — so every `isAdmin` check must accept it, or the one account
+ * guaranteed to be able to repair a bad grant would see no admin navigation at all.
+ */
+export const ADMIN_ROLES = ["Administrator", "SuperUser"] as const;
+
+/** @deprecated prefer ADMIN_ROLES — kept for existing imports. */
 export const ADMIN_ROLE = "Administrator";
 
 export interface SessionUser {
@@ -47,7 +55,7 @@ export function sessionUserFromOidc(u: User): SessionUser {
     name: (p["name"] as string) ?? (p["email"] as string) ?? "کاربر",
     email: (p["email"] as string) ?? "",
     roles,
-    isAdmin: roles.includes(ADMIN_ROLE),
+    isAdmin: roles.some((r) => (ADMIN_ROLES as readonly string[]).includes(r)),
   };
 }
 

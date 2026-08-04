@@ -29,6 +29,13 @@ function rolesFromClaims(profile: Record<string, unknown>): string[] {
   return Array.isArray(raw) ? raw : [raw];
 }
 
+/**
+ * Roles that carry administrator powers. SuperUser is strictly above Administrator — it is never
+ * restricted by per-service grants — so every `isAdmin` check must accept it, or the one account
+ * guaranteed to be able to repair a bad grant would see no admin navigation at all.
+ */
+export const ADMIN_ROLES = ["Administrator", "SuperUser"] as const;
+
 export function sessionUserFromOidc(u: User): SessionUser {
   const p = u.profile as Record<string, unknown>;
   const roles: AppRole[] = mapLegacyRoles(rolesFromClaims(p));

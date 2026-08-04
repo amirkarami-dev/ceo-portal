@@ -73,7 +73,7 @@ public class CreateKurdnezamContactMessageCommandValidator : AbstractValidator<C
 
 // ── mark read / unread ───────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record SetKurdnezamContactMessageReadCommand(int Id, bool IsRead) : IRequest;
 
 public class SetKurdnezamContactMessageReadCommandHandler(IApplicationDbContext context)
@@ -102,7 +102,7 @@ public class SetKurdnezamContactMessageReadCommandValidator : AbstractValidator<
 
 // ── delete ───────────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record DeleteKurdnezamContactMessageCommand(int Id) : IRequest;
 
 public class DeleteKurdnezamContactMessageCommandHandler(IApplicationDbContext context)

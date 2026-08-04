@@ -66,7 +66,7 @@ public class GetKurdnezamFormByIdQueryHandler(IApplicationDbContext context)
 /// Administrator inbox of submissions, newest first. Gated on the request as well as the route —
 /// submissions carry the members' personal data.
 /// </summary>
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record GetKurdnezamFormSubmissionsQuery(
     int? FormId = null,
     bool? Handled = null,

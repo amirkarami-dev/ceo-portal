@@ -13,5 +13,5 @@ namespace Mabhas19.Web.Endpoints.Kurdnezam;
 internal static class KurdnezamAuth
 {
     public static RouteHandlerBuilder RequireAdmin(this RouteHandlerBuilder builder)
-        => builder.RequireAuthorization(policy => policy.RequireRole(Roles.Administrator));
+        => builder.RequireAuthorization(policy => policy.RequireRole(Roles.Administrator, Roles.SuperUser));
 }

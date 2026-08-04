@@ -13,7 +13,7 @@ public sealed record KurdnezamFooterLinkInput(
 
 // ── create ───────────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record CreateKurdnezamFooterLinkCommand(KurdnezamFooterLinkInput Input) : IRequest<int>;
 
 public class CreateKurdnezamFooterLinkCommandHandler(IApplicationDbContext context)
@@ -47,7 +47,7 @@ public class CreateKurdnezamFooterLinkCommandValidator : AbstractValidator<Creat
 
 // ── update ───────────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record UpdateKurdnezamFooterLinkCommand(int Id, KurdnezamFooterLinkInput Input) : IRequest;
 
 public class UpdateKurdnezamFooterLinkCommandHandler(IApplicationDbContext context)
@@ -80,7 +80,7 @@ public class UpdateKurdnezamFooterLinkCommandValidator : AbstractValidator<Updat
 
 // ── delete ───────────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record DeleteKurdnezamFooterLinkCommand(int Id) : IRequest;
 
 public class DeleteKurdnezamFooterLinkCommandHandler(IApplicationDbContext context)

@@ -6,7 +6,7 @@ using Mabhas19.Domain.Constants;
 
 namespace Mabhas19.Application.Analytics.Audit.Queries.GetAuditEvents;
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record GetAuditEventsQuery(string? Type = null, string? Status = null) : IRequest<IReadOnlyList<AuditEventDto>>;
 
 public class GetAuditEventsQueryHandler : IRequestHandler<GetAuditEventsQuery, IReadOnlyList<AuditEventDto>>

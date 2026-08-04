@@ -175,7 +175,7 @@ internal static class RoomPeople
 
 // ── create ───────────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record CreateRoomCommand(RoomInput Input) : IRequest<int>;
 
 public class CreateRoomCommandHandler(IApplicationDbContext context, IEngineerDirectory directory)
@@ -218,7 +218,7 @@ public class CreateRoomCommandValidator : AbstractValidator<CreateRoomCommand>
 
 // ── update ───────────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record UpdateRoomCommand(int Id, RoomInput Input) : IRequest;
 
 public class UpdateRoomCommandHandler(IApplicationDbContext context, IEngineerDirectory directory)
@@ -258,7 +258,7 @@ public class UpdateRoomCommandValidator : AbstractValidator<UpdateRoomCommand>
 // ── the join link ────────────────────────────────────────────────────────────
 
 /// <summary>Issues a new join link and kills every copy of the old one.</summary>
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record RegenerateRoomLinkCommand(int Id) : IRequest<string>;
 
 public class RegenerateRoomLinkCommandHandler(IApplicationDbContext context)
@@ -285,7 +285,7 @@ public class RegenerateRoomLinkCommandHandler(IApplicationDbContext context)
 
 // ── activate / delete ────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record SetRoomActiveCommand(int Id, bool IsActive) : IRequest;
 
 public class SetRoomActiveCommandHandler(IApplicationDbContext context, ILiveKitAdmin liveKit)
@@ -310,7 +310,7 @@ public class SetRoomActiveCommandHandler(IApplicationDbContext context, ILiveKit
     }
 }
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record DeleteRoomCommand(int Id) : IRequest;
 
 public class DeleteRoomCommandHandler(IApplicationDbContext context, ILiveKitAdmin liveKit)
@@ -344,7 +344,7 @@ public class DeleteRoomCommandHandler(IApplicationDbContext context, ILiveKitAdm
 /// than whatever an admin typed, and so inviting a code that belongs to nobody fails immediately
 /// instead of at the door.
 /// </remarks>
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record InviteToRoomCommand(int Id, string NationalCode) : IRequest;
 
 public class InviteToRoomCommandHandler(
@@ -389,7 +389,7 @@ public class InviteToRoomCommandHandler(
     }
 }
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record RemoveRoomInviteCommand(int Id, string UserId) : IRequest;
 
 public class RemoveRoomInviteCommandHandler(IApplicationDbContext context)

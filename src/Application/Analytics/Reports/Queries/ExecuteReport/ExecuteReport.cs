@@ -31,7 +31,7 @@ public class ExecuteReportQueryHandler : IRequestHandler<ExecuteReportQuery, Rep
         var model = await _models.GetBySourceAsync(request.Definition.Dataset, cancellationToken);
 
         if (model?.RequiresAdministrator == true &&
-            _user.Roles?.Contains(Roles.Administrator) != true)
+            !Roles.HasAdminPowers(_user.Roles))
         {
             throw new ForbiddenAccessException();
         }

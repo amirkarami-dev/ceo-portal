@@ -16,7 +16,7 @@ public sealed record KurdnezamQuickLinkInput(
 
 // ── create ───────────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record CreateKurdnezamQuickLinkCommand(KurdnezamQuickLinkInput Input) : IRequest<int>;
 
 public class CreateKurdnezamQuickLinkCommandHandler(IApplicationDbContext context)
@@ -51,7 +51,7 @@ public class CreateKurdnezamQuickLinkCommandValidator : AbstractValidator<Create
 
 // ── update ───────────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record UpdateKurdnezamQuickLinkCommand(int Id, KurdnezamQuickLinkInput Input) : IRequest;
 
 public class UpdateKurdnezamQuickLinkCommandHandler(IApplicationDbContext context)
@@ -85,7 +85,7 @@ public class UpdateKurdnezamQuickLinkCommandValidator : AbstractValidator<Update
 
 // ── delete ───────────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record DeleteKurdnezamQuickLinkCommand(int Id) : IRequest;
 
 public class DeleteKurdnezamQuickLinkCommandHandler(IApplicationDbContext context)

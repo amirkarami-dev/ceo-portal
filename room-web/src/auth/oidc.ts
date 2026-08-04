@@ -27,6 +27,13 @@ export interface SessionUser {
   isAdmin: boolean;
 }
 
+/**
+ * Roles that carry administrator powers. SuperUser is strictly above Administrator — it is never
+ * restricted by per-service grants — so every `isAdmin` check must accept it, or the one account
+ * guaranteed to be able to repair a bad grant would see no admin navigation at all.
+ */
+export const ADMIN_ROLES = ["Administrator", "SuperUser"] as const;
+
 export function sessionUserFromOidc(u: User): SessionUser {
   const p = u.profile as Record<string, unknown>;
   const rawRoles = p["role"] ?? p["roles"];
@@ -35,7 +42,7 @@ export function sessionUserFromOidc(u: User): SessionUser {
     id: (p["sub"] as string) ?? "",
     name: (p["name"] as string) ?? (p["email"] as string) ?? "کاربر",
     email: (p["email"] as string) ?? "",
-    isAdmin: roles.includes("Administrator"),
+    isAdmin: roles.some((r) => (ADMIN_ROLES as readonly string[]).includes(r)),
   };
 }
 

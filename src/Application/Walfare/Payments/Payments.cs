@@ -200,7 +200,7 @@ public class HandleIrkCallbackCommandHandler(
 /// Re-runs the bank verify for a transaction the automatic callback left unverified, using the
 /// stored Token + RRN + STAN. On success the ticket is marked Paid, exactly like the callback.
 /// </summary>
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record ConfirmPaymentCommand(int Id) : IRequest<PaymentTransactionDto>;
 
 public class ConfirmPaymentCommandHandler(
@@ -253,7 +253,7 @@ public class ConfirmPaymentCommandHandler(
 
 // ── admin: the payment ledger ────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record GetPaymentsAdminQuery(
     PaymentStatus? Status = null,
     string? Q = null,

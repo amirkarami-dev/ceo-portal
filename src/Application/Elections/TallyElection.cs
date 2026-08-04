@@ -26,7 +26,7 @@ namespace Mabhas19.Application.Elections;
 /// the first tally, and that is a hard failure rather than a new result.
 /// </para>
 /// </remarks>
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record TallyElectionCommand(int Id) : IRequest<TallyOutcome>;
 
 public sealed record TallyOutcome(

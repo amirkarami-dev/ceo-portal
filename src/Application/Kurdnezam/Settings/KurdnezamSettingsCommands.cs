@@ -20,7 +20,7 @@ public sealed record KurdnezamSettingsInput(
     string MapLabel = "",
     string MapUrl = "");
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record UpdateKurdnezamSettingsCommand(KurdnezamSettingsInput Input) : IRequest;
 
 public class UpdateKurdnezamSettingsCommandHandler(IApplicationDbContext context)

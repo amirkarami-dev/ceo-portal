@@ -15,7 +15,7 @@ public sealed record KurdnezamUnitInput(
 
 // ── create ───────────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record CreateKurdnezamUnitCommand(KurdnezamUnitInput Input) : IRequest<int>;
 
 public class CreateKurdnezamUnitCommandHandler(IApplicationDbContext context)
@@ -51,7 +51,7 @@ public class CreateKurdnezamUnitCommandValidator : AbstractValidator<CreateKurdn
 
 // ── update ───────────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record UpdateKurdnezamUnitCommand(int Id, KurdnezamUnitInput Input) : IRequest;
 
 public class UpdateKurdnezamUnitCommandHandler(IApplicationDbContext context)
@@ -87,7 +87,7 @@ public class UpdateKurdnezamUnitCommandValidator : AbstractValidator<UpdateKurdn
 // ── delete ───────────────────────────────────────────────────────────────────
 
 // Safe to delete outright: the only inbound reference is KurdnezamNews.UnitId, configured as SetNull.
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record DeleteKurdnezamUnitCommand(int Id) : IRequest;
 
 public class DeleteKurdnezamUnitCommandHandler(IApplicationDbContext context)

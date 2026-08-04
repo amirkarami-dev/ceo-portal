@@ -15,7 +15,7 @@ public class Runs : Mabhas19.Web.Infrastructure.IEndpointGroup
 
     public static void Map(RouteGroupBuilder groupBuilder)
     {
-        groupBuilder.RequireAuthorization(policy => policy.RequireRole(Roles.Administrator));
+        groupBuilder.RequireAuthorization(policy => policy.RequireRole(Roles.Administrator, Roles.SuperUser));
 
         groupBuilder.MapGet(GetRuns, string.Empty);
         groupBuilder.MapGet(GetRun, "{runId:guid}");

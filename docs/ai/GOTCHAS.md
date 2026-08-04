@@ -486,6 +486,23 @@ election service existed, because they all carry `["walfare"]` — a silent dise
 of people the API considers eligible. Grantable-but-not-gating is deliberate; keep it.
 **Where:** `src/Auth/Data/ServiceKeys.cs`.
 
+### `[Authorize(Roles = "A,B")]` is split on `,` with **no trimming**
+`AuthorizationBehaviour.cs:37` does `a.Roles.Split(',')` then compares with `==`. A space after the
+comma — `"Administrator, SuperUser"` — matches nothing, and every command carrying the attribute
+throws `ForbiddenAccessException` for everyone. It fails silently at compile time and loudly at
+runtime, on all 85 gated handlers at once. `Roles.AdminOrSuper` is built by concatenation
+(`Administrator + "," + SuperUser`) so a reformat cannot reintroduce the space.
+**Where:** `src/Application/Common/Behaviours/AuthorizationBehaviour.cs`, `src/Domain/Constants/Roles.cs`.
+
+### Two roles carry admin powers now — never test for `Administrator` alone
+`SuperUser` is an administrator that is never gated by service grants. Any check written as
+`IsInRole("Administrator")` silently excludes it. Use `Roles.AdminOrSuper` for attributes,
+`RequireRole(Roles.Administrator, Roles.SuperUser)` for endpoints, and `Roles.HasAdminPowers(roles)`
+for imperative checks. This matters most in the IdP's "don't remove the last administrator" guards:
+counting only the `Administrator` role would let you strip the last `SuperUser`.
+`src/Auth` cannot reference `Domain`, so it repeats the strings — change both places.
+**Where:** `src/Domain/Constants/Roles.cs`, `src/Auth/Admin/AdminController.cs`.
+
 ### A DTO field named `…Label` can still be carrying the raw code
 `BallotCandidateDto.ReshteLabelOrCode` was filled with `c.ReshteCode` — `ElectionCandidate` stores only
 the code, so there was never a label to fall back to. The field is `string?` and never null, so nothing

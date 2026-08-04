@@ -34,7 +34,7 @@ public class GetSemanticModelsQueryHandler
         // Models holding personal data are not offered to non-admins. This is presentation only —
         // ExecuteReportQueryHandler does the real check, because the dataset comes from the
         // request body and a hidden option is not a permission.
-        if (_user.Roles?.Contains(Roles.Administrator) == true)
+        if (Roles.HasAdminPowers(_user.Roles))
         {
             return all;
         }

@@ -30,7 +30,7 @@ public class RoomAdmin : Mabhas19.Web.Infrastructure.IEndpointGroup
 
     public static void Map(RouteGroupBuilder groupBuilder)
     {
-        groupBuilder.RequireAuthorization(policy => policy.RequireRole(Roles.Administrator));
+        groupBuilder.RequireAuthorization(policy => policy.RequireRole(Roles.Administrator, Roles.SuperUser));
 
         groupBuilder.MapGet(GetRoomsAdmin, string.Empty);
         groupBuilder.MapGet(GetRoomAdmin, "{id:int}");

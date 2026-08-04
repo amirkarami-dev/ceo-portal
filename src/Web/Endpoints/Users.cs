@@ -21,7 +21,9 @@ public class Users : IEndpointGroup
         var roles = user.FindAll("role").Select(c => c.Value).ToArray();
         var email = user.FindFirstValue("email");
         var phoneNumber = user.FindFirstValue("phone_number");
-        var isAdmin = user.IsInRole(Roles.Administrator);
+        // A SuperUser is an administrator and more; reporting isAdmin=false would make every SPA
+        // hide its admin navigation from the one account that can always repair things.
+        var isAdmin = user.IsInRole(Roles.Administrator) || user.IsInRole(Roles.SuperUser);
 
         return TypedResults.Ok(new CurrentUserDto(id, email, phoneNumber, roles, isAdmin));
     }

@@ -17,7 +17,7 @@ public sealed record KurdnezamPersonInput(
 
 // ── create ───────────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record CreateKurdnezamPersonCommand(KurdnezamPersonInput Input) : IRequest<int>;
 
 public class CreateKurdnezamPersonCommandHandler(IApplicationDbContext context)
@@ -53,7 +53,7 @@ public class CreateKurdnezamPersonCommandValidator : AbstractValidator<CreateKur
 
 // ── update ───────────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record UpdateKurdnezamPersonCommand(int Id, KurdnezamPersonInput Input) : IRequest;
 
 public class UpdateKurdnezamPersonCommandHandler(IApplicationDbContext context)
@@ -88,7 +88,7 @@ public class UpdateKurdnezamPersonCommandValidator : AbstractValidator<UpdateKur
 
 // ── delete ───────────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record DeleteKurdnezamPersonCommand(int Id) : IRequest;
 
 public class DeleteKurdnezamPersonCommandHandler(IApplicationDbContext context)

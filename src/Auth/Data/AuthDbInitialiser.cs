@@ -30,7 +30,10 @@ public class AuthDbInitialiser(
     IOpenIddictScopeManager scopeManager,
     IConfiguration configuration)
 {
+    // Repeated literals: src/Auth references only ServiceDefaults, so it cannot see
+    // Mabhas19.Domain.Constants.Roles. Keep these in step with that file.
     private const string AdministratorRole = "Administrator";
+    private const string SuperUserRole = "SuperUser";
     private const string UserRole = "User";
 
     public async Task InitialiseAsync()
@@ -71,7 +74,7 @@ public class AuthDbInitialiser(
 
     private async Task SeedRolesAsync()
     {
-        foreach (var roleName in new[] { AdministratorRole, UserRole })
+        foreach (var roleName in new[] { AdministratorRole, SuperUserRole, UserRole })
         {
             if (roleManager.Roles.All(r => r.Name != roleName))
             {
@@ -589,9 +592,19 @@ public class AuthDbInitialiser(
             logger.LogInformation("Created administrator account {Email}.", adminEmail);
         }
 
-        if (!await userManager.IsInRoleAsync(administrator, AdministratorRole))
+        // Additive and self-healing on every start, so an account that lost a role — or an
+        // installation that predates one — recovers without anyone touching the database.
+        //
+        // The seeded account holds SuperUser as well, and that is the whole safety net: once
+        // per-service grants become restrictive, a SuperUser is the only thing guaranteeing that
+        // somebody can still reach the admin panel to undo a bad grant.
+        foreach (var role in new[] { AdministratorRole, SuperUserRole })
         {
-            await userManager.AddToRoleAsync(administrator, AdministratorRole);
+            if (!await userManager.IsInRoleAsync(administrator, role))
+            {
+                await userManager.AddToRoleAsync(administrator, role);
+                logger.LogInformation("Granted {Role} to {Email}.", role, adminEmail);
+            }
         }
     }
 }

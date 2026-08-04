@@ -15,7 +15,7 @@ public sealed record KurdnezamCategoryInput(
 
 // ── create ───────────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record CreateKurdnezamCategoryCommand(KurdnezamCategoryInput Input) : IRequest<int>;
 
 public class CreateKurdnezamCategoryCommandHandler(IApplicationDbContext context)
@@ -48,7 +48,7 @@ public class CreateKurdnezamCategoryCommandValidator : AbstractValidator<CreateK
 
 // ── update ───────────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record UpdateKurdnezamCategoryCommand(int Id, KurdnezamCategoryInput Input) : IRequest;
 
 public class UpdateKurdnezamCategoryCommandHandler(IApplicationDbContext context)
@@ -80,7 +80,7 @@ public class UpdateKurdnezamCategoryCommandValidator : AbstractValidator<UpdateK
 
 // ── delete ───────────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record DeleteKurdnezamCategoryCommand(int Id) : IRequest;
 
 public class DeleteKurdnezamCategoryCommandHandler(IApplicationDbContext context)

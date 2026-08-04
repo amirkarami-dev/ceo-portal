@@ -27,7 +27,7 @@ public sealed record KurdnezamFormSubmissionInput(
 
 // ── create form ──────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record CreateKurdnezamFormCommand(KurdnezamFormInput Input) : IRequest<int>;
 
 public class CreateKurdnezamFormCommandHandler(IApplicationDbContext context)
@@ -64,7 +64,7 @@ public class CreateKurdnezamFormCommandValidator : AbstractValidator<CreateKurdn
 
 // ── update form ──────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record UpdateKurdnezamFormCommand(int Id, KurdnezamFormInput Input) : IRequest;
 
 public class UpdateKurdnezamFormCommandHandler(IApplicationDbContext context)
@@ -100,7 +100,7 @@ public class UpdateKurdnezamFormCommandValidator : AbstractValidator<UpdateKurdn
 
 // ── delete form ──────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record DeleteKurdnezamFormCommand(int Id) : IRequest;
 
 public class DeleteKurdnezamFormCommandHandler(IApplicationDbContext context)
@@ -175,7 +175,7 @@ public class SubmitKurdnezamFormCommandValidator : AbstractValidator<SubmitKurdn
 
 // ── handle / delete a submission (admin) ─────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record SetKurdnezamFormSubmissionHandledCommand(int SubmissionId, bool IsHandled) : IRequest;
 
 public class SetKurdnezamFormSubmissionHandledCommandHandler(IApplicationDbContext context)
@@ -194,7 +194,7 @@ public class SetKurdnezamFormSubmissionHandledCommandHandler(IApplicationDbConte
     }
 }
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record DeleteKurdnezamFormSubmissionCommand(int SubmissionId) : IRequest;
 
 public class DeleteKurdnezamFormSubmissionCommandHandler(IApplicationDbContext context)

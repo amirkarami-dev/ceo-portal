@@ -48,7 +48,7 @@ public sealed record CameraDetailDto(
 /// <remarks>
 /// Soft-deleted cameras are never returned. They exist only so a stream key is never reused.
 /// </remarks>
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record GetCamerasQuery(string? CityCode = null) : IRequest<IReadOnlyList<CameraListItemDto>>;
 
 public class GetCamerasQueryHandler(IApplicationDbContext context)
@@ -85,7 +85,7 @@ public class GetCamerasQueryHandler(IApplicationDbContext context)
     }
 }
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record GetCameraQuery(int Id) : IRequest<CameraDetailDto>;
 
 public class GetCameraQueryHandler(IApplicationDbContext context)
@@ -125,7 +125,7 @@ public class GetCameraQueryHandler(IApplicationDbContext context)
 /// The count is what lets the admin panel grey out an empty city rather than opening an empty grid,
 /// and it is what makes deleting a city obviously refusable before the attempt.
 /// </remarks>
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record GetVmsCitiesQuery(bool IncludeInactive = false) : IRequest<IReadOnlyList<VmsCityDto>>;
 
 public class GetVmsCitiesQueryHandler(IApplicationDbContext context)

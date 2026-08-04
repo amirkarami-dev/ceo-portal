@@ -18,7 +18,7 @@ public sealed record KurdnezamSlideInput(
 
 // ── create ───────────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record CreateKurdnezamSlideCommand(KurdnezamSlideInput Input) : IRequest<int>;
 
 public class CreateKurdnezamSlideCommandHandler(IApplicationDbContext context)
@@ -55,7 +55,7 @@ public class CreateKurdnezamSlideCommandValidator : AbstractValidator<CreateKurd
 
 // ── update ───────────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record UpdateKurdnezamSlideCommand(int Id, KurdnezamSlideInput Input) : IRequest;
 
 public class UpdateKurdnezamSlideCommandHandler(IApplicationDbContext context)
@@ -91,7 +91,7 @@ public class UpdateKurdnezamSlideCommandValidator : AbstractValidator<UpdateKurd
 
 // ── delete ───────────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record DeleteKurdnezamSlideCommand(int Id) : IRequest;
 
 public class DeleteKurdnezamSlideCommandHandler(IApplicationDbContext context)

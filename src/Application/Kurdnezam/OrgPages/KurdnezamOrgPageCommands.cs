@@ -24,7 +24,7 @@ public sealed record KurdnezamOrgPageInput(
 
 // ── create ───────────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record CreateKurdnezamOrgPageCommand(KurdnezamOrgPageInput Input) : IRequest<int>;
 
 public class CreateKurdnezamOrgPageCommandHandler(IApplicationDbContext context)
@@ -73,7 +73,7 @@ public class CreateKurdnezamOrgPageCommandValidator : AbstractValidator<CreateKu
 
 // ── update ───────────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record UpdateKurdnezamOrgPageCommand(int Id, KurdnezamOrgPageInput Input) : IRequest;
 
 public class UpdateKurdnezamOrgPageCommandHandler(IApplicationDbContext context)
@@ -152,7 +152,7 @@ public class UpdateKurdnezamOrgPageCommandValidator : AbstractValidator<UpdateKu
 
 // ── delete ───────────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record DeleteKurdnezamOrgPageCommand(int Id) : IRequest;
 
 public class DeleteKurdnezamOrgPageCommandHandler(IApplicationDbContext context)

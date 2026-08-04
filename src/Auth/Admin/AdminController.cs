@@ -17,7 +17,8 @@ namespace Mabhas19.Auth.Admin;
 /// </summary>
 [ApiController]
 [Route("api/admin")]
-[Authorize(Roles = "Administrator",
+// No space after the comma: ASP.NET splits this string on ',' and compares the pieces verbatim.
+[Authorize(Roles = "Administrator,SuperUser",
     AuthenticationSchemes = OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme)]
 public class AdminController(
     UserManager<AuthUser> userManager,
@@ -25,7 +26,10 @@ public class AdminController(
     IServiceAccessStore serviceAccess,
     IOpenIddictAuthorizationManager authorizationManager) : ControllerBase
 {
+    // Repeated literals: src/Auth references only ServiceDefaults, so it cannot see
+    // Mabhas19.Domain.Constants.Roles. Keep these three in step with that file.
     private const string Administrator = "Administrator";
+    private const string SuperUser = "SuperUser";
 
     // ── Users ──────────────────────────────────────────────────────────────────
 
@@ -153,10 +157,16 @@ public class AdminController(
         if (await FirstInvalidRoleAsync(desired) is { } badRole)
             return Fail($"نقش نامعتبر: {badRole}");
 
+        // These guards are about administrative POWER, not one role name. A SuperUser administers
+        // everything an Administrator does, so demoting the last SuperUser is exactly as dangerous
+        // as demoting the last Administrator — and stripping your own SuperUser is the specific
+        // mistake this role exists to make unmakeable.
+        static bool HasAdminPower(IEnumerable<string> roles) =>
+            roles.Any(r => string.Equals(r, Administrator, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(r, SuperUser, StringComparison.OrdinalIgnoreCase));
+
         var current = await userManager.GetRolesAsync(user);
-        var hasAdmin = current.Any(r => string.Equals(r, Administrator, StringComparison.OrdinalIgnoreCase));
-        var wantsAdmin = desired.Any(r => string.Equals(r, Administrator, StringComparison.OrdinalIgnoreCase));
-        var removingAdmin = hasAdmin && !wantsAdmin;
+        var removingAdmin = HasAdminPower(current) && !HasAdminPower(desired);
 
         if (removingAdmin && IsSelf(user))
             return Fail("نمی‌توانید نقش مدیر را از حساب خودتان حذف کنید.");
@@ -219,7 +229,9 @@ public class AdminController(
 
         if (IsSelf(user))
             return Fail("نمی‌توانید حساب خودتان را حذف کنید.");
-        if (await userManager.IsInRoleAsync(user, Administrator) && await CountAdministratorsAsync() <= 1)
+        if ((await userManager.IsInRoleAsync(user, Administrator)
+             || await userManager.IsInRoleAsync(user, SuperUser))
+            && await CountAdministratorsAsync() <= 1)
             return Fail("حذف آخرین مدیر مجاز نیست.");
 
         // Revoke the user's OpenIddict authorizations (their access/refresh tokens cascade) — the
@@ -270,8 +282,18 @@ public class AdminController(
         return null;
     }
 
-    private async Task<int> CountAdministratorsAsync() =>
-        (await userManager.GetUsersInRoleAsync(Administrator)).Count;
+    /// <summary>
+    /// How many accounts can still administer the platform. Counts both roles and de-duplicates,
+    /// because a SuperUser administers everything an Administrator does — refusing to remove the
+    /// last Administrator while three SuperUsers exist would be a lie, and letting the last
+    /// SuperUser go while none exist would be the lockout this role was added to prevent.
+    /// </summary>
+    private async Task<int> CountAdministratorsAsync()
+    {
+        var admins = await userManager.GetUsersInRoleAsync(Administrator);
+        var supers = await userManager.GetUsersInRoleAsync(SuperUser);
+        return admins.Select(u => u.Id).Union(supers.Select(u => u.Id)).Count();
+    }
 
     private static List<string> Distinct(IEnumerable<string>? values) =>
         (values ?? [])

@@ -80,7 +80,7 @@ internal static class EligibilityText
 
 // ── list ─────────────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record GetElectionsQuery : IRequest<IReadOnlyList<ElectionListItemDto>>;
 
 public class GetElectionsQueryHandler(IApplicationDbContext context, TimeProvider clock)
@@ -124,7 +124,7 @@ public class GetElectionsQueryHandler(IApplicationDbContext context, TimeProvide
 
 // ── detail ───────────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record GetElectionQuery(int Id) : IRequest<ElectionDetailDto>;
 
 public class GetElectionQueryHandler(IApplicationDbContext context, TimeProvider clock)

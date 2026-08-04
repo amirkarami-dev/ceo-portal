@@ -11,7 +11,7 @@ namespace Mabhas19.Application.Analytics.AiProviders.Commands.UpsertAiProvider;
 /// Create or update an AI provider config for the current tenant.
 /// NEVER include raw API secrets in Config — use a key-reference string only.
 /// </summary>
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record UpsertAiProviderCommand(
     string Type,
     bool Enabled,

@@ -163,7 +163,7 @@ internal static class ElectionMapper
 
 // ── create ───────────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record CreateElectionCommand(ElectionInput Input) : IRequest<int>;
 
 public class CreateElectionCommandHandler(IApplicationDbContext context)
@@ -189,7 +189,7 @@ public class CreateElectionCommandValidator : AbstractValidator<CreateElectionCo
 
 // ── update ───────────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record UpdateElectionCommand(int Id, ElectionInput Input) : IRequest;
 
 public class UpdateElectionCommandHandler(IApplicationDbContext context, TimeProvider clock)
@@ -218,7 +218,7 @@ public class UpdateElectionCommandValidator : AbstractValidator<UpdateElectionCo
 
 // ── publish / cancel / delete ────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record PublishElectionCommand(int Id) : IRequest;
 
 public class PublishElectionCommandHandler(IApplicationDbContext context, TimeProvider clock)
@@ -273,7 +273,7 @@ public class PublishElectionCommandHandler(IApplicationDbContext context, TimePr
     }
 }
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record CancelElectionCommand(int Id) : IRequest;
 
 public class CancelElectionCommandHandler(IApplicationDbContext context)
@@ -294,7 +294,7 @@ public class CancelElectionCommandHandler(IApplicationDbContext context)
     }
 }
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record DeleteElectionCommand(int Id) : IRequest;
 
 public class DeleteElectionCommandHandler(IApplicationDbContext context)

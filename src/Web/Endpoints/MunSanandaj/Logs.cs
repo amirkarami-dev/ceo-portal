@@ -13,7 +13,7 @@ public class Logs : Mabhas19.Web.Infrastructure.IEndpointGroup
 
     public static void Map(RouteGroupBuilder groupBuilder)
     {
-        groupBuilder.RequireAuthorization(policy => policy.RequireRole(Roles.Administrator));
+        groupBuilder.RequireAuthorization(policy => policy.RequireRole(Roles.Administrator, Roles.SuperUser));
         groupBuilder.MapGet(GetLogs, string.Empty);
     }
 

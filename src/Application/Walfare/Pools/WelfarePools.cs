@@ -120,7 +120,7 @@ public class GetServiceCalendarQueryHandler(IApplicationDbContext context)
 
 // ── admin CRUD ───────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record GetWelfarePoolsAdminQuery(int? ServiceId = null) : IRequest<IReadOnlyList<WelfarePoolDto>>;
 
 public class GetWelfarePoolsAdminQueryHandler(IApplicationDbContext context)
@@ -152,7 +152,7 @@ public class GetWelfarePoolsAdminQueryHandler(IApplicationDbContext context)
     }
 }
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record CreateWelfarePoolCommand(WelfarePoolInput Input) : IRequest<int>;
 
 public class CreateWelfarePoolCommandHandler(IApplicationDbContext context)
@@ -167,7 +167,7 @@ public class CreateWelfarePoolCommandHandler(IApplicationDbContext context)
     }
 }
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record UpdateWelfarePoolCommand(int Id, WelfarePoolInput Input) : IRequest;
 
 public class UpdateWelfarePoolCommandHandler(IApplicationDbContext context)
@@ -184,7 +184,7 @@ public class UpdateWelfarePoolCommandHandler(IApplicationDbContext context)
     }
 }
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record DeleteWelfarePoolCommand(int Id) : IRequest;
 
 public class DeleteWelfarePoolCommandHandler(IApplicationDbContext context)
