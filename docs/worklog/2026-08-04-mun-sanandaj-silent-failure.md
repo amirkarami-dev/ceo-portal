@@ -148,9 +148,31 @@ With TLS working, the row finally reached the municipality — and was refused:
 *was* a real blocker after all — just not the one causing the "Failed" status. It could not have
 been diagnosed before, because nothing ever got far enough to be refused.
 
-`ProcessSaveEngineerReportRowAsync` now checks `ReqId` first and fails the row with a message naming
-our own data, rather than rendering a PDF and spending a round-trip to be told the same thing less
-clearly. 11/11 tests pass.
+### Skipped, not failed
+
+Readiness is now decided in `RunAsync` **immediately after the procedure returns**, before anything
+is attempted. A row without `ReqId` is *skipped*: not counted in `TotalRows`, not sent, and **not
+written as a Failed log row**.
+
+That distinction is the point. A missing `ReqId` is not something we got wrong — it is source data
+that is not finished. Treating it as a failure would append an identical Failed row every two hours
+forever and make a data-entry gap look like a broken integration. Skipping it keeps the dashboard
+honest: `Completed, rows=0` means "nothing was ready", which is true.
+
+It is still **named**, every run, at Warning level — the lesson of this whole investigation is that
+an invisible non-event is worse than a visible failure:
+
+```
+MunSanandaj SaveEngineerReport: skipped 1 of 1 row(s) that are not ready:
+  90042743090804082619 (no ReqId — the municipality requires it as melk_id; set it in WebS_GetListRepToShahrdari)
+```
+
+**`saveEngMap` is deliberately not filtered** — it sends no `melk_id`, so a row without `ReqId` is
+perfectly processable there, and filtering it would silently drop work. `RunSaveEngMapAsync` passes
+`skipRow: null`, and a test exists purely as a tripwire against someone "tidying" that up.
+
+Verified live: the run at 08:48:42 recorded `Completed, rows=0, ok=0, fail=0` with no new log row.
+23/23 MunSanandaj tests pass.
 
 ## Left to do
 

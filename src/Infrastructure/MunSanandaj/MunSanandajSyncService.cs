@@ -29,16 +29,41 @@ internal sealed class MunSanandajSyncService : IMunSanandajSyncService
     }
 
     public Task<Guid> RunSaveEngineerReportAsync(MunRunTrigger trigger, string? triggeredByUser, CancellationToken ct = default)
-        => RunAsync(MunWorkerType.SaveEngineerReport, trigger, triggeredByUser, ProcessSaveEngineerReportRowAsync, ct);
+        => RunAsync(MunWorkerType.SaveEngineerReport, trigger, triggeredByUser,
+                    ProcessSaveEngineerReportRowAsync, SkipIfNoReqId, ct);
 
     public Task<Guid> RunSaveEngMapAsync(MunRunTrigger trigger, string? triggeredByUser, CancellationToken ct = default)
-        => RunAsync(MunWorkerType.SaveEngMap, trigger, triggeredByUser, ProcessSaveEngMapRowAsync, ct);
+        => RunAsync(MunWorkerType.SaveEngMap, trigger, triggeredByUser,
+                    ProcessSaveEngMapRowAsync, skipRow: null, ct);
+
+    /// <summary>
+    /// Why this row is not ready for <c>saveEngineerReport</c>, or <c>null</c> to process it.
+    /// </summary>
+    /// <remarks>
+    /// <c>ReqId</c> goes out as the municipality's <c>melk_id</c> and they refuse an empty one with
+    /// <c>{"success":false,"msg":"melk_id is empty..."}</c>. <c>WebS_GetListRepToShahrdari</c> can
+    /// return it NULL, which the reader turns into <c>""</c>.
+    /// <para>
+    /// This is <b>skipped, not failed</b>: the row is not something we got wrong, it is source data
+    /// that is not finished yet. Treating it as a failure would add an identical Failed row every
+    /// two hours forever and make a data-entry gap look like a broken integration.
+    /// </para>
+    /// <para>
+    /// <b>saveEngMap deliberately does not use this.</b> That call sends no <c>melk_id</c>, so a row
+    /// without <c>ReqId</c> is perfectly processable there — filtering it would silently drop work.
+    /// </para>
+    /// </remarks>
+    internal static string? SkipIfNoReqId(MunSourceRowDto row) =>
+        string.IsNullOrWhiteSpace(row.ReqId)
+            ? "no ReqId — the municipality requires it as melk_id; set it in WebS_GetListRepToShahrdari"
+            : null;
 
     private async Task<Guid> RunAsync(
         MunWorkerType workerType,
         MunRunTrigger trigger,
         string? triggeredByUser,
         Func<MunSourceRowDto, int, CancellationToken, Task<RowResult>> processRow,
+        Func<MunSourceRowDto, string?>? skipRow,
         CancellationToken ct)
     {
         var run = new MunSyncRun
@@ -55,7 +80,28 @@ internal sealed class MunSanandajSyncService : IMunSanandajSyncService
 
         try
         {
-            var rows = await _reader.GetPendingReportsAsync(ct);
+            var returned = await _reader.GetPendingReportsAsync(ct);
+
+            // Decide readiness immediately after the procedure returns, before anything is attempted.
+            // A skipped row is not counted, not sent, and not logged as a failure — but it IS named
+            // here, because "nothing happened" must never quietly mean "nothing was noticed".
+            var rows = new List<MunSourceRowDto>(returned.Count);
+            var skipped = new List<string>();
+            foreach (var candidate in returned)
+            {
+                if (skipRow?.Invoke(candidate) is { } reason)
+                    skipped.Add($"{candidate.Peygiri} ({reason})");
+                else
+                    rows.Add(candidate);
+            }
+
+            if (skipped.Count > 0)
+            {
+                _logger.LogWarning(
+                    "MunSanandaj {WorkerType}: skipped {Skipped} of {Returned} row(s) that are not ready: {Rows}",
+                    workerType, skipped.Count, returned.Count, string.Join("; ", skipped));
+            }
+
             run.TotalRows = rows.Count;
 
             foreach (var row in rows)
@@ -153,15 +199,9 @@ internal sealed class MunSanandajSyncService : IMunSanandajSyncService
     /// control flow directly, without a database.</summary>
     internal async Task<RowResult> ProcessSaveEngineerReportRowAsync(MunSourceRowDto row, int attemptNumber, CancellationToken ct)
     {
-        // ReqId goes out as the municipality's `melk_id`, and they reject an empty one with
-        // {"success":false,"msg":"melk_id is empty..."}. WebS_GetListRepToShahrdari can return it as
-        // NULL, which the reader turns into "". Stop here and name OUR data as the cause, instead of
-        // rendering a PDF and spending a round-trip to be told the same thing less clearly.
-        if (string.IsNullOrWhiteSpace(row.ReqId))
-            return RowResult.Failed(attemptNumber,
-                $"ReqId is empty for Peygiri {row.Peygiri} — the municipality requires it as melk_id. "
-                + "Fix it in the source data (WebS_GetListRepToShahrdari returns it as NULL).");
-
+        // A row with no ReqId never reaches here — RunAsync skips it before the loop (SkipIfNoReqId),
+        // so this method can assume the row is ready to send.
+        //
         // The PDF is named by Peygiri (tracking code), not ProjectNo.
         var pdfBase64 = await _pdfFetcher.FetchAsBase64Async(row.Peygiri, ct);
         if (pdfBase64 is null)

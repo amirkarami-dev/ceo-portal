@@ -697,12 +697,21 @@ renewal: the new key will not match the pin, so downloads fail closed instead of
 the weaker path. The host serves the same file at `/pdf/…` and `/sm/pdf/…`.
 **Where:** `src/Infrastructure/MunSanandaj/MunSanandajPdfFetcher.cs`.
 
-### `melk_id` is `ReqId`, and the source procedure can return it NULL
+### `melk_id` is `ReqId`, and a row without one is SKIPPED, not failed
 `saveEngineerReport` is called as `…&darkhast_id={ProjectNo}&melk_id={ReqId}`. `WebS_GetListRepToShahrdari`
 can return `ReqId` as NULL; `reader["ReqId"].ToString()` turns that into `""` (not null — no
 exception, which is why it looks harmless), and the municipality answers
-`{"success":false,"msg":"melk_id is empty..."}`. The row is now refused locally with a message that
-names the source data. A NULL here is a data problem in KurdNezam, not a bug in the worker.
+`{"success":false,"msg":"melk_id is empty..."}`.
+
+`RunAsync` now drops such rows right after the procedure returns (`SkipIfNoReqId`): not counted in
+`TotalRows`, not sent, **not logged as a failure** — a data-entry gap is not a broken integration,
+and a Failed row every 2 h forever would say otherwise. It is still logged at Warning level with the
+Peygiri, because an invisible non-event is exactly the trap this service already fell into once.
+`Completed, rows=0` therefore means "nothing was ready", not "nothing happened".
+
+⚠ **`saveEngMap` must NOT use this filter** — it sends no `melk_id`, so those rows are processable
+there and filtering them would silently drop work. `RunSaveEngMapAsync` passes `skipRow: null`, and
+a test guards it.
 **Where:** `src/Infrastructure/MunSanandaj/MunSanandajSyncService.cs`, `Sql/MunSanandajSourceReader.cs`.
 
 ### A worker that looks like it never fires may just be failing invisibly

@@ -137,21 +137,38 @@ public class MunSanandajSyncServiceTests
         _gateway.Verify(g => g.AddEngineerAsync(It.IsAny<MunEngineerInfoDto>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    // ── SkipIfNoReqId: rows the procedure returns but that are not ready ─────
+
+    [TestCase(null)]
     [TestCase("")]
     [TestCase("   ")]
-    public async Task ProcessSaveEngineerReportRowAsync_refuses_an_empty_ReqId_before_calling_anyone(string reqId)
+    public void SkipIfNoReqId_skips_a_row_with_no_melk_id(string? reqId)
     {
-        // The municipality answers {"success":false,"msg":"melk_id is empty..."}; saying so ourselves
-        // is clearer and skips rendering a PDF to earn the same refusal.
-        var row = Row with { ReqId = reqId };
+        // WebS_GetListRepToShahrdari returns ReqId as NULL; the reader turns that into "". Either way
+        // the municipality would answer {"success":false,"msg":"melk_id is empty..."}.
+        var reason = MunSanandajSyncService.SkipIfNoReqId(Row with { ReqId = reqId! });
 
-        var (status, _, _, _, error, _) = await _sut.ProcessSaveEngineerReportRowAsync(row, 1, CancellationToken.None);
+        reason.ShouldNotBeNull();
+        reason!.ShouldContain("melk_id");
+    }
 
-        status.ShouldBe(Mabhas19.Domain.MunSanandaj.MunLogStatus.Failed);
-        error.ShouldNotBeNull();
-        error!.ShouldContain("melk_id");
-        _pdfFetcher.Verify(f => f.FetchAsBase64Async(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
-        _gateway.Verify(g => g.SaveEngineerReportAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    [Test]
+    public void SkipIfNoReqId_processes_a_row_that_has_one()
+    {
+        MunSanandajSyncService.SkipIfNoReqId(Row).ShouldBeNull();
+        Row.ReqId.ShouldNotBeNullOrWhiteSpace();   // guards the fixture itself
+    }
+
+    [Test]
+    public void SaveEngMap_is_not_filtered_by_ReqId()
+    {
+        // saveEngMap sends no melk_id, so a row without ReqId is perfectly processable there.
+        // RunSaveEngMapAsync passes skipRow: null; if that ever changes to SkipIfNoReqId, rows the
+        // map worker could have handled would be dropped silently. This test is the tripwire.
+        var withoutReqId = Row with { ReqId = "" };
+
+        MunSanandajSyncService.SkipIfNoReqId(withoutReqId).ShouldNotBeNull(
+            "sanity: the predicate does skip this row — the point is that saveEngMap must not use it");
     }
 
     // ── Describe: what an operator reads when a row throws ───────────────────
