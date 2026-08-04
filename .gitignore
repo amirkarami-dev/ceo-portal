@@ -17,7 +17,11 @@
 mono_crash.*
 
 # Build results
-tools/
+# `tools/` comes from the Visual Studio template, where it means NuGet package tooling. It has to
+# stay `tools/*` rather than `tools/` so git still descends into the folder — a directory that is
+# excluded outright cannot be re-included by a negation below.
+tools/*
+!tools/harness-ui/
 [Dd]ebug/
 [Dd]ebugPublic/
 [Rr]elease/
@@ -524,3 +528,6 @@ $RECYCLE.BIN/
 
 # TypeScript incremental build state (emitted by `tsc -b`)
 *.tsbuildinfo
+
+# harness-ui: generated page (data/ IS committed — it is the durable record)
+tools/harness-ui/out/
