@@ -271,6 +271,37 @@ remove the Sider from the flex row entirely. Also set `min-width: 0` on the main
 otherwise a wide table expands that child and pushes the mobile menu trigger off-screen.
 **Where:** `analytics-web/src/layout/AppLayout.tsx`, `Topbar.tsx`, `Sidebar.tsx`.
 
+### `.catch(() => setError("ورود ناموفق بود"))` hides the only sentence that explains the failure
+**Symptom:** a user whose service access was revoked lands on `/auth/callback`, sees a generic
+"login failed", presses «تلاش دوباره», and loops forever.
+**Cause, part 1:** the callback discarded its argument AND the query string. The IdP had already put
+the reason in the URL — `error=access_denied&error_description=شما به این سرویس دسترسی ندارید.`
+**Cause, part 2:** the retry navigated to `/login` → `signinRedirect()` → the IdP still held a valid
+SSO cookie → same refusal. Nothing cleared the session, so retrying could never succeed.
+**Fix:** capture `window.location.search` **before** `signinRedirectCallback()` (it consumes the
+URL), show `error_description`, and make the button `removeUser()` + `signoutRedirect()`.
+**Where:** `src/auth/oidc.ts` + `src/auth/routes.tsx` in all 8 SPAs — there is no shared package.
+
+### This IdP ignored `prompt=login` entirely
+**Symptom:** a "sign in as someone else" button that reuses the existing session anyway.
+**Cause:** `AuthorizationController.Authorize()` never read the prompt parameter — zero references
+to `HasPromptValue` or `Prompts`.
+**Fix:** if authenticated and `prompt=login`, `signInManager.SignOutAsync()` then re-challenge — and
+**strip `prompt` from the returnUrl**, or the login page posts back, signs the freshly-authenticated
+user out again, and loops in a new way.
+**Where:** `src/Auth/Auth/AuthorizationController.cs`.
+
+### Every SPA silently renews, so an authorize-time rule change bites in ~30 minutes
+**Symptom (anticipated, avoided):** tightening the service-grant gate looks like it will take effect
+"at next login". It does not.
+**Cause:** all 8 SPAs set `automaticSilentRenew: true` and only 2 request `offline_access`, so six of
+them re-hit `connect/authorize` every access-token lifetime (30 min, `src/Auth/Program.cs`).
+**Also:** `AdminController.CreateUser` writes grants unconditionally, so every admin created through
+the panel with service boxes ticked already has a NON-EMPTY grant list and would be gated at once.
+**Fix:** never ship a gate and its grants in one deploy. Backfill the grant, verify, then gate. And
+never map `admin-web` in `ClientToKey` — it is the screen that repairs a mistake, and there is no
+`admin` key in `ServiceKeys.All` to grant anyway.
+
 ### A table that always scrolls but pins its actions column *conditionally*
 **Symptom:** on a phone the ویرایش and حذف buttons are 500-740px past the edge of the screen. The
 table scrolls, so they are reachable — after dragging the whole row across.

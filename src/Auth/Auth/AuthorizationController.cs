@@ -6,6 +6,7 @@ using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Primitives;
 using OpenIddict.Abstractions;
 using OpenIddict.Server.AspNetCore;
 using static OpenIddict.Abstractions.OpenIddictConstants;
@@ -45,6 +46,30 @@ public class AuthorizationController(
 
         var returnUrl = Request.PathBase + Request.Path + QueryString.Create(
             Request.HasFormContentType ? Request.Form : Request.Query);
+
+        // prompt=login means "ask for credentials even if a session already exists". Without this
+        // the parameter is silently ignored, and the "ورود با حساب دیگر" button on a service the
+        // user has no grant for would bounce straight off the still-valid SSO cookie and be refused
+        // again — the exact loop that button exists to break. Sign the cookie out and fall into the
+        // unauthenticated path below, which routes to the right login screen for this client.
+        if (result.Succeeded && request.HasPromptValue(PromptValues.Login))
+        {
+            await signInManager.SignOutAsync();
+
+            // The prompt must not survive into returnUrl, or the login page would post back here,
+            // sign the freshly-authenticated user out again, and loop.
+            var query = Request.HasFormContentType ? Request.Form : (IEnumerable<KeyValuePair<string, StringValues>>)Request.Query;
+            var withoutPrompt = QueryString.Create(query
+                .Where(p => !string.Equals(p.Key, Parameters.Prompt, StringComparison.Ordinal))
+                .SelectMany(p => p.Value.Select(v => new KeyValuePair<string, string?>(p.Key, v))));
+
+            return Challenge(
+                authenticationSchemes: IdentityConstants.ApplicationScheme,
+                properties: new AuthenticationProperties
+                {
+                    RedirectUri = Request.PathBase + Request.Path + withoutPrompt
+                });
+        }
 
         if (!result.Succeeded)
         {

@@ -4,7 +4,7 @@ import { Button, Card, Result, Spin, Typography } from "antd";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "./useAuth";
 import type { AppRole, Permission } from "@/contracts/rbac";
-import { getUserManager } from "./oidc";
+import { getUserManager, readCallbackError, signOutAndRestart, type CallbackFailure } from "./oidc";
 
 const useMock = (import.meta.env.VITE_AUTH_MODE ?? "mock") === "mock";
 
@@ -47,7 +47,7 @@ export function LoginScreen() {
 
 export function OidcCallback() {
   const navigate = useNavigate();
-  const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<CallbackFailure | null>(null);
   const { t } = useTranslation();
   const ran = useRef(false);
   useEffect(() => {
@@ -61,16 +61,33 @@ export function OidcCallback() {
       navigate("/dashboards", { replace: true });
       return;
     }
+    // Read before signinRedirectCallback() consumes the URL — the IdP's real reason
+    // («شما به این سرویس دسترسی ندارید.») lives in its query string.
+    const search = window.location.search;
     getUserManager()
       .signinRedirectCallback()
       .then(() => {
         // The stored user is picked up live by AuthProvider's addUserLoaded subscription.
         navigate("/dashboards", { replace: true });
       })
-      .catch(() => setError(t("auth.callbackError")));
+      .catch(() => setFailure(readCallbackError(search)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  if (error) return <Result status="error" title={error} />;
+  if (failure) {
+    return (
+      <Result
+        status={failure.isAccessDenied ? "403" : "error"}
+        // The IdP's own Persian sentence beats the generic key when it sent one.
+        title={failure.isAccessDenied ? "به این سرویس دسترسی ندارید" : t("auth.callbackError")}
+        subTitle={failure.message ?? undefined}
+        extra={
+          <Button type="primary" onClick={() => void signOutAndRestart()}>
+            {failure.isAccessDenied ? "ورود با حساب دیگر" : "تلاش دوباره"}
+          </Button>
+        }
+      />
+    );
+  }
   return <Spin tip={t("auth.signingIn")} fullscreen />;
 }
 

@@ -3,7 +3,7 @@ import { Navigate, Outlet, useNavigate } from "react-router-dom";
 import { Button, Card, Result, Spin, Tooltip, Typography, theme } from "antd";
 import { BulbFilled, BulbOutlined, LoginOutlined } from "@ant-design/icons";
 import { useAuth } from "./useAuth";
-import { getUserManager } from "./oidc";
+import { getUserManager, readCallbackError, signOutAndRestart, type CallbackFailure } from "./oidc";
 import { useThemeMode } from "../theme/useThemeMode";
 
 export function LoginScreen() {
@@ -84,19 +84,35 @@ function ScreenShell({ children }: { children: React.ReactNode }) {
 
 export function OidcCallback() {
   const navigate = useNavigate();
-  const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<CallbackFailure | null>(null);
   const ran = useRef(false);
 
   useEffect(() => {
     if (ran.current) return;
     ran.current = true;
+    // Read before signinRedirectCallback() — it consumes the URL, and the only useful sentence
+    // («شما به این سرویس دسترسی ندارید.») is in its query string.
+    const search = window.location.search;
     getUserManager()
       .signinRedirectCallback()
       .then(() => navigate("/", { replace: true }))
-      .catch(() => setError("ورود ناموفق بود"));
+      .catch(() => setFailure(readCallbackError(search)));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (error) return <Result status="error" title={error} />;
+  if (failure) {
+    return (
+      <Result
+        status={failure.isAccessDenied ? "403" : "error"}
+        title={failure.isAccessDenied ? "به این سرویس دسترسی ندارید" : "ورود ناموفق بود"}
+        subTitle={failure.message ?? undefined}
+        extra={
+          <Button type="primary" onClick={() => void signOutAndRestart()}>
+            {failure.isAccessDenied ? "ورود با حساب دیگر" : "تلاش دوباره"}
+          </Button>
+        }
+      />
+    );
+  }
   return <Spin tip="در حال ورود…" fullscreen />;
 }
 

@@ -3,7 +3,7 @@ import { Navigate, Outlet, useNavigate } from "react-router-dom";
 import { Button, Card, Result, Space, Spin, Tooltip, Typography, theme } from "antd";
 import { BulbFilled, BulbOutlined, LoginOutlined, LogoutOutlined } from "@ant-design/icons";
 import { useAuth } from "./useAuth";
-import { getUserManager } from "./oidc";
+import { getUserManager, readCallbackError, signOutAndRestart, type CallbackFailure } from "./oidc";
 import { useUiStore } from "@/store/ui";
 
 /** Full-height wrapper that paints the themed layout background behind standalone screens. */
@@ -80,7 +80,7 @@ export function LoginScreen() {
 
 export function OidcCallback() {
   const navigate = useNavigate();
-  const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<CallbackFailure | null>(null);
   const ran = useRef(false);
 
   useEffect(() => {
@@ -88,21 +88,25 @@ export function OidcCallback() {
     // "No matching state" and flashes a bogus error.
     if (ran.current) return;
     ran.current = true;
+    // Read before signinRedirectCallback() — it consumes the URL, and the only useful sentence
+    // («شما به این سرویس دسترسی ندارید.») is in its query string.
+    const search = window.location.search;
     getUserManager()
       .signinRedirectCallback()
       .then(() => navigate("/", { replace: true }))
-      .catch(() => setError("ورود ناموفق بود"));
+      .catch(() => setFailure(readCallbackError(search)));
   }, [navigate]);
 
-  if (error) {
+  if (failure) {
     return (
       <ScreenShell>
         <Result
-          status="error"
-          title={error}
+          status={failure.isAccessDenied ? "403" : "error"}
+          title={failure.isAccessDenied ? "به این سرویس دسترسی ندارید" : "ورود ناموفق بود"}
+          subTitle={failure.message ?? undefined}
           extra={
-            <Button type="primary" onClick={() => navigate("/login", { replace: true })}>
-              تلاش دوباره
+            <Button type="primary" onClick={() => void signOutAndRestart()}>
+              {failure.isAccessDenied ? "ورود با حساب دیگر" : "تلاش دوباره"}
             </Button>
           }
         />
