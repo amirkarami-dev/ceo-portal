@@ -1,3 +1,4 @@
+using System.Security.Authentication;
 using Mabhas19.Application.Common.Interfaces;
 using Mabhas19.Application.Common.Interfaces.MunSanandaj;
 using Mabhas19.Infrastructure.MunSanandaj;
@@ -134,5 +135,51 @@ public class MunSanandajSyncServiceTests
         status.ShouldBe(Mabhas19.Domain.MunSanandaj.MunLogStatus.Failed);
         error.ShouldBe("Call to a member function toArray() on null");
         _gateway.Verify(g => g.AddEngineerAsync(It.IsAny<MunEngineerInfoDto>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    // ── Describe: what an operator reads when a row throws ───────────────────
+    //
+    // A throwing row used to vanish — the run showed Failed with 0 successes and 0 failures and no
+    // log line at all. It is now recorded as a normal failure, and Describe writes the reason. The
+    // reason that matters is almost never the outer message.
+
+    [Test]
+    public void Describe_keeps_the_inner_reason_not_just_the_generic_outer_message()
+    {
+        // The real shape of the failure that hid an expired certificate for two weeks.
+        var ex = new HttpRequestException(
+            "The SSL connection could not be established, see inner exception.",
+            new AuthenticationException(
+                "The remote certificate is invalid because of errors in the certificate chain: NotTimeValid"));
+
+        var text = MunSanandajSyncService.Describe(ex);
+
+        text.ShouldContain("NotTimeValid");
+        text.ShouldContain("HttpRequestException");
+        text.ShouldContain("AuthenticationException");
+    }
+
+    [Test]
+    public void Describe_walks_the_whole_chain()
+    {
+        var ex = new InvalidOperationException("outer",
+            new InvalidOperationException("middle",
+                new InvalidOperationException("innermost")));
+
+        MunSanandajSyncService.Describe(ex).ShouldBe(
+            "InvalidOperationException: outer -> InvalidOperationException: middle -> InvalidOperationException: innermost");
+    }
+
+    [Test]
+    public void Describe_fits_the_ErrorMessage_column()
+    {
+        // MunReportLog.ErrorMessage is nvarchar(1000); an over-long message must be truncated here
+        // rather than blowing up SaveChanges and losing the log row we are trying to write.
+        var ex = new InvalidOperationException(new string('x', 5000));
+
+        var text = MunSanandajSyncService.Describe(ex);
+
+        text.Length.ShouldBe(1000);
+        text.ShouldEndWith("...");
     }
 }

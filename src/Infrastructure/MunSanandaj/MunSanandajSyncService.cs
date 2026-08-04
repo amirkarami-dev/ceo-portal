@@ -73,7 +73,25 @@ internal sealed class MunSanandajSyncService : IMunSanandajSyncService
 
                 var attemptNumber = (latestAttempt?.AttemptNumber ?? 0) + 1;
                 var startedAt = DateTimeOffset.UtcNow;
-                var result = await processRow(row, attemptNumber, ct);
+
+                RowResult result;
+                try
+                {
+                    result = await processRow(row, attemptNumber, ct);
+                }
+                catch (Exception ex) when (!ct.IsCancellationRequested)
+                {
+                    // A row that THROWS must be recorded like a row that returns Failed, and must not
+                    // abandon the rows after it. Without this the exception escapes to the outer catch:
+                    // the run is marked Failed with TotalRows=1, SuccessCount=0 AND FailedCount=0, and
+                    // no log row is ever written — so the dashboard shows a failed run containing
+                    // nothing, with the reason only in the container log. That is what an expired TLS
+                    // certificate on the PDF host looked like from 21 Jul to 04 Aug 2026: sixty runs,
+                    // zero rows, no visible cause. Compare "pdf not found", which is a returned Failed
+                    // and has always been visible.
+                    _logger.LogError(ex, "MunSanandaj {WorkerType} row {Peygiri} threw", workerType, row.Peygiri);
+                    result = RowResult.Failed(attemptNumber, Describe(ex));
+                }
 
                 _context.MunReportLogs.Add(new MunReportLog
                 {
@@ -113,6 +131,22 @@ internal sealed class MunSanandajSyncService : IMunSanandajSyncService
         }
 
         return run.RunId;
+    }
+
+    /// <summary>
+    /// Flattens an exception chain into one line that fits <c>MunReportLog.ErrorMessage</c>
+    /// (nvarchar(1000)). The outer message is usually generic — "The SSL connection could not be
+    /// established, see inner exception" — and the useful part ("the remote certificate is invalid
+    /// … NotTimeValid") is two levels down, so the inner messages are what the operator needs.
+    /// </summary>
+    internal static string Describe(Exception ex)
+    {
+        var parts = new List<string>();
+        for (var e = ex; e is not null; e = e.InnerException)
+            parts.Add($"{e.GetType().Name}: {e.Message}");
+
+        var text = string.Join(" -> ", parts);
+        return text.Length <= 1000 ? text : text[..997] + "...";
     }
 
     /// <summary>Internal (not private) so unit tests can exercise the addEngineer-then-retry

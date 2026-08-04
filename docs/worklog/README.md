@@ -22,6 +22,7 @@ Also, when a task teaches something reusable:
 
 | Date | Record | Area | Status |
 |---|---|---|---|
+| 2026-08-04 | [MunSanandaj: sixty failed runs that left no evidence](2026-08-04-mun-sanandaj-silent-failure.md) | mun-sanandaj | code fix **live**; blocked on an expired cert we don't control |
 | 2026-08-04 | [Access step 2: administrators are gated by the services they were assigned](2026-08-04-service-gating.md) | auth / admin-web / all 8 SPAs | **shipped and verified live**; 16/16 new tests |
 | 2026-08-04 | [Access step 1: a working `SuperUser` role](2026-08-04-superuser-role.md) | auth / api / all 8 SPAs | **shipped and verified live**; inert until step 2 gates |
 | 2026-08-04 | [The access-denied login loop, and the reason nobody could see](2026-08-04-access-denied-loop.md) | auth / all 8 SPAs | **fixed and deployed**; service-grant half staged |

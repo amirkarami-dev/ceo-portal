@@ -678,6 +678,22 @@ containers you already have. `CeoDb` + `CeoAuthDb` live in `mabhas19_sqldata`.
   that embeds it rebuilt.
 - **Never restart the shared Docker daemon or Traefik** — other production stacks run there.
 
+### `TotalRows=1, SuccessCount=0, FailedCount=0` means a row THREW, not that nothing happened
+In the MunSanandaj sync workers a row that *returns* `Failed` is logged and counted; a row that
+*throws* used to escape to the run-level catch, so the run was marked `Failed` with counters that
+cannot add up and **no `mun_report_logs` row at all** — the dashboard showed a failed run containing
+nothing, and the reason lived only in the container log. That is how an expired TLS certificate on
+`eservice.kurdnezam.ir` hid for 14 days and 60 runs. `processRow` is now wrapped per row. If you see
+counters that don't sum to `TotalRows`, look for an exception, not for missing data.
+**Where:** `src/Infrastructure/MunSanandaj/MunSanandajSyncService.cs`.
+
+### A worker that looks like it never fires may just be failing invisibly
+`SaveEngineerReportWorker` is `do { … } while (await timer.WaitForNextTickAsync(...))`, so it runs
+**once at startup** and then every `MunSanandaj:IntervalHours`. Every container restart therefore
+fires an extra run. Before concluding a schedule is broken, check `mun_sync_runs.TriggeredBy` and the
+gaps between `StartedAt` — the rows are there even when nothing visible came of them.
+**Where:** `src/Infrastructure/MunSanandaj/SaveEngineerReportWorker.cs`.
+
 ## IP cameras / VMS
 
 - **`ffmpeg` reads stdin, and that will eat your script.** Remote work here runs `bash -s` with the
