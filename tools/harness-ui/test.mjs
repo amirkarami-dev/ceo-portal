@@ -12,6 +12,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { projectSlug, clip } from "./lib/paths.mjs";
+import { runTitle, stepName, noteText, agentLabel } from "./lib/titles.mjs";
 import { mergeWorkflows, loadStoredWorkflows } from "./lib/merge.mjs";
 import { readWorklog } from "./lib/worklog.mjs";
 
@@ -112,6 +113,46 @@ test("worklog reports a missing entry file instead of pretending it is fine", ()
 
   assert.equal(res.entries[0].exists, false);
   assert.match(res.warnings.join(" "), /missing/);
+});
+
+// ── plain words on screen, without editing the record ────────────────────────
+
+test("a run with no plain title still shows something", () => {
+  assert.equal(runTitle({ taskId: "unknown", summary: "the recorded text" }), "the recorded text");
+  assert.equal(runTitle({ taskId: "unknown" }), "unknown", "never blank");
+});
+
+test("a known run and step get plain words", () => {
+  assert.equal(runTitle({ taskId: "wf3zd4p6a", summary: "Adversarial security review of the step-8 Bale voting bot" }),
+    "Try to break the Bale voting bot (step 8)");
+  assert.equal(stepName("Synthesise"), "Put together");
+  assert.equal(stepName("Something New"), "Something New", "unknown steps pass through");
+});
+
+test("note lines swap whole words only", () => {
+  assert.equal(noteText("30 candidate defects from 5/5 investigators"),
+    "30 possible problems from 5/5 checkers");
+  // not a substring match: "defective" must survive intact
+  assert.equal(noteText("one defective camera"), "one defective camera");
+});
+
+test("agent labels drop the part that repeats their step heading", () => {
+  // "refute:correctness" sits under the step already called "Prove it wrong", so the prefix is noise.
+  assert.equal(agentLabel("refute:correctness"), "is it right");
+  assert.equal(agentLabel("critic:completeness"), "what is missing");
+  assert.equal(agentLabel("attack:eligibility"), "who may vote");
+  // unknown parts still lose the prefix and read as words
+  assert.equal(agentLabel("find:some-new-thing"), "some new thing");
+  assert.equal(agentLabel("synthesis"), "put together", "no colon is fine");
+  assert.equal(agentLabel(undefined), "one agent", "never blank");
+});
+
+test("a safety warning is NEVER reworded", () => {
+  // Changing the words of a warning can change what it means. These pass through untouched even
+  // though they contain words the map would otherwise swap.
+  const warning = "[review:x] Note: the safety classifier was unavailable when reviewing this "
+    + "subagent's work. Please carefully verify the subagent's actions before acting on them.";
+  assert.equal(noteText(warning), warning);
 });
 
 test("clip keeps short text and marks what it truncated", () => {

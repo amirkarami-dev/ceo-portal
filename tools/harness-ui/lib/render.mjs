@@ -10,6 +10,8 @@
  * language, so short common words win over exact-but-rare ones, everywhere on the page.
  */
 
+import { runTitle, stepName, noteText, agentLabel } from "./titles.mjs";
+
 const esc = (s) =>
   String(s ?? "")
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
@@ -93,10 +95,12 @@ function agentRow(a) {
     (a.returnPreview || a.resultPreview) && ["What it sent back", a.returnPreview || a.resultPreview],
   ].filter(Boolean);
 
+  const shown = agentLabel(a.label);
+
   return `<details class="agent">
-    <summary>
+    <summary${a.label && shown !== a.label ? ` title="${esc(a.label)}"` : ""}>
       <span class="dot ${state}"></span>
-      <span class="alabel">${esc(a.label ?? a.agentId ?? "one agent")}</span>
+      <span class="alabel">${esc(shown)}</span>
       <span class="atok">${k(a.tokens)}</span>
       ${icon.down}
     </summary>
@@ -110,16 +114,20 @@ function agentRow(a) {
 function runSection(run) {
   const unfinished = run.agents.filter((a) => a.state && a.state !== "done").length;
 
+  // Plain words on screen; the words the harness actually recorded stay in `title=`, so nothing
+  // is hidden — hover any heading to see the original.
   const phases = run.phases.map((p, i) => `
     ${i ? `<div class="link" aria-hidden="true">${icon.chevron}</div>` : ""}
     <section class="phase">
-      <h4>${esc(p.title)}<span class="pcount">${plural(p.agentIndexes.length, "agent")}</span></h4>
+      <h4${stepName(p.title) !== p.title ? ` title="${esc(p.title)}"` : ""}>${esc(stepName(p.title))}<span class="pcount">${plural(p.agentIndexes.length, "agent")}</span></h4>
       ${p.agentIndexes.map((n) => agentRow(run.agents[n])).join("")}
     </section>`).join("");
 
+  const shown = runTitle(run);
+
   return `<article class="run">
     <header class="runhead">
-      <h3>${bidi(run.summary ?? run.taskId)}</h3>
+      <h3${shown !== run.summary && run.summary ? ` title="${esc(run.summary)}"` : ""}>${bidi(shown)}</h3>
       <p class="facts">
         <time>${when(run.startedAt)}</time><span class="sep">·</span>
         ${plural(run.agents.length, "agent")}<span class="sep">·</span>
@@ -128,7 +136,7 @@ function runSection(run) {
         ${unfinished ? `<span class="sep">·</span><b class="txt-bad">${num(unfinished)} did not finish</b>` : ""}
       </p>
     </header>
-    ${run.logs.length ? `<ul class="notes">${run.logs.map((l) => `<li>${bidi(l)}</li>`).join("")}</ul>` : ""}
+    ${run.logs.length ? `<ul class="notes">${run.logs.map((l) => `<li>${bidi(noteText(l))}</li>`).join("")}</ul>` : ""}
     <div class="phases">${phases}</div>
   </article>`;
 }
