@@ -1,4 +1,4 @@
-# Kurdnezam portal dock: welfare first, uniform tiles, no mobile rail
+# Kurdnezam portal dock: welfare first, same-size tiles, no mobile rail
 
 - **Date:** 2026-07-27
 - **Area:** kurdnezam-web

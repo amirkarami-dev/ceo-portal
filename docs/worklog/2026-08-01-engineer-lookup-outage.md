@@ -1,4 +1,4 @@
-# Outage: every engineer was told they were not an engineer
+# Down: every engineer was told they were not an engineer
 
 - **Date:** 2026-08-01
 - **Area:** welfare / elections / rooms — the shared engineer directory

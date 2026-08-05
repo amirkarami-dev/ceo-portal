@@ -1,4 +1,4 @@
-# MunSanandaj: sixty failed runs that left no evidence, and the expired certificate behind them
+# MunSanandaj: 60 runs failed and showed no reason, and the expired certificate behind them
 
 **Date:** 2026-08-04
 **Area:** mun-sanandaj (api worker)

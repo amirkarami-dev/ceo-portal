@@ -1,12 +1,13 @@
 /**
  * Model → one self-contained HTML page.
  *
- * Deliberately plain: step 2 proves the data reads correctly, step 3 is the design pass. What is
- * NOT deferred is honesty — a failed reader shows as a failed reader, a snapshot says when it was
- * taken, and nothing is drawn that the data does not support.
+ * Operate surface: someone opens this to answer "what did the AI do, and what is still not
+ * finished". Scanning beats expression, so the page keeps one type family, one accent, and a
+ * status vocabulary that never changes meaning. No CDN, no fetched fonts — it opens from disk with
+ * no network.
  *
- * Self-contained on purpose: inline CSS and JS, no CDN, no fonts fetched. The page has to open from
- * disk with no network.
+ * Words are kept simple on purpose. The person reading this does not have English as a first
+ * language, so short common words win over exact-but-rare ones, everywhere on the page.
  */
 
 const esc = (s) =>
@@ -17,257 +18,394 @@ const esc = (s) =>
 const num = (n) => (n ?? 0).toLocaleString("en-US");
 const k = (n) => (n >= 1_000_000 ? `${(n / 1e6).toFixed(1)}M` : n >= 1000 ? `${Math.round(n / 1000)}k` : String(n ?? 0));
 const mb = (n) => `${(n / 1024 / 1024).toFixed(1)} MB`;
+const plural = (n, one, many = one + "s") => `${num(n)} ${n === 1 ? one : many}`;
 
 function dur(ms) {
   if (!ms) return "—";
   const s = Math.round(ms / 1000);
-  if (s < 60) return `${s}s`;
+  if (s < 60) return `${s} sec`;
   const m = Math.floor(s / 60);
-  return s % 60 ? `${m}m ${s % 60}s` : `${m}m`;
+  return s % 60 ? `${m} min ${s % 60} sec` : `${m} min`;
 }
 
-const when = (ms) => (ms ? new Date(ms).toISOString().slice(0, 16).replace("T", " ") : "unknown");
+const when = (ms) => (ms ? new Date(ms).toISOString().slice(0, 16).replace("T", " ") : "time not known");
 
-/** Persian and English sit side by side in this data; let the browser decide direction per string. */
+/** Persian and English sit side by side in this data; let the browser pick direction per string. */
 const bidi = (s) => `<span dir="auto">${esc(s)}</span>`;
 
-// ── panels ───────────────────────────────────────────────────────────────────
+/** Drawn, not a text glyph — one stroke weight shared by every icon on the page. */
+const icon = {
+  chevron: `<svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>`,
+  down: `<svg class="ic caret" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6.5 8 10.5 12 6.5"/></svg>`,
+};
 
-function sourceChips(sources) {
+// ── header ───────────────────────────────────────────────────────────────────
+
+/**
+ * Model keys are code names. On screen they get plain words — "nonWorkflowOutputs" tells a reader
+ * nothing, and leaving it there is the same jargon leak `clarify` exists to stop.
+ */
+const COUNT_LABEL = {
+  runs: "runs", agents: "agents",
+  taskOutputs: "task files", nonWorkflowOutputs: "not workflows",
+  entries: "entries", withOpenItems: "have jobs left", openItems: "jobs left",
+  facts: "notes", feedback: "about how I work", project: "about the project",
+  user: "about you", reference: "links",
+  skills: "skills", workflowScripts: "scripts",
+  sessions: "chat files", totalBytes: "size",
+};
+
+function sourceRows(sources) {
   return sources.map((s) => {
     const counts = Object.entries(s.counts)
-      .map(([key, v]) => `${esc(key)} ${key === "totalBytes" ? mb(v) : num(v)}`)
-      .join(" · ");
-    const warn = s.warnings.length ? ` title="${esc(s.warnings.join(" | "))}"` : "";
-    return `<div class="chip ${s.ok ? "" : "bad"}"${warn}>
-      <b>${esc(s.id)}</b>${s.volatile ? '<i class="vol" title="read from %TEMP% — mirrored into data/">volatile</i>' : ""}
-      <span>${counts || "—"}</span>
-      ${s.warnings.length ? `<i class="warn">${s.warnings.length} note${s.warnings.length > 1 ? "s" : ""}</i>` : ""}
+      .map(([key, v]) => `${esc(COUNT_LABEL[key] ?? key)} <b>${key === "totalBytes" ? mb(v) : num(v)}</b>`)
+      .join("<span class=\"sep\">·</span>");
+
+    const notes = s.warnings.length
+      ? `<p class="note">${s.warnings.map(esc).join("<br>")}</p>`
+      : "";
+
+    return `<div class="src${s.ok ? "" : " is-bad"}">
+      <div class="srchead">
+        <span class="dot ${s.ok ? "ok" : "bad"}"></span>
+        <b class="srcname">${esc(s.id)}</b>
+        ${s.volatile ? '<span class="tag" title="Read from the temp folder. Windows can delete it, so a copy is kept in data/.">from temp</span>' : ""}
+      </div>
+      <p class="counts">${counts || "nothing"}</p>
+      ${notes}
     </div>`;
   }).join("");
 }
 
-function agentNode(a) {
-  const state = a.state === "done" ? "ok" : a.state === "error" ? "bad" : "other";
-  const body = [
-    a.model && `<div><b>model</b> ${esc(a.model)}</div>`,
-    `<div><b>state</b> ${esc(a.state ?? "?")}${a.attempt > 1 ? ` (attempt ${a.attempt})` : ""}</div>`,
-    `<div><b>cost</b> ${num(a.tokens)} tokens · ${num(a.toolCalls)} tool calls · ${dur(a.durationMs)}</div>`,
-    a.lastToolName && `<div><b>last tool</b> ${esc(a.lastToolName)}</div>`,
-    a.promptPreview && `<div class="pre"><b>prompt</b>\n${esc(a.promptPreview)}</div>`,
-    (a.returnPreview || a.resultPreview) &&
-      `<div class="pre"><b>returned</b>${a.returnedStructured ? " (structured)" : ""}\n${esc(a.returnPreview || a.resultPreview)}</div>`,
-  ].filter(Boolean).join("");
+// ── flow ─────────────────────────────────────────────────────────────────────
 
-  return `<details class="agent ${state}">
-    <summary><span class="dot"></span><span class="lbl">${esc(a.label ?? a.agentId ?? "agent")}</span><span class="tok">${k(a.tokens)}</span></summary>
-    <div class="agentbody">${body}</div>
+function agentRow(a) {
+  const state = a.state === "done" ? "ok" : a.state === "error" ? "bad" : "warn";
+  const rows = [
+    a.model && ["model", esc(a.model)],
+    ["result", `${esc(a.state ?? "not known")}${a.attempt > 1 ? ` · try ${a.attempt}` : ""}`],
+    ["used", `${num(a.tokens)} tokens · ${plural(a.toolCalls, "tool call")} · ${dur(a.durationMs)}`],
+    a.lastToolName && ["last tool", esc(a.lastToolName)],
+  ].filter(Boolean);
+
+  const blocks = [
+    a.promptPreview && ["What it was asked", a.promptPreview],
+    (a.returnPreview || a.resultPreview) && ["What it sent back", a.returnPreview || a.resultPreview],
+  ].filter(Boolean);
+
+  return `<details class="agent">
+    <summary>
+      <span class="dot ${state}"></span>
+      <span class="alabel">${esc(a.label ?? a.agentId ?? "one agent")}</span>
+      <span class="atok">${k(a.tokens)}</span>
+      ${icon.down}
+    </summary>
+    <div class="adetail">
+      <dl>${rows.map(([t, v]) => `<dt>${t}</dt><dd>${v}</dd>`).join("")}</dl>
+      ${blocks.map(([t, v]) => `<figure><figcaption>${t}</figcaption><pre>${esc(v)}</pre></figure>`).join("")}
+    </div>
   </details>`;
 }
 
-function runCard(run) {
-  const phases = run.phases.map((p) => `
-    <div class="phase">
-      <h4>${esc(p.title)} <span>${p.agentIndexes.length}</span></h4>
-      ${p.agentIndexes.map((i) => agentNode(run.agents[i])).join("")}
-    </div>`).join('<div class="arrow" aria-hidden="true">→</div>');
+function runSection(run) {
+  const unfinished = run.agents.filter((a) => a.state && a.state !== "done").length;
 
-  const failed = run.agents.filter((a) => a.state && a.state !== "done").length;
+  const phases = run.phases.map((p, i) => `
+    ${i ? `<div class="link" aria-hidden="true">${icon.chevron}</div>` : ""}
+    <section class="phase">
+      <h4>${esc(p.title)}<span class="pcount">${plural(p.agentIndexes.length, "agent")}</span></h4>
+      ${p.agentIndexes.map((n) => agentRow(run.agents[n])).join("")}
+    </section>`).join("");
 
   return `<article class="run">
-    <header>
-      <div>
-        <h3>${esc(run.summary ?? run.taskId)}</h3>
-        <p class="meta">${when(run.startedAt)} · ${run.agents.length} agents · ${k(run.totalTokens)} tokens ·
-           ${num(run.totalToolCalls)} tool calls · ${dur((run.endedAt ?? 0) - (run.startedAt ?? 0))}
-           ${failed ? `· <b class="bad-txt">${failed} not done</b>` : ""}</p>
-      </div>
-      <code>${esc(run.taskId)}</code>
+    <header class="runhead">
+      <h3>${bidi(run.summary ?? run.taskId)}</h3>
+      <p class="facts">
+        <time>${when(run.startedAt)}</time><span class="sep">·</span>
+        ${plural(run.agents.length, "agent")}<span class="sep">·</span>
+        ${k(run.totalTokens)} tokens<span class="sep">·</span>
+        ${dur((run.endedAt ?? 0) - (run.startedAt ?? 0))}
+        ${unfinished ? `<span class="sep">·</span><b class="txt-bad">${num(unfinished)} did not finish</b>` : ""}
+      </p>
     </header>
-    ${run.logs.length ? `<ul class="logs">${run.logs.map((l) => `<li>${bidi(l)}</li>`).join("")}</ul>` : ""}
+    ${run.logs.length ? `<ul class="notes">${run.logs.map((l) => `<li>${bidi(l)}</li>`).join("")}</ul>` : ""}
     <div class="phases">${phases}</div>
   </article>`;
 }
 
 function flowPanel(runs) {
   if (!runs.length) {
-    return `<p class="empty">No workflow runs recorded yet. Runs appear here after a Workflow completes —
-      and stay here even once %TEMP% is cleared, because they are mirrored into <code>data/</code>.</p>`;
+    return `<div class="blank">
+      <p><b>No workflow has run yet.</b></p>
+      <p>When one finishes it shows up here — and it stays, even after Windows clears the temp folder,
+         because a copy is saved in <code>data/</code>.</p>
+    </div>`;
   }
-  return runs.map(runCard).join("");
+  return runs.map(runSection).join("");
 }
 
-function historyPanel(entries) {
-  if (!entries.length) return `<p class="empty">No worklog entries parsed from <code>docs/worklog/README.md</code>.</p>`;
+// ── work log ─────────────────────────────────────────────────────────────────
 
-  return entries.map((e) => `
-    <div class="entry${e.exists ? "" : " missing"}">
-      <time>${esc(e.date)}</time>
-      <div class="entrybody">
-        <h4>${bidi(e.title)}${e.exists ? "" : ' <i class="warn">file missing</i>'}</h4>
-        <p class="meta">${bidi(e.area)} · ${bidi(e.status)}</p>
-        ${e.openItems.length ? `<details class="open">
-          <summary>${e.openItems.length} open</summary>
+function logPanel(entries) {
+  if (!entries.length) {
+    return `<div class="blank"><p><b>No work log entries.</b></p>
+      <p>They are read from <code>docs/worklog/README.md</code>.</p></div>`;
+  }
+
+  return `<ol class="log">${entries.map((e) => `
+    <li class="item${e.exists ? "" : " is-bad"}">
+      <time datetime="${esc(e.date)}">${esc(e.date)}</time>
+      <div class="itembody">
+        <h4>${bidi(e.title)}${e.exists ? "" : ' <span class="tag bad">file not found</span>'}</h4>
+        <p class="facts">${bidi(e.area)}<span class="sep">·</span>${bidi(e.status)}</p>
+        ${e.openItems.length ? `<details class="todo">
+          <summary>${plural(e.openItems.length, "job")} still to do ${icon.down}</summary>
           <ul>${e.openItems.map((i) => `<li>${bidi(i)}</li>`).join("")}</ul>
         </details>` : ""}
       </div>
-      <code>${esc(e.file)}</code>
-    </div>`).join("");
+      <code class="path">${esc(e.file)}</code>
+    </li>`).join("")}</ol>`;
 }
 
-function statePanel(model) {
+// ── what is set up ───────────────────────────────────────────────────────────
+
+function setupPanel(model) {
   const byType = {};
   for (const f of model.memory) (byType[f.type] ??= []).push(f);
 
   const memory = Object.entries(byType).map(([type, facts]) => `
-    <div class="grp">
-      <h4>${esc(type)} <span>${facts.length}</span></h4>
-      ${facts.map((f) => `<details class="fact">
-        <summary>${bidi(f.name)}</summary>
-        <div class="agentbody">
-          <div>${bidi(f.description)}</div>
-          ${f.links.length ? `<div><b>links</b> ${f.links.map((l) => `<code>${esc(l)}</code>`).join(" ")}</div>` : ""}
-          <div class="pre">${esc(f.excerpt)}</div>
+    <section class="grp">
+      <h4>${esc(type)} notes<span class="pcount">${num(facts.length)}</span></h4>
+      ${facts.map((f) => `<details class="agent">
+        <summary><span class="alabel">${bidi(f.name)}</span>${icon.down}</summary>
+        <div class="adetail">
+          <p>${bidi(f.description)}</p>
+          ${f.links.length ? `<p class="facts">points to ${f.links.map((l) => `<code>${esc(l)}</code>`).join(" ")}</p>` : ""}
+          <figure><pre>${esc(f.excerpt)}</pre></figure>
         </div>
       </details>`).join("")}
-    </div>`).join("");
+    </section>`).join("");
 
-  const list = (title, items) => `
-    <div class="grp">
-      <h4>${esc(title)} <span>${items.length}</span></h4>
-      ${items.length ? `<ul class="plain">${items.map((i) => `<li><code>${esc(i)}</code></li>`).join("")}</ul>`
-                     : `<p class="empty small">none</p>`}
-    </div>`;
+  const list = (title, items, empty) => `
+    <section class="grp">
+      <h4>${esc(title)}<span class="pcount">${num(items.length)}</span></h4>
+      ${items.length
+        ? `<ul class="tags">${items.map((i) => `<li><code>${esc(i)}</code></li>`).join("")}</ul>`
+        : `<p class="facts">${esc(empty)}</p>`}
+    </section>`;
 
   const bytes = model.sessions.reduce((s, x) => s + x.bytes, 0);
 
-  return `<div class="cols">
-    ${memory || '<p class="empty">No memory files.</p>'}
-    ${list("skills", model.config.skills)}
-    ${list("agents", model.config.agents)}
-    ${list("workflow scripts", model.config.workflowScripts.map((w) => w.name))}
-    <div class="grp">
-      <h4>sessions <span>${model.sessions.length}</span></h4>
-      <p class="meta">${mb(bytes)} of transcripts. Counted, never read — they are far too large to render.</p>
-    </div>
+  return `<div class="grid">
+    ${memory || '<section class="grp"><h4>notes<span class="pcount">0</span></h4><p class="facts">None saved yet.</p></section>'}
+    ${list("skills", model.config.skills, "None in .claude/skills.")}
+    ${list("agents", model.config.agents, "None in .claude/agents.")}
+    ${list("workflow scripts", model.config.workflowScripts.map((w) => w.name), "None saved yet.")}
+    <section class="grp">
+      <h4>chat files<span class="pcount">${num(model.sessions.length)}</span></h4>
+      <p class="facts">${mb(bytes)} in total. Only counted — they are far too big to show here.</p>
+    </section>
   </div>`;
 }
 
-// ── page ─────────────────────────────────────────────────────────────────────
+// ── styles ───────────────────────────────────────────────────────────────────
 
 const CSS = `
-:root{--bg:#fbfbfa;--panel:#fff;--ink:#1b1b19;--dim:#6b6a66;--line:#e6e5e1;--ok:#2f7d63;--bad:#b0413e;--other:#9a7b32;--accent:#2f5d7d}
-@media(prefers-color-scheme:dark){:root{--bg:#16171a;--panel:#1d1f23;--ink:#e8e8e6;--dim:#9a9a95;--line:#2c2f35;--ok:#5fbf9c;--bad:#e2807d;--other:#d4ac5a;--accent:#7fb3d5}}
+:root{
+  --bg:#faf9f7; --sunk:#f2f0eb; --ink:#191917; --dim:#57564f; --line:#e2e0d9;
+  --ok:#1d6a4e; --bad:#9c2f2b; --warn:#7a5a12; --accent:#1f5f4b;
+  --focus:#1f5f4b;
+  --r:10px;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#141518; --sunk:#1b1d21; --ink:#eae9e5; --dim:#a5a49d; --line:#2b2e34;
+    --ok:#6fc79f; --bad:#ef8a86; --warn:#d9b45f; --accent:#7fc7ad;
+    --focus:#7fc7ad;
+  }
+}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.55 ui-sans-serif,system-ui,"Segoe UI",Roboto,sans-serif}
-.wrap{max-width:1180px;margin:0 auto;padding:28px 20px 80px}
-h1{font-size:20px;margin:0 0 2px}
-h2{font-size:15px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin:36px 0 12px;font-weight:600}
-h3{font-size:15px;margin:0 0 2px}
-h4{font-size:13px;margin:0 0 8px;display:flex;align-items:center;gap:6px}
-/* Count badge — scoped, NOT \`h4 span\`: worklog titles wrap their text in a <span dir="auto"> for
-   mixed Persian/English, and a blanket rule turned every entry title into a grey pill. */
-.phase>h4>span,.grp>h4>span{background:var(--line);border-radius:20px;padding:1px 7px;font-size:11px;color:var(--dim)}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font:15px/1.6 ui-sans-serif,system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  font-variant-numeric:tabular-nums;
+}
+.wrap{max-width:1120px;margin:0 auto;padding:40px 24px 96px}
+
+h1{font-size:1.5rem;line-height:1.25;margin:0;letter-spacing:-.01em}
+h2{font-size:1.05rem;margin:0;letter-spacing:-.005em}
+h3{font-size:1.05rem;line-height:1.35;margin:0;letter-spacing:-.005em;max-width:62ch}
+h4{font-size:.8125rem;margin:0 0 10px;display:flex;align-items:baseline;gap:8px;
+   text-transform:uppercase;letter-spacing:.07em;color:var(--dim);font-weight:650}
 p{margin:0}
-code{font:11.5px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--dim);white-space:nowrap}
-.meta{color:var(--dim);font-size:12.5px}
-.small{font-size:12px}
-.empty{color:var(--dim);background:var(--panel);border:1px dashed var(--line);border-radius:10px;padding:16px}
-.bad-txt{color:var(--bad)}
-.warn{color:var(--other);font-style:normal;font-size:11px;background:color-mix(in srgb,var(--other) 15%,transparent);border-radius:5px;padding:1px 5px}
-.vol{color:var(--accent);font-style:normal;font-size:10px;border:1px solid var(--accent);border-radius:5px;padding:0 4px}
+b{font-weight:650}
+code{font:.75rem/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.sep{color:var(--line);margin:0 .5em}
+.facts{color:var(--dim);font-size:.8125rem}
+.txt-bad{color:var(--bad)}
+.pcount{margin-left:auto;font-weight:450;letter-spacing:0;text-transform:none;font-size:.75rem}
 
-header.top{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px}
-.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
-.chip{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--ok);border-radius:8px;padding:7px 11px;font-size:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.chip.bad{border-left-color:var(--bad)}
-.chip span{color:var(--dim)}
+.ic{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.75;
+    stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
 
-.run{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
-.run>header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:12px}
-.logs{margin:0 0 12px;padding-left:18px;color:var(--dim);font-size:12.5px}
-.phases{display:flex;gap:10px;align-items:flex-start;overflow-x:auto;padding-bottom:4px}
-.phase{flex:1 1 0;min-width:190px;background:color-mix(in srgb,var(--line) 30%,transparent);border-radius:10px;padding:10px}
-.arrow{color:var(--dim);align-self:center;flex:0 0 auto}
+/* status vocabulary — one meaning per colour, everywhere on the page */
+.dot{width:7px;height:7px;border-radius:50%;background:var(--dim);flex:0 0 auto}
+.dot.ok{background:var(--ok)} .dot.bad{background:var(--bad)} .dot.warn{background:var(--warn)}
 
-.agent{border:1px solid var(--line);background:var(--panel);border-radius:8px;margin-bottom:6px}
-.agent>summary{cursor:pointer;padding:6px 9px;display:flex;align-items:center;gap:7px;font-size:12.5px;list-style:none}
+/* header */
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:28px;flex-wrap:wrap}
+.top .facts{margin-top:4px}
+.srcs{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1px;
+      background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin:26px 0 8px}
+.src{background:var(--bg);padding:12px 14px}
+.srchead{display:flex;align-items:center;gap:7px}
+.srcname{font-size:.8125rem}
+.counts{color:var(--dim);font-size:.75rem;margin-top:3px}
+.counts b{color:var(--ink);font-weight:600}
+.tag{font-size:.6875rem;color:var(--dim);border:1px solid var(--line);border-radius:5px;padding:1px 6px;margin-left:auto}
+.tag.bad{color:var(--bad);border-color:currentColor;margin-left:0}
+.note{font-size:.75rem;color:var(--warn);margin-top:6px;max-width:52ch}
+.src.is-bad .srcname{color:var(--bad)}
+
+/* section headings */
+.band{display:flex;align-items:baseline;gap:12px;margin:52px 0 16px;padding-bottom:9px;border-bottom:1px solid var(--line)}
+.band p{color:var(--dim);font-size:.8125rem}
+
+/* flow — sections on the page, never boxes inside boxes */
+.run{padding:22px 0;border-top:1px solid var(--line)}
+.run:first-of-type{border-top:0;padding-top:4px}
+.runhead .facts{margin-top:5px}
+.notes{margin:12px 0 0;padding-left:18px;color:var(--dim);font-size:.8125rem;max-width:78ch}
+.notes li{margin-bottom:3px}
+/* This text comes out of files, so it can hold a long command or path with nothing to break on.
+   Two of them ran 460px wide on a 375px screen before this. */
+.notes li,.todo li,.item h4,.adetail dd{overflow-wrap:anywhere}
+.phases{display:flex;gap:18px;align-items:flex-start;margin-top:16px}
+.phase{flex:1 1 0;min-width:0}
+.phase h4{padding-bottom:7px;border-bottom:1px solid var(--line)}
+/* Carries real information — the steps run in this order — so it has to be readable, not a hint. */
+.link{align-self:center;color:var(--dim);opacity:.6;display:flex;padding-top:22px}
+
+/* one row style, reused by agents and notes — same shape everywhere */
+.agent{border-bottom:1px solid var(--line)}
+.agent:last-child{border-bottom:0}
+.agent>summary{
+  display:flex;align-items:center;gap:9px;cursor:pointer;list-style:none;
+  padding:9px 4px;font-size:.8125rem;border-radius:6px;
+  transition:background .12s ease-out,color .12s ease-out;
+}
 .agent>summary::-webkit-details-marker{display:none}
-.dot{width:7px;height:7px;border-radius:50%;background:var(--other);flex:0 0 auto}
-.agent.ok .dot{background:var(--ok)} .agent.bad .dot{background:var(--bad)}
-.lbl{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tok{color:var(--dim);font-size:11px}
-.agentbody{padding:2px 10px 10px;font-size:12.5px;display:grid;gap:6px;border-top:1px solid var(--line)}
-.agentbody b{color:var(--dim);font-weight:600;margin-right:5px}
-.pre{white-space:pre-wrap;word-break:break-word;font:11.5px ui-monospace,SFMono-Regular,Menlo,monospace;background:color-mix(in srgb,var(--line) 35%,transparent);border-radius:6px;padding:8px;max-height:230px;overflow:auto}
+.agent>summary:hover{background:var(--sunk)}
+.agent>summary:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+.agent[open]>summary{color:var(--ink)}
+.alabel{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.atok{color:var(--dim);font-size:.75rem}
+.caret{color:var(--dim);transition:transform .15s ease-out}
+.agent[open]>summary .caret{transform:rotate(180deg)}
+.adetail{padding:2px 4px 14px}
+.adetail dl{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin:0 0 10px;font-size:.8125rem}
+.adetail dt{color:var(--dim)}
+.adetail dd{margin:0}
+figure{margin:0 0 8px}
+figcaption{font-size:.75rem;color:var(--dim);margin-bottom:4px}
+pre{
+  margin:0;white-space:pre-wrap;word-break:break-word;
+  font:.75rem/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  background:var(--sunk);border-radius:8px;padding:10px 12px;max-height:240px;overflow:auto;
+}
 
-.entry{display:grid;grid-template-columns:92px 1fr auto;gap:12px;align-items:start;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:11px 13px;margin-bottom:7px}
-.entry.missing{border-color:var(--bad)}
-.entry time{color:var(--dim);font:11.5px ui-monospace,monospace;padding-top:2px}
-.entry h4{margin:0 0 2px;font-size:13.5px;font-weight:600}
-.open>summary{cursor:pointer;color:var(--other);font-size:12px;margin-top:5px}
-.open ul{margin:6px 0 0;padding-left:18px;color:var(--dim);font-size:12.5px}
-.open li{margin-bottom:3px}
+/* work log — a real timeline, not a stack of cards */
+.log{list-style:none;margin:0;padding:0}
+.item{display:grid;grid-template-columns:88px minmax(0,1fr) auto;gap:16px;align-items:baseline;
+      padding:13px 4px;border-top:1px solid var(--line)}
+.item:first-child{border-top:0}
+.item:hover{background:var(--sunk)}
+.item>time{color:var(--dim);font-size:.75rem;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.item h4{font-size:.9375rem;text-transform:none;letter-spacing:0;color:var(--ink);
+         font-weight:600;margin:0 0 2px;display:block;max-width:66ch}
+.item.is-bad h4{color:var(--bad)}
+.path{color:var(--dim);white-space:nowrap;font-size:.6875rem}
+.todo>summary{display:inline-flex;align-items:center;gap:6px;cursor:pointer;list-style:none;
+              color:var(--warn);font-size:.8125rem;margin-top:6px;border-radius:6px;padding:2px 4px}
+.todo>summary::-webkit-details-marker{display:none}
+.todo>summary:hover{background:var(--sunk)}
+.todo>summary:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+.todo[open]>summary .caret{transform:rotate(180deg)}
+.todo ul{margin:7px 0 2px;padding-left:18px;color:var(--dim);font-size:.8125rem;max-width:76ch}
+.todo li{margin-bottom:5px}
 
-.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;align-items:start}
-.grp{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:13px}
-.fact>summary{cursor:pointer;font-size:12.5px;padding:4px 0}
-ul.plain{margin:0;padding-left:16px}
-ul.plain li{margin-bottom:3px}
+/* what is set up */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:26px 32px;align-items:start}
+.grp h4{border-bottom:1px solid var(--line);padding-bottom:7px}
+ul.tags{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+ul.tags code{border:1px solid var(--line);border-radius:6px;padding:2px 7px;color:var(--dim)}
 
-@media(max-width:640px){
-  .wrap{padding:18px 13px 60px}
-  .entry{grid-template-columns:1fr;gap:5px}
-  .entry code,.run>header code{display:none}
-  .phases{flex-direction:column}
-  .arrow{transform:rotate(90deg);align-self:flex-start}
-  /* <summary> is the only thing you tap here, and they measured 19-31px tall. 44px is the floor. */
-  .agent>summary,.open>summary,.fact>summary{min-height:44px;display:flex;align-items:center;gap:7px}
-  .agentbody{font-size:13px}
+.blank{border:1px dashed var(--line);border-radius:var(--r);padding:20px;color:var(--dim);max-width:64ch}
+.blank b{color:var(--ink)}
+.blank p+p{margin-top:5px}
+
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+
+@media(max-width:760px){
+  .wrap{padding:24px 16px 64px}
+  .phases{display:block}
+  .phase+.phase,.phase{margin-top:18px}
+  .link{display:none}
+  .band{display:block;margin:40px 0 14px}
+  .band p{margin-top:3px}
+  .item{grid-template-columns:1fr;gap:2px}
+  .item>time{font-size:.6875rem}
+  .path{display:none}
+  /* <summary> is the only thing you tap here; they measured 19–31px before this rule. */
+  .agent>summary,.todo>summary{min-height:44px}
+  .adetail dl{grid-template-columns:1fr;gap:0 0}
+  .adetail dt{margin-top:6px}
 }`;
 
+// ── page ─────────────────────────────────────────────────────────────────────
+
 export function renderPage(model) {
-  const totals = {
-    runs: model.workflows.length,
-    agents: model.workflows.reduce((s, r) => s + r.agents.length, 0),
-    tokens: model.workflows.reduce((s, r) => s + (r.totalTokens ?? 0), 0),
-    open: model.worklog.reduce((s, e) => s + e.openItems.length, 0),
-  };
+  const agents = model.workflows.reduce((s, r) => s + r.agents.length, 0);
+  const tokens = model.workflows.reduce((s, r) => s + (r.totalTokens ?? 0), 0);
+  const todo = model.worklog.reduce((s, e) => s + e.openItems.length, 0);
+  const readAt = model.generatedAt.slice(0, 16).replace("T", " ");
 
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>harness — ${esc(model.project.slug)}</title>
+<title>AI work — ${esc(model.project.slug)}</title>
 <style>${CSS}</style>
 </head>
 <body>
-<div class="wrap">
+<main class="wrap">
 
 <header class="top">
   <div>
-    <h1>Harness operations</h1>
-    <p class="meta">${esc(model.project.root)}</p>
+    <h1>AI work in this project</h1>
+    <p class="facts">${esc(model.project.root)}</p>
   </div>
   <div>
-    <p class="meta">snapshot taken ${esc(model.generatedAt)}</p>
-    <p class="meta">${totals.runs} runs · ${totals.agents} agents · ${k(totals.tokens)} tokens · ${totals.open} open threads</p>
+    <p class="facts">read at ${esc(readAt)}</p>
+    <p class="facts">${plural(model.workflows.length, "run")}<span class="sep">·</span>${plural(agents, "agent")}<span class="sep">·</span>${k(tokens)} tokens<span class="sep">·</span>${plural(todo, "job")} still to do</p>
   </div>
 </header>
 
-<div class="chips">${sourceChips(model.sources)}</div>
+<div class="srcs">${sourceRows(model.sources)}</div>
+<p class="facts">This page is a copy taken at the time above. Reload to read the folders again.</p>
 
-<h2>Flow</h2>
+<div class="band"><h2>Workflow runs</h2><p>Each run, the steps it had, and every agent inside it.</p></div>
 ${flowPanel(model.workflows)}
 
-<h2>History</h2>
-${historyPanel(model.worklog)}
+<div class="band"><h2>Work log</h2><p>One line per finished job, newest first, with what is left.</p></div>
+${logPanel(model.worklog)}
 
-<h2>State</h2>
-${statePanel(model)}
+<div class="band"><h2>What is set up</h2><p>Saved notes, skills, agents and scripts this project can use.</p></div>
+${setupPanel(model)}
 
-</div>
+</main>
 </body>
 </html>
 `;

@@ -75,7 +75,12 @@ A panel that quietly empties is the exact failure this repo already paid for onc
 `nonWorkflowOutputs` is **not** an error. `tasks/` holds the output of every background task; a
 plain Bash task writes raw stdout there. Those are counted, not warned about.
 
-## Still to do
+## Words on this page
 
-Step 3 is the design pass (`impeccable`). Deliberately not done yet — designing against data you
-have not proven is how a dashboard ends up pretty and wrong.
+Plain words, always. The person reading this does not have English as a first language, so short
+common words beat exact-but-rare ones. Model keys are code names and get a label before they are
+shown: `nonWorkflowOutputs` becomes "not workflows", `withOpenItems` becomes "have jobs left". The
+map is `COUNT_LABEL` in `lib/render.mjs`.
+
+This applies to what the tool *reads* too. Work-log titles and workflow descriptions show up here
+word for word, so write those in plain words as well.

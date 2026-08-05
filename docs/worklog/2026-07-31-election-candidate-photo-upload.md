@@ -1,4 +1,4 @@
-# Election step 10: candidate photos upload to object storage
+# Election step 10: candidate photos go to file storage
 
 - **Date:** 2026-07-31
 - **Area:** election (API + `election-web`)

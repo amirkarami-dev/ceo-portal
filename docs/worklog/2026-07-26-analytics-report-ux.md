@@ -1,4 +1,4 @@
-# Analytics report metadata and navigation UX
+# Analytics: report details and easier menus
 
 - **Date:** 2026-07-26
 - **Area:** analytics

@@ -1,4 +1,4 @@
-# Agent instruction refresh and local stack bring-up
+# New agent instructions, and starting the stack locally
 
 - **Date:** 2026-07-27
 - **Area:** docs / local dev

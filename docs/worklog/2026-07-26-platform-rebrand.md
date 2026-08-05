@@ -1,4 +1,4 @@
-# MyCEO platform rebrand and host cutover
+# MyCEO: new name and a move to a new host
 
 - **Date:** 2026-07-26
 - **Area:** infra

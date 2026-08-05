@@ -1,4 +1,4 @@
-# The access-denied login loop, and the reason nobody could see
+# The login loop after access is removed, and why the reason was hidden
 
 - **Date:** 2026-08-04
 - **Area:** all 8 SPAs (`src/auth/`), `src/Auth/Auth/AuthorizationController.cs`

@@ -1,4 +1,4 @@
-# Access step 2: administrators are gated by the services they were assigned
+# Access step 2: an admin only gets the services you give them
 
 **Date:** 2026-08-04
 **Area:** auth (IdP) / admin-web / all 8 SPAs
