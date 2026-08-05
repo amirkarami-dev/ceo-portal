@@ -90,7 +90,7 @@ Triggered on production after deploying:
   municipality accepts an empty `reqId` is a separate question that cannot be answered until the
   certificate is renewed and a row actually reaches them.
 
-## Follow-up the same day: getting past the certificate
+## Getting past the certificate (same day)
 
 Asked to fall back to plain HTTP when TLS fails. **That cannot work** — measured, not assumed:
 

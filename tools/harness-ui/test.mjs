@@ -76,7 +76,8 @@ test("worklog pulls out open threads and ignores prose", () => {
       "## What changed",
       "- this is not an open item",
       "## Left to do",
-      "- **Renew** the `certificate`",
+      "- **Renew** the `certificate` on the host,",
+      "  then flip the switch back off",
       "- Populate [ReqId](x.md)",
       "  - a sub-bullet is detail, not a thread",
       "## Notes",
@@ -93,9 +94,12 @@ test("worklog pulls out open threads and ignores prose", () => {
   assert.equal(res.entries[0].area, "auth");
   assert.equal(res.entries[1].status, "done", "markdown emphasis is stripped");
 
-  // Markdown is stripped so the text reads as a plain thread, and only the two top-level bullets
-  // under "Left to do" count.
-  assert.deepEqual(res.entries[0].openItems, ["Renew the certificate", "Populate ReqId"]);
+  // Markdown is stripped, a WRAPPED bullet is folded back into one item, a nested bullet is not an
+  // item of its own, and only bullets under "Left to do" count.
+  assert.deepEqual(res.entries[0].openItems, [
+    "Renew the certificate on the host, then flip the switch back off",
+    "Populate ReqId",
+  ]);
   assert.deepEqual(res.entries[1].openItems, ["one leftover"], "'Not done' counts as open too");
   assert.equal(res.counts.openItems, 3);
 });

@@ -1,18 +1,21 @@
 #!/usr/bin/env node
 /**
- * Harness operations UI — step 1: readers and the data model. No page yet.
+ * Harness operations UI.
  *
- *   node tools/harness-ui/build.mjs           read everything, merge into data/, print a summary
+ *   node tools/harness-ui/build.mjs           read, merge into data/, write out/index.html
  *   node tools/harness-ui/build.mjs --json    print the whole model to stdout
- *   node tools/harness-ui/build.mjs --quiet   merge only, exit code carries the outcome
+ *   node tools/harness-ui/build.mjs --quiet   no summary; exit code carries the outcome
+ *   node tools/harness-ui/serve.mjs           dev server: rebuilds on every request
  *
  * Design rule taken from docs/design/2026-08-04-harness-ui.md: a broken reader degrades its own
  * section and nothing else, and whatever was skipped is SAID OUT LOUD. A silently empty panel is
  * the failure mode this whole tool exists to prevent.
  */
 import path from "node:path";
+import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolvePaths } from "./lib/paths.mjs";
+import { renderPage } from "./lib/render.mjs";
 import { readWorkflows } from "./lib/workflows.mjs";
 import { readWorklog } from "./lib/worklog.mjs";
 import { readMemory, readConfig, readSessions } from "./lib/state.mjs";
@@ -115,13 +118,28 @@ function report(model) {
   return failed.length === 0;
 }
 
+/** Render the page and return where it landed. Exported so the dev server reuses one code path. */
+export function writePage(model, root = projectRoot) {
+  const { outDir } = resolvePaths(root);
+  const html = renderPage(model);
+  fs.mkdirSync(outDir, { recursive: true });
+  const file = path.join(outDir, "index.html");
+  fs.writeFileSync(file, html, "utf8");
+  return { file, bytes: Buffer.byteLength(html) };
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))) {
   const argv = new Set(process.argv.slice(2));
   const model = collect();
 
   if (argv.has("--json")) {
     console.log(JSON.stringify(model, null, 2));
-  } else if (!argv.has("--quiet")) {
-    if (!report(model)) process.exitCode = 1;
+  } else {
+    const page = writePage(model);
+    if (!argv.has("--quiet")) {
+      const ok = report(model);
+      console.log(`\n  page: ${path.relative(projectRoot, page.file)} (${(page.bytes / 1024).toFixed(0)} KB)`);
+      if (!ok) process.exitCode = 1;
+    }
   }
 }

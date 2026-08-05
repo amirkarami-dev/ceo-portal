@@ -19,35 +19,64 @@ const ROW = /^\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*\[(.+?)\]\((.+?)\)\s*\|(.*?)\|(.*?
 /** Headings that mean "unfinished work lives under here". */
 const OPEN_HEADING = /^#{2,3}\s+(left to do|not done|remaining|todo|follow[- ]?ups?|what(?:'s| is) left|next steps)\b/i;
 
+/** Bold, italic, code and links become plain text — these strings are read, not rendered. */
 const stripMd = (s) =>
   s.replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/(^|[^*])\*([^*]+?)\*/g, "$1$2")
+    .replace(/(^|\s)_([^_]+?)_(?=\s|$)/g, "$1$2")
     .replace(/`(.+?)`/g, "$1")
     .replace(/\[(.+?)\]\((?:.+?)\)/g, "$1")
     .trim();
 
-/** Bullet lines under an "unfinished" heading, until the next heading. */
+/**
+ * Bullet lines under an "unfinished" heading, until the next heading.
+ *
+ * Two things this has to get right, both learned by reading the real files:
+ *
+ * - Only TOP-LEVEL bullets. Markdown nests with two or more spaces, and a sub-bullet is detail
+ *   about the item above it — flattening them turns one thread into three.
+ * - Bullets WRAP. Prose in these worklogs runs to ~100 columns, so most items span several lines;
+ *   taking only the first line truncated them mid-sentence ("Renew the certificate …, then set").
+ *   Continuation lines are folded back in.
+ */
 function openItems(markdown) {
   if (!markdown) return [];
   const items = [];
   let collecting = false;
+  let current = null;
+
+  const flush = () => {
+    if (current) {
+      const text = stripMd(current.replace(/\s+/g, " "));
+      if (text) items.push(text);
+    }
+    current = null;
+  };
 
   for (const raw of markdown.split("\n")) {
     const line = raw.trimEnd();
 
     if (/^#{1,6}\s/.test(line)) {
+      flush();
       collecting = OPEN_HEADING.test(line);
       continue;
     }
     if (!collecting) continue;
 
-    // Top-level bullets only. Markdown nests with two or more spaces, and a sub-bullet is detail
-    // about the item above it — flattening them turns one thread into three.
     const bullet = line.match(/^( *)(?:[-*+]|\d+\.)\s+(.*)$/);
-    if (bullet && bullet[1].length <= 1) {
-      const text = stripMd(bullet[2]);
-      if (text) items.push(text);
+
+    if (bullet) {
+      flush();
+      // A nested bullet ends the current item and contributes nothing of its own.
+      if (bullet[1].length <= 1) current = bullet[2];
+      continue;
     }
+
+    if (line.trim() === "") { flush(); continue; }        // blank line closes the item
+    if (current !== null) current += " " + line.trim();   // wrapped continuation
   }
+
+  flush();
   return items;
 }
 

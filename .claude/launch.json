@@ -249,6 +249,18 @@
       ],
       "port": 8099,
       "autoPort": false
+    },
+    {
+      "name": "harness-ui",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "--watch",
+        "tools/harness-ui/serve.mjs",
+        "--port",
+        "4173"
+      ],
+      "port": 4173,
+      "autoPort": false
     }
   ]
 }
