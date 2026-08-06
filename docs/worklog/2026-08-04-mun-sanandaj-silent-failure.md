@@ -174,13 +174,42 @@ perfectly processable there, and filtering it would silently drop work. `RunSave
 Verified live: the run at 08:48:42 recorded `Completed, rows=0, ok=0, fail=0` with no new log row.
 23/23 MunSanandaj tests pass.
 
+## 2026-08-06: it works, and the certificate is still not replaced
+
+**A report reached the municipality.** On 2026-08-04 20:48:43, Peygiri `90044109090805203651` was
+sent and accepted — the city returned submission number **2620197**, and `WebS_AddSabtNoToReport`
+wrote it back. That is the first success since 2026-07-04, and the first ever through the pinned
+certificate path.
+
+So the whole chain works: PDF downloaded over the expired-but-pinned TLS, rendered to JPG, sent,
+accepted, written back. `WebS_GetListRepToShahrdari` now returns **no rows at all** — the queue is
+empty, which is why recent runs read `Completed, rows=0`.
+
+**The certificate was NOT replaced.** Checked after being told it was renewed:
+
+| | |
+| --- | --- |
+| serial | `4BFAE7F95C3AADE419357D8014682860` |
+| sha256 | `80:82:04:D8:…:CF:DF:3F:CB` — identical to 2026-08-04 |
+| valid | `Jul 21 2025` → `Jul 21 2026` — unchanged |
+| public key | same, so the pin still matches |
+
+It is the same file, not a re-issue. A renewal was probably bought but never installed on
+`185.172.69.253`, or the web server was not reloaded after the file was replaced. Strict HTTPS still
+fails (`status=000`); `curl -k` still returns 200.
+
+Nothing is broken meanwhile — the sync keeps working on the pin. But `MUN_SANANDAJ_ALLOW_EXPIRED_PDF_CERT`
+must stay `true` until the real certificate is in place, and it should be set to `false` the same day
+it is.
+
 ## Left to do
 
-- **Populate `ReqId` in `WebS_GetListRepToShahrdari`.** As of 2026-08-04 08:15 UTC the procedure on
-  `185.10.73.114 / KurdNezam` still returns
-  `90043205090804023803 | 90043205 | - | NULL`. Nothing can be submitted until it has a value.
-- **Renew the certificate on `eservice.kurdnezam.ir`**, then set
-  `MUN_SANANDAJ_ALLOW_EXPIRED_PDF_CERT=false`.
+- ~~**Populate `ReqId` in `WebS_GetListRepToShahrdari`.**~~ **Done.** A row with a real `ReqId` went
+  through on 2026-08-04 and was accepted (submission 2620197). The queue is empty as of 2026-08-06.
+- **Install the renewed certificate on `eservice.kurdnezam.ir`.** Still not done as of 2026-08-06 —
+  the host serves the same expired file, serial `4BFAE7F95C3AADE419357D8014682860`. Once the new one
+  is really in place, set `MUN_SANANDAJ_ALLOW_EXPIRED_PDF_CERT=false` on the same day: the pin will
+  no longer match, so downloads fail closed rather than staying on the weaker path.
 - Consider an `ErrorMessage` column on `mun_sync_runs`: a failure *before* the row loop (e.g. the
   stored procedure itself failing) still leaves a bare "Failed" with no text. Needs a migration, so
   not done here.
