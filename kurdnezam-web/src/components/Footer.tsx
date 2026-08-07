@@ -161,7 +161,23 @@ export default function Footer() {
 
       <div className="border-t border-white/10">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 py-5 text-xs sm:flex-row">
-          <p>{t("footer.rights")}</p>
+          <div className="text-center sm:text-start">
+            <p>{t("footer.rights")}</p>
+            {/* Builder credit. English stays LTR inside this RTL page, and it is not translated —
+                the company name and this wording are the same in every language. */}
+            <p className="mt-1 text-mist/70" dir="ltr">
+              ©&nbsp;2026{" "}
+              <a
+                href="https://japra.ir"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-mist transition-colors hover:text-gold"
+              >
+                JAPRA
+              </a>
+              . All rights reserved.
+            </p>
+          </div>
           <div className="flex items-center gap-4">
             <Link href="/p/tamas" className="hover:text-gold">
               {t("footer.privacy")}

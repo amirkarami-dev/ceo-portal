@@ -22,6 +22,7 @@ Also, when a task teaches something reusable:
 
 | Date | Record | Area | Status |
 |---|---|---|---|
+| 2026-08-07 | [Kurdnezam: builder credit in the footer](2026-08-07-kurdnezam-japra-credit.md) | kurdnezam-web | **live** at kurdnezam.ir |
 | 2026-08-04 | [MunSanandaj: 60 runs failed and showed no reason](2026-08-04-mun-sanandaj-silent-failure.md) | mun-sanandaj | code fix **live**; blocked on an expired cert we don't control |
 | 2026-08-04 | [Access step 2: an admin only gets the services you give them](2026-08-04-service-gating.md) | auth / admin-web / all 8 SPAs | **shipped and verified live**; 16/16 new tests |
 | 2026-08-04 | [Access step 1: a working `SuperUser` role](2026-08-04-superuser-role.md) | auth / api / all 8 SPAs | **shipped and verified live**; does nothing until step 2 turns it on |
