@@ -113,6 +113,10 @@ export interface News {
   unitId?: number | null;
   image: string;
   featured: boolean;
+  /** The form shown at the bottom of the article, if the editor picked one. */
+  formId?: number | null;
+  /** Server-computed, so the table can name the form without a second call. */
+  formTitle?: string | null;
   /** Downloadable files, already ordered by the server. */
   attachments?: NewsAttachment[];
 }
@@ -146,6 +150,8 @@ export interface NewsInput {
    * one here deletes it. Order of the array becomes the display order.
    */
   attachments?: NewsAttachment[];
+  /** Form to show at the bottom of the article. Null or omitted means none. */
+  formId?: number | null;
 }
 
 export interface NewsListParams {
@@ -410,6 +416,35 @@ export interface OrgPageInput {
 
 // ── forms + submissions ──────────────────────────────────────────────────────
 
+/** What a form field can be. Matches `KurdnezamFormFieldKinds` on the server. */
+export type FormFieldKind = "text" | "file";
+
+/** One field of a form. The whole form is built from these — nothing is fixed. */
+export interface SiteFormField {
+  id: number;
+  label: string;
+  kind: FormFieldKind;
+  isRequired: boolean;
+  /** Only meaningful when `kind` is `file`. */
+  allowMultiple: boolean;
+  /** Only meaningful when `kind` is `text`. */
+  maxLength?: number | null;
+  help?: string | null;
+  sortOrder: number;
+}
+
+/** `id: 0` means a field that does not exist yet. */
+export interface SiteFormFieldInput {
+  id: number;
+  label: string;
+  kind: FormFieldKind;
+  isRequired: boolean;
+  allowMultiple: boolean;
+  maxLength?: number | null;
+  help?: string | null;
+  sortOrder: number;
+}
+
 /** Named `SiteForm` (not `Form`) so pages can `import { Form } from "antd"` without a clash. */
 export interface SiteForm {
   id: number;
@@ -419,9 +454,12 @@ export interface SiteForm {
   deadline: string;
   image: string;
   isOpen: boolean;
+  /** Shown after a good save. Empty means the site uses its own wording. */
+  successMessage: string;
   sortOrder: number;
   /** Server-computed. */
   submissionCount: number;
+  fields: SiteFormField[];
 }
 
 export interface SiteFormInput {
@@ -430,21 +468,38 @@ export interface SiteFormInput {
   deadline: string;
   image: string;
   isOpen: boolean;
+  successMessage: string;
   sortOrder: number;
+  fields: SiteFormFieldInput[];
+}
+
+/** What a member typed into one field. */
+export interface FormAnswer {
+  fieldId: number;
+  /** The label as it read when this was sent — the field may since have been removed. */
+  fieldLabel: string;
+  text: string;
+}
+
+/** A file a member attached. There is no URL: downloads go through the admin-only route. */
+export interface FormAttachment {
+  id: number;
+  fieldId: number;
+  fieldLabel: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
 }
 
 export interface FormSubmission {
   id: number;
   formId: number;
   formTitle?: string | null;
-  fullName: string;
-  nationalId: string;
-  membershipNo: string;
-  mobile: string;
-  notes?: string | null;
   isHandled: boolean;
   /** ISO-8601. */
   created: string;
+  answers: FormAnswer[];
+  attachments: FormAttachment[];
 }
 
 export interface SubmissionListParams {

@@ -63,6 +63,8 @@ public class GetKurdnezamNewsQueryHandler(IApplicationDbContext context)
                 UnitId = n.UnitId,
                 Image = n.Image,
                 Featured = n.Featured,
+                FormId = n.FormId,
+                FormTitle = n.Form!.Title,
                 Attachments = n.Attachments
                     .OrderBy(a => a.SortOrder)
                     .Select(a => new KurdnezamNewsAttachmentDto
@@ -113,6 +115,8 @@ public class GetKurdnezamNewsByIdQueryHandler(IApplicationDbContext context)
                 UnitId = n.UnitId,
                 Image = n.Image,
                 Featured = n.Featured,
+                FormId = n.FormId,
+                FormTitle = n.Form!.Title,
                 Attachments = n.Attachments
                     .OrderBy(a => a.SortOrder)
                     .Select(a => new KurdnezamNewsAttachmentDto

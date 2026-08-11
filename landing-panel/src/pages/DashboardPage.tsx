@@ -250,7 +250,11 @@ export function DashboardPage() {
                       avatar={<Avatar icon={<UserOutlined />} />}
                       title={
                         <Space size={8} wrap>
-                          <Typography.Text strong>{s.fullName}</Typography.Text>
+                          {/* Forms no longer share a fixed set of fields, so the first answer
+                              stands in for a name — whatever that form happened to ask first. */}
+                          <Typography.Text strong>
+                            {s.answers?.[0]?.text || `ثبت‌نام #${s.id}`}
+                          </Typography.Text>
                           {s.isHandled ? (
                             <Tag color="green">بررسی‌شده</Tag>
                           ) : (
@@ -260,7 +264,8 @@ export function DashboardPage() {
                       }
                       description={
                         <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                          {s.formTitle || "فرم نامشخص"} · {s.mobile || "—"} ·{" "}
+                          {s.formTitle || "فرم نامشخص"}
+                          {s.attachments?.length ? ` · ${s.attachments.length} فایل` : ""} ·{" "}
                           {formatDateTime(s.created)}
                         </Typography.Text>
                       }

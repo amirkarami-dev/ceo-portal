@@ -1,4 +1,4 @@
-import { api, qs, uploadMedia, mediaUrl, KURDNEZAM_PREFIX } from "./client";
+import { api, qs, uploadMedia, mediaUrl, downloadProtectedFile, KURDNEZAM_PREFIX } from "./client";
 import type {
   Category,
   CategoryInput,
@@ -198,6 +198,14 @@ export const submissionsApi = {
   setHandled: (id: number, isHandled: boolean): Promise<void> =>
     api.put(`${P}/forms/submissions/${id}/handled`, { isHandled }),
   remove: (id: number): Promise<void> => api.del(`${P}/forms/submissions/${id}`),
+
+  /**
+   * Saves one attachment to the administrator's machine. Not a URL you can put in an `href` —
+   * the route is admin-only, so the bytes are fetched with the access token. See
+   * `downloadProtectedFile`.
+   */
+  downloadAttachment: (attachmentId: number, fileName: string): Promise<void> =>
+    downloadProtectedFile(`${P}/forms/attachments/${attachmentId}`, fileName),
 };
 
 // ── contact messages ─────────────────────────────────────────────────────────

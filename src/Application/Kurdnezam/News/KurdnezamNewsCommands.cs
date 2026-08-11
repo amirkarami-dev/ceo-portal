@@ -23,7 +23,9 @@ public sealed record KurdnezamNewsInput(
     bool Featured,
     int? UnitId = null,
     DateTimeOffset? PublishedAt = null,
-    IReadOnlyList<KurdnezamNewsAttachmentInput>? Attachments = null);
+    IReadOnlyList<KurdnezamNewsAttachmentInput>? Attachments = null,
+    /// <summary>Form to show at the bottom of the article. Null means none.</summary>
+    int? FormId = null);
 
 /// <summary>One file to attach. The bytes are already in storage via /api/kurdnezam/media.</summary>
 public sealed record KurdnezamNewsAttachmentInput(
@@ -55,7 +57,8 @@ public class CreateKurdnezamNewsCommandHandler(IApplicationDbContext context)
             CategoryId = i.CategoryId,
             UnitId = i.UnitId,
             Image = i.Image,
-            Featured = i.Featured
+            Featured = i.Featured,
+            FormId = i.FormId
         };
 
         foreach (var attachment in KurdnezamNewsAttachments.Map(i.Attachments))
@@ -103,6 +106,7 @@ public class UpdateKurdnezamNewsCommandHandler(IApplicationDbContext context)
         entity.UnitId = i.UnitId;
         entity.Image = i.Image;
         entity.Featured = i.Featured;
+        entity.FormId = i.FormId;
 
         if (i.PublishedAt is { } publishedAt)
             entity.PublishedAt = publishedAt;

@@ -167,6 +167,41 @@ export async function uploadMedia(file: File): Promise<MediaUpload> {
 }
 
 /**
+ * Downloads a file that only an administrator may read, and saves it under `fileName`.
+ *
+ * A plain `<a href>` cannot be used: the route requires a Bearer token and a browser will not put
+ * one on a normal navigation. So the bytes are fetched with the token, handed to the page as a blob
+ * and released straight afterwards. This is how form attachments reach an administrator — they have
+ * no public URL at all, because a member may have attached a scan of their national id card.
+ */
+export async function downloadProtectedFile(path: string, fileName: string): Promise<void> {
+  const token = await getAccessToken();
+
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new ApiError(res.status, body, `GET ${path} failed with ${res.status}`);
+  }
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  try {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } finally {
+    // Revoking immediately would race the click on some browsers; a tick is enough.
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+}
+
+/**
  * Resolves a stored image reference to something an <img> can render.
  * - absolute URL            -> unchanged
  * - "/api/kurdnezam/media/…" -> prefixed with the API origin (uploads)

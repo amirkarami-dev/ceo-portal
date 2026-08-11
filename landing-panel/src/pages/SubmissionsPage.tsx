@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { App, Button, Select, Space, Tag, Tooltip, Typography } from "antd";
+import { App, Button, Descriptions, Select, Space, Tag, Tooltip, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { CheckOutlined, DownloadOutlined, UndoOutlined } from "@ant-design/icons";
+import { CheckOutlined, DownloadOutlined, PaperClipOutlined, UndoOutlined } from "@ant-design/icons";
 import { formsApi, submissionsApi } from "@/api/endpoints";
 import type { FormSubmission, Paged, SiteForm, SubmissionListParams } from "@/api/types";
 import { CrudTable, PageHeader } from "@/components/ui";
 import { queryKeys, useApiMutation, useApiQuery } from "@/query";
-import { formatDateTime, formatNumber, truncate } from "@/lib/format";
+import { errorMessage } from "@/api/client";
+import { formatBytes, formatDateTime, formatNumber, truncate } from "@/lib/format";
 
 type HandledFilter = "all" | "handled" | "pending";
 
@@ -17,16 +18,16 @@ const HANDLED_OPTIONS: { value: HandledFilter; label: string }[] = [
   { value: "handled", label: "رسیدگی‌شده" },
 ];
 
-const CSV_HEADERS = [
-  "فرم",
-  "نام و نام خانوادگی",
-  "کد ملی",
-  "شماره عضویت",
-  "موبایل",
-  "توضیحات",
-  "تاریخ ثبت",
-  "وضعیت",
-];
+const CSV_HEADERS = ["فرم", "پاسخ‌ها", "فایل‌ها", "تاریخ ثبت", "وضعیت"];
+
+/** Every form has its own fields, so a submission flattens to "label: value" pairs. */
+function answersText(record: FormSubmission): string {
+  return (record.answers ?? []).map((a) => a.fieldLabel + ": " + a.text).join(" | ");
+}
+
+function filesText(record: FormSubmission): string {
+  return (record.attachments ?? []).map((a) => a.fileName).join(" | ");
+}
 
 /** RFC-4180 cell: wrap in quotes, double any inner quote. */
 function csvCell(value: string): string {
@@ -75,6 +76,24 @@ export function SubmissionsPage() {
   const formTitleOf = (record: FormSubmission): string =>
     record.formTitle ?? forms.find((f) => f.id === record.formId)?.title ?? `فرم #${record.formId}`;
 
+  /** Which attachment is being fetched, so only that button spins. */
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
+
+  /**
+   * The download route is admin-only, so the file cannot be a plain link — the bytes are fetched
+   * with the access token and handed to the browser as a blob. See `downloadProtectedFile`.
+   */
+  const download = async (attachmentId: number, fileName: string) => {
+    setDownloadingId(attachmentId);
+    try {
+      await submissionsApi.downloadAttachment(attachmentId, fileName);
+    } catch (err) {
+      message.error(errorMessage(err, "دریافت فایل ناموفق بود"));
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
   const setHandledMutation = useApiMutation<{ id: number; isHandled: boolean }>({
     mutationFn: ({ id, isHandled }) => submissionsApi.setHandled(id, isHandled),
     invalidate: [queryKeys.submissions.all()],
@@ -118,11 +137,8 @@ export function SubmissionsPage() {
       ...rows.map((r) =>
         [
           formTitleOf(r),
-          r.fullName,
-          r.nationalId,
-          r.membershipNo,
-          r.mobile,
-          r.notes ?? "",
+          answersText(r),
+          filesText(r),
           formatDateTime(r.created),
           r.isHandled ? "رسیدگی‌شده" : "در انتظار",
         ]
@@ -156,60 +172,47 @@ export function SubmissionsPage() {
       ),
     },
     {
-      title: "نام و نام خانوادگی",
-      dataIndex: "fullName",
-      key: "fullName",
-      width: 170,
+      // Every form asks for something different, so there is no fixed set of columns any more.
+      // The first two answers give the row an identity; the rest open below.
+      title: "پاسخ‌ها",
+      key: "answers",
+      render: (_: unknown, record) => {
+        const answers = record.answers ?? [];
+        if (answers.length === 0) {
+          return <Typography.Text type="secondary">—</Typography.Text>;
+        }
+        return (
+          <Space direction="vertical" size={0}>
+            {answers.slice(0, 2).map((a) => (
+              <Typography.Text key={a.fieldId + a.fieldLabel} style={{ fontSize: 13 }}>
+                <Typography.Text type="secondary">{a.fieldLabel}: </Typography.Text>
+                {truncate(a.text, 40)}
+              </Typography.Text>
+            ))}
+            {answers.length > 2 ? (
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                +{formatNumber(answers.length - 2)} مورد دیگر
+              </Typography.Text>
+            ) : null}
+          </Space>
+        );
+      },
     },
     {
-      title: "کد ملی",
-      dataIndex: "nationalId",
-      key: "nationalId",
-      width: 130,
-      render: (value: string) => (
-        <Typography.Text style={{ direction: "ltr", display: "inline-block" }}>
-          {value || "—"}
-        </Typography.Text>
-      ),
-    },
-    {
-      title: "شماره عضویت",
-      dataIndex: "membershipNo",
-      key: "membershipNo",
-      width: 130,
-      render: (value: string) => (
-        <Typography.Text style={{ direction: "ltr", display: "inline-block" }}>
-          {value || "—"}
-        </Typography.Text>
-      ),
-    },
-    {
-      title: "موبایل",
-      dataIndex: "mobile",
-      key: "mobile",
-      width: 130,
-      render: (value: string) =>
-        value ? (
-          <Typography.Link href={`tel:${value}`} style={{ direction: "ltr", display: "inline-block" }}>
-            {value}
-          </Typography.Link>
-        ) : (
+      title: "فایل‌ها",
+      key: "attachments",
+      width: 120,
+      align: "center",
+      render: (_: unknown, record) => {
+        const count = record.attachments?.length ?? 0;
+        return count === 0 ? (
           <Typography.Text type="secondary">—</Typography.Text>
-        ),
-    },
-    {
-      title: "توضیحات",
-      dataIndex: "notes",
-      key: "notes",
-      width: 200,
-      render: (value: string | null) =>
-        value ? (
-          <Tooltip title={value}>
-            <Typography.Text type="secondary">{truncate(value, 40)}</Typography.Text>
-          </Tooltip>
         ) : (
-          <Typography.Text type="secondary">—</Typography.Text>
-        ),
+          <Tag icon={<PaperClipOutlined />} color="blue">
+            {formatNumber(count)}
+          </Tag>
+        );
+      },
     },
     {
       title: "تاریخ ثبت",
@@ -253,6 +256,55 @@ export function SubmissionsPage() {
         error={query.error}
         onRetry={() => void query.refetch()}
         onRefresh={() => void query.refetch()}
+        expandable={{
+          // Only rows that actually have something to show can be opened.
+          rowExpandable: (record) =>
+            (record.answers?.length ?? 0) > 0 || (record.attachments?.length ?? 0) > 0,
+          expandedRowRender: (record) => (
+            <Space direction="vertical" size={12} style={{ width: "100%", paddingInline: 8 }}>
+              {(record.answers?.length ?? 0) > 0 ? (
+                <Descriptions
+                  size="small"
+                  column={1}
+                  bordered
+                  items={(record.answers ?? []).map((a) => ({
+                    key: `${a.fieldId}-${a.fieldLabel}`,
+                    label: a.fieldLabel,
+                    children: a.text || <Typography.Text type="secondary">—</Typography.Text>,
+                  }))}
+                />
+              ) : null}
+
+              {(record.attachments?.length ?? 0) > 0 ? (
+                <div>
+                  <Typography.Text strong style={{ fontSize: 13 }}>
+                    فایل‌های پیوست
+                  </Typography.Text>
+                  <Space direction="vertical" size={4} style={{ width: "100%", marginTop: 6 }}>
+                    {(record.attachments ?? []).map((a) => (
+                      <Space key={a.id} size={8} wrap>
+                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                          {a.fieldLabel}:
+                        </Typography.Text>
+                        <Button
+                          size="small"
+                          icon={<DownloadOutlined />}
+                          loading={downloadingId === a.id}
+                          onClick={() => void download(a.id, a.fileName)}
+                        >
+                          {a.fileName}
+                        </Button>
+                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                          {formatBytes(a.sizeBytes)}
+                        </Typography.Text>
+                      </Space>
+                    ))}
+                  </Space>
+                </div>
+              ) : null}
+            </Space>
+          ),
+        }}
         toolbarExtra={
           <Space wrap>
             <Select<number | undefined>
@@ -291,7 +343,7 @@ export function SubmissionsPage() {
           </Tooltip>
         )}
         onDelete={(record) => removeMutation.mutate(record.id)}
-        deleteConfirmTitle={(record) => `ثبت‌نام «${record.fullName}» حذف شود؟`}
+        deleteConfirmTitle={(record) => `ثبت‌نام «${formTitleOf(record)}» حذف شود؟`}
         deleting={removeMutation.isPending}
         emptyText={
           formId || handled !== "all"

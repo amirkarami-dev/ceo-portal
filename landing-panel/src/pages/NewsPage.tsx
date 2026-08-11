@@ -3,7 +3,7 @@ import { Button, Form, Input, Select, Space, Switch, Tag, Tooltip, Typography } 
 import type { ColumnsType } from "antd/es/table";
 import { PictureOutlined } from "@ant-design/icons";
 import { mediaUrl } from "@/api/client";
-import { categoriesApi, newsApi, unitsApi } from "@/api/endpoints";
+import { categoriesApi, formsApi, newsApi, unitsApi } from "@/api/endpoints";
 import type { News, NewsAttachment, NewsInput, NewsListParams, Paged } from "@/api/types";
 import {
   AttachmentUploader,
@@ -51,6 +51,7 @@ interface NewsFormValues {
   unitId?: number | null;
   image?: string;
   featured: boolean;
+  formId?: number | null;
   attachments?: NewsAttachment[];
 }
 
@@ -141,6 +142,7 @@ export function NewsPage() {
   );
   const categoriesQuery = useApiQuery(queryKeys.categories.list(), categoriesApi.list);
   const unitsQuery = useApiQuery(queryKeys.units.list(), unitsApi.list);
+  const formsQuery = useApiQuery(queryKeys.forms.all(), formsApi.list);
 
   // Keep the previous page on screen while the next one loads (no skeleton flash on paging).
   const previous = useRef<Paged<News> | undefined>(undefined);
@@ -212,6 +214,7 @@ export function NewsPage() {
         unitId: editing.unitId ?? undefined,
         image: editing.image,
         featured: editing.featured,
+        formId: editing.formId ?? undefined,
         attachments: editing.attachments ?? [],
       }
     : { date: todayJalali(), featured: false, attachments: [] };
@@ -227,6 +230,7 @@ export function NewsPage() {
       unitId: values.unitId ?? null,
       image: values.image?.trim() ?? "",
       featured: !!values.featured,
+      formId: values.formId ?? null,
       // Sent in full: the server replaces the article's files with exactly this list.
       attachments: values.attachments ?? [],
     };
@@ -486,6 +490,38 @@ export function NewsPage() {
           extra="خبرهای ویژه در بخش برجستهٔ صفحهٔ اصلی نمایش داده می‌شوند."
         >
           <Switch checkedChildren="بله" unCheckedChildren="خیر" />
+        </Form.Item>
+
+        <Form.Item
+          name="formId"
+          label="فرم پایان خبر (اختیاری)"
+          extra="اگر فرمی انتخاب کنید، در انتهای همین خبر نمایش داده می‌شود و کاربر بدون خروج از صفحه آن را پر می‌کند."
+        >
+          <Select<number>
+            allowClear
+            showSearch
+            optionFilterProp="label"
+            placeholder="بدون فرم"
+            loading={formsQuery.isLoading}
+            notFoundContent={formsQuery.isLoading ? "در حال بارگذاری…" : "فرمی تعریف نشده است"}
+            options={(formsQuery.data ?? []).map((f) => ({
+              value: f.id,
+              label: f.title,
+              // A closed form still appears — an editor may be setting an article up ahead of time —
+              // but it is labelled, so nobody attaches one by accident and wonders why it is inert.
+              title: f.isOpen ? undefined : "این فرم بسته است",
+            }))}
+            optionRender={(option) => {
+              const form = (formsQuery.data ?? []).find((f) => f.id === option.value);
+              return (
+                <Space size={6}>
+                  <span>{option.label}</span>
+                  {form && !form.isOpen ? <Tag color="default">بسته</Tag> : null}
+                  {form && form.fields?.length === 0 ? <Tag color="orange">بدون فیلد</Tag> : null}
+                </Space>
+              );
+            }}
+          />
         </Form.Item>
       </FormDrawer>
     </>

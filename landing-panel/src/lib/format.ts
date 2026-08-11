@@ -32,3 +32,17 @@ export function truncate(text: string | null | undefined, max = 60): string {
   if (!t) return "—";
   return t.length > max ? `${t.slice(0, max)}…` : t;
 }
+
+/**
+ * Persian-digit file size, e.g. "۲٫۴ مگابایت".
+ *
+ * Lived privately in `AttachmentUploader` until form submissions needed it too; moved here rather
+ * than copied so the two never drift apart.
+ */
+export function formatBytes(bytes?: number | null): string {
+  if (!bytes) return "—";
+  const mb = bytes / (1024 * 1024);
+  if (mb >= 1) return `${mb.toLocaleString("fa-IR", { maximumFractionDigits: 1 })} مگابایت`;
+  const kb = Math.max(1, Math.round(bytes / 1024));
+  return `${kb.toLocaleString("fa-IR")} کیلوبایت`;
+}

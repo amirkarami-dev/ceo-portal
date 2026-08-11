@@ -29,6 +29,12 @@ public sealed class KurdnezamNewsDto
 
     public bool Featured { get; init; }
 
+    /// <summary>The form shown at the bottom of the article, if the editor picked one.</summary>
+    public int? FormId { get; init; }
+
+    /// <summary>Denormalised so the panel's table can name the form without a second call.</summary>
+    public string? FormTitle { get; init; }
+
     /// <summary>Downloadable files, already ordered by <c>SortOrder</c>.</summary>
     public IReadOnlyList<KurdnezamNewsAttachmentDto> Attachments { get; init; } = [];
 }

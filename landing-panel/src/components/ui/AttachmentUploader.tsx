@@ -15,6 +15,7 @@ import type { ReactNode } from "react";
 import { errorMessage, mediaUrl } from "@/api/client";
 import { mediaApi } from "@/api/endpoints";
 import type { NewsAttachment } from "@/api/types";
+import { formatBytes } from "@/lib/format";
 
 /** Matches the API: pdf/doc/docx/xls/xlsx + images, 20 MB. */
 const MAX_BYTES = 20 * 1024 * 1024;
@@ -31,15 +32,6 @@ function iconFor(contentType: string, fileName: string): ReactNode {
   if (t.includes("excel") || t.includes("spreadsheet") || ["xls", "xlsx"].includes(ext))
     return <FileExcelOutlined style={{ color: "#16a34a" }} />;
   return <FileUnknownOutlined />;
-}
-
-/** Persian-digit size, e.g. "۲٫۴ مگابایت". */
-function formatSize(bytes: number): string {
-  if (!bytes) return "—";
-  const mb = bytes / (1024 * 1024);
-  if (mb >= 1) return `${mb.toLocaleString("fa-IR", { maximumFractionDigits: 1 })} مگابایت`;
-  const kb = Math.max(1, Math.round(bytes / 1024));
-  return `${kb.toLocaleString("fa-IR")} کیلوبایت`;
 }
 
 export interface AttachmentUploaderProps {
@@ -143,7 +135,7 @@ export function AttachmentUploader({ value, onChange, disabled }: AttachmentUplo
                 }
                 description={
                   <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                    {formatSize(a.sizeBytes)}
+                    {formatBytes(a.sizeBytes)}
                   </Typography.Text>
                 }
               />
