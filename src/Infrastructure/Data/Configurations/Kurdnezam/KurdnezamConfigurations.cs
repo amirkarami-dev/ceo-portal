@@ -257,12 +257,6 @@ public class KurdnezamFormSubmissionConfiguration : IEntityTypeConfiguration<Kur
     {
         b.ToTable("KurdnezamFormSubmissions");
 
-        b.Property(x => x.FullName).HasMaxLength(200).IsRequired();
-        b.Property(x => x.NationalId).HasMaxLength(20).IsRequired();
-        b.Property(x => x.MembershipNo).HasMaxLength(50).IsRequired();
-        b.Property(x => x.Mobile).HasMaxLength(20).IsRequired();
-        b.Property(x => x.Notes).HasMaxLength(2000);
-
         b.HasOne(x => x.Form)
             .WithMany(f => f.Submissions)
             .HasForeignKey(x => x.FormId)

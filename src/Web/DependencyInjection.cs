@@ -2,6 +2,7 @@ using System.Threading.RateLimiting;
 using Azure.Identity;
 using Mabhas19.Application.Common.Interfaces;
 using Mabhas19.Infrastructure.Data;
+using Mabhas19.Web;
 using Mabhas19.Web.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -73,6 +74,25 @@ public static class DependencyInjection
                 {
                     PermitLimit = 120,
                     Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0
+                });
+            });
+
+            // Routes the public can write to without an account. 120/minute is far too generous for
+            // something that accepts files and creates rows; a real person filling in a form needs
+            // a handful an hour. Partitioned on the same forwarded client IP as the global limiter.
+            options.AddPolicy(RateLimitPolicies.PublicSubmission, context =>
+            {
+                var clientIp = context.Request.Headers["X-Forwarded-For"].FirstOrDefault()?.Split(',')[0].Trim();
+                if (string.IsNullOrEmpty(clientIp))
+                {
+                    clientIp = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+                }
+
+                return RateLimitPartition.GetFixedWindowLimiter(clientIp, _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 10,
+                    Window = TimeSpan.FromMinutes(10),
                     QueueLimit = 0
                 });
             });

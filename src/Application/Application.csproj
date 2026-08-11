@@ -20,4 +20,13 @@
     <ProjectReference Include="..\Domain\Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Same arrangement Infrastructure already uses: internal helpers stay out of the public API
+         but can still be asserted directly. SubmitKurdnezamFormCommandHandler.Validate is the
+         reason — it guards the one public write path on the kurdnezam API. -->
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>Mabhas19.Application.UnitTests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
 </Project>

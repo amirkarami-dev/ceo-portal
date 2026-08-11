@@ -22,6 +22,7 @@ Also, when a task teaches something reusable:
 
 | Date | Record | Area | Status |
 |---|---|---|---|
+| 2026-08-11 | [Form builder step 2: the API](2026-08-11-form-builder-step-2-api.md) | kurdnezam / api | **live**, proven end to end; no screens yet |
 | 2026-08-11 | [Form builder step 1: the tables](2026-08-11-form-builder-step-1-schema.md) | kurdnezam / database | **live** — nothing uses it yet |
 | 2026-08-07 | [Kurdnezam: builder credit in the footer](2026-08-07-kurdnezam-japra-credit.md) | kurdnezam-web | **live** at kurdnezam.ir |
 | 2026-08-04 | [MunSanandaj: 60 runs failed and showed no reason](2026-08-04-mun-sanandaj-silent-failure.md) | mun-sanandaj | code fix **live**; blocked on an expired cert we don't control |
