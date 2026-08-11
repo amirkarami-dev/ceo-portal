@@ -200,25 +200,51 @@ export function getNewsById(
 
 /* ── writes (all anonymous) ─────────────────────────────── */
 
-export interface FormSubmissionInput {
-  fullName: string;
-  nationalId: string;
-  membershipNo: string;
-  mobile: string;
-  notes?: string;
+/** One text answer, keyed by the field it belongs to. */
+export interface FormAnswerInput {
+  fieldId: number;
+  text: string;
 }
 
-/** 201 on success. Throws `ApiError` (400 when the form is closed / invalid, 404 when unknown). */
+/** What the visitor attached, grouped by field. */
+export interface FormFileInput {
+  fieldId: number;
+  file: File;
+}
+
+/**
+ * Sends a form. 201 on success; throws `ApiError` (400 when closed or invalid, 404 when unknown,
+ * 429 when the same address has sent too many).
+ *
+ * Multipart, because the answers and the files have to arrive together: the server writes nothing
+ * to storage until the whole submission passes. Validation errors come back keyed `field_{id}`,
+ * which is what `ApiError.fieldError` is asked for.
+ *
+ * No `Content-Type` header is set on purpose — the browser must add the multipart boundary itself.
+ */
 export function submitForm(
   formId: number | string,
-  body: FormSubmissionInput
+  answers: FormAnswerInput[],
+  files: FormFileInput[] = []
 ): Promise<void> {
+  const body = new FormData();
+  body.append("answers", JSON.stringify(answers));
+  for (const { fieldId, file } of files) {
+    body.append(`field_${fieldId}`, file, file.name);
+  }
+
   return request<void>(`/api/kurdnezam/forms/${formId}/submissions`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body,
+    // Generous, because 15 MB on a phone is slow — but not endless. A request that never settles
+    // leaves the send button disabled with no message, which is worse than an error: the visitor
+    // has no idea whether their answers arrived. Seen for real when a preflight hung.
+    signal: AbortSignal.timeout(SUBMIT_TIMEOUT_MS),
   });
 }
+
+/** Two minutes: enough for a large upload on a slow connection, short of "forever". */
+const SUBMIT_TIMEOUT_MS = 120_000;
 
 export interface ContactMessageInput {
   name: string;

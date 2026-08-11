@@ -16,6 +16,7 @@ import {
 import { useContent } from "@/lib/store";
 import { imageUrl } from "@/lib/api";
 import { Breadcrumb, NewsCard } from "@/components/ui";
+import { FormRunner } from "@/components/FormRunner";
 import { ArticleBody, AttachmentList } from "@/components/article";
 
 export default function NewsDetailPage() {
@@ -24,6 +25,11 @@ export default function NewsDetailPage() {
   const [copied, setCopied] = useState(false);
 
   const item = content.news.find((n) => String(n.id) === id);
+  // The article stores only the id; the form itself travels in the same content payload.
+  const attachedForm = item?.formId
+    ? content.forms.find((f) => f.id === item.formId)
+    : undefined;
+
   const related = content.news
     .filter((n) => n.categoryId === item?.categoryId && String(n.id) !== id)
     .slice(0, 3);
@@ -93,6 +99,14 @@ export default function NewsDetailPage() {
             body={item.body}
             className="article-body rounded-3xl border border-line bg-white p-6 text-base leading-8 sm:p-10"
           />
+
+          {/* The form the editor attached, right after the text that explains it — so a reader
+              answers without leaving the page. Same component as the form page. */}
+          {attachedForm ? (
+            <div className="mt-8">
+              <FormRunner form={attachedForm} headingLevel={2} showTitle />
+            </div>
+          ) : null}
 
           <div className="mt-8 flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-white p-5">
             <span className="inline-flex items-center gap-2 font-medium">

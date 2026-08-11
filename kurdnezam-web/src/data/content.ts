@@ -35,6 +35,10 @@ export interface NewsItem {
   featured: boolean;
   /** Downloadable files (بخشنامه / فرم), ordered by the server. */
   attachments?: NewsAttachment[];
+  /** A form to show at the bottom of the article, so a reader answers without leaving the page. */
+  formId?: number | null;
+  /** Denormalised title — the form itself is looked up in `content.forms`. */
+  formTitle?: string | null;
 }
 
 /** A file attached to a news item. Served from the API host, not the site. */
@@ -115,6 +119,26 @@ export interface TabGroup {
   items: TabGroupItem[];
 }
 
+/** What a form field can be. Matches `KurdnezamFormFieldKinds` on the server. */
+export type FormFieldKind = "text" | "file";
+
+/**
+ * One field of a form. The whole form is drawn from these — nothing about its shape is fixed in
+ * this app, so an administrator can add a field without a deploy.
+ */
+export interface FormField {
+  id: number;
+  label: string;
+  kind: FormFieldKind;
+  isRequired: boolean;
+  /** Only meaningful when `kind` is `file`. */
+  allowMultiple: boolean;
+  /** Only meaningful when `kind` is `text`. */
+  maxLength?: number | null;
+  help?: string | null;
+  sortOrder: number;
+}
+
 export interface FormItem {
   id: number;
   title: string;
@@ -123,8 +147,12 @@ export interface FormItem {
   image: string;
   /** Closed forms reject submissions with 400. */
   isOpen: boolean;
+  /** Shown after a good save. Empty means this app uses its own wording. */
+  successMessage: string;
   sortOrder: number;
   submissionCount: number;
+  /** Already ordered by the server. */
+  fields: FormField[];
 }
 
 /** Static organisational pages under /p/[slug]. `arkan` has `group: null`. */
