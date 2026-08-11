@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useRef, useState, type FormEvent } from "react";
-import { AlertCircle, Check, Loader2, Lock, Paperclip, X } from "lucide-react";
+import { useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { AlertCircle, Check, Loader2, Lock, Paperclip, Upload, X } from "lucide-react";
 import { ApiError, submitForm, type FormFileInput } from "@/lib/api";
 import type { FormField, FormItem } from "@/data/content";
 
@@ -55,10 +55,35 @@ function generalMessage(err: unknown): string {
 
 // `text-base` on mobile keeps controls at 16px so iOS Safari does not auto-zoom on focus;
 // `md:text-sm` restores the denser desktop sizing. Same rule as the rest of the site.
+//
+// The focus ring is deliberate: the site's other inputs only tint their 1px border on focus, which
+// a keyboard user can easily miss. On a form that asks for a national id and a licence scan, where
+// you are is worth being obvious about.
 const inputClass = (invalid: boolean) =>
-  `mt-2 w-full rounded-xl border bg-paper px-4 py-3 text-base outline-none transition-colors focus:border-copper disabled:cursor-not-allowed disabled:opacity-60 md:text-sm ${
+  `mt-2 w-full rounded-xl border bg-paper px-4 py-3 text-base transition-colors outline-none focus-visible:border-copper focus-visible:ring-2 focus-visible:ring-copper/40 disabled:cursor-not-allowed disabled:opacity-60 md:text-sm ${
     invalid ? "border-red-400" : "border-line"
   }`;
+
+/**
+ * Wraps one field. A text field is a real <label htmlFor>; a file field cannot be, because its
+ * control is a <button> and a <label> only points at labelable elements. That one renders a
+ * plain wrapper, and the button borrows the same words through aria-labelledby.
+ */
+function FieldLabel({
+  htmlFor,
+  children,
+}: {
+  htmlFor?: string;
+  children: ReactNode;
+}) {
+  return htmlFor ? (
+    <label htmlFor={htmlFor} className="block text-sm">
+      {children}
+    </label>
+  ) : (
+    <div className="block text-sm">{children}</div>
+  );
+}
 
 export interface FormRunnerProps {
   form: FormItem;
@@ -254,7 +279,21 @@ export function FormRunner({ form, headingLevel = 2, showTitle = false }: FormRu
       {showTitle ? <Heading className="font-display text-2xl sm:text-3xl">{form.title}</Heading> : null}
       {showTitle && form.note ? <p className="mt-2 text-sm text-steel">{form.note}</p> : null}
 
-      <div className={`grid gap-5 sm:grid-cols-2 ${showTitle ? "mt-6" : ""}`}>
+      {/*
+        Both lines were on the page this component replaced, and both were worth keeping. The star
+        needs explaining, and a form that asks for a national id and a licence scan should say what
+        happens to them — that is the moment a visitor decides whether to fill it in.
+      */}
+      <p className={`text-sm text-ink/70 ${showTitle ? "mt-4" : ""}`}>
+        {fields.some((f) => f.isRequired) ? (
+          <>
+            فیلدهای ستاره‌دار (<span className="text-copper">*</span>) الزامی هستند.{" "}
+          </>
+        ) : null}
+        اطلاعات شما نزد سازمان محرمانه می‌ماند.
+      </p>
+
+      <div className="mt-6 grid gap-5 sm:grid-cols-2">
         {fields.map((field) => {
           const invalid = Boolean(fieldErrors[field.id]);
           const errorId = `form-${form.id}-error-${field.id}`;
@@ -269,8 +308,13 @@ export function FormRunner({ form, headingLevel = 2, showTitle = false }: FormRu
               // A file field gets the full width: its chosen-files list needs the room.
               className={field.kind === "file" ? "sm:col-span-2" : ""}
             >
-              <label htmlFor={inputId} className="block text-sm">
-                <span className="font-medium">
+              {/*
+                A <label> can only point at a labelable control, and a file field's real control is
+                now a <button>. So a text field keeps its <label htmlFor>, while a file field uses a
+                plain wrapper and hands the same words to the button through aria-labelledby.
+              */}
+              <FieldLabel htmlFor={field.kind === "text" ? inputId : undefined}>
+                <span id={`${inputId}-name`} className="font-medium">
                   {field.label}
                   {field.isRequired ? <span className="text-copper"> *</span> : null}
                 </span>
@@ -290,6 +334,13 @@ export function FormRunner({ form, headingLevel = 2, showTitle = false }: FormRu
                   />
                 ) : (
                   <>
+                    {/*
+                      The native control is driven by a real button instead of being shown. Left as
+                      it comes, a file input paints the browser's own English chrome — "Choose File",
+                      "No file chosen" — in the middle of a Persian right-to-left form. The input
+                      stays in the DOM (clipped, not display:none, so it still works) and the button
+                      carries the accessible name.
+                    */}
                     <input
                       id={inputId}
                       ref={(el) => {
@@ -298,13 +349,41 @@ export function FormRunner({ form, headingLevel = 2, showTitle = false }: FormRu
                       type="file"
                       accept={ACCEPT}
                       multiple={field.allowMultiple}
-                      required={field.isRequired && (files[field.id] ?? []).length === 0}
+                      tabIndex={-1}
+                      aria-hidden="true"
                       disabled={disabled}
-                      aria-invalid={invalid || undefined}
-                      aria-describedby={describedBy || undefined}
                       onChange={(e) => addFiles(field, e.target.files)}
-                      className={`${inputClass(invalid)} file:me-3 file:rounded-lg file:border-0 file:bg-copper-soft file:px-3 file:py-1.5 file:text-sm file:text-copper-dark`}
+                      className="sr-only"
                     />
+
+                    <button
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => fileInputs.current[field.id]?.click()}
+                      aria-labelledby={`${inputId}-name`}
+                      // No aria-invalid: a button does not carry it. The red border shows the
+                      // problem, and aria-describedby points at the message, which is role=alert.
+                      aria-describedby={describedBy || undefined}
+                      className={`mt-2 flex w-full items-center gap-3 rounded-xl border border-dashed bg-paper px-4 py-3 text-start text-sm transition-colors outline-none hover:border-copper focus-visible:border-copper focus-visible:ring-2 focus-visible:ring-copper/40 disabled:cursor-not-allowed disabled:opacity-60 ${
+                        invalid ? "border-red-400" : "border-line"
+                      }`}
+                    >
+                      <Upload className="size-4 shrink-0 text-copper" aria-hidden />
+                      <span className="font-medium text-copper-dark">
+                        {(files[field.id] ?? []).length > 0
+                          ? field.allowMultiple
+                            ? "افزودن فایل دیگر"
+                            : "تغییر فایل"
+                          : field.allowMultiple
+                            ? "انتخاب فایل‌ها"
+                            : "انتخاب فایل"}
+                      </span>
+                      <span className="ms-auto text-xs text-steel">
+                        {(files[field.id] ?? []).length > 0
+                          ? `${(files[field.id] ?? []).length.toLocaleString("fa-IR")} فایل`
+                          : "فایلی انتخاب نشده"}
+                      </span>
+                    </button>
 
                     {(files[field.id] ?? []).length > 0 ? (
                       <ul className="mt-2 space-y-1.5">
@@ -332,15 +411,15 @@ export function FormRunner({ form, headingLevel = 2, showTitle = false }: FormRu
                     ) : null}
                   </>
                 )}
-              </label>
+              </FieldLabel>
 
               {field.help ? (
-                <span id={`${inputId}-help`} className="mt-1.5 block text-xs text-steel">
+                <span id={`${inputId}-help`} className="mt-1.5 block text-xs text-ink/70">
                   {field.help}
                 </span>
               ) : null}
               {field.kind === "file" && !field.help ? (
-                <span id={`${inputId}-help`} className="mt-1.5 block text-xs text-steel">
+                <span id={`${inputId}-help`} className="mt-1.5 block text-xs text-ink/70">
                   {ALLOWED_LABEL} — حداکثر {mb(MAX_BYTES_PER_FILE)} مگابایت
                   {field.allowMultiple ? `، تا ${MAX_FILES_PER_FIELD.toLocaleString("fa-IR")} فایل` : ""}
                 </span>
