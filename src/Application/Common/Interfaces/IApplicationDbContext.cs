@@ -90,7 +90,13 @@ public interface IApplicationDbContext
 
     DbSet<KurdnezamForm> KurdnezamForms { get; }
 
+    DbSet<KurdnezamFormField> KurdnezamFormFields { get; }
+
     DbSet<KurdnezamFormSubmission> KurdnezamFormSubmissions { get; }
+
+    DbSet<KurdnezamFormAnswer> KurdnezamFormAnswers { get; }
+
+    DbSet<KurdnezamFormAttachment> KurdnezamFormAttachments { get; }
 
     DbSet<KurdnezamContactMessage> KurdnezamContactMessages { get; }
 

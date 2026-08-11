@@ -564,6 +564,22 @@ overrides that method and returns a string. Format directly.
 Gregorian year 1405. Only convert values that are actually Gregorian.
 **Where:** `analytics-web/src/presentation/format.ts`.
 
+### Testing an EF migration script with `sqlcmd` needs `-I`, or it fails on code you did not write
+`dotnet ef migrations script` wraps statements in `EXEC(N'…')`, and this database has three
+**filtered** indexes (`RoleNameIndex`, `UserNameIndex`, `IX_Rooms_JoinToken`). A filtered index
+requires `QUOTED_IDENTIFIER ON`; ADO.NET sets it ON, **`sqlcmd` defaults it OFF**. So the script
+dies with `Msg 1934 … 'QUOTED_IDENTIFIER'` on an index from 2026-07, and it looks like the migration
+you just wrote is broken. Pass `sqlcmd -I`. The app itself is never affected — it migrates through
+`_context.Database.MigrateAsync()` (`ApplicationDbContextInitialiser.cs:37`), not through sqlcmd.
+
+### A `FieldId` that points at user-editable metadata should not be a foreign key
+`KurdnezamFormAnswer.FieldId` and `KurdnezamFormAttachment.FieldId` are plain ints, with the field's
+label copied onto the row. Deliberate, for two reasons: an administrator deleting a form field must
+not delete or block what people already sent, and a real FK would give SQL Server two cascade paths
+into the answers table (one through the submission, one through the field), which it refuses. The
+label snapshot is what keeps an old answer readable after its field is renamed or removed.
+**Where:** `src/Domain/Kurdnezam/KurdnezamFormAnswer.cs`.
+
 ### A new `DbSet` must be added to `IApplicationDbContext` too, or you get twenty misleading errors
 `ApplicationDbContext` alone is not enough — the Application layer only ever sees the **interface**.
 Miss it and the build returns a wall of `CS1061`, most of which point at the wrong thing:

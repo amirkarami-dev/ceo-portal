@@ -46,6 +46,14 @@ public class KurdnezamNews : BaseAuditableEntity
     /// <summary>Highlights the article; queryable via <c>?featured=true</c>.</summary>
     public bool Featured { get; set; }
 
+    /// <summary>
+    /// Optional form shown at the bottom of the article, so a visitor can answer without leaving
+    /// the page. Deleting the form clears this and leaves the article alone.
+    /// </summary>
+    public int? FormId { get; set; }
+
+    public KurdnezamForm? Form { get; set; }
+
     /// <summary>Downloadable files (بخشنامه / فرم / اطلاعیه). Deleted with the article.</summary>
     public ICollection<KurdnezamNewsAttachment> Attachments { get; set; } = new List<KurdnezamNewsAttachment>();
 }

@@ -20,7 +20,16 @@ public class KurdnezamForm : BaseAuditableEntity
     /// <summary>When false the form is listed but closed to new submissions.</summary>
     public bool IsOpen { get; set; } = true;
 
+    /// <summary>
+    /// Shown after a member sends the form. Empty means the site uses its own wording, so an
+    /// administrator never has to fill this in to make a form work.
+    /// </summary>
+    public string SuccessMessage { get; set; } = string.Empty;
+
     public int SortOrder { get; set; }
+
+    /// <summary>The fields this form is made of, in <see cref="KurdnezamFormField.SortOrder"/>.</summary>
+    public ICollection<KurdnezamFormField> Fields { get; set; } = new List<KurdnezamFormField>();
 
     public ICollection<KurdnezamFormSubmission> Submissions { get; set; } = new List<KurdnezamFormSubmission>();
 }

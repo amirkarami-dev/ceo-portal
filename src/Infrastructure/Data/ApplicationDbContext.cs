@@ -95,6 +95,12 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<KurdnezamForm> KurdnezamForms => Set<KurdnezamForm>();
 
+    public DbSet<KurdnezamFormField> KurdnezamFormFields => Set<KurdnezamFormField>();
+
+    public DbSet<KurdnezamFormAnswer> KurdnezamFormAnswers => Set<KurdnezamFormAnswer>();
+
+    public DbSet<KurdnezamFormAttachment> KurdnezamFormAttachments => Set<KurdnezamFormAttachment>();
+
     public DbSet<KurdnezamFormSubmission> KurdnezamFormSubmissions => Set<KurdnezamFormSubmission>();
 
     public DbSet<KurdnezamContactMessage> KurdnezamContactMessages => Set<KurdnezamContactMessage>();

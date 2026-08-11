@@ -28,4 +28,10 @@ public class KurdnezamFormSubmission : BaseAuditableEntity
 
     /// <summary>Set once an administrator has processed the submission.</summary>
     public bool IsHandled { get; set; }
+
+    /// <summary>What the member typed, one row per text field of the form.</summary>
+    public ICollection<KurdnezamFormAnswer> Answers { get; set; } = new List<KurdnezamFormAnswer>();
+
+    /// <summary>What the member attached, one row per file.</summary>
+    public ICollection<KurdnezamFormAttachment> Attachments { get; set; } = new List<KurdnezamFormAttachment>();
 }

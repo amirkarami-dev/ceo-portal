@@ -74,10 +74,18 @@ public class KurdnezamNewsConfiguration : IEntityTypeConfiguration<KurdnezamNews
             .HasForeignKey(x => x.UnitId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        // Same rule for the attached form: removing the form must never remove the article. No
+        // navigation back from the form — nothing needs to ask "which articles use me".
+        b.HasOne(x => x.Form)
+            .WithMany()
+            .HasForeignKey(x => x.FormId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         b.HasIndex(x => x.CategoryId);
         b.HasIndex(x => x.UnitId);
         b.HasIndex(x => x.Featured);
         b.HasIndex(x => x.PublishedAt);
+        b.HasIndex(x => x.FormId);
     }
 }
 
@@ -211,8 +219,35 @@ public class KurdnezamFormConfiguration : IEntityTypeConfiguration<KurdnezamForm
         b.Property(x => x.Note).HasMaxLength(1000).IsRequired();
         b.Property(x => x.Deadline).HasMaxLength(100).IsRequired();
         b.Property(x => x.Image).HasMaxLength(1000).IsRequired();
+        b.Property(x => x.SuccessMessage).HasMaxLength(1000).IsRequired();
 
         b.HasIndex(x => x.SortOrder);
+    }
+}
+
+public class KurdnezamFormFieldConfiguration : IEntityTypeConfiguration<KurdnezamFormField>
+{
+    public void Configure(EntityTypeBuilder<KurdnezamFormField> b)
+    {
+        b.ToTable("KurdnezamFormFields");
+
+        b.Property(x => x.Label).HasMaxLength(300).IsRequired();
+        b.Property(x => x.Kind).HasMaxLength(20).IsRequired();
+        b.Property(x => x.Help).HasMaxLength(500);
+
+        // A field only exists as part of its form.
+        b.HasOne(x => x.Form)
+            .WithMany(f => f.Fields)
+            .HasForeignKey(x => x.FormId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        b.HasIndex(x => new { x.FormId, x.SortOrder });
+
+        // The validator refuses a bad kind first; this stops anything that reaches the database
+        // another way, because the public page switches on this value to choose the input.
+        b.ToTable(t => t.HasCheckConstraint(
+            "CK_KurdnezamFormFields_Kind",
+            $"[Kind] IN ({string.Join(", ", KurdnezamFormFieldKinds.All.Select(k => $"'{k}'"))})"));
     }
 }
 
@@ -235,6 +270,53 @@ public class KurdnezamFormSubmissionConfiguration : IEntityTypeConfiguration<Kur
 
         b.HasIndex(x => x.FormId);
         b.HasIndex(x => x.IsHandled);
+    }
+}
+
+public class KurdnezamFormAnswerConfiguration : IEntityTypeConfiguration<KurdnezamFormAnswer>
+{
+    public void Configure(EntityTypeBuilder<KurdnezamFormAnswer> b)
+    {
+        b.ToTable("KurdnezamFormAnswers");
+
+        b.Property(x => x.FieldLabel).HasMaxLength(300).IsRequired();
+        b.Property(x => x.Text).HasColumnType("nvarchar(max)").IsRequired();
+
+        b.HasOne(x => x.Submission)
+            .WithMany(s => s.Answers)
+            .HasForeignKey(x => x.SubmissionId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        b.HasIndex(x => x.SubmissionId);
+
+        // FieldId is deliberately NOT a foreign key — see the remarks on KurdnezamFormAnswer.
+        // Indexed anyway, because the admin screen groups a submission's answers by field.
+        b.HasIndex(x => x.FieldId);
+    }
+}
+
+public class KurdnezamFormAttachmentConfiguration : IEntityTypeConfiguration<KurdnezamFormAttachment>
+{
+    public void Configure(EntityTypeBuilder<KurdnezamFormAttachment> b)
+    {
+        b.ToTable("KurdnezamFormAttachments");
+
+        b.Property(x => x.FieldLabel).HasMaxLength(300).IsRequired();
+        b.Property(x => x.FileName).HasMaxLength(400).IsRequired();
+        b.Property(x => x.StoredKey).HasMaxLength(400).IsRequired();
+        b.Property(x => x.ContentType).HasMaxLength(200).IsRequired();
+
+        b.HasOne(x => x.Submission)
+            .WithMany(s => s.Attachments)
+            .HasForeignKey(x => x.SubmissionId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        b.HasIndex(x => x.SubmissionId);
+        b.HasIndex(x => x.FieldId);
+
+        // One object per row. A unique key also means a retried submit can never register the same
+        // stored object twice.
+        b.HasIndex(x => x.StoredKey).IsUnique();
     }
 }
 
