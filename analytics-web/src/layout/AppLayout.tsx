@@ -84,10 +84,13 @@ export function AppLayout() {
             onClose={() => setDrawerOpen(false)}
             placement={isRtl ? "right" : "left"}
             width={260}
-            title={t("common.appName")}
+            // The service, not common.appName — that string is «گزارش‌ساز هوشمند», the
+            // same words as the /ask item a few rows below it.
+            title={t("service.name")}
             styles={{ body: { padding: 0 } }}
           >
-            <Sidebar onNavigate={() => setDrawerOpen(false)} />
+            {/* head={false}: the drawer's own title bar already does this job. */}
+            <Sidebar head={false} onNavigate={() => setDrawerOpen(false)} />
           </Drawer>
         </>
       ) : isRtl ? (

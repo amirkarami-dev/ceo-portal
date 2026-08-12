@@ -24,6 +24,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/useAuth";
 import type { Permission } from "../contracts/rbac";
 import { canManageDashboards } from "../features/dashboards/can-manage";
+import { SidebarHead } from "./SidebarHead";
 import "./sidebar.css";
 
 type Item = {
@@ -115,10 +116,13 @@ const ADMIN_GROUPS: Group[] = [
 export function Sidebar({
   onNavigate,
   collapsed = false,
+  head = true,
 }: {
   onNavigate?: () => void;
   /** Icon-only rail. antd supplies the per-item tooltips; the group titles are ours to drop. */
   collapsed?: boolean;
+  /** Off in the mobile drawer, which already has a title bar of its own. */
+  head?: boolean;
 }) {
   const loc = useLocation();
   const nav = useNavigate();
@@ -178,17 +182,22 @@ export function Sidebar({
   }, [isAdminZone, can, isAdmin, roles, t, collapsed]);
 
   return (
-    <Menu
-      id="app-sidebar-nav"
-      mode="inline"
-      selectedKeys={[selectedKey]}
-      items={items}
-      onClick={({ key }) => {
-        nav(key);
-        onNavigate?.();
-      }}
-      className={`app-sidebar${collapsed ? " app-sidebar--rail" : ""}`}
-      style={{ height: "100%", borderInlineEnd: "none" }}
-    />
+    // A column so the head keeps its height and the menu takes the rest — the menu used
+    // to be height:100% on its own, which leaves no room for anything above it.
+    <div className="app-sidebar__shell">
+      {head && <SidebarHead collapsed={collapsed} />}
+      <Menu
+        id="app-sidebar-nav"
+        mode="inline"
+        selectedKeys={[selectedKey]}
+        items={items}
+        onClick={({ key }) => {
+          nav(key);
+          onNavigate?.();
+        }}
+        className={`app-sidebar${collapsed ? " app-sidebar--rail" : ""}`}
+        style={{ flex: 1, minHeight: 0, overflowY: "auto", borderInlineEnd: "none" }}
+      />
+    </div>
   );
 }

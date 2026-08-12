@@ -21,6 +21,10 @@
       "dark": "Dark"
     }
   },
+  "service": {
+    "name": "Analytics",
+    "tagline": "Reporting and insight"
+  },
   "nav": {
     "ask": "Ask AI",
     "reports": "Reports",
