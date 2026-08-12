@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-12
 **Area:** analytics-web (`/dashboards`, `/dashboards/:id/edit`)
-**Status:** fixed, built and tested locally — not deployed yet
+**Status:** **live** on analytic.myceo.ir — checked in a browser against production
 
 ## What was reported
 
@@ -102,9 +102,22 @@ The real `DashboardCanvas` and the real `dashboards.css` were mounted on a throw
 - `typecheck`, `lint`, `build` clean; **331 tests pass**. Two timed out on the first run while npm was
   still warming up and passed on their own and on a re-run — neither touches the grid.
 
+## Deployed
+
+Incremental: packaged the five files this commit touched, copied them up, rebuilt only the
+`analytics-web` image and recreated only that container. `sms-service` next to it on the shared box
+was left alone (`Up 3 weeks`, unchanged). The first check returned 404 because the container was
+still starting — as OPERATIONS warns; healthy and `200` a few seconds later.
+
+Then checked from a browser on the real site, not just with curl. Both rules are in the live CSSOM,
+and building the DOM react-grid-layout produces and letting the **deployed** stylesheet place it
+gives: grid `ltr`, item `rtl`, `left: 0px`, an item with transform 800 landing at 800, and a
+**0px jump on grab**.
+
 ## Left to do
 
-- **Not deployed.** The fix is in the working tree only.
+- **Nobody has clicked a widget on the live site.** The geometry is proven on production, but the
+  drag itself is behind the login, so the last step is someone dragging a real widget.
 - **No test guards this.** The bug is a CSS layout bug, and jsdom does not do layout, so a unit test
   could not have caught it and cannot catch it coming back. A real-browser check is the only guard.
 - The resize grip stays at the bottom-**right** of a widget. In an RTL page bottom-left may read
