@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-12
 **Area:** analytics-web (`analytic.myceo.ir`)
-**Status:** built and checked in a browser — **not deployed**, ships with step 3
+**Status:** **live** on analytic.myceo.ir
 
 Design: [`docs/design/2026-08-12-analytics-navigation.md`](../design/2026-08-12-analytics-navigation.md)
 
@@ -81,7 +81,6 @@ role predicate — the report-designer case is written down as a test so it cann
 
 ## Left to do
 
-- **Not deployed**, and it should not be alone: `/manage-dashboards` currently duplicates
-  `/dashboards`. Step 3 removes the duplication, and the two ship together.
+- **Deployed** with steps 1, 3 and 4 on 2026-08-12; the page was opened on production.
 - `?d=` **is not read yet.** A card click sets it and `/dashboards` ignores it, which is step 3's
   job.

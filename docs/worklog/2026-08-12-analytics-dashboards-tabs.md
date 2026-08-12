@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-12
 **Area:** analytics-web (`analytic.myceo.ir`)
-**Status:** built and checked in a browser — **not deployed**; ships with step 2
+**Status:** **live** on analytic.myceo.ir
 
 Design: [`docs/design/2026-08-12-analytics-navigation.md`](../design/2026-08-12-analytics-navigation.md)
 
@@ -71,7 +71,7 @@ antd's normal switch. Under 768px the toolbar now takes its own line instead of 
 
 ## Left to do
 
-- **Not deployed.** Steps 2 and 3 are one change and go together.
+- **Deployed** with steps 1, 2 and 4 on 2026-08-12.
 - **The switch is 44×22.** The width clears the touch floor, the height does not, and 22px is what
   antd's `Switch` draws. Worth deciding in step 4 whether a labelled toggle button is better here —
   a button can be 44×44 and would say what it does.

@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-12
 **Area:** analytics-web (`analytic.myceo.ir`)
-**Status:** built and measured in a browser — **not deployed**; ships with steps 1–3
+**Status:** **live** on analytic.myceo.ir
 
 Design: [`docs/design/2026-08-12-analytics-navigation.md`](../design/2026-08-12-analytics-navigation.md)
 

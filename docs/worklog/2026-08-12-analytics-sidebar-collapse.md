@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-12
 **Area:** analytics-web (`analytic.myceo.ir`)
-**Status:** built and checked in a browser — **not deployed**
+**Status:** **live** on analytic.myceo.ir
 
 Design: [`docs/design/2026-08-12-analytics-navigation.md`](../design/2026-08-12-analytics-navigation.md)
 
@@ -87,7 +87,7 @@ dividers without losing a destination.
 
 ## Left to do
 
-- **Not deployed.** Ships with steps 2 and 3, or on its own if you want it sooner.
+- **Deployed** with steps 2–4 on 2026-08-12; the rail was exercised on production.
 - **The focus ring was not seen.** The button is first in the tab order and is a native button, but
   real key events could not reach the page — the pane was not displayed, so `Tab` never moved focus.
   `:focus-visible` deliberately ignores programmatic focus, so this needs a real keyboard. Step 4.
