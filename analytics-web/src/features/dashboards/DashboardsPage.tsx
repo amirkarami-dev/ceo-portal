@@ -1,4 +1,4 @@
-import { Button, ConfigProvider, Space, Switch, Tabs, message } from "antd";
+import { Button, Space, Switch, Tabs, message } from "antd";
 import { EditOutlined, SaveOutlined, SettingOutlined } from "@ant-design/icons";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -8,11 +8,9 @@ import { useAuth } from "@/auth/useAuth";
 import { DashboardCanvas } from "@/dashboard/DashboardCanvas";
 import type { GridLayoutItem } from "@/dashboard/widget";
 import { EmptyState, PageContainer, Loading } from "@/components/ui";
-import { primaryInk as INK } from "@/theme/tokens";
 import { WidgetFrame } from "./WidgetFrame";
 import { canManageDashboards } from "./can-manage";
 import "./dashboards.css";
-
 
 /**
  * Reading a dashboard, and nothing else. One tab per dashboard, then the widgets.
@@ -135,26 +133,17 @@ export function DashboardsPage() {
 
   return (
     <PageContainer>
-      {/* The brand green is 2.54:1 at 14px — unreadable for the label that says which
-          dashboard you are on. antd owns this colour through a component token and
-          ignores CSS overrides, so it is set the way antd expects. Scoped here rather
-          than globally: every other tab strip in the app has the same problem, and
-          that is a decision about the whole product, not about this page. */}
-      <ConfigProvider
-        theme={{ components: { Tabs: { itemSelectedColor: INK, itemHoverColor: INK } } }}
-      >
-        <Tabs
-          activeKey={active.id}
-          onChange={selectTab}
-          className="dash-tabs"
-          tabBarExtraContent={toolbar}
-          items={boards.map((b) => ({
-            key: b.id,
-            label: b.name,
-            children: b.id === active.id ? board : null,
-          }))}
-        />
-      </ConfigProvider>
+      <Tabs
+        activeKey={active.id}
+        onChange={selectTab}
+        className="dash-tabs"
+        tabBarExtraContent={toolbar}
+        items={boards.map((b) => ({
+          key: b.id,
+          label: b.name,
+          children: b.id === active.id ? board : null,
+        }))}
+      />
     </PageContainer>
   );
 }

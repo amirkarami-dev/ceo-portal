@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildTheme, chartColors, primaryInk } from "./tokens";
+import { buildTheme, chartColors, primaryInk, primaryInkFor } from "./tokens";
 import { tokens as brandTokens } from "./theme";
 
 /** WCAG relative luminance, then the contrast ratio between two hex colours. */
@@ -38,6 +38,20 @@ describe("theme tokens", () => {
   it("the colour that actually renders is too light for text, which is why primaryInk exists", () => {
     expect(contrast(brandTokens.primary, "#ffffff")).toBeLessThan(4.5);
     expect(contrast(primaryInk, "#ffffff")).toBeGreaterThan(contrast(brandTokens.primary, "#ffffff"));
+  });
+
+  // The deep green is legible on white and nearly invisible on the dark panel, where
+  // the brand itself is the readable one. Whichever way round, the answer has to clear
+  // AA against the surface it is actually drawn on.
+  it.each([
+    ["light", "#ffffff"],
+    ["dark", "#152922"],
+  ] as const)("primaryInkFor(%s) is readable on that surface", (mode, surface) => {
+    expect(contrast(primaryInkFor(mode), surface)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("does not hand the same green to both modes", () => {
+    expect(primaryInkFor("light")).not.toBe(primaryInkFor("dark"));
   });
 
   it("chartColors differ between modes", () => {

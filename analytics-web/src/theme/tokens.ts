@@ -17,6 +17,14 @@ export const sharedToken = { ...radius, ...typography, wireframe: false } as con
  */
 export const primaryInk = "#047857";
 
+/** The same idea on a dark surface, where #047857 falls to 2.8:1 and the brand reads at 6.06. */
+export const primaryInkDark = "#10b981";
+
+/** Whichever of the two is legible against the surface in front of you. */
+export function primaryInkFor(mode: "light" | "dark"): string {
+  return mode === "dark" ? primaryInkDark : primaryInk;
+}
+
 export const lightTokens: ThemeConfig["token"] = {
   ...sharedToken,
   colorPrimary: "#0f6e56",

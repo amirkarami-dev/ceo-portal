@@ -1,5 +1,6 @@
 import { theme as antdTheme } from "antd";
 import type { ThemeConfig } from "antd";
+import { primaryInkFor } from "./tokens";
 
 export type ThemeMode = "light" | "dark";
 export interface BrandTokens {
@@ -42,6 +43,15 @@ export function buildAntdTheme(mode: ThemeMode, brand: BrandTokens, dir: "rtl" |
       Card: { paddingLG: 20 },
       Layout: { headerBg: "var(--rw-surface-1)", siderBg: "var(--rw-surface-1)" },
       Menu: { itemBg: "transparent" },
+      // Every tab strip in the app, not just the dashboards ones. The brand green is
+      // 2.54:1 as a label on a light panel; the deeper green is 5.48. On the dark panel
+      // the deeper green is the unreadable one, so the value follows the mode. antd owns
+      // this colour through the token — CSS overrides of it lose, however specific.
+      Tabs: {
+        itemSelectedColor: primaryInkFor(mode),
+        itemHoverColor: primaryInkFor(mode),
+        inkBarColor: primaryInkFor(mode),
+      },
     },
   };
 }

@@ -342,13 +342,9 @@
   margin-bottom: 12px;
 }
 
-/* The active tab's label colour is NOT set here. antd owns it through a component
-   token, and a CSS override loses however specific you make it — four-class
-   selectors and setting the token on the Tabs root were both tried and both did
-   nothing. It is set with ConfigProvider in DashboardsPage.tsx instead. */
-.dash-tabs .ant-tabs-ink-bar {
-  background: var(--rw-primary-ink, #047857);
-}
+/* The tab colours -- selected label, hover and ink bar -- come from the Tabs
+   component token in theme.ts, which follows the light/dark mode. antd owns that
+   colour and CSS overrides of it lose however specific you make them. */
 
 /* antd draws the switch 44×22. The track is the right size to look at and too short
    to hit, so the hit area grows and the drawn control does not. `::after` is free —

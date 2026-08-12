@@ -1,4 +1,4 @@
-import { Button, ConfigProvider, Dropdown, Input, Space, Tabs, Tag, message } from "antd";
+import { Button, Dropdown, Input, Space, Tabs, Tag, message } from "antd";
 import {
   AppstoreOutlined,
   ClockCircleOutlined,
@@ -16,7 +16,6 @@ import { useAuth } from "@/auth/useAuth";
 import { formatCategory, toPersianDigits } from "@/presentation/format";
 import { EmptyState, PageContainer, Loading } from "@/components/ui";
 import { reportOwnerLabel } from "@/features/library/report-display";
-import { primaryInk as INK } from "@/theme/tokens";
 import { canManageDashboards } from "./can-manage";
 import "./dashboards.css";
 
@@ -50,10 +49,7 @@ export function ManageDashboards() {
     return query ? scoped.filter((d) => d.name.toLowerCase().includes(query)) : scoped;
   }, [data, q, tab, user?.id]);
 
-  const widgetTotal = useMemo(
-    () => (data ?? []).reduce((a, d) => a + d.widgets.length, 0),
-    [data],
-  );
+  const widgetTotal = useMemo(() => (data ?? []).reduce((a, d) => a + d.widgets.length, 0), [data]);
 
   const open = (id: string) => void navigate(`/dashboards?d=${encodeURIComponent(id)}`);
 
@@ -108,22 +104,16 @@ export function ManageDashboards() {
         </div>
       </div>
 
-      {/* Same reason as the tab strip on /dashboards: the brand green is 2.54:1 at
-          14px, and antd owns this colour through a token rather than CSS. */}
-      <ConfigProvider
-        theme={{ components: { Tabs: { itemSelectedColor: INK, itemHoverColor: INK } } }}
-      >
-        <Tabs
-          activeKey={tab}
-          onChange={setTab}
-          className="dash-list__tabs"
-          items={[
-            { key: "all", label: t("dash.tabs.all") },
-            { key: "mine", label: t("dash.tabs.mine") },
-            { key: "recent", label: t("dash.tabs.recent") },
-          ]}
-        />
-      </ConfigProvider>
+      <Tabs
+        activeKey={tab}
+        onChange={setTab}
+        className="dash-list__tabs"
+        items={[
+          { key: "all", label: t("dash.tabs.all") },
+          { key: "mine", label: t("dash.tabs.mine") },
+          { key: "recent", label: t("dash.tabs.recent") },
+        ]}
+      />
 
       {boards.length === 0 ? (
         <EmptyState
