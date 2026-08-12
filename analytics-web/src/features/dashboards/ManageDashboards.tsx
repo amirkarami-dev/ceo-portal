@@ -1,44 +1,40 @@
-import { Button, Dropdown, Input, Space, Switch, Tabs, Tag, message } from "antd";
+import { Button, Dropdown, Input, Space, Tabs, Tag, message } from "antd";
 import {
   AppstoreOutlined,
   ClockCircleOutlined,
-  DashboardOutlined,
   EditOutlined,
   MoreOutlined,
   PlusOutlined,
-  SaveOutlined,
+  SettingOutlined,
   UserOutlined,
 } from "@ant-design/icons";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { useDashboards, useDeleteDashboard, useSaveDashboard } from "@/api/queries";
+import { useDashboards, useDeleteDashboard } from "@/api/queries";
 import { useAuth } from "@/auth/useAuth";
-import { DashboardCanvas } from "@/dashboard/DashboardCanvas";
-import type { GridLayoutItem } from "@/dashboard/widget";
 import { formatCategory, toPersianDigits } from "@/presentation/format";
 import { EmptyState, PageContainer, Loading } from "@/components/ui";
 import { reportOwnerLabel } from "@/features/library/report-display";
-import { WidgetFrame } from "./WidgetFrame";
 import { canManageDashboards } from "./can-manage";
 import "./dashboards.css";
 
-export function DashboardList() {
+/**
+ * Making dashboards, not reading them. Looking at a dashboard is a daily job and
+ * lives on /dashboards; renaming or deleting one is rare, so it was taking room
+ * from the widgets on the page people actually use.
+ */
+export function ManageDashboards() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { roles, user } = useAuth();
   const { data, isLoading } = useDashboards();
   const del = useDeleteDashboard();
-  const save = useSaveDashboard();
   const [q, setQ] = useState("");
   const [tab, setTab] = useState("all");
-  const [selectedId, setSelectedId] = useState<string>();
-  const [previewEditing, setPreviewEditing] = useState(true);
-  const [previewLayout, setPreviewLayout] = useState<GridLayoutItem[]>([]);
 
   const rtl = i18n.dir() === "rtl";
   const num = (n: number) => (rtl ? toPersianDigits(n) : String(n));
-
   const canManage = canManageDashboards(roles);
 
   const boards = useMemo(() => {
@@ -58,35 +54,26 @@ export function DashboardList() {
     [data],
   );
 
-  const activeId = boards.some((board) => board.id === selectedId) ? selectedId : boards[0]?.id;
-  const selected = boards.find((board) => board.id === activeId);
+  const open = (id: string) => void navigate(`/dashboards?d=${encodeURIComponent(id)}`);
 
-  useEffect(() => {
-    setPreviewLayout(selected?.layout ?? []);
-  }, [selected?.id, selected?.layout]);
-
-  const savePreviewLayout = async () => {
-    if (!selected) return;
-    try {
-      await save.mutateAsync({ ...selected, layout: previewLayout });
-      void message.success(t("dash.saved"));
-    } catch {
-      void message.error(t("dash.saveError"));
-    }
+  const remove = (id: string, name: string) => {
+    del.mutate(id, {
+      onSuccess: () => void message.success(t("dash.deleted", { name })),
+      onError: () => void message.error(t("dash.deleteError")),
+    });
   };
 
   if (isLoading) return <Loading rows={6} />;
 
   return (
     <PageContainer>
-      {/* Hero */}
       <div className="dash-hero">
         <div className="dash-hero__glow" aria-hidden />
         <div className="dash-hero__text">
           <h1 className="dash-hero__title">
-            <DashboardOutlined /> {t("dashboards.title")}
+            <SettingOutlined /> {t("dash.manageTitle")}
           </h1>
-          <p className="dash-hero__subtitle">{t("dash.heroSubtitle")}</p>
+          <p className="dash-hero__subtitle">{t("dash.manageSubtitle")}</p>
           <div className="dash-hero__stats">
             <span className="dash-hero__stat">
               <AppstoreOutlined /> {t("dash.boardCount", { count: (data ?? []).length })}
@@ -97,7 +84,11 @@ export function DashboardList() {
           </div>
         </div>
         <div className="dash-hero__actions">
+          {/* size="large" is antd's own 16px input. Below 16px iOS zooms the page on
+              tap and never zooms back; the CSS route loses to antd's injected rules,
+              and this matches the «داشبورد جدید» button beside it anyway. */}
           <Input.Search
+            size="large"
             placeholder={t("dash.search")}
             onChange={(e) => setQ(e.target.value)}
             style={{ width: 240 }}
@@ -141,18 +132,10 @@ export function DashboardList() {
       ) : (
         <div className="dash-list__grid">
           {boards.map((d) => (
-            <div
-              key={d.id}
-              data-testid="dashboard-card"
-              className={`dash-card${activeId === d.id ? " dash-card--selected" : ""}`}
-            >
+            <div key={d.id} data-testid="dashboard-card" className="dash-card">
               <div className="dash-card__accent" aria-hidden />
-              <button
-                type="button"
-                className="dash-card__select"
-                aria-pressed={activeId === d.id}
-                onClick={() => setSelectedId(d.id)}
-              >
+              {/* On this page a card opens the dashboard; there is nothing here to preview. */}
+              <button type="button" className="dash-card__select" onClick={() => open(d.id)}>
                 <span className="dash-card__name">{d.name}</span>
                 <Space size={6} wrap className="dash-card__meta">
                   <Tag bordered={false} icon={<AppstoreOutlined />}>
@@ -172,15 +155,12 @@ export function DashboardList() {
                 trigger={["click"]}
                 menu={{
                   items: [
-                    {
-                      key: "open",
-                      label: t("dash.open"),
-                      onClick: () => setSelectedId(d.id),
-                    },
+                    { key: "open", label: t("dash.open"), onClick: () => open(d.id) },
                     ...(canManage
                       ? [
                           {
                             key: "edit",
+                            icon: <EditOutlined />,
                             label: t("common.edit"),
                             onClick: () => void navigate(`/dashboards/${d.id}/edit`),
                           },
@@ -189,7 +169,7 @@ export function DashboardList() {
                             key: "del",
                             danger: true,
                             label: t("dash.delete"),
-                            onClick: () => void del.mutate(d.id),
+                            onClick: () => remove(d.id, d.name),
                           },
                         ]
                       : []),
@@ -207,72 +187,6 @@ export function DashboardList() {
             </div>
           ))}
         </div>
-      )}
-
-      {selected && (
-        <section className="dash-preview" aria-labelledby="dash-preview-title">
-          <div className="dash-preview__head">
-            <div>
-              <span className="dash-preview__eyebrow">{t("dash.previewLabel")}</span>
-              <h2 id="dash-preview-title" className="dash-preview__title">
-                {selected.name}
-              </h2>
-              <p className="dash-preview__meta">
-                {t("dash.previewWidgets", { value: num(selected.widgets.length) })}
-              </p>
-            </div>
-            {canManage && (
-              <Space wrap>
-                <Space size={6}>
-                  <span className="dash-preview__edit-label">{t("dash.editMode")}</span>
-                  <Switch
-                    checked={previewEditing}
-                    onChange={setPreviewEditing}
-                    size="small"
-                  />
-                </Space>
-                <Button
-                  type="primary"
-                  icon={<SaveOutlined />}
-                  loading={save.isPending}
-                  disabled={!previewEditing}
-                  onClick={() => void savePreviewLayout()}
-                >
-                  {t("common.save")}
-                </Button>
-                <Button
-                  icon={<EditOutlined />}
-                  onClick={() => void navigate(`/dashboards/${selected.id}/edit`)}
-                >
-                  {t("common.edit")}
-                </Button>
-              </Space>
-            )}
-          </div>
-
-          {selected.widgets.length === 0 ? (
-            <div data-testid="dashboard-preview-empty">
-              <EmptyState description={t("dash.emptyDashboard")} />
-            </div>
-          ) : (
-            <div
-              className={previewEditing && canManage ? undefined : "dashboard-canvas--readonly"}
-              data-testid="dashboard-preview"
-            >
-              <DashboardCanvas
-                layout={previewLayout}
-                editing={previewEditing && canManage}
-                onLayoutChange={setPreviewLayout}
-              >
-                {selected.widgets.map((widget) => (
-                  <div key={widget.i} data-testid="dashboard-preview-widget">
-                    <WidgetFrame widget={widget} editing={false} />
-                  </div>
-                ))}
-              </DashboardCanvas>
-            </div>
-          )}
-        </section>
       )}
     </PageContainer>
   );

@@ -7,6 +7,7 @@ import {
   AppstoreOutlined,
   AuditOutlined,
   BarChartOutlined,
+  ControlOutlined,
   DatabaseOutlined,
   ExportOutlined,
   FileTextOutlined,
@@ -22,6 +23,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/useAuth";
 import type { Permission } from "../contracts/rbac";
+import { canManageDashboards } from "../features/dashboards/can-manage";
 import "./sidebar.css";
 
 type Item = {
@@ -30,6 +32,8 @@ type Item = {
   icon: ReactNode;
   need?: Permission;
   adminAny?: boolean;
+  /** Hidden unless the routes would actually let this person through — see can-manage.ts. */
+  dashboardManager?: boolean;
   featured?: boolean;
 };
 type Group = { titleKey?: string; items: Item[] };
@@ -38,6 +42,12 @@ const USER_GROUPS: Group[] = [
   {
     items: [
       { key: "/dashboards", labelKey: "nav.dashboards", icon: <AppstoreOutlined /> },
+      {
+        key: "/manage-dashboards",
+        labelKey: "nav.manageDashboards",
+        icon: <ControlOutlined />,
+        dashboardManager: true,
+      },
       { key: "/ask", labelKey: "nav.ask", icon: <RobotOutlined />, featured: true },
     ],
   },
@@ -125,6 +135,7 @@ export function Sidebar({
     const groups = isAdminZone ? ADMIN_GROUPS : USER_GROUPS;
     const visible = (it: Item) => {
       if (it.adminAny) return isAdmin;
+      if (it.dashboardManager) return canManageDashboards(roles);
       if (it.key === "/admin/tenants") return roles.includes("SuperAdmin");
       if (it.need) return can(it.need);
       return true;

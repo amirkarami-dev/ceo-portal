@@ -894,6 +894,17 @@ it — do not reach for `!important` first. **And check by effect, not by readin
 Scanning `document.styleSheets` for the competing rule gave contradictory answers twice; injecting a
 candidate rule and measuring what moved settled it in one try.
 
+### If antd has a prop for it, use the prop — do not override its CSS
+Following on from the tie above: sometimes you cannot win the tie at all. `Input`'s font size comes
+from a rule that out-specifies a two-class selector, so `.dash-hero__actions input { font-size:
+16px }` did nothing — while a `min-width` rule **in the same media block** applied fine, which is
+what makes this so easy to misread as "my CSS is not loading". `size="large"` fixed it in one line,
+because that *is* antd's 16px input.
+**Rule:** check for a prop (`size`, `variant`, `styles`, a theme token) before writing a rule that
+targets an `ant-*` class. A rule that silently does nothing is worse than no rule — the next person
+reads it and assumes the case is handled.
+**Why 16px matters:** any input under 16px makes iOS zoom the page on tap and never zoom back.
+
 ### A frozen CSS transition will lie to `getComputedStyle`
 An element reported `width: 240px` while its own inline style said `80px` and no rule overrode it.
 The cause was not CSS: the browser pane was not displayed, so no frames were composited, so the

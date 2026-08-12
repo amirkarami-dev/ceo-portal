@@ -15,7 +15,12 @@ import { PagePlaceholder } from "./PagePlaceholder";
 import { AskAiBuilder } from "../features/ask-ai";
 import { ReportLibrary } from "../features/library";
 import { ReportViewer } from "../features/viewer";
-import { DashboardList, DashboardBuilder, DashboardViewer } from "../features/dashboards";
+import {
+  DashboardList,
+  DashboardBuilder,
+  DashboardViewer,
+  ManageDashboards,
+} from "../features/dashboards";
 import AIAdminShell from "../admin/ai/AIAdminShell";
 import { AIProviderList } from "../admin/ai/providers/AIProviderList";
 import { AIRoutingRules } from "../admin/ai/routing/AIRoutingRules";
@@ -79,6 +84,7 @@ export const router = createBrowserRouter([
               />
             ),
             children: [
+              { path: "manage-dashboards", element: <ManageDashboards /> },
               { path: "dashboards/new", element: <DashboardBuilder /> },
               { path: "dashboards/:dashId/edit", element: <DashboardBuilder /> },
             ],

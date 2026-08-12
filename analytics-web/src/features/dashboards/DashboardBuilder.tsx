@@ -8,6 +8,7 @@ import { useAuth } from "@/auth/useAuth";
 import { DashboardCanvas } from "@/dashboard/DashboardCanvas";
 import { newWidget, type DashboardWidget, type GridLayoutItem } from "@/dashboard/widget";
 import { AddWidgetDrawer } from "./AddWidgetDrawer";
+import { canManageDashboards } from "./can-manage";
 import { WidgetFrame } from "./WidgetFrame";
 import { EmptyState, Loading, PageContainer, PageHeader } from "@/components/ui";
 
@@ -51,11 +52,7 @@ export function DashboardBuilder() {
     }
   }, [data]);
 
-  const canEdit =
-    roles.includes("DashboardDesigner") ||
-    roles.includes("ReportDesigner") ||
-    roles.includes("TenantAdmin") ||
-    roles.includes("SuperAdmin");
+  const canEdit = canManageDashboards(roles);
 
   // While creating a new dashboard (or loading an existing one), show a skeleton.
   if (isNew && createDash.isError) {

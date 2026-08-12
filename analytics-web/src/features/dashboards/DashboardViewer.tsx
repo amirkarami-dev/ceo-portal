@@ -7,6 +7,7 @@ import { useAuth } from "@/auth/useAuth";
 import { DashboardCanvas } from "@/dashboard/DashboardCanvas";
 import { EmptyState, Loading, PageContainer, PageHeader } from "@/components/ui";
 import { WidgetFrame } from "./WidgetFrame";
+import { canManageDashboards } from "./can-manage";
 
 export function DashboardViewer() {
   const { t } = useTranslation();
@@ -15,10 +16,7 @@ export function DashboardViewer() {
   const { roles } = useAuth();
   const { data, isLoading, isError } = useDashboard(dashId);
 
-  const canEdit =
-    roles.includes("DashboardDesigner") ||
-    roles.includes("TenantAdmin") ||
-    roles.includes("SuperAdmin");
+  const canEdit = canManageDashboards(roles);
 
   if (isLoading) return <Loading rows={8} />;
   if (isError || !data) return <Result status="404" title={t("dash.notFound")} />;

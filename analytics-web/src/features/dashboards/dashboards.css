@@ -369,6 +369,17 @@
   margin-top: 7px;
 }
 
+/* Phone and small tablet. Both of these came over with the hero when managing moved
+   to its own page, and both were already wrong on the old one. */
+@media (max-width: 768px) {
+  /* 24×24 for the menu that holds «حذف» — half the 44px floor, on the control
+     where a mis-tap costs the most. The icon stays its size; the target grows. */
+  .dash-card__menu {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
 @media (max-width: 575px) {
   .dash-hero {
     padding: 20px 16px;
