@@ -1,4 +1,4 @@
-import { Button, Dropdown, Input, Space, Tabs, Tag, message } from "antd";
+import { Button, ConfigProvider, Dropdown, Input, Space, Tabs, Tag, message } from "antd";
 import {
   AppstoreOutlined,
   ClockCircleOutlined,
@@ -16,6 +16,7 @@ import { useAuth } from "@/auth/useAuth";
 import { formatCategory, toPersianDigits } from "@/presentation/format";
 import { EmptyState, PageContainer, Loading } from "@/components/ui";
 import { reportOwnerLabel } from "@/features/library/report-display";
+import { primaryInk as INK } from "@/theme/tokens";
 import { canManageDashboards } from "./can-manage";
 import "./dashboards.css";
 
@@ -107,16 +108,22 @@ export function ManageDashboards() {
         </div>
       </div>
 
-      <Tabs
-        activeKey={tab}
-        onChange={setTab}
-        className="dash-list__tabs"
-        items={[
-          { key: "all", label: t("dash.tabs.all") },
-          { key: "mine", label: t("dash.tabs.mine") },
-          { key: "recent", label: t("dash.tabs.recent") },
-        ]}
-      />
+      {/* Same reason as the tab strip on /dashboards: the brand green is 2.54:1 at
+          14px, and antd owns this colour through a token rather than CSS. */}
+      <ConfigProvider
+        theme={{ components: { Tabs: { itemSelectedColor: INK, itemHoverColor: INK } } }}
+      >
+        <Tabs
+          activeKey={tab}
+          onChange={setTab}
+          className="dash-list__tabs"
+          items={[
+            { key: "all", label: t("dash.tabs.all") },
+            { key: "mine", label: t("dash.tabs.mine") },
+            { key: "recent", label: t("dash.tabs.recent") },
+          ]}
+        />
+      </ConfigProvider>
 
       {boards.length === 0 ? (
         <EmptyState

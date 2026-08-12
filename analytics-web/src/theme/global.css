@@ -81,6 +81,14 @@ body {
   .rw-ambient-blob { animation: none; }
 }
 
+/* The brand green as *text*. #10b981 is the brand and is right for fills, bars and
+   icons, but at 14px on a light surface it measures 2.54:1 — it fails AA and it is
+   genuinely hard to read. This is the same green two steps down, 5.48:1 on white,
+   for any place the brand colour has to be read rather than just seen. */
+:root {
+  --rw-primary-ink: #047857;
+}
+
 /* Visible to a screen reader, not to the eye. Used where a control already carries
    the name on screen — a tab strip, say — but the document still needs a heading. */
 .sr-only {

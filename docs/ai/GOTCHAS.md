@@ -894,6 +894,19 @@ it — do not reach for `!important` first. **And check by effect, not by readin
 Scanning `document.styleSheets` for the competing rule gave contradictory answers twice; injecting a
 candidate rule and measuring what moved settled it in one try.
 
+### analytics-web has two brand greens, and the unreadable one wins
+`theme/tokens.ts` sets `colorPrimary: "#0f6e56"` (**6.2:1** on white). `theme/theme.ts` sets
+`tokens.primary = "#10b981"` (**2.54:1**), `providers.tsx` passes that as the brand, and
+`ThemeProvider` merges the brand-built token **over** the tokens.ts one:
+`token: { ...tokenOverrides.token, ...antdBaseTheme.token }`.
+**So the readable green is never rendered**, and everything the brand touches as *text* fails AA.
+Editing `tokens.ts` to fix a colour therefore does nothing — check `theme.ts` first.
+**Do not read the brand colour from `buildTheme()`** when you mean the one on screen; a test written
+that way asserted a failing ratio and got 6.2.
+Where the brand colour has to be **read** rather than seen, use `primaryInk` (`tokens.ts`) or
+`--rw-primary-ink` (`global.css`) — `#047857`, 5.48:1, same hue two steps down. Fills, bars and
+markers keep the brand.
+
 ### If antd has a prop for it, use the prop — do not override its CSS
 Following on from the tie above: sometimes you cannot win the tie at all. `Input`'s font size comes
 from a rule that out-specifies a two-class selector, so `.dash-hero__actions input { font-size:

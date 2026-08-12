@@ -68,7 +68,9 @@
   font-size: 12px;
   padding: 4px 10px;
   border-radius: 999px;
-  color: var(--ant-color-primary, #0f6e56);
+  /* 12px counts, and brand green on a 10% brand chip is about 2.4:1. The chip keeps
+     the brand tint; the digits on it have to be readable. */
+  color: var(--rw-primary-ink, #047857);
   background: color-mix(in srgb, var(--ant-color-primary, #0f6e56) 10%, transparent);
 }
 
@@ -375,6 +377,24 @@
   margin-bottom: 12px;
 }
 
+/* The active tab's label colour is NOT set here. antd owns it through a component
+   token, and a CSS override loses however specific you make it — four-class
+   selectors and setting the token on the Tabs root were both tried and both did
+   nothing. It is set with ConfigProvider in DashboardsPage.tsx instead. */
+.dash-tabs .ant-tabs-ink-bar {
+  background: var(--rw-primary-ink, #047857);
+}
+
+/* antd draws the switch 44×22. The track is the right size to look at and too short
+   to hit, so the hit area grows and the drawn control does not. `::after` is free —
+   antd builds the knob from a child element, not a pseudo. */
+.dash-tabs .ant-switch::after {
+  content: "";
+  position: absolute;
+  inset-block: -11px;
+  inset-inline: 0;
+}
+
 /* Phone and small tablet. Both of these came over with the hero when managing moved
    to its own page, and both were already wrong on the old one. */
 @media (max-width: 768px) {
@@ -389,8 +409,29 @@
     width: 100%;
   }
 
-  .dash-tabs .ant-tabs-extra-content .ant-btn {
+  .dash-tabs .ant-tabs-extra-content .ant-btn,
+  .dash-hero__actions .ant-btn {
     min-height: 44px;
+    /* the search button is 40 wide on its own */
+    min-width: 44px;
+  }
+
+  /* «همه» and «اخیر» are short words, so antd sized their tabs to 24px wide. */
+  .dash-list__tabs .ant-tabs-tab {
+    min-width: 44px;
+    justify-content: center;
+  }
+
+  /* antd draws the search clear button at 12×12. Same trick as the switch: grow
+     what the finger hits, leave the glyph alone. */
+  .dash-hero__actions .ant-input-clear-icon {
+    position: relative;
+  }
+
+  .dash-hero__actions .ant-input-clear-icon::after {
+    content: "";
+    position: absolute;
+    inset: -16px;
   }
   /* 24×24 for the menu that holds «حذف» — half the 44px floor, on the control
      where a mis-tap costs the most. The icon stays its size; the target grows. */

@@ -5,6 +5,18 @@ const typography = { fontFamily: "Vazirmatn, -apple-system, Segoe UI, sans-serif
 
 export const sharedToken = { ...radius, ...typography, wireframe: false } as const;
 
+/**
+ * The brand green as *text*, for light surfaces.
+ *
+ * The brand itself is right for fills, bars and icons, but as words on a light
+ * background it measures 2.54:1 at 14px — it fails AA and it is genuinely hard to
+ * read. This is the same green two steps down: 5.48:1 on white.
+ *
+ * Mirrors `--rw-primary-ink` in global.css, which does the same job for CSS. Change
+ * both together.
+ */
+export const primaryInk = "#047857";
+
 export const lightTokens: ThemeConfig["token"] = {
   ...sharedToken,
   colorPrimary: "#0f6e56",

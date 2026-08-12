@@ -15,6 +15,9 @@
 
 .app-sidebar .ant-menu-item-selected {
   font-weight: 700;
+  /* The bar stays brand green — it is a mark, not words. The label does not: the
+     brand green measured 2.54:1 against the panel, which is unreadable at 14px. */
+  color: var(--rw-primary-ink, #047857);
   box-shadow: inset 3px 0 0 var(--ant-color-primary, #10b981);
 }
 
@@ -24,7 +27,9 @@
 
 .app-sidebar .ant-menu-item-group-title {
   padding-block: 16px 6px;
-  color: var(--ant-color-text-tertiary, #777);
+  /* Tertiary is 3.35:1 — under AA, and these are 11px. Secondary reads at 5.7:1
+     and still sits back from the items it heads. */
+  color: var(--ant-color-text-secondary, #595959);
   font-size: 11px;
   font-weight: 700;
 }
