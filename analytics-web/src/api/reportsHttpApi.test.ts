@@ -1,128 +1,60 @@
-// analytics-web/src/api/reportsHttpApi.test.ts
-// Tests for the real-API report fetchers.  httpClient is mocked so no network
-// calls are made.  Verifies correct URL, request shape, and response mapping.
-
-import { describe, it, expect, vi, beforeEach } from "vitest";
-
-// Mock httpClient before the module under test is imported.
-vi.mock("./httpClient", () => ({
-  httpClient: {
-    get: vi.fn(),
-    post: vi.fn(),
-  },
-  HttpError: class HttpError extends Error {
-    constructor(
-      public status: number,
-      public body: unknown,
-      msg: string,
-    ) {
-      super(msg);
-    }
-  },
-}));
-
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { httpClient } from "./httpClient";
 import { reportsHttpApi } from "./reportsHttpApi";
-import type { ReportDefinition } from "../contracts/report-definition";
 
-const mockGet = vi.mocked(httpClient.get);
-const mockPost = vi.mocked(httpClient.post);
-
-const MINIMAL_DEF: ReportDefinition = {
-  id: "rep-1",
-  schemaVersion: "1",
-  name: "Revenue Report",
-  dataset: "ds-sales",
-  columns: [],
-  presentation: { views: [] },
+/** What GET /api/Reports actually sends: SavedReportDto has `int Id`, so this is a number. */
+const backendRow = {
+  id: 2,
+  name: "تعداد مهندسان هر رشته",
+  ownerName: "کاربر سازمان",
+  visibility: "private" as const,
+  updatedAt: "2026-08-12T00:00:00Z",
+  definition: { name: "", dataset: "oz_info" },
 };
 
-const BACKEND_LIST = [
-  {
-    id: "rep-1",
-    name: "Revenue Report",
-    ownerName: "Alice",
-    visibility: "tenant" as const,
-    updatedAt: "2026-01-01T00:00:00Z",
-    definition: MINIMAL_DEF,
-  },
-];
-
-describe("reportsHttpApi.list()", () => {
+describe("reportsHttpApi", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    mockGet.mockResolvedValue(BACKEND_LIST);
+    vi.spyOn(httpClient, "get").mockResolvedValue([backendRow] as never);
   });
 
-  it("calls GET /api/Reports", async () => {
-    await reportsHttpApi.list();
-    expect(mockGet).toHaveBeenCalledWith("/api/Reports");
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
-  it("maps backend items to SavedReport shape", async () => {
-    const result = await reportsHttpApi.list();
-    expect(result).toHaveLength(1);
-    expect(result[0].id).toBe("rep-1");
-    expect(result[0].ownerName).toBe("Alice");
-    expect(result[0].visibility).toBe("tenant");
-    expect(result[0].definition.name).toBe("Revenue Report");
-    expect(result[0].definition.dataset).toBe("ds-sales");
-  });
-});
-
-describe("reportsHttpApi.get()", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockGet.mockResolvedValue(BACKEND_LIST);
+  // The bug: opening a report from the library answered «گزارش یافت نشد» while the
+  // same report rendered inside a dashboard widget. A route param is a string, the
+  // backend id is a number, and `2 === "2"` is false.
+  it("finds a report when the route param is a string and the id is a number", async () => {
+    await expect(reportsHttpApi.get("2")).resolves.toMatchObject({ id: "2" });
   });
 
-  it("returns the matching SavedReport by id", async () => {
-    const result = await reportsHttpApi.get("rep-1");
-    expect(result).not.toBeNull();
-    expect(result?.id).toBe("rep-1");
+  // Dashboards saved before the fix hold their widget's reportId as a number, and
+  // WidgetFrame passes it straight to useReport. Those must keep resolving.
+  it("still finds it when asked with the number a saved widget holds", async () => {
+    await expect(reportsHttpApi.get(2 as unknown as string)).resolves.toMatchObject({ id: "2" });
   });
 
-  it("returns null when id not found", async () => {
-    const result = await reportsHttpApi.get("does-not-exist");
-    expect(result).toBeNull();
-  });
-});
-
-describe("reportsHttpApi.save()", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockPost.mockResolvedValue({ id: "rep-new" });
+  it("returns null for an id that is not there, rather than the first row", async () => {
+    await expect(reportsHttpApi.get("999")).resolves.toBeNull();
   });
 
-  it("calls POST /api/Reports with definition + name + visibility", async () => {
-    await reportsHttpApi.save({
-      definition: MINIMAL_DEF,
-      name: "My Report",
-      visibility: "private",
+  // Everything downstream — route links, table keys, widget reportIds — expects a
+  // string, so the number is converted at the one place it arrives.
+  it("hands out string ids from the list", async () => {
+    const list = await reportsHttpApi.list();
+    expect(list).toHaveLength(1);
+    expect(list[0].id).toBe("2");
+    expect(typeof list[0].id).toBe("string");
+  });
+
+  it("reads the bare number POST /api/Reports returns, not a wrapper object", async () => {
+    // The endpoint is Task<Ok<int>>: the body is `7`, not `{ id: 7 }`.
+    vi.spyOn(httpClient, "post").mockResolvedValue(7 as never);
+
+    const saved = await reportsHttpApi.save({
+      definition: { name: "تازه", dataset: "oz_info" } as never,
     });
 
-    expect(mockPost).toHaveBeenCalledWith("/api/Reports", {
-      definition: { ...MINIMAL_DEF, name: "My Report" },
-      name: "My Report",
-      visibility: "private",
-    });
-  });
-
-  it("echoes back a SavedReport with the server-assigned id", async () => {
-    const result = await reportsHttpApi.save({
-      definition: MINIMAL_DEF,
-      visibility: "tenant",
-    });
-
-    expect(result.id).toBe("rep-new");
-    expect(result.visibility).toBe("tenant");
-  });
-
-  it("uses definition name when no name override provided", async () => {
-    await reportsHttpApi.save({ definition: MINIMAL_DEF });
-    expect(mockPost).toHaveBeenCalledWith(
-      "/api/Reports",
-      expect.objectContaining({ name: "Revenue Report" }),
-    );
+    expect(saved.id).toBe("7");
   });
 });

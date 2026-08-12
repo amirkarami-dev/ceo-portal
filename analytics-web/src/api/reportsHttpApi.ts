@@ -14,9 +14,15 @@ import type { ReportDefinition } from "../contracts/report-definition";
 import { httpClient } from "./httpClient";
 import type { SavedReport } from "./queries";
 
-/** Shape the backend returns for each item in GET /api/Reports */
+/**
+ * Shape the backend returns for each item in GET /api/Reports.
+ *
+ * `id` is a **number**. `SavedReportDto` declares `int Id`, so the JSON carries `2`,
+ * not `"2"`. This interface used to say `string`, which TypeScript cannot check against
+ * a network response — so the lie held until something compared the two.
+ */
 interface BackendSavedReport {
-  id: string;
+  id: number;
   name: string;
   ownerName: string;
   visibility: "private" | "tenant";
@@ -24,16 +30,13 @@ interface BackendSavedReport {
   definition: ReportDefinition;
 }
 
-/** Shape the backend returns from POST /api/Reports */
-interface BackendSaveResponse {
-  id: string;
-}
-
 function backendToFrontend(b: BackendSavedReport): SavedReport {
   const definition = b.definition ?? ({} as ReportDefinition);
 
   return {
-    id: b.id,
+    // SavedReport.id is a string everywhere in the app — route params, widget
+    // reportIds, table keys. Make that true here, at the one place the number arrives.
+    id: String(b.id),
     ownerName: b.ownerName,
     visibility: b.visibility,
     updatedAt: b.updatedAt,
@@ -57,7 +60,12 @@ export const reportsHttpApi = {
    */
   async get(id: string): Promise<SavedReport | null> {
     const items = await httpClient.get<BackendSavedReport[]>("/api/Reports");
-    const found = items.find((r) => r.id === id);
+    // Compared as strings on both sides, deliberately. The backend sends a number, a
+    // route param is always a string, and dashboards saved before this fix hold their
+    // widget's reportId as a number — `2 === "2"` was false, which is why opening a
+    // report from the library answered «گزارش یافت نشد» while the same report rendered
+    // fine inside a widget.
+    const found = items.find((r) => String(r.id) === String(id));
     return found ? backendToFrontend(found) : null;
   },
 
@@ -74,14 +82,18 @@ export const reportsHttpApi = {
     const { definition, name, visibility } = opts;
     const finalDef = name ? { ...definition, name } : definition;
 
-    const resp = await httpClient.post<BackendSaveResponse>("/api/Reports", {
+    // The endpoint is `Task<Ok<int>>`, so the body is a bare number — `2`, not
+    // `{ "id": 2 }`. This used to read `resp.id` off that number and hand back
+    // `id: undefined`. Nothing reads it today, because the modal only closes and the
+    // list refetches, but a wrong value sitting in a returned object is a trap.
+    const newId = await httpClient.post<number>("/api/Reports", {
       definition: finalDef,
       name: finalDef.name,
       visibility: visibility ?? "private",
     });
 
     return {
-      id: resp.id,
+      id: String(newId),
       definition: finalDef,
       ownerName: "",
       visibility: visibility ?? "private",
