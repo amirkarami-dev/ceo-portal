@@ -7,7 +7,6 @@ import {
   AppstoreOutlined,
   AuditOutlined,
   BarChartOutlined,
-  ControlOutlined,
   DatabaseOutlined,
   ExportOutlined,
   FileTextOutlined,
@@ -24,6 +23,8 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/useAuth";
 import type { Permission } from "../contracts/rbac";
 import { canManageDashboards } from "../features/dashboards/can-manage";
+import { SidebarHead } from "./SidebarHead";
+import { SidebarPrimary } from "./SidebarPrimary";
 import "./sidebar.css";
 
 type Item = {
@@ -34,23 +35,13 @@ type Item = {
   adminAny?: boolean;
   /** Hidden unless the routes would actually let this person through — see can-manage.ts. */
   dashboardManager?: boolean;
-  featured?: boolean;
 };
 type Group = { titleKey?: string; items: Item[] };
 
+// /dashboards, /manage-dashboards and /ask are deliberately absent: they are rendered
+// as tiles by SidebarPrimary above this menu. Listing them here too would show each of
+// them twice.
 const USER_GROUPS: Group[] = [
-  {
-    items: [
-      { key: "/dashboards", labelKey: "nav.dashboards", icon: <AppstoreOutlined /> },
-      {
-        key: "/manage-dashboards",
-        labelKey: "nav.manageDashboards",
-        icon: <ControlOutlined />,
-        dashboardManager: true,
-      },
-      { key: "/ask", labelKey: "nav.ask", icon: <RobotOutlined />, featured: true },
-    ],
-  },
   {
     titleKey: "nav.groupContent",
     items: [
@@ -115,21 +106,23 @@ const ADMIN_GROUPS: Group[] = [
 export function Sidebar({
   onNavigate,
   collapsed = false,
+  head = true,
 }: {
   onNavigate?: () => void;
   /** Icon-only rail. antd supplies the per-item tooltips; the group titles are ours to drop. */
   collapsed?: boolean;
+  /** Off in the mobile drawer, which already has a title bar of its own. */
+  head?: boolean;
 }) {
   const loc = useLocation();
   const nav = useNavigate();
   const { t } = useTranslation();
   const { can, isAdmin, roles } = useAuth();
   const isAdminZone = loc.pathname.startsWith("/admin");
-  const selectedKey = loc.pathname.startsWith("/dashboards")
-    ? "/dashboards"
-    : loc.pathname.startsWith("/ask")
-      ? "/ask"
-      : loc.pathname;
+  // /dashboards and /ask used to be folded onto their own menu entries here. They are
+  // tiles now, and SidebarPrimary marks its own active one, so this only has to answer
+  // for what the menu still contains.
+  const selectedKey = loc.pathname;
 
   const { items } = useMemo(() => {
     const groups = isAdminZone ? ADMIN_GROUPS : USER_GROUPS;
@@ -150,7 +143,6 @@ export function Sidebar({
         key: it.key,
         label: t(it.labelKey),
         icon: it.icon,
-        className: it.featured ? "app-sidebar__featured" : undefined,
       }));
 
       if (collapsed) {
@@ -178,17 +170,25 @@ export function Sidebar({
   }, [isAdminZone, can, isAdmin, roles, t, collapsed]);
 
   return (
-    <Menu
-      id="app-sidebar-nav"
-      mode="inline"
-      selectedKeys={[selectedKey]}
-      items={items}
-      onClick={({ key }) => {
-        nav(key);
-        onNavigate?.();
-      }}
-      className={`app-sidebar${collapsed ? " app-sidebar--rail" : ""}`}
-      style={{ height: "100%", borderInlineEnd: "none" }}
-    />
+    // A column so the head keeps its height and the menu takes the rest — the menu used
+    // to be height:100% on its own, which leaves no room for anything above it.
+    <div className="app-sidebar__shell">
+      {head && <SidebarHead collapsed={collapsed} />}
+      {/* Only in the workspace: the admin zone has its own destinations and none of
+          these three appear in it. */}
+      {!isAdminZone && <SidebarPrimary collapsed={collapsed} onNavigate={onNavigate} />}
+      <Menu
+        id="app-sidebar-nav"
+        mode="inline"
+        selectedKeys={[selectedKey]}
+        items={items}
+        onClick={({ key }) => {
+          nav(key);
+          onNavigate?.();
+        }}
+        className={`app-sidebar${collapsed ? " app-sidebar--rail" : ""}`}
+        style={{ flex: 1, minHeight: 0, overflowY: "auto", borderInlineEnd: "none" }}
+      />
+    </div>
   );
 }

@@ -20,9 +20,12 @@ export function AppLayout() {
   const isMobile = !screens.md;
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // In RTL layouts (fa), the sider should appear on the right.
-  // antd Layout renders Sider before the inner Layout for LTR (left),
-  // so for RTL we reverse the order using CSS flex direction.
+  // The sider goes on the right in Persian and the left in English, and `direction`
+  // already does that on its own: in an RTL flex row the first child starts at the
+  // right. This used to reverse the DOM *and* set row-reverse, two mechanisms
+  // cancelling into the correct picture — but with the sider last in the DOM, keyboard
+  // users crossed the whole page before reaching the navigation. One mechanism now:
+  // the sider is always first, and direction places it.
   const isRtl = dir === "rtl";
 
   const sider = (
@@ -70,7 +73,6 @@ export function AppLayout() {
       style={{
         minHeight: "100vh",
         background: token.colorBgLayout,
-        flexDirection: isRtl ? "row-reverse" : "row",
       }}
     >
       {/* Fixed + pointer-events:none → out of the flex flow, so antd's Sider detection is
@@ -84,16 +86,14 @@ export function AppLayout() {
             onClose={() => setDrawerOpen(false)}
             placement={isRtl ? "right" : "left"}
             width={260}
-            title={t("common.appName")}
+            // The service, not common.appName — that string is «گزارش‌ساز هوشمند», the
+            // same words as the /ask item a few rows below it.
+            title={t("service.name")}
             styles={{ body: { padding: 0 } }}
           >
-            <Sidebar onNavigate={() => setDrawerOpen(false)} />
+            {/* head={false}: the drawer's own title bar already does this job. */}
+            <Sidebar head={false} onNavigate={() => setDrawerOpen(false)} />
           </Drawer>
-        </>
-      ) : isRtl ? (
-        <>
-          {main}
-          {sider}
         </>
       ) : (
         <>

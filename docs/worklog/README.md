@@ -22,6 +22,7 @@ Also, when a task teaches something reusable:
 
 | Date | Record | Area | Status |
 |---|---|---|---|
+| 2026-08-12 | [Sidebar redesign: a head, three tiles, and a tab order that was backwards](2026-08-12-analytics-sidebar-redesign.md) | analytics-web | on `redesign/analytics-sidebar` — not merged |
 | 2026-08-12 | [Two follow-ups cleared, and the widget-count line removed](2026-08-12-analytics-followups.md) | analytics-web + all 8 SPAs | **live** — all eight deployed |
 | 2026-08-12 | [Navigation step 4: the design and phone pass](2026-08-12-analytics-navigation-polish.md) | analytics-web | **live** on analytic.myceo.ir |
 | 2026-08-12 | [Navigation step 3: /dashboards is just the dashboard](2026-08-12-analytics-dashboards-tabs.md) | analytics-web | **live** on analytic.myceo.ir |

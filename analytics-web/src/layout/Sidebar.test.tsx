@@ -26,13 +26,70 @@ describe("Sidebar", () => {
       </I18nextProvider>,
     );
 
+    // It used to be a menu row wearing a green pill — a patch for being given the same
+    // weight as «تنظیمات». It is a tile now, and the pill is gone with it.
     const ask = screen.getByText(/Ask AI|گزارش‌ساز هوشمند/i);
-    expect(ask.closest("li")).toHaveClass("app-sidebar__featured");
+    const tile = ask.closest("a");
+    expect(tile).toHaveClass("sidebar-primary__tile");
+    expect(tile).toHaveAttribute("href", "/ask");
+    expect(ask.closest("li")).toBeNull();
 
     await user.click(ask);
 
     expect(screen.getByTestId("location")).toHaveTextContent("/ask");
     expect(onNavigate).toHaveBeenCalledOnce();
+  });
+
+  // The panel used to start with a clickable row against the top edge, which is what
+  // made it feel unfinished. These guard the head being there, and being there once.
+  it("names the service at the top of the panel", () => {
+    const { container } = render(
+      <I18nextProvider i18n={i18n}>
+        <AuthProvider>
+          <MemoryRouter initialEntries={["/dashboards"]}>
+            <Sidebar />
+          </MemoryRouter>
+        </AuthProvider>
+      </I18nextProvider>,
+    );
+    const head = container.querySelector(".sidebar-head");
+    expect(head).toBeInTheDocument();
+    expect(head).toHaveTextContent(/تحلیل داده|Analytics/);
+    // Order matters: the service, then the three destinations, then the rest of the menu.
+    // antd's Menu leaves a hidden measurement node at the end; it is not part of the order.
+    const shell = [...(head?.parentElement?.children ?? [])]
+      .filter((el) => !(el as HTMLElement).hasAttribute("aria-hidden"))
+      .map((el) => el.className.toString().split(" ")[0] || el.id);
+    expect(shell).toEqual(["sidebar-head", "sidebar-primary", "ant-menu"]);
+  });
+
+  it("leaves the head out of the mobile drawer, which has its own title bar", () => {
+    const { container } = render(
+      <I18nextProvider i18n={i18n}>
+        <AuthProvider>
+          <MemoryRouter initialEntries={["/dashboards"]}>
+            <Sidebar head={false} />
+          </MemoryRouter>
+        </AuthProvider>
+      </I18nextProvider>,
+    );
+    expect(container.querySelector(".sidebar-head")).toBeNull();
+    expect(container.querySelector("#app-sidebar-nav")).toBeInTheDocument();
+  });
+
+  it("drops the service name but keeps the mark in the rail", () => {
+    const { container } = render(
+      <I18nextProvider i18n={i18n}>
+        <AuthProvider>
+          <MemoryRouter initialEntries={["/dashboards"]}>
+            <Sidebar collapsed />
+          </MemoryRouter>
+        </AuthProvider>
+      </I18nextProvider>,
+    );
+    expect(container.querySelector(".sidebar-head--rail")).toBeInTheDocument();
+    expect(container.querySelector(".sidebar-head__name")).toBeNull();
+    expect(container.querySelector(".sidebar-head__mark")).toBeInTheDocument();
   });
 
   // The words «محتوا», «داده» and «خروجی» have nowhere to go in an 80px rail, so they are

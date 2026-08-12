@@ -1,0 +1,73 @@
+/* The head of the sidebar: which service you are standing in.
+   Not a card — the sider is already a surface, so a bordered box here would be a card
+   inside a card. It reads as its own region through a tint that fades to nothing, its
+   own spacing, and the rule the menu starts under. */
+.sidebar-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 16px 16px;
+  border-bottom: 1px solid var(--ant-color-border-secondary, #ebece9);
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--ant-color-primary, #10b981) 7%, transparent),
+    transparent
+  );
+}
+
+.sidebar-head__mark {
+  display: grid;
+  flex: 0 0 36px;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  color: var(--ant-color-text-light-solid, #fff);
+  /* Not the brand green: white on it measures 2.54:1, under the 3:1 a graphic needs —
+     and in the 80px rail this mark is the only thing naming the service. The deeper
+     green of the same family puts the glyph at 5.48:1. The halo below keeps the brand. */
+  background: var(--rw-primary-solid, #047857);
+  /* A soft brand halo, offset and blurred — a mark sitting on the panel, not a
+     zero-offset ring pretending to be depth. */
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--ant-color-primary, #10b981) 30%, transparent);
+}
+
+.sidebar-head__mark svg {
+  width: 19px;
+  height: 19px;
+}
+
+.sidebar-head__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+
+.sidebar-head__name {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ant-color-text, #1c1c1a);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-head__tagline {
+  font-size: 11px;
+  line-height: 1.35;
+  /* Secondary, not tertiary: tertiary measures 3.35:1 and this is 11px. */
+  color: var(--ant-color-text-secondary, #595959);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── The 80px rail ─────────────────────────────────────────────────────────
+   Words go; the mark stays and carries the name in a tooltip, the same bargain
+   the menu items make at this width. */
+.sidebar-head--rail {
+  justify-content: center;
+  padding: 16px 0 14px;
+}

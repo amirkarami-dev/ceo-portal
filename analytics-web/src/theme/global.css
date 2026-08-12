@@ -81,12 +81,24 @@ body {
   .rw-ambient-blob { animation: none; }
 }
 
-/* The brand green as *text*. #10b981 is the brand and is right for fills, bars and
-   icons, but at 14px on a light surface it measures 2.54:1 — it fails AA and it is
-   genuinely hard to read. This is the same green two steps down, 5.48:1 on white,
-   for any place the brand colour has to be read rather than just seen. */
+/* Two jobs the brand green cannot do at once.
+
+   --rw-primary-ink is the brand as *text and icons*, on whatever the panel is. On a
+   light surface #10b981 measures 2.54:1, so it steps down to #047857 (5.48:1). On the
+   dark surface the opposite is true — #047857 falls to 2.8:1 and the brand itself
+   reads at 6.06:1 — so in dark it steps back up. Same idea both ways: whichever of
+   the two is legible against the surface in front of you.
+
+   --rw-primary-solid is the brand as a *fill that white sits on*: the head mark, the
+   active chip. That has to stay dark in both themes, because white on #10b981 is
+   2.54:1 no matter what is behind it. */
 :root {
   --rw-primary-ink: #047857;
+  --rw-primary-solid: #047857;
+}
+
+:root[data-theme="dark"] {
+  --rw-primary-ink: #10b981;
 }
 
 /* Visible to a screen reader, not to the eye. Used where a control already carries

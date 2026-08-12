@@ -1,3 +1,10 @@
+.app-sidebar__shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
 .app-sidebar {
   padding: 12px 8px;
   background: transparent;
@@ -34,18 +41,6 @@
   font-weight: 700;
 }
 
-.app-sidebar .app-sidebar__featured {
-  margin-block: 10px 14px;
-  color: var(--ant-color-primary-active, #069469);
-  background: color-mix(in srgb, var(--ant-color-primary, #10b981) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--ant-color-primary, #10b981) 24%, transparent);
-}
-
-.app-sidebar .app-sidebar__featured:hover,
-.app-sidebar .app-sidebar__featured.ant-menu-item-selected {
-  color: var(--ant-color-text-light-solid, #fff);
-  background: var(--ant-color-primary, #10b981);
-}
 
 /* ── The 80px rail ──────────────────────────────────────────────────────────
    Words are gone; antd puts each item's label in a tooltip instead. What is left
@@ -96,10 +91,4 @@
   width: 24px;
   margin: 10px auto;
   border-color: var(--ant-color-text-tertiary, #8c8c8c);
-}
-
-/* The pill keeps its accent, but a 1px ring plus a fill is too much at 80px. */
-.app-sidebar--rail .app-sidebar__featured {
-  margin-block: 8px;
-  border-color: transparent;
 }
