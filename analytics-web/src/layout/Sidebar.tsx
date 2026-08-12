@@ -102,7 +102,14 @@ const ADMIN_GROUPS: Group[] = [
   { items: [{ key: "/", labelKey: "nav.backToWorkspace", icon: <AppstoreOutlined /> }] },
 ];
 
-export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
+export function Sidebar({
+  onNavigate,
+  collapsed = false,
+}: {
+  onNavigate?: () => void;
+  /** Icon-only rail. antd supplies the per-item tooltips; the group titles are ours to drop. */
+  collapsed?: boolean;
+}) {
   const loc = useLocation();
   const nav = useNavigate();
   const { t } = useTranslation();
@@ -135,7 +142,14 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         className: it.featured ? "app-sidebar__featured" : undefined,
       }));
 
-      if (g.titleKey) {
+      if (collapsed) {
+        // «محتوا», «داده», «خروجی» have nowhere to go in an 80px rail — antd renders the title
+        // squashed and clipped. Drop the words and let a rule carry the same grouping.
+        if (menuItems.length > 0) {
+          menuItems.push({ type: "divider", key: `divider:${g.titleKey ?? leafItems[0].key}` });
+        }
+        menuItems.push(...leafItems);
+      } else if (g.titleKey) {
         const groupKey = `group:${g.titleKey}`;
         menuItems.push({
           key: groupKey,
@@ -150,10 +164,11 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     });
 
     return { items: menuItems };
-  }, [isAdminZone, can, isAdmin, roles, t]);
+  }, [isAdminZone, can, isAdmin, roles, t, collapsed]);
 
   return (
     <Menu
+      id="app-sidebar-nav"
       mode="inline"
       selectedKeys={[selectedKey]}
       items={items}
@@ -161,7 +176,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         nav(key);
         onNavigate?.();
       }}
-      className="app-sidebar"
+      className={`app-sidebar${collapsed ? " app-sidebar--rail" : ""}`}
       style={{ height: "100%", borderInlineEnd: "none" }}
     />
   );

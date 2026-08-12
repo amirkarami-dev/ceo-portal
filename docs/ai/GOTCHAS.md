@@ -882,6 +882,26 @@ console tells you: `getComputedStyle(item).left` must be `0px`, and the item's r
 container must equal its transform X. If they differ, that difference is your bug, and it will double
 the moment anything drags.
 
+### Your CSS loses ties to antd, because antd's styles are injected last
+antd v5 writes its component CSS into `<style>` tags **at runtime**, after the app's own stylesheets
+have loaded. Equal specificity therefore goes to antd, not to you, and the rule you wrote does
+nothing at all — no warning, no override marker in devtools unless you look for the winner.
+**Seen in:** `.app-sidebar--rail .ant-menu-item .ant-menu-title-content { display: none }` (three
+classes) had zero effect; adding antd's own `.ant-menu-inline-collapsed` to the front made four and
+it won. Measured 34px off centre before, 0px after.
+**Rule:** when overriding an antd internal class, count your classes and make sure you out-specify
+it — do not reach for `!important` first. **And check by effect, not by reading the CSSOM.**
+Scanning `document.styleSheets` for the competing rule gave contradictory answers twice; injecting a
+candidate rule and measuring what moved settled it in one try.
+
+### A frozen CSS transition will lie to `getComputedStyle`
+An element reported `width: 240px` while its own inline style said `80px` and no rule overrode it.
+The cause was not CSS: the browser pane was not displayed, so no frames were composited, so the
+0.2s width transition never advanced — and `getComputedStyle` returns the *current animated* value.
+**Before believing any measurement of a size that animates**, pin transitions off:
+`*,*::before,*::after{transition:none!important;animation:none!important}`. The same trap applies to
+anything measured right after a class change, even on a visible page.
+
 **Same file, same day:** `react-grid-layout` fires `onBreakpointChange` on the line directly above
 the `onLayoutChange` that carries a re-generated layout, while `onWidthChange` fires *after* it. If
 you need the new column count before deciding whether to trust a layout, only `onBreakpointChange` is

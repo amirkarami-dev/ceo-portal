@@ -37,8 +37,9 @@ export function AppLayout() {
         borderInlineEnd: !isRtl ? `1px solid ${token.colorBorderSecondary}` : undefined,
       }}
       width={240}
+      collapsedWidth={80}
     >
-      <Sidebar />
+      <Sidebar collapsed={sidebarCollapsed} />
     </Sider>
   );
 

@@ -26,6 +26,8 @@
     "reports": "Reports",
     "dashboards": "Dashboards",
     "openMenu": "Open menu",
+    "collapseMenu": "Collapse menu",
+    "expandMenu": "Expand menu",
     "favorites": "Favorites",
     "data": "Data",
     "exports": "Exports",

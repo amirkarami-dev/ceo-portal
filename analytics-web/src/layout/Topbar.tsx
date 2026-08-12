@@ -1,5 +1,10 @@
 import { Layout, Select, Button, Dropdown, Space, Avatar, Tooltip } from "antd";
-import { MenuUnfoldOutlined, SunOutlined, MoonOutlined } from "@ant-design/icons";
+import {
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  SunOutlined,
+  MoonOutlined,
+} from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/useAuth";
 import { useUiStore } from "../store/ui-store";
@@ -24,7 +29,8 @@ const ALL_ROLES: AppRole[] = [
 export function Topbar({ isMobile = false, onMenuClick }: { isMobile?: boolean; onMenuClick?: () => void }) {
   const { t } = useTranslation();
   const { user, roles, logout, setMockRole } = useAuth();
-  const { locale, setLocale, themeMode, toggleTheme } = useUiStore();
+  const { locale, setLocale, themeMode, toggleTheme, dir, sidebarCollapsed, toggleSidebar } =
+    useUiStore();
   const { currentTenantId, setCurrentTenant } = useTenantStore();
   const { data: tenants = [] } = useTenants();
 
@@ -36,6 +42,12 @@ export function Topbar({ isMobile = false, onMenuClick }: { isMobile?: boolean; 
 
   const themeLabel =
     themeMode === "dark" ? t("common.theme.light") : t("common.theme.dark");
+
+  // The chevron points at the edge the sidebar folds towards, and that edge flips with the
+  // writing direction — in Persian the sidebar sits on the right, so the icons swap.
+  const sidebarLabel = sidebarCollapsed ? t("nav.expandMenu") : t("nav.collapseMenu");
+  const foldsAwayFromCentre = sidebarCollapsed === (dir === "rtl");
+  const SidebarIcon = foldsAwayFromCentre ? MenuFoldOutlined : MenuUnfoldOutlined;
 
   return (
     <Header
@@ -54,6 +66,18 @@ export function Topbar({ isMobile = false, onMenuClick }: { isMobile?: boolean; 
           icon={<MenuUnfoldOutlined />}
           onClick={onMenuClick}
         />
+      )}
+      {!isMobile && (
+        <Tooltip title={sidebarLabel}>
+          <Button
+            type="text"
+            aria-label={sidebarLabel}
+            aria-expanded={!sidebarCollapsed}
+            aria-controls="app-sidebar-nav"
+            icon={<SidebarIcon />}
+            onClick={toggleSidebar}
+          />
+        </Tooltip>
       )}
       {!isMobile && (
         <Select

@@ -41,3 +41,60 @@
   color: var(--ant-color-text-light-solid, #fff);
   background: var(--ant-color-primary, #10b981);
 }
+
+/* ── The 80px rail ──────────────────────────────────────────────────────────
+   Words are gone; antd puts each item's label in a tooltip instead. What is left
+   has to survive on its own, so the icon gets centred and the marks that carried
+   meaning next to the words are re-cut to read at this width. */
+.app-sidebar--rail {
+  padding-inline: 8px;
+}
+
+.app-sidebar--rail .ant-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 42px is fine beside a word; alone in a rail it is under the 44px touch floor. */
+  min-height: 48px;
+  padding-inline: 0;
+}
+
+/* antd only fades the label to opacity 0 — it keeps its 58px of layout, which pushed
+   every icon off centre by up to a third of the rail. The tooltip carries the words
+   now, so the element can leave the flow completely.
+
+   The extra `.ant-menu-inline-collapsed` is not decoration: antd injects its own menu
+   rules at runtime, after this file, so a three-class selector loses the tie and the
+   icons stay off centre. Four classes wins it without reaching for !important.
+   Measured: 34px off centre with three, 0px with four. */
+.app-sidebar--rail.ant-menu-inline-collapsed .ant-menu-item .ant-menu-title-content {
+  display: none;
+}
+
+.app-sidebar--rail .ant-menu-item .ant-menu-item-icon,
+.app-sidebar--rail .ant-menu-item .anticon {
+  /* A 17px glyph in a 42px row reads as an accident at this width. */
+  font-size: 19px;
+  margin-inline-end: 0;
+}
+
+/* The selected item keeps the inset bar it has when the menu is open — the rail is a
+   narrower view of the same menu, not a different one. An outline was tried here and
+   dropped: at 45% alpha it read fainter than the bar it replaced, and the icon is the
+   only thing left to carry the state. */
+
+/* These stand in for «محتوا», «داده» and «خروجی», so they carry the grouping that the
+   words used to. The default hairline is 1.19:1 against the panel — invisible, which
+   would have quietly deleted the grouping rather than restated it. Tertiary text is
+   the colour those titles used. */
+.app-sidebar--rail .ant-menu-item-divider {
+  width: 24px;
+  margin: 10px auto;
+  border-color: var(--ant-color-text-tertiary, #8c8c8c);
+}
+
+/* The pill keeps its accent, but a 1px ring plus a fill is too much at 80px. */
+.app-sidebar--rail .app-sidebar__featured {
+  margin-block: 8px;
+  border-color: transparent;
+}
