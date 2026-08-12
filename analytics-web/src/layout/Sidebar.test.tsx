@@ -26,8 +26,13 @@ describe("Sidebar", () => {
       </I18nextProvider>,
     );
 
+    // It used to be a menu row wearing a green pill — a patch for being given the same
+    // weight as «تنظیمات». It is a tile now, and the pill is gone with it.
     const ask = screen.getByText(/Ask AI|گزارش‌ساز هوشمند/i);
-    expect(ask.closest("li")).toHaveClass("app-sidebar__featured");
+    const tile = ask.closest("a");
+    expect(tile).toHaveClass("sidebar-primary__tile");
+    expect(tile).toHaveAttribute("href", "/ask");
+    expect(ask.closest("li")).toBeNull();
 
     await user.click(ask);
 
@@ -50,8 +55,12 @@ describe("Sidebar", () => {
     const head = container.querySelector(".sidebar-head");
     expect(head).toBeInTheDocument();
     expect(head).toHaveTextContent(/تحلیل داده|Analytics/);
-    // It must sit above the menu, not somewhere inside it.
-    expect(head?.nextElementSibling?.id).toBe("app-sidebar-nav");
+    // Order matters: the service, then the three destinations, then the rest of the menu.
+    // antd's Menu leaves a hidden measurement node at the end; it is not part of the order.
+    const shell = [...(head?.parentElement?.children ?? [])]
+      .filter((el) => !(el as HTMLElement).hasAttribute("aria-hidden"))
+      .map((el) => el.className.toString().split(" ")[0] || el.id);
+    expect(shell).toEqual(["sidebar-head", "sidebar-primary", "ant-menu"]);
   });
 
   it("leaves the head out of the mobile drawer, which has its own title bar", () => {

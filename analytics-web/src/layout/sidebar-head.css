@@ -26,7 +26,7 @@
   /* Not the brand green: white on it measures 2.54:1, under the 3:1 a graphic needs —
      and in the 80px rail this mark is the only thing naming the service. The deeper
      green of the same family puts the glyph at 5.48:1. The halo below keeps the brand. */
-  background: var(--rw-primary-ink, #047857);
+  background: var(--rw-primary-solid, #047857);
   /* A soft brand halo, offset and blurred — a mark sitting on the panel, not a
      zero-offset ring pretending to be depth. */
   box-shadow: 0 4px 12px color-mix(in srgb, var(--ant-color-primary, #10b981) 30%, transparent);
