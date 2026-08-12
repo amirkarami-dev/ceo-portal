@@ -343,7 +343,7 @@ export function AppSwitcher({ currentKey, locale = "fa" }: { currentKey: string;
       trigger="click"
       placement="bottomRight"
       arrow={false}
-      overlayInnerStyle={{ padding: 8 }}
+      styles={{ body: { padding: 8 } }}
       content={content}
     >
       <Button type="text" aria-label={label} title={label} icon={<WaffleIcon />} />

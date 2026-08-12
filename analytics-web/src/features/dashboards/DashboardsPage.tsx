@@ -7,7 +7,6 @@ import { useDashboards, useSaveDashboard } from "@/api/queries";
 import { useAuth } from "@/auth/useAuth";
 import { DashboardCanvas } from "@/dashboard/DashboardCanvas";
 import type { GridLayoutItem } from "@/dashboard/widget";
-import { toPersianDigits } from "@/presentation/format";
 import { EmptyState, PageContainer, Loading } from "@/components/ui";
 import { primaryInk as INK } from "@/theme/tokens";
 import { WidgetFrame } from "./WidgetFrame";
@@ -21,7 +20,7 @@ import "./dashboards.css";
  * and it used to push the widgets — the thing people come here for — below the fold.
  */
 export function DashboardsPage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { roles } = useAuth();
   const { data, isLoading } = useDashboards();
@@ -32,8 +31,6 @@ export function DashboardsPage() {
   const [editing, setEditing] = useState(false);
   const [layout, setLayout] = useState<GridLayoutItem[]>([]);
 
-  const rtl = i18n.dir() === "rtl";
-  const num = (n: number) => (rtl ? toPersianDigits(n) : String(n));
   const canManage = canManageDashboards(roles);
 
   const boards = useMemo(() => data ?? [], [data]);
@@ -119,9 +116,6 @@ export function DashboardsPage() {
       <h1 id="dash-title" className="sr-only">
         {active.name}
       </h1>
-      <p className="dash-preview__meta">
-        {t("dash.previewWidgets", { value: num(active.widgets.length) })}
-      </p>
 
       {active.widgets.length === 0 ? (
         <div data-testid="dashboard-preview-empty">
