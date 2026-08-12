@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-12
 **Area:** analytics-web (`analytic.myceo.ir`)
-**Branch:** `redesign/analytics-sidebar` — **not merged, not deployed**
+**Status:** **live** on analytic.myceo.ir — merged from `redesign/analytics-sidebar` and checked on production
 
 Design: [`docs/design/2026-08-12-analytics-sidebar-redesign.md`](../design/2026-08-12-analytics-sidebar-redesign.md)
 
