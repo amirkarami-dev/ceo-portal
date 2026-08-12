@@ -1,10 +1,11 @@
 import { Table, Tag, Button } from "antd";
 import { useTranslation } from "react-i18next";
+import { formatDateTime } from "@/presentation/format";
 import { usePromptVersions, type PromptTemplate } from "../usePromptVersions";
 import { PageHeader } from "../../../components/ui";
 
 export function PromptVersions() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { data } = usePromptVersions();
 
   return (
@@ -37,7 +38,7 @@ export function PromptVersions() {
                 {
                   title: t("admin.ai.createdAt"),
                   dataIndex: "createdAt",
-                  render: (d: string) => (d ? new Date(d).toLocaleDateString() : "—"),
+                  render: (d: string) => (d ? formatDateTime(d, i18n.dir() === "rtl" ? "rtl" : "ltr") : "—"),
                 },
                 {
                   title: t("admin.ai.status"),

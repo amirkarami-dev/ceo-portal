@@ -22,6 +22,7 @@ import type {
 import { useReport } from "@/api/queries";
 import { buildDrilldownDefinition } from "@/query/drilldown";
 import { chooseView } from "@/presentation/auto-viz";
+import { formatDateTime } from "@/presentation/format";
 import { getModelForDataset } from "@/semantic/registry";
 import { executeReport } from "@/api/executeApi";
 import { ReportViewRenderer } from "@/presentation/ReportView";
@@ -41,7 +42,7 @@ import { FilterBar } from "./FilterBar";
 type Crumb = { label: string; def: ReportDefinition; result: QueryResult; views: ReportView[] };
 
 export function ReportViewer() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { reportId = "" } = useParams<{ reportId: string }>();
   const navigate = useNavigate();
   const { roles, user } = useAuth();
@@ -195,7 +196,11 @@ export function ReportViewer() {
             children: reportOwnerLabel(data.ownerName, user, t("library.organizationUser")),
           },
           { key: "model", label: t("viewer.model"), children: data.definition.dataset },
-          { key: "updated", label: t("viewer.updated"), children: data.updatedAt },
+          {
+            key: "updated",
+            label: t("viewer.updated"),
+            children: formatDateTime(data.updatedAt, i18n.dir() === "rtl" ? "rtl" : "ltr"),
+          },
         ]}
       />
 

@@ -70,6 +70,36 @@ export function formatDate(
 }
 
 /**
+ * A moment in time, for the places that record when something happened — last
+ * updated, last run, created. `formatDate` answers "which day"; this answers
+ * "when", and the difference matters on a timestamp you are checking for
+ * freshness.
+ *
+ * Two things it does that a bare `.toLocaleString()` does not:
+ *
+ * - **It follows the app's language, not the browser's.** `fa-IR` gives the
+ *   Persian calendar and Persian digits; `en-GB` gives a Gregorian day/month.
+ *   Reading the browser locale would show a Jalali date to someone who has
+ *   switched the app to English.
+ * - **It shows the reader's own clock.** The API sends UTC (`…+00:00`); Tehran
+ *   is three and a half hours ahead, so the raw value is never the time anyone
+ *   there saw it happen.
+ */
+export function formatDateTime(
+  value: string | number | Date | null | undefined,
+  dir: Dir,
+): string {
+  if (value === null || value === undefined || value === "") return "";
+  const d = value instanceof Date ? value : new Date(value);
+  // Anything unparseable is handed back untouched rather than shown as "Invalid Date".
+  if (Number.isNaN(d.getTime())) return String(value);
+  return new Intl.DateTimeFormat(dir === "rtl" ? "fa-IR" : "en-GB", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(d);
+}
+
+/**
  * Chart category / axis-label display. Date-like strings follow formatDate's
  * calendar rules but keep their granularity ("2025-05" → "۱۴۰۴/۰۲", not a full
  * date); everything else passes through unchanged.

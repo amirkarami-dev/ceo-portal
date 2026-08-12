@@ -4,6 +4,7 @@ import type { ColumnsType } from "antd/es/table";
 import { MoreOutlined, PlusOutlined } from "@ant-design/icons";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { formatDateTime } from "@/presentation/format";
 import { Link, useNavigate } from "react-router-dom";
 import type { SavedReport } from "@/api/queries";
 import { useDeleteReport, useReports } from "@/api/queries";
@@ -20,7 +21,8 @@ import {
 import { reportOwnerLabel } from "./report-display";
 
 export function ReportLibrary() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const rtl = i18n.dir() === "rtl";
   const navigate = useNavigate();
   const { roles, user } = useAuth();
   const { data, isLoading, isError, refetch } = useReports();
@@ -86,7 +88,7 @@ export function ReportLibrary() {
       title: t("library.colLastRun"),
       dataIndex: "lastRunAt",
       sorter: (a, b) => (a.lastRunAt ?? "").localeCompare(b.lastRunAt ?? ""),
-      render: (v?: string) => v ?? "—",
+      render: (v?: string) => (v ? formatDateTime(v, rtl ? "rtl" : "ltr") : "—"),
     },
     {
       title: "",

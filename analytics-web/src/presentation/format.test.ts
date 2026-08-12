@@ -5,6 +5,7 @@ import {
   formatDate,
   formatCategory,
   formatCell,
+  formatDateTime,
 } from "./format";
 
 describe("toPersianDigits", () => {
@@ -69,5 +70,45 @@ describe("formatCell", () => {
   });
   it("renders string-typed DB date columns as Persian dates in RTL", () => {
     expect(formatCell("1405/03/16", "string", "rtl")).toBe("۱۴۰۵/۰۳/۱۶");
+  });
+});
+
+describe("formatDateTime", () => {
+  // The report viewer used to print `2026-07-26T11:47:21.8869376+00:00` verbatim.
+  const utcNoon = "2026-07-26T11:47:21.8869376+00:00";
+
+  it("does not leave an ISO string on screen", () => {
+    const out = formatDateTime(utcNoon, "rtl");
+    expect(out).not.toContain("T");
+    expect(out).not.toContain("+00:00");
+  });
+
+  it("uses the Persian calendar and Persian digits in RTL", () => {
+    const out = formatDateTime(utcNoon, "rtl");
+    // July 2026 is month 5 of 1405 — a Gregorian year would read ۲۰۲۶.
+    expect(out).toContain("۱۴۰۵");
+    expect(out).not.toContain("2026");
+  });
+
+  it("stays Gregorian in LTR, so switching the app to English switches the calendar", () => {
+    const out = formatDateTime(utcNoon, "ltr");
+    expect(out).toContain("2026");
+    expect(out).not.toContain("۱۴۰۵");
+  });
+
+  it("carries a time, which is the whole point of a 'last updated' field", () => {
+    expect(formatDateTime(utcNoon, "ltr")).toMatch(/\d{1,2}:\d{2}/);
+  });
+
+  it("accepts a Date as well as a string", () => {
+    expect(formatDateTime(new Date(utcNoon), "ltr")).toBe(formatDateTime(utcNoon, "ltr"));
+  });
+
+  it("gives back nothing for nothing, and the input for rubbish", () => {
+    expect(formatDateTime(null, "rtl")).toBe("");
+    expect(formatDateTime(undefined, "rtl")).toBe("");
+    expect(formatDateTime("", "rtl")).toBe("");
+    // never "Invalid Date"
+    expect(formatDateTime("not a date", "rtl")).toBe("not a date");
   });
 });
