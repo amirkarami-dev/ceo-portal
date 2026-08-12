@@ -101,6 +101,51 @@ body {
   --rw-primary-ink: #10b981;
 }
 
+/* ── Controls on a phone ────────────────────────────────────────────────────
+   antd draws its default button 32px tall and a segmented item 28px. That is right
+   beside a mouse and under the 44px a finger needs. Measured on /reports at 375px:
+   «گزارش جدید» 32, both filter selects 32, the row ⋮ 32×32, the view switcher 28.
+
+   Scoped to `main` on purpose. Dropdown menus, tooltips and modals render in a portal
+   at the end of <body>, so they keep antd's own sizing and nothing inside them gets
+   stretched. `.ant-btn-sm` is left alone too — where someone asked for a small button
+   they meant it. */
+@media (max-width: 768px) {
+  main .ant-btn:not(.ant-btn-sm),
+  main .ant-select:not(.ant-select-sm) .ant-select-selector,
+  main .ant-input-affix-wrapper:not(.ant-input-affix-wrapper-sm) {
+    min-height: 44px;
+  }
+
+  main .ant-btn.ant-btn-icon-only:not(.ant-btn-sm) {
+    min-width: 44px;
+  }
+
+  /* The segmented control centres its own label, so the height goes on the item and
+     the label stretches to fill it rather than sitting in the middle of dead space. */
+  main .ant-segmented-item {
+    min-height: 44px;
+  }
+
+  main .ant-segmented-item-label {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  /* antd draws the clear ✕ at 12×12. The glyph stays that size; only what the finger
+     has to find grows — the same trick as the dashboard switch. */
+  main .ant-input-clear-icon {
+    position: relative;
+  }
+
+  main .ant-input-clear-icon::after {
+    content: "";
+    position: absolute;
+    inset: -16px;
+  }
+}
+
 /* Visible to a screen reader, not to the eye. Used where a control already carries
    the name on screen — a tab strip, say — but the document still needs a heading. */
 .sr-only {

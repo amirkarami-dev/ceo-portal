@@ -19,6 +19,7 @@ import {
   Toolbar,
 } from "@/components/ui";
 import { reportOwnerLabel } from "./report-display";
+import "./reports.css";
 
 export function ReportLibrary() {
   const { t, i18n } = useTranslation();
@@ -140,28 +141,32 @@ export function ReportLibrary() {
 
   const toolbar = (
     <Toolbar>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      {/* On a phone each of these lands on its own row anyway, so a fixed 160px just
+          leaves half the row empty — they take the width they are given instead. */}
+      <div className="reports-toolbar">
         <Input.Search
           allowClear
+          // antd's own 16px input. Below that iOS zooms the page on tap and does not
+          // zoom back; the CSS route loses to antd's injected rules.
+          size="large"
           placeholder={t("library.searchPlaceholder")}
           onChange={(e) => setQ(e.target.value)}
-          style={{ width: 240 }}
         />
         <Select
           allowClear
+          size="large"
           placeholder={t("library.filterModel")}
           value={model}
           onChange={setModel}
           options={allModels.map((m) => ({ value: m, label: m }))}
-          style={{ width: 160 }}
         />
         <Select
           allowClear
+          size="large"
           placeholder={t("library.filterTag")}
           value={tag}
           onChange={setTag}
           options={allTags.map((x) => ({ value: x, label: x }))}
-          style={{ width: 160 }}
         />
       </div>
     </Toolbar>

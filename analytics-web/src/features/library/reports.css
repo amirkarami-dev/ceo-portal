@@ -1,0 +1,29 @@
+/* The search and the two filters above the report list.
+   On a wide screen they sit in a row at their natural sizes. On a phone each one
+   lands on its own line regardless, so a fixed 160px only leaves half the line
+   empty — they take the full width there instead. */
+.reports-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.reports-toolbar .ant-input-group-wrapper {
+  width: 240px;
+}
+
+.reports-toolbar .ant-select {
+  width: 160px;
+}
+
+@media (max-width: 768px) {
+  .reports-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .reports-toolbar .ant-input-group-wrapper,
+  .reports-toolbar .ant-select {
+    width: 100%;
+  }
+}
