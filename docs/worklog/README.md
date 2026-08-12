@@ -22,7 +22,7 @@ Also, when a task teaches something reusable:
 
 | Date | Record | Area | Status |
 |---|---|---|---|
-| 2026-08-12 | [Two follow-ups cleared, and the widget-count line removed](2026-08-12-analytics-followups.md) | analytics-web + all 8 SPAs | analytics **live**; 7 apps committed, not deployed |
+| 2026-08-12 | [Two follow-ups cleared, and the widget-count line removed](2026-08-12-analytics-followups.md) | analytics-web + all 8 SPAs | **live** — all eight deployed |
 | 2026-08-12 | [Navigation step 4: the design and phone pass](2026-08-12-analytics-navigation-polish.md) | analytics-web | **live** on analytic.myceo.ir |
 | 2026-08-12 | [Navigation step 3: /dashboards is just the dashboard](2026-08-12-analytics-dashboards-tabs.md) | analytics-web | **live** on analytic.myceo.ir |
 | 2026-08-12 | [Navigation step 2: managing dashboards gets its own page](2026-08-12-analytics-manage-dashboards.md) | analytics-web | **live** on analytic.myceo.ir |

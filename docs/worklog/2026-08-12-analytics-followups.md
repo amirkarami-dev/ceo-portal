@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-12
 **Area:** analytics-web + the shared `AppSwitcher` in all eight SPAs
-**Status:** analytics-web **live** and checked on production; the other seven carry the AppSwitcher fix **committed, not deployed**
+**Status:** **live** — all eight SPAs deployed and answering 200
 
 Follows [the navigation work](2026-08-12-analytics-navigation-polish.md), which spun both of these
 off rather than doing them inline.
@@ -85,10 +85,32 @@ false alarms:
 Grepping a bundle for a string proves the string is present, not that *your* code uses it. The
 browser settled it: nothing rendered, console clean.
 
+## All eight deployed
+
+The other seven were shipped straight after, rather than left as committed-but-not-deployed.
+
+Built one at a time on the server, then recreated one at a time. **`room-web` failed the first
+build** — `docker.arvancloud.ir` would not resolve ("server misbehaving"), a registry mirror
+hiccup, not a code fault: the app built first time on retry, and the six around it built cleanly
+either side of it.
+
+Afterwards: all eight `AppSwitcher.tsx` copies on the server carry **one hash**, all fifteen
+`ceo-portal-*` containers are healthy, all eight SPAs answer `200`, and `sms-service` on the shared
+box is still `Up 3 weeks`.
+
+| app | |
+| --- | --- |
+| admin · election · landing-panel · mun-sanandaj · room · vms · walfare | 200, healthy |
+| analytics | 200, healthy (deployed earlier) |
+
+## One claim not made
+
+The deprecation was **observed in the dev console**. Whether it also reached production consoles was
+never checked before the fix, and cannot be now — antd's warning machinery *is* present in the
+production bundle, so it is plausible, but it was not verified. What is verified: the warning is
+gone where it was seen, and the popover still opens with `padding: 8px` and all eight links.
+
 ## Left to do
 
-- **The other seven SPAs have the AppSwitcher fix committed but not deployed.** It is a console
-  warning, not a user-facing fault, so it can ride along with each app's next deploy — but
-  *committed is not deployed*, and this project has been caught by that before.
 - **The keyboard focus ring** on the sidebar fold button is still the one thing never seen; it needs
   a human with a keyboard.
