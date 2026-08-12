@@ -131,8 +131,6 @@
     "addWidget": "Add widget"
   },
   "dash": {
-    "previewLabel": "Selected dashboard",
-    "previewWidgets": "{{value}} report widgets",
     "widget": "Widget",
     "widgetMenu": "Widget menu",
     "removeWidget": "Remove widget",

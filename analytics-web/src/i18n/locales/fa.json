@@ -131,8 +131,6 @@
     "addWidget": "افزودن ویجت"
   },
   "dash": {
-    "previewLabel": "نمای داشبورد انتخاب‌شده",
-    "previewWidgets": "{{value}} ویجت گزارش",
     "widget": "ویجت",
     "widgetMenu": "منوی ویجت",
     "removeWidget": "حذف ویجت",

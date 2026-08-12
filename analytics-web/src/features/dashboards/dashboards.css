@@ -183,44 +183,9 @@
   color: var(--ant-color-text-secondary, #888);
 }
 
-/* ── Landing preview ────────────────────────────────────────────────────── */
-.dash-preview {
-  margin-top: 24px;
-  padding: 20px;
-  border: 1px solid var(--ant-color-border-secondary, #ebece9);
-  border-radius: 14px;
-  background: var(--ant-color-bg-container, #fff);
-}
-
-.dash-preview__head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.dash-preview__eyebrow {
-  display: block;
-  margin-bottom: 4px;
-  color: var(--ant-color-primary, #0f6e56);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.dash-preview__title {
-  margin: 0;
-  color: var(--ant-color-text, #1c1c1a);
-  font-size: 20px;
-  font-weight: 700;
-}
-
-.dash-preview__meta {
-  margin: 4px 0 0;
-  color: var(--ant-color-text-secondary, #888);
-  font-size: 13px;
-}
-
+/* The «حالت ویرایش» label beside the switch. The rest of the old preview block —
+   the card, its head, the eyebrow, the title and the widget count — went with the
+   section it styled when /dashboards became tabs. */
 .dash-preview__edit-label {
   color: var(--ant-color-text-secondary, #666);
   font-size: 13px;
@@ -454,18 +419,5 @@
 
   .dash-list__grid {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .dash-preview {
-    padding: 16px 12px;
-  }
-
-  .dash-preview__head {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .dash-preview__head .ant-btn {
-    width: 100%;
   }
 }
