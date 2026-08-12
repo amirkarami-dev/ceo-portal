@@ -147,6 +147,7 @@
     "saveError": "Error saving dashboard",
     "dropHere": "Drop a widget here",
     "emptyDashboard": "This dashboard has no widgets yet",
+    "noneForYou": "No dashboard has been made for you yet",
     "untitled": "Untitled dashboard",
     "search": "Search dashboards…",
     "new": "New dashboard",

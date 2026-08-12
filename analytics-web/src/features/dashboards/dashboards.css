@@ -369,9 +369,29 @@
   margin-top: 7px;
 }
 
+/* ── The dashboard tabs ─────────────────────────────────────────────────────
+   The toolbar rides in the tab bar so the widgets start as high as possible. */
+.dash-tabs .ant-tabs-nav {
+  margin-bottom: 12px;
+}
+
 /* Phone and small tablet. Both of these came over with the hero when managing moved
    to its own page, and both were already wrong on the old one. */
 @media (max-width: 768px) {
+  /* Sharing one row leaves the tab strip 313px of 700 and squeezes the controls.
+     The toolbar drops to its own line, and the buttons get a real target. */
+  .dash-tabs .ant-tabs-nav {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+
+  .dash-tabs .ant-tabs-extra-content {
+    width: 100%;
+  }
+
+  .dash-tabs .ant-tabs-extra-content .ant-btn {
+    min-height: 44px;
+  }
   /* 24×24 for the menu that holds «حذف» — half the 44px floor, on the control
      where a mis-tap costs the most. The icon stays its size; the target grows. */
   .dash-card__menu {

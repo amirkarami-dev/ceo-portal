@@ -16,7 +16,7 @@ import { AskAiBuilder } from "../features/ask-ai";
 import { ReportLibrary } from "../features/library";
 import { ReportViewer } from "../features/viewer";
 import {
-  DashboardList,
+  DashboardsPage,
   DashboardBuilder,
   DashboardViewer,
   ManageDashboards,
@@ -76,7 +76,7 @@ export const router = createBrowserRouter([
             ),
           },
           { path: "reports/:reportId/history", element: P("ReportRunHistory") },
-          { path: "dashboards", element: <DashboardList /> },
+          { path: "dashboards", element: <DashboardsPage /> },
           {
             element: (
               <RequireRole

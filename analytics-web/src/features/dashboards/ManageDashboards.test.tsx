@@ -8,13 +8,14 @@ import { setMockUser } from "@/auth/mock-user";
 import { i18n } from "@/i18n";
 import { resetMockDb, seedDashboards, SEED_DASHBOARDS } from "@/api/seed";
 import type { DashboardRecord } from "@/api/queries";
-import { DashboardList } from "./DashboardList";
+import { ManageDashboards } from "./ManageDashboards";
 
 function LocationProbe() {
-  return <output data-testid="location">{useLocation().pathname}</output>;
+  const loc = useLocation();
+  return <output data-testid="location">{loc.pathname + loc.search}</output>;
 }
 
-function renderList(initialEntry = "/dashboards") {
+function renderManage(initialEntry = "/manage-dashboards") {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
@@ -23,15 +24,15 @@ function renderList(initialEntry = "/dashboards") {
           <MemoryRouter initialEntries={[initialEntry]}>
             <Routes>
               <Route
-                path="/dashboards"
+                path="/manage-dashboards"
                 element={
                   <>
-                    <DashboardList />
+                    <ManageDashboards />
                     <LocationProbe />
                   </>
                 }
               />
-              <Route path="/dashboards/:dashId" element={<div>Read-only dashboard</div>} />
+              <Route path="/dashboards" element={<LocationProbe />} />
               <Route path="/dashboards/:dashId/edit" element={<div>Dashboard editor</div>} />
               <Route path="/dashboards/new" element={<div>New dashboard</div>} />
             </Routes>
@@ -42,7 +43,7 @@ function renderList(initialEntry = "/dashboards") {
   );
 }
 
-describe("DashboardList", () => {
+describe("ManageDashboards", () => {
   beforeEach(() => {
     resetMockDb();
     seedDashboards();
@@ -50,14 +51,14 @@ describe("DashboardList", () => {
   });
 
   it("renders seeded dashboards as cards", async () => {
-    renderList();
+    renderManage();
     await waitFor(() =>
       expect(screen.getAllByTestId("dashboard-card").length).toBeGreaterThan(0),
     );
   });
 
   it("shows New dashboard button for DashboardDesigner", async () => {
-    renderList();
+    renderManage();
     await waitFor(() =>
       expect(
         screen.getByRole("button", { name: /new dashboard|داشبورد جدید/i }),
@@ -65,28 +66,30 @@ describe("DashboardList", () => {
     );
   });
 
-  it("selects a dashboard card and shows its widgets without leaving the landing page", async () => {
+  // The card used to select a preview on the same page. There is no preview here —
+  // it opens the dashboard, and the id has to survive the trip.
+  it("opens the dashboard it was clicked on", async () => {
     const user = userEvent.setup();
-    renderList();
+    renderManage();
 
     const cards = await screen.findAllByTestId("dashboard-card");
-    const firstCardButton = within(cards[0]).getByRole("button", { pressed: true });
-    await user.click(firstCardButton);
+    // Two buttons per card: the card itself and its ⋮ menu.
+    await user.click(
+      within(cards[0]).getByRole("button", { name: new RegExp(SEED_DASHBOARDS[0].name) }),
+    );
 
-    expect(await screen.findByTestId("dashboard-preview")).toBeInTheDocument();
-    expect(screen.getAllByTestId("dashboard-preview-widget")).toHaveLength(1);
-    expect(screen.getByTestId("location")).toHaveTextContent("/dashboards");
-    expect(screen.queryByText("Read-only dashboard")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByTestId("location")).toHaveTextContent(
+        `/dashboards?d=${SEED_DASHBOARDS[0].id}`,
+      ),
+    );
   });
 
-  it("lets dashboard designers drag, resize, and save the selected dashboard layout", async () => {
-    renderList();
-
-    const preview = await screen.findByTestId("dashboard-preview");
-    expect(preview).not.toHaveClass("dashboard-canvas--readonly");
-    expect(within(preview).getByTestId("dashboard-canvas")).toBeInTheDocument();
-    expect(screen.getByRole("switch")).toBeChecked();
-    expect(screen.getByRole("button", { name: /save|ذخیره/i })).toBeEnabled();
+  it("never shows a preview or a grid — those belong to /dashboards", async () => {
+    renderManage();
+    await screen.findAllByTestId("dashboard-card");
+    expect(screen.queryByTestId("dashboard-preview")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("dashboard-canvas")).not.toBeInTheDocument();
   });
 
   it("filters Mine by the authenticated subject id", async () => {
@@ -99,13 +102,15 @@ describe("DashboardList", () => {
     const mine = { ...SEED_DASHBOARDS[0], id: "mine", name: "Mine", ownerName: currentUser.id };
     const other = { ...SEED_DASHBOARDS[0], id: "other", name: "Other", ownerName: "another-user" };
     localStorage.setItem("report.db.dashboards", JSON.stringify([mine, other]));
-    renderList();
+    renderManage();
 
     await user.click(await screen.findByRole("tab", { name: /mine|داشبوردهای من/i }));
 
     await waitFor(() => expect(screen.getAllByTestId("dashboard-card")).toHaveLength(1));
     expect(within(screen.getByTestId("dashboard-card")).getByText("Mine")).toBeInTheDocument();
-    expect(within(screen.getByTestId("dashboard-card")).getByText(currentUser.name)).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("dashboard-card")).getByText(currentUser.name),
+    ).toBeInTheDocument();
     expect(screen.queryByText(currentUser.id)).not.toBeInTheDocument();
     expect(screen.queryByText("Other")).not.toBeInTheDocument();
   });
@@ -119,7 +124,7 @@ describe("DashboardList", () => {
       updatedAt: new Date(2026, 0, index + 1).toISOString(),
     }));
     localStorage.setItem("report.db.dashboards", JSON.stringify(dashboards));
-    renderList();
+    renderManage();
 
     await user.click(await screen.findByRole("tab", { name: /recent|اخیر/i }));
 
@@ -130,13 +135,13 @@ describe("DashboardList", () => {
     expect(screen.queryByText("Board 1")).not.toBeInTheDocument();
   });
 
-  it("hides create controls from Viewer", async () => {
+  it("hides create controls from a Viewer", async () => {
     setMockUser(["Viewer"]);
-    renderList();
+    renderManage();
 
     await screen.findAllByTestId("dashboard-card");
-    expect(screen.queryByRole("button", { name: /new dashboard|داشبورد جدید/i })).not.toBeInTheDocument();
-    expect(screen.getByTestId("dashboard-preview")).toHaveClass("dashboard-canvas--readonly");
-    expect(screen.queryByRole("switch")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /new dashboard|داشبورد جدید/i }),
+    ).not.toBeInTheDocument();
   });
 });
