@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-12
 **Area:** analytics-web + the shared `AppSwitcher` in all eight SPAs
-**Status:** analytics-web **live**; the other seven carry the fix **committed but not deployed**
+**Status:** analytics-web **live** and checked on production; the other seven carry the AppSwitcher fix **committed, not deployed**
 
 Follows [the navigation work](2026-08-12-analytics-navigation-polish.md), which spun both of these
 off rather than doing them inline.
@@ -55,14 +55,35 @@ The lesson is the interesting part: *a test that flakes under load is not always
 was simply too expensive for what it asserted, and the fix was to stop paying for what it never
 checked.
 
-## «۲ ویجت گزارش» removed
+## «۲ ویجت گزارش» removed, and the sweep it triggered
 
 Asked for directly, to give the widgets more room. The count is still on the card in
-`/manage-dashboards`, so nothing is lost from the product. Removing it also left
-`toPersianDigits`, the `num` helper and the `i18n` handle unused, and those went with it.
+`/manage-dashboards`, so nothing is lost from the product. Widgets now start **94px** below the top
+of the content area, down from 118px — and from four stacked blocks before this week.
 
-Widgets now start **94px** below the top of the content area, down from 118px — and from four
-stacked blocks before this week.
+Removing it left the last of the old preview section styling and translating nothing, so this was
+the moment to sweep up after all four navigation steps:
+
+- **CSS:** `.dash-preview`, `__head`, `__eyebrow`, `__title`, `__meta` and their two mobile
+  overrides — 760 bytes. Only `.dash-preview__edit-label` survives, because «حالت ویرایش» still
+  uses it.
+- **Labels:** `dash.previewLabel` and `dash.previewWidgets`, from both locales.
+- **Imports:** `toPersianDigits`, the `num` helper and the `i18n` handle.
+
+Dead CSS is worse than no CSS — the next person reads it and assumes the section still exists.
+
+## A verification that looked like a failure
+
+The first post-deploy check grepped the built bundle and reported **both** fixes missing. Both were
+false alarms:
+
+- `overlayInnerStyle` is still in the JS because **antd's own code** contains it — including the
+  text of the deprecation warning.
+- `previewWidgets` was still in the bundle because the **locale JSON** still carried the key, even
+  though nothing read it. (That is now gone too.)
+
+Grepping a bundle for a string proves the string is present, not that *your* code uses it. The
+browser settled it: nothing rendered, console clean.
 
 ## Left to do
 
