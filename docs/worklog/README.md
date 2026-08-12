@@ -22,6 +22,7 @@ Also, when a task teaches something reusable:
 
 | Date | Record | Area | Status |
 |---|---|---|---|
+| 2026-08-12 | [Opening a report from the library said it did not exist](2026-08-12-analytics-report-not-found.md) | analytics-web | **live** on analytic.myceo.ir |
 | 2026-08-12 | [Tab labels follow the theme, in every strip in the app](2026-08-12-analytics-tabs-theme.md) | analytics-web | **live** on analytic.myceo.ir |
 | 2026-08-12 | [Sidebar redesign: a head, three tiles, and a tab order that was backwards](2026-08-12-analytics-sidebar-redesign.md) | analytics-web | **live** on analytic.myceo.ir |
 | 2026-08-12 | [Two follow-ups cleared, and the widget-count line removed](2026-08-12-analytics-followups.md) | analytics-web + all 8 SPAs | **live** — all eight deployed |
