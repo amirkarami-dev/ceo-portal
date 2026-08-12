@@ -862,3 +862,28 @@ works while a hand-rolled client does not.
 Related: do not offer an audio codec in the MSE codec list while filtering audio out, and keep the
 `<video>` **muted** — an unmuted element on a stream with no audio only gives the browser grounds to
 refuse autoplay.
+
+### A library that positions with `transform` and no `left` breaks under `dir="rtl"`
+Every SPA here runs `<html dir="rtl">`, and that inherits into any library you drop in.
+**Symptom:** in `analytics-web` the dashboard widgets sat too far right and one click threw them off
+the page. **Cause:** `react-grid-layout` writes `position: absolute` + `transform: translate(x, y)`
+and **never writes a `left`**. It assumes an absolute box starts at the container's left edge — true
+only in LTR. In RTL, `left: auto` puts the box against the **right** edge, so `left` silently becomes
+`container width − item width` and the transform adds to it. Grabbing a widget doubled the error,
+because the library starts a drag by reading the real position and handing it back as the transform.
+**Fix:** keep the *positioning container* LTR and put the text direction back on the children:
+```css
+.dashboard-canvas .react-grid-layout { direction: ltr; }
+[dir="rtl"] .dashboard-canvas .react-grid-item { direction: rtl; }
+```
+**The general rule:** any drag, resize, chart, or canvas library that positions children with
+`transform` alone is suspect in this estate. **Check it, do not read the docs** — one line in the
+console tells you: `getComputedStyle(item).left` must be `0px`, and the item's real offset from its
+container must equal its transform X. If they differ, that difference is your bug, and it will double
+the moment anything drags.
+
+**Same file, same day:** `react-grid-layout` fires `onBreakpointChange` on the line directly above
+the `onLayoutChange` that carries a re-generated layout, while `onWidthChange` fires *after* it. If
+you need the new column count before deciding whether to trust a layout, only `onBreakpointChange` is
+early enough. And if you store one layout per dashboard, never write back what a narrow screen
+renders — the library squeezes 12 columns into 4 and reports the squeezed copy as if you made it.

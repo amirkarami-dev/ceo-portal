@@ -270,6 +270,26 @@
   min-height: 400px;
 }
 
+/* react-grid-layout knows nothing about RTL. It places every item with
+   `position: absolute` + `transform: translate(x, y)` and never writes a `left`.
+   Under dir="rtl" an absolute box with `left: auto` sits against the RIGHT edge,
+   so `left` resolves to (grid width - item width) — measured at 816.6px on a
+   1207px grid — and the transform then pushes the item further right, off screen.
+   Grabbing one made it worse: react-grid-layout starts a drag by reading the
+   item's real offset (already wrong by 816.6px) and feeding it straight back as
+   the transform, so the item jumped right by that amount again.
+
+   Keeping the grid itself LTR makes `left` resolve to 0, which is the only thing
+   the library's maths assumes. The text direction goes back on the items, so the
+   widgets themselves still read right-to-left. */
+.dashboard-canvas .react-grid-layout {
+  direction: ltr;
+}
+
+[dir="rtl"] .dashboard-canvas .react-grid-item {
+  direction: rtl;
+}
+
 /* react-grid-layout: themed drag placeholder + visible resize handle */
 .dashboard-canvas .react-grid-placeholder {
   background: color-mix(in srgb, var(--ant-color-primary, #0f6e56) 22%, transparent) !important;

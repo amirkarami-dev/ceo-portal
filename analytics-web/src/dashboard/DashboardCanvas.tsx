@@ -1,10 +1,14 @@
 import { Responsive, WidthProvider, type Layout } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import type { GridLayoutItem } from "./widget";
 
 const ResponsiveGrid = WidthProvider(Responsive);
+
+// The width a dashboard is designed at. Narrower screens still render, but the
+// layout they render is derived, not the saved one — see onBreakpointChange below.
+const DESIGN_COLS = 12;
 
 interface Props {
   layout: GridLayoutItem[];
@@ -15,18 +19,33 @@ interface Props {
 
 // The ONLY grid layout in the app — antd Grid/Row/Col is never used here.
 export function DashboardCanvas({ layout, editing, onLayoutChange, children }: Props) {
+  // Only one layout is stored per dashboard, so a narrow screen must not write
+  // back what it renders: react-grid-layout squeezes the 12-column design into
+  // 6 (sm) or 4 (xs) columns and reports that through onLayoutChange. Saving
+  // after that replaced the design with its squeezed copy for everyone.
+  const colsRef = useRef(DESIGN_COLS);
+
   return (
-    <div className="dashboard-canvas" data-testid="dashboard-canvas">
+    <div
+      className={`dashboard-canvas${editing ? "" : " dashboard-canvas--readonly"}`}
+      data-testid="dashboard-canvas"
+    >
       <ResponsiveGrid
         breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480 }}
-        cols={{ lg: 12, md: 12, sm: 6, xs: 4 }}
+        cols={{ lg: DESIGN_COLS, md: DESIGN_COLS, sm: 6, xs: 4 }}
         rowHeight={40}
         isDraggable={editing}
         isResizable={editing}
         layouts={{ lg: layout as Layout[] }}
-        onLayoutChange={(l) =>
-          onLayoutChange(l.map((it) => ({ i: it.i, x: it.x, y: it.y, w: it.w, h: it.h })))
-        }
+        // Fires immediately before the onLayoutChange that carries the squeezed
+        // layout, so the guard below sees the new column count in time.
+        onBreakpointChange={(_breakpoint, cols) => {
+          colsRef.current = cols;
+        }}
+        onLayoutChange={(l) => {
+          if (colsRef.current !== DESIGN_COLS) return;
+          onLayoutChange(l.map((it) => ({ i: it.i, x: it.x, y: it.y, w: it.w, h: it.h })));
+        }}
         draggableHandle=".ant-card-head"
       >
         {children}

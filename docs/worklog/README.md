@@ -22,6 +22,7 @@ Also, when a task teaches something reusable:
 
 | Date | Record | Area | Status |
 |---|---|---|---|
+| 2026-08-12 | [Dashboard widgets jumped to the right corner when grabbed](2026-08-12-analytics-rtl-grid-drag.md) | analytics-web | fixed and built locally — not deployed |
 | 2026-08-11 | [Form builder step 5: the design and phone pass](2026-08-11-form-builder-step-5-design.md) | kurdnezam-web | **live** — feature complete |
 | 2026-08-11 | [Form builder step 4: the public form](2026-08-11-form-builder-step-4-public.md) | kurdnezam-web | **live** — proven end to end on kurdnezam.ir |
 | 2026-08-11 | [Form builder step 3: the panel](2026-08-11-form-builder-step-3-panel.md) | kurdnezam / landing-panel | deployed; panel screens not clicked through yet |
