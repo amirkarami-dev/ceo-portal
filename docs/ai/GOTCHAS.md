@@ -21,6 +21,27 @@ Always confirm against the **server log** or the **database row** before changin
 
 ## Back end (.NET)
 
+### Analytics: a semantic model lives in TWO files, and `ValueLabels` cannot merge groups
+**Two files.** `KurdNezamSemanticModelStore.cs` / `WalfareSemanticModelStore.cs` are authoritative —
+they ground the AI and build the SQL. `analytics-web/src/semantic/models/*.ts` is a **mirror**, and it
+is what fills the Ask-AI picker, bundled at build time (not fetched). Change one and not the other and
+you get a picker offering a field the engine cannot resolve, or a name the AI has never heard of.
+The chips are a third place: `analytics-web/src/ai/examples.ts`.
+
+**`ValueLabels` is display-only.** It is applied to result rows *after* the SQL runs
+(`SqlQueryEngine.ApplyValueLabels`), so it renames a value but **never combines two groups**. When an
+organisation uses two codes for one thing — `TypProject` 0 and 1 are both عادی — grouping gives two
+rows that both read «عادی», with the count and the percentage split between them. It looks like a
+bug in the report and is actually a dictionary that cannot do what it appears to do.
+**Fix:** `EquivalentCodes` on the field (`{"0": "1"}`), which folds them in the GROUP BY —
+`CASE WHEN [TypProject] = 0 THEN 1 ELSE [TypProject] END`. Opt-in per field; a CASE in every GROUP BY
+costs index use everywhere for nothing.
+
+**Related:** filters are `Value` **and** `Value2` for `between` — *not* a two-element array. An array
+leaves `Value2` null, and `BETWEEN … AND NULL` matches no row: an empty report, no error. And the
+`parameters` list a query returns always carries `@offset` and `@limit` on top of the `@p*` filters,
+so "two filters → two parameters" is wrong.
+
 ### `ReadAsync` to check for a second row destroys the first one
 **Symptom:** every engineer on the platform was told «این حساب، حساب مهندس نیست» — welfare booking,
 and the same lookup underneath voting and the room presenter picker. The org database was healthy and
@@ -641,6 +662,14 @@ Check with `md5sum */src/layout/AppSwitcher.tsx` — all eight hashes must match
 ---
 
 ## Build & deploy
+
+### A piped build or test command reports the PIPE's exit code, not the build's
+`dotnet test … 2>&1 | tail -30` came back **exit 0** while the build had failed to compile. The
+status belongs to `tail`, which succeeded at printing the error. A background task therefore reports
+"completed (exit code 0)" for a red build, and anything trusting the status believes it passed.
+**Fix:** `set -o pipefail` inside the shell that owns the pipe (put it *inside* the `bash -lc '…'`
+you hand to `docker run`, not outside it — the outer shell is a different process), **and read the
+output anyway**. The same applies to `| grep`, `| head`, and `| tee`.
 
 ### Renaming a Compose project silently changes implicit volume names
 **Symptom:** services start successfully after a project rename but SQL/MinIO appear empty.

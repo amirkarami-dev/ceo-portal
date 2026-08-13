@@ -61,6 +61,11 @@ $C build <service>                       # one at a time
 $C up -d --no-deps --force-recreate <service>
 ```
 
+**A change to an analytics semantic model is always TWO services.** The backend store grounds the AI
+and builds the SQL; `analytics-web/src/semantic/models/*.ts` is a mirror bundled into the front end at
+build time and is what fills the Ask-AI picker. Rebuild `api` **and** `analytics-web`, api first —
+ship only the front end and the picker offers a dataset the engine does not know.
+
 Then **always verify** — a build that finishes is not a deploy that works:
 
 ```bash
@@ -70,6 +75,15 @@ curl -k -s -o /dev/null -w '%{http_code}\n' --resolve <host>:443:127.0.0.1 https
 ```
 
 Give a container ~40 s before judging it: a check run while it is still starting returns 404.
+
+**Checking a .NET change reached the image:** property and method names live in the metadata as
+UTF-8, so `grep -a EquivalentCodes Mabhas19.Application.dll` finds them — but **string literals are
+UTF-16**, so `grep -a percentOfTotal` reports nothing on a perfectly good build. Search the literal
+the way it is stored, and check a known-old literal the same way as a control:
+
+```bash
+docker exec <c> sh -c "grep -aPc 'p\x00e\x00r\x00c\x00e\x00n\x00t\x00O\x00f\x00T\x00o\x00t\x00a\x00l' /app/X.dll"
+```
 
 **Confirm the change is really in the bundle** (a healthy container can still serve old files):
 
