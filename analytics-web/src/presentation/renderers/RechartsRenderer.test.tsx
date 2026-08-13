@@ -124,6 +124,45 @@ describe("RechartsRenderer", () => {
     expect(container.querySelector(".recharts-line")).toBeTruthy();
   });
 
+  it("puts the total in the middle of the ring", () => {
+    const { container } = render(
+      <RechartsRenderer view={makeView("PieChart")} def={def} result={result} />,
+    );
+
+    // 1200 + 800 + 600. A pie makes the reader add the slices up; the hole says it outright.
+    const tspans = [...container.querySelectorAll("svg text tspan")].map((t) => t.textContent);
+    expect(tspans).toContain("2,600");
+    // …labelled with what the number is, taken from the measure's own column label.
+    expect(tspans).toContain("درآمد");
+  });
+
+  it("is a ring, not a filled circle", () => {
+    const { container } = render(
+      <RechartsRenderer view={makeView("PieChart")} def={def} result={result} />,
+    );
+
+    // Recharts draws a donut sector with an inner arc; a filled pie has none.
+    const sector = container.querySelector(".recharts-pie-sector path");
+    expect(sector?.getAttribute("d") ?? "").not.toBe("");
+  });
+
+  it("names each slice with its share, in readable text", () => {
+    const { container } = render(
+      <RechartsRenderer view={makeView("PieChart")} def={def} result={result} />,
+    );
+
+    const legend = container.querySelector(".recharts-legend-wrapper")?.textContent ?? "";
+    // 1200/2600 → 46.15%. The share belongs beside the name: slice labels on the ring collide
+    // as soon as a category is small.
+    expect(legend).toContain("46.15");
+
+    // Recharts paints legend text in the SERIES colour, which is picked to work as a fill —
+    // measured at 2.54:1 as 12px text on the dark panel. The words must not carry that colour.
+    const span = container.querySelector(".recharts-legend-item-text span");
+    expect(span).not.toBeNull();
+    expect((span as HTMLElement).style.color).not.toBe("");
+  });
+
   it("renders a pie chart with one slice per category", () => {
     const { container } = render(
       <RechartsRenderer view={makeView("PieChart")} def={def} result={result} />,

@@ -99,6 +99,15 @@ export default function RechartsRenderer({ view, result, onDrill }: RendererProp
     labelStyle: { color: colors.text },
     itemStyle: { color: colors.text },
   } as const;
+  // Recharts paints legend TEXT in the series colour. Those colours are chosen to be told apart as
+  // fills, which is a much lower bar than being readable as 12px text: measured on the dark panel
+  // the blue series came out at 2.54:1 and the deep green at 2.67, against a floor of 4.5. The dot
+  // already carries the colour, so the words are painted in the normal text colour instead.
+  const legendProps = {
+    align: legendAlign,
+    formatter: (value: string) => <span style={{ color: colors.text }}>{value}</span>,
+  } as const;
+
   // Map a clicked datum back to its engine group node (drill source); no-op without onDrill or groups.
   const handleClick = (index: number) => {
     const node = result.groups?.[index];
@@ -113,23 +122,74 @@ export default function RechartsRenderer({ view, result, onDrill }: RendererProp
       category,
       dir,
     );
+
+    // A ring rather than a filled circle: the hole carries the total, which is the number people
+    // look for first and which a pie otherwise makes you add up yourself.
+    const total = data.reduce(
+      (sum, row) => sum + (typeof row[measure] === "number" ? (row[measure] as number) : 0),
+      0,
+    );
+    const share = (v: unknown) =>
+      total > 0 && typeof v === "number" ? (v * 100) / total : 0;
+    const measureLabel =
+      result.columns.find((c) => c.key === measure)?.label ?? measure;
+
     return (
-      <ResponsiveContainer width="100%" height={320}>
+      <ResponsiveContainer width="100%" height={340}>
         <PieChart>
-          <Tooltip {...tooltipProps} />
-          <Legend align={legendAlign} />
+          <Tooltip
+            {...tooltipProps}
+            formatter={(v: number) => `${numFmt(v)}  (${formatNumber(+share(v).toFixed(2), dir)}٪)`}
+          />
+          {/* The share belongs beside the name. Slice labels on the ring collide as soon as a
+              category is small — twelve project types include four under 0.1%. */}
+          <Legend
+            align={legendAlign}
+            layout="vertical"
+            verticalAlign="middle"
+            formatter={(name: string, entry) => {
+              const v = (entry?.payload as Record<string, unknown> | undefined)?.[measure];
+              return (
+                <span style={{ color: colors.text }}>
+                  {name} — {formatNumber(+share(v).toFixed(2), dir)}٪
+                </span>
+              );
+            }}
+          />
           <Pie
             data={data}
             dataKey={measure}
             nameKey={category}
+            // The hole. 62% of the outer radius keeps the ring thick enough to read at a glance
+            // while leaving room for the total.
+            innerRadius={68}
             outerRadius={110}
+            paddingAngle={2}
+            cornerRadius={6}
             isAnimationActive={false}
-            label
+            // No labels on the ring itself — see the Legend note above.
+            label={false}
+            labelLine={false}
           >
             {data.map((_row, i) => (
-              <Cell key={i} fill={palette[i % palette.length]} />
+              <Cell key={i} fill={palette[i % palette.length]} stroke="none" />
             ))}
           </Pie>
+          {/* The total, in the hole. */}
+          <text
+            x="50%"
+            y="50%"
+            textAnchor="middle"
+            dominantBaseline="middle"
+            style={{ pointerEvents: "none" }}
+          >
+            <tspan x="50%" dy="-0.3em" fill={colors.text} style={{ fontSize: 22, fontWeight: 700 }}>
+              {numFmt(total)}
+            </tspan>
+            <tspan x="50%" dy="1.6em" fill={colors.axis} style={{ fontSize: 12 }}>
+              {measureLabel}
+            </tspan>
+          </text>
         </PieChart>
       </ResponsiveContainer>
     );
@@ -145,7 +205,7 @@ export default function RechartsRenderer({ view, result, onDrill }: RendererProp
           <XAxis dataKey={x} reversed={dir === "rtl"} tick={{ fill: colors.axis }} stroke={colors.axis} />
           <YAxis orientation={dir === "rtl" ? "right" : "left"} width={yw} tickFormatter={numFmt} tick={{ fill: colors.axis, style: { direction: "ltr" } }} stroke={colors.axis} />
           <Tooltip {...tooltipProps} />
-          <Legend align={legendAlign} />
+          <Legend {...legendProps} />
           {ys.map((yk, i) => (
             <Line
               key={yk}
@@ -170,7 +230,7 @@ export default function RechartsRenderer({ view, result, onDrill }: RendererProp
           <XAxis dataKey={x} reversed={dir === "rtl"} tick={{ fill: colors.axis }} stroke={colors.axis} />
           <YAxis orientation={dir === "rtl" ? "right" : "left"} width={yw} tickFormatter={numFmt} tick={{ fill: colors.axis, style: { direction: "ltr" } }} stroke={colors.axis} />
           <Tooltip {...tooltipProps} />
-          <Legend align={legendAlign} />
+          <Legend {...legendProps} />
           {ys.map((yk, i) => (
             <Area
               key={yk}
@@ -201,7 +261,7 @@ export default function RechartsRenderer({ view, result, onDrill }: RendererProp
         <XAxis dataKey={x} reversed={dir === "rtl"} tick={{ fill: colors.axis }} stroke={colors.axis} />
         <YAxis orientation={dir === "rtl" ? "right" : "left"} width={yw} tickFormatter={numFmt} tick={{ fill: colors.axis, style: { direction: "ltr" } }} stroke={colors.axis} />
         <Tooltip {...tooltipProps} />
-        <Legend align={legendAlign} />
+        <Legend {...legendProps} />
         {ys.map((yk, si) => (
           <Bar key={yk} dataKey={yk} fill={palette[si % palette.length]}>
             {data.map((_row, ri) => (
