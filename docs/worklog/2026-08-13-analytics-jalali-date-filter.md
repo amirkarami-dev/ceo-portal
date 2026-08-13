@@ -74,9 +74,22 @@ clean. Deployed `index-DRa2hYQy.js` → `index-Bn6I_wrR.js`, healthy, 200.
 
 ## Worth knowing
 
-- **`1405/12/30` does not exist.** 1405 is not a leap year, so Esfand has 29 days, and the picker
-  normalises that date to `1406/01/01`. The AI's grounding example uses `1405/12/30` as a year's upper
-  bound. For the *query* this is harmless — the column is text and the string still sorts above every
-  real date in 1405 — and it cannot corrupt anything, because editing one bound sends the stored
-  string for the other, not the displayed one. But the displayed and stored values disagree, which is
-  confusing. Undecided whether the prompt should emit `1405/12/29`.
+- **`1405/12/30` does not exist — settled, the prompt now says the 29th.** Esfand has a 30th only in
+  a leap year. Checked rather than assumed, with dayjs + jalaliday:
+
+  | Jalali year | Esfand 30 exists |
+  | --- | --- |
+  | 1403 | no |
+  | **1404** | **yes** |
+  | 1405, 1406, 1407 | no |
+  | **1408** | **yes** |
+  | 1409, 1410, 1411 | no |
+  | **1412** | **yes** |
+
+  The picker normalised `1405/12/30` to `1406/01/01`, so the box and the filter disagreed. The
+  worked example and `RegDate`'s own description now end a year on `1405/12/29`, with the reason
+  stated so the model does not round up again.
+
+  **The cost, plainly:** in a leap year this omits Esfand 30. The alternative kept a date no calendar
+  can display. Amir chose the 29th. If a leap year ever matters, the honest fix is a `startsWith`
+  operator in the engine — a year prefix needs no end date at all.
