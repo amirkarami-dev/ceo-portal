@@ -23,6 +23,7 @@ import { aggregateByCategory } from "./chart-utils";
 import { useUiStore } from "../../store/ui-store";
 import { chartColors } from "../../theme/tokens";
 import { useColumnLabel } from "../labels";
+import { legendPlacement } from "../chart-rtl";
 
 export type RendererProps = {
   view: ReportView;
@@ -88,7 +89,8 @@ export default function RechartsRenderer({ view, def, result, onDrill }: Rendere
   const ys = yKeys(view);
   const kind = view.component || view.type;
   const numFmt = (v: number) => formatNumber(v, dir);
-  const legendAlign: "left" | "right" = dir === "rtl" ? "right" : "left";
+  // `align` means one thing under the chart and the opposite beside it — see legendPlacement.
+  const { inline: legendAlign, side: sideLegendAlign } = legendPlacement(dir);
   // Recharts' default tooltip surface is white — with our light text colour that made
   // dark-mode tooltips white-on-white. Theme the surface AND both text layers (the header
   // uses labelStyle, the value rows use itemStyle; contentStyle.color alone covers neither).
@@ -147,7 +149,7 @@ export default function RechartsRenderer({ view, def, result, onDrill }: Rendere
           {/* The share belongs beside the name. Slice labels on the ring collide as soon as a
               category is small — twelve project types include four under 0.1%. */}
           <Legend
-            align={legendAlign}
+            align={sideLegendAlign}
             layout="vertical"
             verticalAlign="middle"
             formatter={(name: string, entry) => {

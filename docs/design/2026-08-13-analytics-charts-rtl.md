@@ -1,7 +1,7 @@
 # Design: the charts in RTL
 
 **Date:** 2026-08-13
-**Status:** proposed — not started
+**Status:** step 1 done (legend side, both directions); steps 2–4 open
 **Area:** `analytics-web/src/presentation/renderers`
 
 ## Which libraries draw the charts
@@ -54,6 +54,12 @@ The donut spans 343→563 and the legend 845→1093, leaving ~280px of nothing i
 box while the ring itself is only 220px across. Recharts centres the pie in the space *left over*, so a
 side legend pushes it off-centre rather than sharing the width.
 
+### 3b. The centre total can outgrow the hole
+
+Seen after step 1 on a currency report: «۱۵٬۰۴۵٬۵۰۰٬۰۰۰» is wider than the 136px hole and spills over
+the ring. The hole is a fixed size while the number is not, so a big figure has to shorten (۱۵.۰ میلیارد)
+or the text has to scale to fit. Folded into step 2, since both are about the ring's geometry.
+
 ### 4. ECharts has the same inverted idea
 
 `EChartsRenderer` sets `legend.left = dir === "rtl" ? "right" : "left"`, which is the same
@@ -93,8 +99,8 @@ counter-clockwise in RTL — so the largest slice opens where the eye lands.
 
 | Step | What |
 | --- | --- |
-| 1 | Split the legend constant; donut legend to the correct side, both directions |
-| 2 | Ring starts at 12 o'clock and sweeps with the reading direction |
+| 1 | Split the legend constant; donut legend to the correct side, both directions — **done** |
+| 2 | Ring starts at 12 o'clock and sweeps with the reading direction; close the gap; stop the centre total overflowing the hole |
 | 3 | The same fix in `EChartsRenderer`, so it is not left as the one that still mirrors wrongly |
 | 4 | Measure both directions and both themes, tests, deploy, worklog |
 
