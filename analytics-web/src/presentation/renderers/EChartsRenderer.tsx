@@ -5,6 +5,7 @@ import type { QueryResult, ResultRow, GroupNode } from "../../contracts/dataset"
 import { formatCategory, formatNumber, type Dir } from "../format";
 import { useUiStore } from "../../store/ui-store";
 import { chartColors } from "../../theme/tokens";
+import { useColumnLabel } from "../labels";
 
 export type RendererProps = {
   view: ReportView;
@@ -36,7 +37,9 @@ function uniq(values: (string | number | null)[]): (string | number)[] {
   return out;
 }
 
-export default function EChartsRenderer({ view, result, onDrill }: RendererProps) {
+export default function EChartsRenderer({ view, def, result, onDrill }: RendererProps) {
+  // Series carry the engine's column alias; a legend showing "sum_amount" is the key, not a name.
+  const columnLabel = useColumnLabel(def, result);
   const dir = currentDir();
   const themeMode = useUiStore((s) => s.themeMode);
   const colors = chartColors(themeMode);
@@ -103,7 +106,7 @@ export default function EChartsRenderer({ view, result, onDrill }: RendererProps
       },
       series: [
         {
-          name: measure,
+          name: columnLabel(measure),
           type: "heatmap",
           data,
           label: { show: false },
@@ -131,7 +134,7 @@ export default function EChartsRenderer({ view, result, onDrill }: RendererProps
   } else {
     series = [
       {
-        name: measure,
+        name: columnLabel(measure),
         type: "bar",
         data: xCats.map((xc) => {
           const match = rows.find((r) => r[x] === xc);

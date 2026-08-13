@@ -452,7 +452,8 @@
     "max": "Max",
     "count": "Count",
     "countDistinct": "Count Distinct",
-    "none": "None"
+    "none": "None",
+    "percentOfTotal": "Share"
   },
   "rbac": {
     "roleHeader": "Role",

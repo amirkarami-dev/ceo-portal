@@ -452,7 +452,8 @@
     "max": "حداکثر",
     "count": "تعداد",
     "countDistinct": "تعداد منحصربه‌فرد",
-    "none": "بدون"
+    "none": "بدون",
+    "percentOfTotal": "درصد"
   },
   "rbac": {
     "roleHeader": "نقش",

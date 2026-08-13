@@ -22,6 +22,7 @@ import { formatCategory, formatNumber, type Dir } from "../format";
 import { aggregateByCategory } from "./chart-utils";
 import { useUiStore } from "../../store/ui-store";
 import { chartColors } from "../../theme/tokens";
+import { useColumnLabel } from "../labels";
 
 export type RendererProps = {
   view: ReportView;
@@ -74,8 +75,11 @@ function withCategoryLabels(data: ResultRow[], key: string, dir: Dir): ResultRow
   return data.map((r) => ({ ...r, [key]: formatCategory(r[key], dir) }));
 }
 
-export default function RechartsRenderer({ view, result, onDrill }: RendererProps) {
+export default function RechartsRenderer({ view, def, result, onDrill }: RendererProps) {
   const dir = currentDir();
+  // Series are keyed by the engine's column alias ("sum_amount"). That key is fine as an id and
+  // wrong as a caption, so every place a key would be SHOWN goes through this.
+  const label = useColumnLabel(def, result);
   const themeMode = useUiStore((s) => s.themeMode);
   const colors = chartColors(themeMode);
   const palette = colors.series;
@@ -131,8 +135,7 @@ export default function RechartsRenderer({ view, result, onDrill }: RendererProp
     );
     const share = (v: unknown) =>
       total > 0 && typeof v === "number" ? (v * 100) / total : 0;
-    const measureLabel =
-      result.columns.find((c) => c.key === measure)?.label ?? measure;
+    const measureLabel = label(measure);
 
     return (
       <ResponsiveContainer width="100%" height={340}>
@@ -211,6 +214,7 @@ export default function RechartsRenderer({ view, result, onDrill }: RendererProp
               key={yk}
               type="monotone"
               dataKey={yk}
+              name={label(yk)}
               stroke={palette[i % palette.length]}
               dot={false}
             />
@@ -236,6 +240,7 @@ export default function RechartsRenderer({ view, result, onDrill }: RendererProp
               key={yk}
               type="monotone"
               dataKey={yk}
+              name={label(yk)}
               stroke={palette[i % palette.length]}
               fill={palette[i % palette.length]}
               fillOpacity={0.25}
@@ -263,7 +268,7 @@ export default function RechartsRenderer({ view, result, onDrill }: RendererProp
         <Tooltip {...tooltipProps} />
         <Legend {...legendProps} />
         {ys.map((yk, si) => (
-          <Bar key={yk} dataKey={yk} fill={palette[si % palette.length]}>
+          <Bar key={yk} dataKey={yk} name={label(yk)} fill={palette[si % palette.length]}>
             {data.map((_row, ri) => (
               <Cell key={`${yk}-${ri}`} fill={palette[si % palette.length]} />
             ))}

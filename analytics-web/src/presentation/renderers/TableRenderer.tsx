@@ -9,6 +9,7 @@ import type {
   GroupNode,
 } from "../../contracts/dataset";
 import { formatCell, type Dir } from "../format";
+import { useColumnLabel } from "../labels";
 
 export type RendererProps = {
   view: ReportView;
@@ -44,8 +45,10 @@ function rowKey(row: ResultRow, index?: number): string {
   return firstVal != null ? String(firstVal) : String(index ?? 0);
 }
 
-export default function TableRenderer({ view, result, onDrill }: RendererProps) {
+export default function TableRenderer({ view, def, result, onDrill }: RendererProps) {
   const dir = currentDir();
+  // The engine names a metric column after its alias, so the header read "sum_amount".
+  const label = useColumnLabel(def, result);
   const wanted = view.mapping.columns;
   const cols = wanted
     ? result.columns.filter((c) => wanted.includes(c.key))
@@ -63,7 +66,7 @@ export default function TableRenderer({ view, result, onDrill }: RendererProps) 
     return {
       key: col.key,
       dataIndex: col.key,
-      title: col.label,
+      title: label(col.key),
       align,
       sorter: compareBy(col),
       render: (value: string | number | null) =>
