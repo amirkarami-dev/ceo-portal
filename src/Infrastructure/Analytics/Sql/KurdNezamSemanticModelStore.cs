@@ -64,6 +64,9 @@ internal sealed class KurdNezamSemanticModelStore : ISemanticModelStore
     /// This map renames them both, which is display-only: grouping by TypProject still returns
     /// two rows that both read «عادی». Combining them has to happen in the query.
     /// </summary>
+    /// <summary>The bucket every undocumented TypProject code falls into. Not a real org code.</summary>
+    private const string TypProjectOther = "9999";
+
     private static readonly IReadOnlyDictionary<string, string> TypProjectLabels =
         new Dictionary<string, string>
         {
@@ -73,6 +76,9 @@ internal sealed class KurdNezamSemanticModelStore : ISemanticModelStore
             ["7"] = "روستایی",                  ["8"] = "زیر ۲۰ هزار نفر",
             ["10"] = "مساجد و اماکن خیریه",     ["11"] = "مسکن ملی-سایت متمرکز",
             ["12"] = "خانه باغ",                ["15"] = "بازسازی ساختمان جنگ تحمیلی",
+            // ~72 rows in the warehouse carry a code the org's dictionary does not list. Without
+            // this they showed as one row per bare number; now they are one «سایر» row.
+            [TypProjectOther] = "سایر",
         };
 
     /// <summary>شهرهای استان کردستان، به کد سازمان.</summary>
@@ -184,7 +190,9 @@ internal sealed class KurdNezamSemanticModelStore : ISemanticModelStore
                     ValueLabels = TypProjectLabels,
                     // 0 and 1 are one kind with two codes. Folded in the GROUP BY so عادی is a
                     // single row with a single count and a single percentage.
-                    EquivalentCodes = new Dictionary<string, string> { ["0"] = "1" } },
+                    EquivalentCodes = new Dictionary<string, string> { ["0"] = "1" },
+                    // Anything the dictionary above does not list — and NULL — becomes one «سایر».
+                    OtherCode = TypProjectOther },
                 new SemanticFieldDto { Id = "CityId",     Name = "شهر",            Type = "number", Role = "dimension",
                     Description = "شهر محل پروژه: 1=بانه, 2=سنندج (مرکزی), 18=کامیاران, 19=قروه, 20=سقز, 21=دهگلان, 22=مریوان, 23=دیواندره, 25=بیجار",
                     ValueLabels = CityLabels },

@@ -457,26 +457,44 @@ internal sealed class SqlQueryEngine : IQueryEngine
             };
         }
 
-        // Fold codes that mean the same thing into one group, so «عادی» is one row and one
-        // percentage rather than two. ValueLabels cannot do this — it runs after the SQL.
-        if (field?.EquivalentCodes is { Count: > 0 } merges)
+        // Fold codes into groups: codes that mean the same thing become one row, and everything the
+        // dictionary does not explain becomes one «سایر» row instead of a scatter of bare numbers.
+        // ValueLabels cannot do either — it runs after the SQL and only renames a value.
+        if (field is not null)
         {
             var cases = new StringBuilder("CASE");
-            var folded = 0;
-            foreach (var (from, to) in merges)
+            var wrote = 0;
+
+            // The unknown bucket goes FIRST so an undocumented code lands there before any
+            // equivalence rule below could match it. NULL counts as unknown.
+            if (ParseCode(field.OtherCode) is { } other && field.ValueLabels is { Count: > 0 } labels)
+            {
+                var known = labels.Keys
+                    .Select(ParseCode)
+                    .Where(c => c is not null && c.Value != other)
+                    .Select(c => c!.Value.ToString(CultureInfo.InvariantCulture))
+                    .ToList();
+
+                if (known.Count > 0)
+                {
+                    cases.Append(CultureInfo.InvariantCulture,
+                        $" WHEN {colExpr} IS NULL OR {colExpr} NOT IN ({string.Join(", ", known)}) THEN {other}");
+                    wrote++;
+                }
+            }
+
+            foreach (var (from, to) in field.EquivalentCodes ?? EmptyCodes)
             {
                 // Both sides must be whole numbers. They come from our own compiled store, but
                 // they are emitted as literals, so the parsed value is what gets written — never
                 // the raw string.
-                if (!long.TryParse(from, NumberStyles.Integer, CultureInfo.InvariantCulture, out var f) ||
-                    !long.TryParse(to,   NumberStyles.Integer, CultureInfo.InvariantCulture, out var t))
-                    continue;
+                if (ParseCode(from) is not { } f || ParseCode(to) is not { } t) continue;
 
                 cases.Append(CultureInfo.InvariantCulture, $" WHEN {colExpr} = {f} THEN {t}");
-                folded++;
+                wrote++;
             }
 
-            if (folded > 0)
+            if (wrote > 0)
             {
                 cases.Append(CultureInfo.InvariantCulture, $" ELSE {colExpr} END");
                 return cases.ToString();
@@ -485,6 +503,13 @@ internal sealed class SqlQueryEngine : IQueryEngine
 
         return colExpr;
     }
+
+    private static readonly IReadOnlyDictionary<string, string> EmptyCodes =
+        new Dictionary<string, string>();
+
+    /// <summary>A dictionary code as a whole number, or null when it is not one.</summary>
+    private static long? ParseCode(string? code) =>
+        long.TryParse(code, NumberStyles.Integer, CultureInfo.InvariantCulture, out var v) ? v : null;
 
     /// <summary>
     /// Builds an aggregate SQL expression for a metric.

@@ -600,10 +600,87 @@ public class SqlQueryEngineTests
         var sql = SqlQueryEngine.BuildSql(def, model!, "tblDW_EngineerProjectInfo", out _);
 
         // 0 folds into 1, so the two codes the org uses for عادی become one row.
-        sql.ShouldContain("CASE WHEN [TypProject] = 0 THEN 1 ELSE [TypProject] END");
+        sql.ShouldContain("WHEN [TypProject] = 0 THEN 1");
+        sql.ShouldContain("ELSE [TypProject] END");
+
         // The SELECT and the GROUP BY must carry the SAME expression, or SQL Server rejects it.
-        sql.ShouldContain("CASE WHEN [TypProject] = 0 THEN 1 ELSE [TypProject] END AS [TypProject]");
-        sql.ShouldContain("GROUP BY CASE WHEN [TypProject] = 0 THEN 1 ELSE [TypProject] END");
+        var caseExpr = sql[sql.IndexOf("CASE", StringComparison.Ordinal)..];
+        caseExpr = caseExpr[..(caseExpr.IndexOf(" END", StringComparison.Ordinal) + 4)];
+        sql.ShouldContain($"{caseExpr} AS [TypProject]");
+        sql.ShouldContain($"GROUP BY {caseExpr}");
+    }
+
+    [Test]
+    public async Task BuildSql_TypProject_FoldsEveryUndocumentedCodeIntoOneOtherRow()
+    {
+        var store = new KurdNezamSemanticModelStore();
+        var model = await store.GetBySourceAsync("engineer_projects");
+        model.ShouldNotBeNull();
+
+        var def = new ReportDefinitionDto
+        {
+            Dataset = "engineer_projects",
+            GroupBy = [new ReportGroupByDto { Field = "TypProject" }],
+            Metrics = [new ReportMetricDto { Field = "*", Aggregation = "count", Alias = "cnt" }],
+        };
+
+        var sql = SqlQueryEngine.BuildSql(def, model!, "tblDW_EngineerProjectInfo", out _);
+
+        // ~72 warehouse rows carry a code the dictionary does not list. One «سایر» row, not one
+        // bare number per undocumented code. NULL belongs in the bucket too.
+        sql.ShouldContain("[TypProject] IS NULL OR [TypProject] NOT IN (");
+        sql.ShouldContain("THEN 9999");
+
+        // The bucket must be tested BEFORE the equivalence folds, or an unknown code could slip
+        // past it.
+        sql.IndexOf("THEN 9999", StringComparison.Ordinal)
+           .ShouldBeLessThan(sql.IndexOf("WHEN [TypProject] = 0 THEN 1", StringComparison.Ordinal));
+
+        // 9999 is our own bucket, not an org code — it must not appear in the known list.
+        var notIn = sql[sql.IndexOf("NOT IN (", StringComparison.Ordinal)..];
+        notIn = notIn[..notIn.IndexOf(')')];
+        notIn.ShouldNotContain("9999");
+        notIn.ShouldContain("15");
+    }
+
+    [Test]
+    public async Task ApplyValueLabels_TheOtherBucket_ReadsSaayer()
+    {
+        var store = new KurdNezamSemanticModelStore();
+        var model = await store.GetBySourceAsync("engineer_projects");
+        model.ShouldNotBeNull();
+
+        var rows = new List<Dictionary<string, object?>>
+        {
+            new() { ["TypProject"] = 9999, ["cnt"] = 72 },
+        };
+
+        SqlQueryEngine.ApplyValueLabels(rows, model!);
+
+        // The SQL merges the rows; this is what makes the merged row readable.
+        rows[0]["TypProject"].ShouldBe("سایر");
+    }
+
+    [Test]
+    public async Task BuildSql_DictionaryWithoutAnOtherCode_HasNoBucketClause()
+    {
+        var store = new KurdNezamSemanticModelStore();
+        var model = await store.GetBySourceAsync("engineer_projects");
+        model.ShouldNotBeNull();
+
+        var def = new ReportDefinitionDto
+        {
+            Dataset = "engineer_projects",
+            GroupBy = [new ReportGroupByDto { Field = "CityId" }],
+            Metrics = [new ReportMetricDto { Field = "*", Aggregation = "count", Alias = "cnt" }],
+        };
+
+        var sql = SqlQueryEngine.BuildSql(def, model!, "tblDW_EngineerProjectInfo", out _);
+
+        // CityId has a dictionary but no bucket, so an unknown city still shows its own code
+        // rather than being quietly swept into a group nobody asked for.
+        sql.ShouldNotContain("NOT IN (");
+        sql.ShouldContain("GROUP BY [CityId]");
     }
 
     [Test]

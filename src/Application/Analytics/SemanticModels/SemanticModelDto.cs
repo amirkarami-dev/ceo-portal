@@ -57,6 +57,21 @@ public class SemanticFieldDto
     /// </summary>
     public IReadOnlyDictionary<string, string>? EquivalentCodes { get; init; }
 
+    /// <summary>
+    /// Bucket code for values that are not in <see cref="ValueLabels"/> — and for NULL. Everything
+    /// unexplained is folded into this ONE code in the GROUP BY, so a report shows a single «سایر»
+    /// row instead of one bare number per code nobody has documented.
+    /// <para>
+    /// Give <see cref="ValueLabels"/> an entry for it, or the bucket shows as a raw number. Pick a
+    /// value that cannot collide with a real code (e.g. "9999").
+    /// </para>
+    /// <para>
+    /// Only applies to a dimension with a dictionary: without <see cref="ValueLabels"/> there is no
+    /// list of known codes to be outside of, so it is ignored.
+    /// </para>
+    /// </summary>
+    public string? OtherCode { get; init; }
+
     // ── Optional code → label lookup ─────────────────────────────────────────
     // When all three are set (from the TRUSTED semantic model, never user input),
     // GROUP BY on this field LEFT JOINs the lookup table and returns the human-readable

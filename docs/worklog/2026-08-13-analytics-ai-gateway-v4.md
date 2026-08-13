@@ -90,9 +90,18 @@ Amir's hand-written SQL is the same shape the engine now generates — `CASE …
 
 ## Worth knowing
 
-- **`سایر` = 72 rows.** His `ELSE` bucket shows codes outside the dictionary. `ValueLabels` leaves an
-  unknown code as its raw number rather than folding it into a catch-all, so those rows will show
-  bare digits. Left as-is pending a decision — a silent «سایر» hides a code nobody has explained yet.
+- **`سایر` = 72 rows — now grouped, on request.** Codes outside the dictionary used to show as one
+  row per bare number. A label alone could not fix it (`ValueLabels` renames, it never merges), so
+  the field gained `OtherCode = "9999"`: the GROUP BY tests `IS NULL OR NOT IN (<the known codes>)`
+  first and folds everything else into one bucket, which `ValueLabels` then renders as «سایر».
+
+  **`9999` is deliberately absent from the field's `Description`,** so the AI never sees it. If it
+  did, «پروژه‌های سایر» would become `TypProject eq 9999` — a code that exists nowhere in the
+  warehouse, returning an empty report. The bucket is a grouping detail; the AI only ever sees real
+  org codes.
+
+  `CityId` has a dictionary but no bucket on purpose: an unknown city still shows its own code
+  rather than being swept into a group nobody asked for.
 - **His query has no year filter**, so 87.33% is all-time; filtered to 1405 the shares will differ.
 - **A feature added to the engine is not reachable until the prompt offers it.** Both halves, every
   time — the same "two files" lesson as the semantic model, in a different disguise.
