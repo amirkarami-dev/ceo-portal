@@ -982,6 +982,26 @@ onto the first ancestor with a non-transparent background first.
 Set it through the component token (`components: { Descriptions: { labelColor } }`), not CSS — see
 the two entries above for why a CSS rule loses.
 
+### Recharts paints legend TEXT in the series colour, and the engine names a column after its alias
+**Legend colour.** Series colours are chosen so slices can be told apart as *fills* — a much lower
+bar than being readable as 12px words. Measured on the dark panel: blue **2.54:1**, deep green
+**2.67:1**, against a floor of 4.5. The dot already carries the colour, so paint the words in the
+normal text colour. A colour that works as a fill does not automatically work as text — the third
+time that has bitten this app, after the brand green and the 45% tertiary token.
+
+**Column names.** `ResolveColumns` labels a metric with its own alias, so charts and table headers
+showed literally `sum_amount`. The parts of a real name are elsewhere: the definition knows it is a
+`sum` of `amount`, the semantic model knows `amount` is «درآمد», and i18n knows `sum` is «مجموع».
+`presentation/labels.ts` joins them; anything displaying a column key must go through it.
+**Compose before honouring a label stored on the report** — a stored label is one fixed string with
+no language, so preferring it left an English reader looking at Persian.
+
+**Also:** the view switcher can only select a view that EXISTS, and `chooseView` returns just the one
+it picked plus a Table. Any switcher must therefore *build* the view it is asked for
+(`presentation/view-switching.ts`), or its buttons silently fall back to the primary view — which is
+how «خطی» and «KPI» sat there enabled and doing nothing on `/reports/:id` for months. A KPI renders as
+a Card, not `ant-statistic`, so a check looking for `.ant-statistic` wrongly reads as broken.
+
 ### A frozen CSS transition will lie to `getComputedStyle`
 An element reported `width: 240px` while its own inline style said `80px` and no rule overrode it.
 The cause was not CSS: the browser pane was not displayed, so no frames were composited, so the
