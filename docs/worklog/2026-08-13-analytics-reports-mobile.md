@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-13
 **Area:** `analytics-web` — `/reports` and `/reports/:id`
-**Status:** built and checked at 375px, **not deployed yet**
+**Status:** **live** on analytic.myceo.ir (deployed 2026-08-13)
 
 ## The goal
 
@@ -108,8 +108,21 @@ the ambient grid backdrop — which is pre-existing, app-wide, and outside this 
 - **`PageContainer`'s 24px gutter left alone.** 19% of a 375px screen goes to gutters, but that
   component is used by every page in every app — out of scope here.
 
+## Deploy
+
+Incremental: only `analytics-web` changed, and nothing shared (no `AppSwitcher`), so one image was
+rebuilt and one container recreated. `vng-analytics` and the other ~45 containers on the shared box
+were not touched.
+
+Verified after: container healthy, HTTPS 200, and the served bundle went from `index-CWWCHqGo.js` /
+`index-DvPdZTV-.css` to `index-rgP6uZCW.js` / `index-0irK965-.css` — checked over the real domain,
+not just inside the container. The CSS hash matches the local build byte for byte. The bundle
+contains the card rules, the 44px touch block and the new label colour.
+
 ## What is left
 
-- **Not deployed.** Four commits sit unpushed on `main`.
+- **The live signed-in pages have not been looked at.** The deploy is confirmed at the bundle level
+  only; `/reports` and `/reports/:id` behind the login were measured on the dev server, not on
+  production after this deploy.
 - The phone check has only ever run in the browser pane. Nobody has held this on a real phone, so
   the iOS zoom behaviour in particular is reasoned from the 16px rule, not seen.
