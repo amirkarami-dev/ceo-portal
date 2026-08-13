@@ -187,7 +187,11 @@ export function ReportViewer() {
 
       <Descriptions
         size="small"
-        column={3}
+        // Three columns in 287px gave each fact 96px and made them wrap downwards
+        // instead of across: «آخرین بروزرسانی» alone was 198px tall, about a quarter
+        // of the screen for one date. antd takes a responsive column count, so this
+        // is a prop rather than a media query fighting its layout.
+        column={{ xs: 1, sm: 2, md: 3 }}
         style={{ marginBottom: 12 }}
         items={[
           {

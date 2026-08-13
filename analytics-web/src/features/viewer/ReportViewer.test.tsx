@@ -24,10 +24,34 @@ function renderViewer(id: string) {
   );
 }
 
+
+/** antd decides the Descriptions column count from media queries, so the test has to
+ *  say which screen it means. The global stub answers false to everything, which is
+ *  the narrowest breakpoint — a phone. */
+function viewport(kind: "desktop" | "phone") {
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    // antd asks `(max-width: 575px)` for xs and `(min-width: …)` for everything
+    // above it. Answering false to all of them is not a phone — it is no breakpoint
+    // at all, and antd then falls back to its default column count.
+    matches: kind === "desktop" ? /min-width/.test(query) : /max-width/.test(query),
+    media: query,
+    onchange: null,
+    addListener: () => undefined,
+    removeListener: () => undefined,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+    dispatchEvent: () => false,
+  }));
+}
+
 describe("ReportViewer", () => {
   beforeEach(() => {
     resetMockDb();
     seedReports();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("loads a saved report, runs the engine, and renders the canvas + switcher", async () => {
@@ -45,5 +69,30 @@ describe("ReportViewer", () => {
     await waitFor(() =>
       expect(screen.getByText(/not found|یافت نشد/i)).toBeInTheDocument(),
     );
+  });
+
+  // Three columns in 287px gave each fact 96px and made them wrap downwards rather
+  // than across — «آخرین بروزرسانی» alone was 198px tall, about a quarter of the
+  // screen for one date.
+  it("stacks the metadata one fact per row on a phone", async () => {
+    viewport("phone");
+    const { container } = renderViewer(firstSeededReportId());
+    await waitFor(() => expect(container.querySelector(".ant-descriptions-row")).toBeTruthy());
+
+    const rows = [...container.querySelectorAll(".ant-descriptions-row")];
+    expect(rows.length).toBe(3);
+    rows.forEach((tr) =>
+      expect(tr.querySelectorAll(".ant-descriptions-item").length).toBe(1),
+    );
+  });
+
+  it("keeps all three across one row on a desktop", async () => {
+    viewport("desktop");
+    const { container } = renderViewer(firstSeededReportId());
+    await waitFor(() => expect(container.querySelector(".ant-descriptions-row")).toBeTruthy());
+
+    const rows = [...container.querySelectorAll(".ant-descriptions-row")];
+    expect(rows.length).toBe(1);
+    expect(rows[0].querySelectorAll(".ant-descriptions-item").length).toBe(3);
   });
 });

@@ -30,7 +30,10 @@ function renderLib() {
  */
 function viewport(kind: "desktop" | "phone") {
   vi.stubGlobal("matchMedia", (query: string) => ({
-    matches: kind === "desktop" ? /min-width/.test(query) : false,
+    // antd asks `(max-width: 575px)` for xs and `(min-width: …)` for everything
+    // above it. Answering false to all of them is not a phone — it is no breakpoint
+    // at all, and antd then falls back to its default column count.
+    matches: kind === "desktop" ? /min-width/.test(query) : /max-width/.test(query),
     media: query,
     onchange: null,
     addListener: () => undefined,
