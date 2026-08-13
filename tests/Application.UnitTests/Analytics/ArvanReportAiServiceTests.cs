@@ -126,6 +126,31 @@ public class ArvanReportAiServiceTests
     }
 
     [Test]
+    public void BuildSystemPrompt_OffersPercentOfTotal()
+    {
+        var model = BuildSalesModel();
+
+        var prompt = ArvanReportAiService.BuildSystemPrompt(model);
+
+        // The engine supports it, but the AI only ever writes what this list allows. Left off, a
+        // request for «درصد» silently came back as a bare count — the feature was unreachable.
+        prompt.ShouldContain("percentOfTotal");
+        prompt.ShouldContain("درصد");
+    }
+
+    [Test]
+    public void BuildSystemPrompt_SpellsOutTheTwoBoundedOperators()
+    {
+        var model = BuildSalesModel();
+
+        var prompt = ArvanReportAiService.BuildSystemPrompt(model);
+
+        // "between" alone let the model guess a single value; the schema now shows both bounds.
+        prompt.ShouldContain("between takes TWO bounds");
+        prompt.ShouldContain("1405/01/01");
+    }
+
+    [Test]
     public void BuildSystemPrompt_ContainsNeverSqlInstruction()
     {
         var model = BuildSalesModel();

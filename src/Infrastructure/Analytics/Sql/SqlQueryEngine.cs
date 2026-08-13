@@ -590,10 +590,28 @@ internal sealed class SqlQueryEngine : IQueryEngine
 
             case "between":
             {
+                // The AI writes {"operator":"between","value":["1405/01/01","1405/12/30"]} — one
+                // key holding two values — because that is the shape the schema in the system
+                // prompt shows it. The DTO carries Value and Value2, so reading Value literally
+                // produced `BETWEEN @p0 AND NULL`: matches no row, raises no error, and the report
+                // comes back empty as though the year simply had no data. Accept both shapes.
+                object? lo = filter.Value, hi = filter.Value2;
+                if (hi is null)
+                {
+                    var pair = ExtractList(filter.Value);
+                    if (pair.Count == 2) { lo = pair[0]; hi = pair[1]; }
+                }
+
+                // Still half a range: say so rather than quietly returning nothing.
+                if (hi is null)
+                    throw new InvalidOperationException(
+                        $"Filter on '{filter.Field}' uses 'between' but only one bound was given. " +
+                        "Provide value and value2, or a two-item value array.");
+
                 var p1 = NextParam(ref paramIndex);
                 var p2 = NextParam(ref paramIndex);
-                parameters.Add((p1, CoerceValue(filter.Value)));
-                parameters.Add((p2, CoerceValue(filter.Value2)));
+                parameters.Add((p1, CoerceValue(lo)));
+                parameters.Add((p2, CoerceValue(hi)));
                 return $"{col} BETWEEN {p1} AND {p2}";
             }
 

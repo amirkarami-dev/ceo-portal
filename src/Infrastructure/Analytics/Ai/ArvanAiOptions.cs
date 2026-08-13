@@ -20,6 +20,9 @@ public sealed class ArvanAiOptions
     /// </summary>
     public string ApiKey { get; set; } = string.Empty;
 
-    /// <summary>Model identifier to pass in the chat-completions request.</summary>
-    public string Model { get; set; } = "DeepSeek-R1-qwen-7b-awq";
+    /// <summary>
+    /// Model identifier to pass in the chat-completions request. The gateway URL names a model too,
+    /// and the two must agree — <c>BaseUrl</c> is issued per model.
+    /// </summary>
+    public string Model { get; set; } = "DeepSeek-V4-Flash";
 }

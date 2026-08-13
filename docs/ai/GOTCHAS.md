@@ -37,10 +37,30 @@ bug in the report and is actually a dictionary that cannot do what it appears to
 `CASE WHEN [TypProject] = 0 THEN 1 ELSE [TypProject] END`. Opt-in per field; a CASE in every GROUP BY
 costs index use everywhere for nothing.
 
-**Related:** filters are `Value` **and** `Value2` for `between` — *not* a two-element array. An array
-leaves `Value2` null, and `BETWEEN … AND NULL` matches no row: an empty report, no error. And the
-`parameters` list a query returns always carries `@offset` and `@limit` on top of the `@p*` filters,
-so "two filters → two parameters" is wrong.
+**Related — `between` (fixed 2026-08-13, worth knowing why).** `ReportFilterDto` carries `Value` and
+`Value2`, but the system prompt shows the AI `[{ field, operator, value }]`, so it wrote
+`"value": ["1405/01/01","1405/12/30"]` — one key, two bounds. `Value2` stayed null,
+`BETWEEN … AND NULL` matched no row, and **every year-filtered report came back empty with no
+error**. Both the old and the new model wrote the array, and so did a hand-written unit test: three
+independent readers guessing the same shape is the schema's fault. The engine now accepts either
+form and **throws** when only one bound arrives. Do not "fix" a filter by dropping the second bound.
+
+Also: the `parameters` list a query returns always carries `@offset` and `@limit` on top of the `@p*`
+filters, so "two filters → two parameters" is wrong — it is four.
+
+### An engine feature the AI is never told about does not exist
+`percentOfTotal` was added to `SqlQueryEngine` and worked perfectly in unit tests, while every real
+request for «درصد» came back as a plain count. `BuildSystemPrompt` lists the allowed aggregations and
+the model writes **only** what that list allows, so the feature was unreachable from the day it
+shipped and no test noticed, because the tests build the definition by hand.
+**Rule:** a new operator, aggregation or `dateBucket` is two edits — the engine **and**
+`ArvanReportAiService.BuildSystemPrompt` — plus a test asserting the prompt mentions it.
+Same shape as the two-file semantic model, in a different disguise.
+
+**While you are there:** the gateway URL names the model (`/gateway/models/<Model>/…`), so
+`ANALYTICS_AI_BASE_URL` and `ANALYTICS_AI_MODEL` must agree, and a reasoning model spends its
+`max_tokens` budget thinking *before* it writes anything — at 2000, one request in three returned
+`finish_reason: length` and `content: null`.
 
 ### `ReadAsync` to check for a second row destroys the first one
 **Symptom:** every engineer on the platform was told «این حساب، حساب مهندس نیست» — welfare booking,

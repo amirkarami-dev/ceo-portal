@@ -95,10 +95,16 @@ internal sealed class ArvanReportAiService : IReportAiService
         sb.AppendLine("  columns     array    — [{ field: string }]  (dimension fields to show)");
         sb.AppendLine("  filters     array    — [{ field, operator, value }]");
         sb.AppendLine("               operators: eq | neq | gt | gte | lt | lte | in | contains | between");
+        sb.AppendLine("               between takes TWO bounds: \"value\": [from, to]");
+        sb.AppendLine("               in takes a list:            \"value\": [1, 2, 3]");
         sb.AppendLine("  groupBy     array    — [{ field, dateBucket? }]");
         sb.AppendLine("               dateBucket values: day | week | month | quarter | year");
         sb.AppendLine("  metrics     array    — [{ field, aggregation, alias? }]");
-        sb.AppendLine("               aggregations: sum | avg | min | max | count | countDistinct");
+        sb.AppendLine("               aggregations: sum | avg | min | max | count | countDistinct | percentOfTotal");
+        sb.AppendLine("               percentOfTotal = this row's share of the whole result, in percent.");
+        sb.AppendLine("               Use it whenever the request says «درصد» or «percent», ALONGSIDE count");
+        sb.AppendLine("               (or sum) — the reader wants the number and the share together.");
+        sb.AppendLine("               field \"*\" counts rows; a measure field gives a share of that measure.");
         sb.AppendLine("  sorting     array    — [{ field, direction }]  direction: asc | desc");
         sb.AppendLine("  limit       integer? — optional row cap");
         sb.AppendLine();
@@ -108,6 +114,18 @@ internal sealed class ArvanReportAiService : IReportAiService
         sb.AppendLine("  • NEVER output SQL, MDX, DAX, or any query language.");
         sb.AppendLine("  • Output ONLY the JSON object — no prose, no markdown, no explanation outside the JSON.");
         sb.AppendLine("  • Reason inside <think>…</think> first, then output the JSON after closing the tag.");
+        sb.AppendLine("  • Keep the reasoning SHORT. The JSON is the answer; a long think can use up the");
+        sb.AppendLine("    budget and leave no room for it.");
+        sb.AppendLine("  • A Jalali date field is TEXT shaped 1405/03/17, so a whole year is a between over");
+        sb.AppendLine("    its first and last day — never a bare number like 1405.");
+        sb.AppendLine();
+        sb.AppendLine("Worked example — «تعداد و درصد پروژه‌ها به تفکیک نوع در سال ۱۴۰۵» becomes:");
+        sb.AppendLine("  filters: [{ \"field\": \"<the date field>\", \"operator\": \"between\",");
+        sb.AppendLine("             \"value\": [\"1405/01/01\", \"1405/12/30\"] }]");
+        sb.AppendLine("  groupBy: [{ \"field\": \"<the type field>\" }]");
+        sb.AppendLine("  metrics: [{ \"field\": \"*\", \"aggregation\": \"count\",          \"alias\": \"cnt\" },");
+        sb.AppendLine("            { \"field\": \"*\", \"aggregation\": \"percentOfTotal\", \"alias\": \"pct\" }]");
+        sb.AppendLine("  Codes that share a meaning are merged for you — do not write a CASE or a formula.");
         sb.AppendLine();
         sb.AppendLine($"Available fields for model \"{model.ModelKey}\" (source: \"{model.Source}\"):");
 
@@ -150,7 +168,12 @@ internal sealed class ArvanReportAiService : IReportAiService
         {
             model = _options.Model,
             messages,
-            max_tokens = 2000,
+            // A reasoning model spends tokens thinking BEFORE it writes any content, and the two
+            // share this budget. Measured on DeepSeek-V4-Flash: ~1000 tokens of reasoning plus
+            // ~500 of JSON. At 2000 a long think left nothing for the answer — one run in three
+            // came back finish_reason "length" with content null, i.e. a failed report for the
+            // user. 4000 leaves room for the think to run long and still produce the JSON.
+            max_tokens = 4000,
             temperature = 0.2,
         };
 
@@ -179,12 +202,20 @@ internal sealed class ArvanReportAiService : IReportAiService
             JsonOptions, cancellationToken)
             ?? throw new InvalidOperationException("AI gateway returned empty response.");
 
-        var content = responseDoc.RootElement
-            .GetProperty("choices")[0]
+        var choice = responseDoc.RootElement.GetProperty("choices")[0];
+        var finishReason = choice.TryGetProperty("finish_reason", out var fr) ? fr.GetString() : null;
+
+        var content = choice
             .GetProperty("message")
             .GetProperty("content")
             .GetString()
-            ?? throw new InvalidOperationException("AI gateway response missing choices[0].message.content.");
+            // A reasoning model returns content null when it used the whole token budget thinking.
+            // Say which of the two it was — "missing content" sends you looking for a parse bug
+            // when the real answer is that the model never got to the answer.
+            ?? throw new InvalidOperationException(
+                string.Equals(finishReason, "length", StringComparison.OrdinalIgnoreCase)
+                    ? "AI gateway stopped at the token limit while still reasoning, so it returned no answer. Raise max_tokens or shorten the prompt."
+                    : $"AI gateway response missing choices[0].message.content (finish_reason: {finishReason ?? "none"}).");
 
         _logger.LogDebug("ArvanReportAiService raw content: {Content}", content);
 

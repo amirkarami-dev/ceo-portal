@@ -205,7 +205,7 @@ services:
       # Analytics AI gateway (ArvanCloud, OpenAI-compatible). BaseUrl MUST end in /v1.
       AnalyticsAi__BaseUrl: "${ANALYTICS_AI_BASE_URL:-}"
       AnalyticsAi__ApiKey: "${ANALYTICS_AI_API_KEY:-}"
-      AnalyticsAi__Model: "${ANALYTICS_AI_MODEL:-DeepSeek-R1-qwen-7b-awq}"
+      AnalyticsAi__Model: "${ANALYTICS_AI_MODEL:-DeepSeek-V4-Flash}"
       # CORS: index 0 (https://mabhas19.myceo.ir) comes from appsettings.json; append the analytics
       # SPA origin as index 1 so the main app's origin is NOT overwritten.
       Cors__AllowedOrigins__1: "https://${ANALYTICS_DOMAIN}"

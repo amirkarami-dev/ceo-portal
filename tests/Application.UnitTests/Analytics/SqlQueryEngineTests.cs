@@ -673,6 +673,59 @@ public class SqlQueryEngineTests
     }
 
     [Test]
+    public async Task BuildSql_BetweenAsATwoItemArray_IsTheShapeTheAiWrites()
+    {
+        var store = new KurdNezamSemanticModelStore();
+        var model = await store.GetBySourceAsync("engineer_projects");
+        model.ShouldNotBeNull();
+
+        var def = new ReportDefinitionDto
+        {
+            Dataset = "engineer_projects",
+            GroupBy = [new ReportGroupByDto { Field = "TypProject" }],
+            Metrics = [new ReportMetricDto { Field = "*", Aggregation = "count", Alias = "cnt" }],
+            // Exactly what the model emits: one "value" key holding both bounds.
+            Filters =
+            [
+                new ReportFilterDto { Field = "RegDate", Operator = "between",
+                    Value = new[] { "1405/01/01", "1405/12/30" } },
+            ],
+        };
+
+        var sql = SqlQueryEngine.BuildSql(def, model!, "tblDW_EngineerProjectInfo", out var parameters);
+
+        sql.ShouldContain("BETWEEN");
+        var filterParams = parameters.Where(p => p.Name.StartsWith("@p", StringComparison.Ordinal)).ToList();
+        filterParams.Count.ShouldBe(2, sql);
+        // Both bounds must be real values. Before this, the second was null and the whole report
+        // came back empty with no error at all.
+        filterParams.Select(p => p.Value?.ToString()).ShouldContain("1405/01/01");
+        filterParams.Select(p => p.Value?.ToString()).ShouldContain("1405/12/30");
+        filterParams.ShouldAllBe(p => p.Value != null);
+    }
+
+    [Test]
+    public async Task BuildSql_BetweenWithOnlyOneBound_SaysSoInsteadOfReturningNothing()
+    {
+        var store = new KurdNezamSemanticModelStore();
+        var model = await store.GetBySourceAsync("engineer_projects");
+        model.ShouldNotBeNull();
+
+        var def = new ReportDefinitionDto
+        {
+            Dataset = "engineer_projects",
+            Metrics = [new ReportMetricDto { Field = "*", Aggregation = "count" }],
+            Filters = [new ReportFilterDto { Field = "RegDate", Operator = "between", Value = "1405/01/01" }],
+        };
+
+        // An empty report that looks like "this year has no data" is worse than an error.
+        var ex = Should.Throw<InvalidOperationException>(() =>
+            SqlQueryEngine.BuildSql(def, model!, "tblDW_EngineerProjectInfo", out _));
+        ex.Message.ShouldContain("RegDate");
+        ex.Message.ShouldContain("between");
+    }
+
+    [Test]
     public async Task BuildSql_PercentOfTotalOnAMeasure_UsesTheMeasureNotTheRowCount()
     {
         var store = new KurdNezamSemanticModelStore();
