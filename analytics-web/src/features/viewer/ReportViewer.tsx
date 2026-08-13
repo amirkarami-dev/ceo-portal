@@ -46,6 +46,13 @@ import { FilterBar } from "./FilterBar";
 
 type Crumb = { label: string; def: ReportDefinition; result: QueryResult; views: ReportView[] };
 
+/** Nothing worth filtering on: empty, or a range with no bounds filled in. */
+function isBlankFilterValue(v: FilterValue | undefined): boolean {
+  if (v === null || v === undefined || v === "") return true;
+  if (Array.isArray(v)) return v.length === 0 || v.every((x) => x === "" || x === null || x === undefined);
+  return false;
+}
+
 export function ReportViewer() {
   const { t, i18n } = useTranslation();
   const { reportId = "" } = useParams<{ reportId: string }>();
@@ -71,17 +78,26 @@ export function ReportViewer() {
     }
   }, [data]);
 
-  // Apply live filter-bar overrides into the definition before running.
+  // What the filter bar shows: every filter the report defines, carrying whatever has been typed.
+  // Emptied ones stay in this list — drop them here and the control vanishes the moment it is
+  // cleared, leaving no way to type a new value.
+  const uiFilters = useMemo<Filter[]>(
+    () =>
+      (data?.definition.filters ?? []).map((f, i) =>
+        filterValues[i] === undefined ? f : { ...f, value: filterValues[i] },
+      ),
+    [data, filterValues],
+  );
+
+  // What actually runs. An emptied filter means "do not filter", not "match nothing": sent as-is it
+  // became `col = NULL`, or half a range, which the engine refuses outright — so clearing a box
+  // returned an empty report or «خطا در بارگذاری گزارش» instead of all the rows.
   const liveDef = useMemo<ReportDefinition | undefined>(() => {
     if (!data) return undefined;
-    const base = data.definition;
-    const filters: Filter[] = (base.filters ?? []).map((f, i) =>
-      filterValues[i] === undefined ? f : { ...f, value: filterValues[i] },
-    );
-    return { ...base, filters };
+    return { ...data.definition, filters: uiFilters.filter((f) => !isBlankFilterValue(f.value)) };
     // refreshKey forces recompute on "Refresh"
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, filterValues, refreshKey]);
+  }, [data, uiFilters, refreshKey]);
 
   // Execute asynchronously via the gated executeReport (real or mock).
   useEffect(() => {
@@ -229,7 +245,8 @@ export function ReportViewer() {
       />
 
       <FilterBar
-        filters={liveDef.filters ?? []}
+        // Every filter the report defines, not only the ones currently narrowing the query.
+        filters={uiFilters}
         semantic={semantic}
         onChange={(i, v) => setFilterValues((s) => ({ ...s, [i]: v }))}
       />

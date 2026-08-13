@@ -493,7 +493,9 @@
     "openInAsk": "Edit in Ask AI",
     "export": "Export",
     "emptyFilters": "No data matches the current filters",
-    "filterHint": "Adjust filters"
+    "filterHint": "Adjust filters",
+    "filterFrom": "From",
+    "filterTo": "To"
   },
   "library": {
     "organizationUser": "Organization user",

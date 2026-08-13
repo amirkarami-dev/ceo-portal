@@ -493,7 +493,9 @@
     "openInAsk": "ویرایش در Ask AI",
     "export": "خروجی",
     "emptyFilters": "داده‌ای با این فیلترها یافت نشد",
-    "filterHint": "فیلترها را تغییر دهید"
+    "filterHint": "فیلترها را تغییر دهید",
+    "filterFrom": "از",
+    "filterTo": "تا"
   },
   "library": {
     "organizationUser": "کاربر سازمان",

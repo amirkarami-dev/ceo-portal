@@ -26,6 +26,56 @@ export function FilterBar({ filters, semantic, onChange }: Props) {
           {filters.map((f, i) => {
             const field = fieldOf(f.field);
             const label = field?.label?.["fa-IR"] ?? f.field;
+
+            // `between` carries TWO bounds. One input replaced them with a single string, which
+            // left the query with half a range — it used to return nothing at all, and now the
+            // engine refuses it outright, so typing here ended in «خطا در بارگذاری گزارش».
+            // Two inputs, and whichever one is edited keeps the other.
+            if (f.operator === "between" || f.operator === "notBetween") {
+              const pair = Array.isArray(f.value)
+                ? (f.value as (string | number)[]).map((v) => String(v ?? ""))
+                : [f.value == null ? "" : String(f.value), f.value2 == null ? "" : String(f.value2)];
+              const [from = "", to = ""] = pair;
+              const emit = (next: [string, string]) =>
+                // Both bounds always travel together, so a half-filled range can never be sent.
+                onChange(i, next.every((v) => v === "") ? null : next);
+
+              // A real date field gets two pickers. A Jalali date is TEXT in the warehouse
+              // («1405/03/17»), so it is type "string" and falls to the boxes below — which is
+              // right, since a Gregorian picker cannot express 1405.
+              if (field?.type === "date") {
+                return (
+                  <span key={i} style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+                    <DatePicker
+                      placeholder={`${label} — ${t("viewer.filterFrom")}`}
+                      onChange={(d) => emit([d ? d.toISOString() : "", to])}
+                    />
+                    <DatePicker
+                      placeholder={`${label} — ${t("viewer.filterTo")}`}
+                      onChange={(d) => emit([from, d ? d.toISOString() : ""])}
+                    />
+                  </span>
+                );
+              }
+
+              return (
+                <span key={i} style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+                  <Input
+                    style={{ width: 130 }}
+                    placeholder={`${label} — ${t("viewer.filterFrom")}`}
+                    value={from}
+                    onChange={(e) => emit([e.target.value, to])}
+                  />
+                  <Input
+                    style={{ width: 130 }}
+                    placeholder={`${label} — ${t("viewer.filterTo")}`}
+                    value={to}
+                    onChange={(e) => emit([from, e.target.value])}
+                  />
+                </span>
+              );
+            }
+
             if (field?.type === "date") {
               return (
                 <DatePicker
