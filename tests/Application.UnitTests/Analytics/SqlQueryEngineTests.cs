@@ -582,4 +582,84 @@ public class SqlQueryEngineTests
         rows[0]["Reshte"].ShouldBe("99");
         rows[0]["PayeT"].ShouldBeNull();
     }
+
+    [Test]
+    public async Task ApplyValueLabels_EngineerProjects_DecodesTheOrgDictionaries()
+    {
+        var store = new KurdNezamSemanticModelStore();
+        var model = await store.GetBySourceAsync("engineer_projects");
+        model.ShouldNotBeNull();
+
+        // Value shapes match the real table: TypEng/TypProject are tinyint (byte),
+        // CityId is smallint (short), IsAfza/IsErja are bit (bool), Meter is decimal.
+        var rows = new List<Dictionary<string, object?>>
+        {
+            new()
+            {
+                ["TypEng"]     = (byte)6,
+                ["TypProject"] = (byte)4,
+                ["CityId"]     = (short)20,
+                ["IsAfza"]     = true,
+                ["IsErja"]     = false,
+                ["Meter"]      = 1250.0m,   // a measure — must not be relabelled
+            },
+        };
+
+        SqlQueryEngine.ApplyValueLabels(rows, model!);
+
+        rows[0]["TypEng"].ShouldBe("ناظر عمران");
+        rows[0]["TypProject"].ShouldBe("مسکن ملی");
+        rows[0]["CityId"].ShouldBe("سقز");
+        rows[0]["IsAfza"].ShouldBe("توسعه بنا");
+        rows[0]["IsErja"].ShouldBe("غیرارجاعی");
+        rows[0]["Meter"].ShouldBe(1250.0m);
+    }
+
+    [Test]
+    public async Task ApplyValueLabels_TypProject_ZeroAndOneBothReadAadi()
+    {
+        var store = new KurdNezamSemanticModelStore();
+        var model = await store.GetBySourceAsync("engineer_projects");
+        model.ShouldNotBeNull();
+
+        var rows = new List<Dictionary<string, object?>>
+        {
+            new() { ["TypProject"] = (byte)0, ["cnt"] = 10 },
+            new() { ["TypProject"] = (byte)1, ["cnt"] = 25 },
+        };
+
+        SqlQueryEngine.ApplyValueLabels(rows, model!);
+
+        // The org uses two codes for one kind. Both read «عادی» — and that is exactly why they
+        // stay TWO rows: this map runs after SQL and renames values, it cannot merge groups.
+        // Anything that needs one عادی row has to combine them in the query.
+        rows[0]["TypProject"].ShouldBe("عادی");
+        rows[1]["TypProject"].ShouldBe("عادی");
+        rows.Count.ShouldBe(2);
+    }
+
+    [Test]
+    public async Task EngineerProjectsModel_IsNamedAndDescribedForTheAskPicker()
+    {
+        var store = new KurdNezamSemanticModelStore();
+        var model = await store.GetByIdAsync("model-engineer-projects");
+        model.ShouldNotBeNull();
+
+        // The picker label the front-end mirror must agree with.
+        model!.Name.ShouldBe("اطلاعات پروژه‌ای مهندسان");
+        // Source key unchanged by the rename — saved reports point at this, not at the name.
+        model.Source.ShouldBe("engineer_projects");
+
+        // The AI reads Description to map a Persian request onto codes, so the dictionaries have
+        // to be in the text as well as in ValueLabels.
+        string Describe(string id) =>
+            model.Fields.Single(f => f.Id == id).Description ?? string.Empty;
+
+        Describe("TypProject").ShouldContain("مسکن ملی");
+        Describe("TypProject").ShouldContain("بافت فرسوده");
+        Describe("TypEng").ShouldContain("ناظر عمران");
+
+        // The year-filter shape, so a request for «سال ۱۴۰۵» has something to follow.
+        Describe("RegDate").ShouldContain("1405/01/01");
+    }
 }

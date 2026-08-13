@@ -46,6 +46,44 @@ internal sealed class KurdNezamSemanticModelStore : ISemanticModelStore
             ["32"] = "حقوقی آزمایشگاه",
         };
 
+    // ── tblDW_EngineerProjectInfo dictionaries (org data dictionary, 2026-08-13) ──────────
+    // Without these the reports print the raw code — "4" instead of «مسکن ملی».
+
+    /// <summary>صلاحیت مهندس. 10 is absent from the org's list; unknown codes pass through raw.</summary>
+    private static readonly IReadOnlyDictionary<string, string> TypEngLabels =
+        new Dictionary<string, string>
+        {
+            ["1"] = "طراح معماری",  ["2"] = "طراح سازه",    ["3"] = "طراح برق",
+            ["4"] = "طراح مکانیک",  ["5"] = "ناظر معماری",  ["6"] = "ناظر عمران",
+            ["7"] = "ناظر برق",     ["8"] = "ناظر مکانیک",  ["9"] = "ناظر هماهنگ‌کننده",
+            ["11"] = "ناظر نقشه‌برداری",
+        };
+
+    /// <summary>
+    /// نوع پروژه. NOTE: <b>0 and 1 both mean عادی</b> — the org uses two codes for one kind.
+    /// This map renames them both, which is display-only: grouping by TypProject still returns
+    /// two rows that both read «عادی». Combining them has to happen in the query.
+    /// </summary>
+    private static readonly IReadOnlyDictionary<string, string> TypProjectLabels =
+        new Dictionary<string, string>
+        {
+            ["0"] = "عادی",                     ["1"] = "عادی",
+            ["2"] = "صنعتی",                    ["4"] = "مسکن ملی",
+            ["5"] = "بافت فرسوده",              ["6"] = "تخفیف همکار پروانه‌دار",
+            ["7"] = "روستایی",                  ["8"] = "زیر ۲۰ هزار نفر",
+            ["10"] = "مساجد و اماکن خیریه",     ["11"] = "مسکن ملی-سایت متمرکز",
+            ["12"] = "خانه باغ",                ["15"] = "بازسازی ساختمان جنگ تحمیلی",
+        };
+
+    /// <summary>شهرهای استان کردستان، به کد سازمان.</summary>
+    private static readonly IReadOnlyDictionary<string, string> CityLabels =
+        new Dictionary<string, string>
+        {
+            ["1"] = "بانه",      ["2"] = "سنندج (مرکزی)", ["18"] = "کامیاران",
+            ["19"] = "قروه",     ["20"] = "سقز",          ["21"] = "دهگلان",
+            ["22"] = "مریوان",   ["23"] = "دیواندره",     ["25"] = "بیجار",
+        };
+
     // From Application.Common.ReshteNames — the single source of truth. Kept there rather than here
     // because the election cards and the Bale bot need the same mapping, and two copies of a lookup
     // table drift.
@@ -112,12 +150,14 @@ internal sealed class KurdNezamSemanticModelStore : ISemanticModelStore
             ],
         },
 
-        // ── Entity: engineer_projects → tblDW_EngineerProjectInfo (کارکرد پروژه‌ای) ──
+        // ── Entity: engineer_projects → tblDW_EngineerProjectInfo (اطلاعات پروژه‌ای) ──
+        // Renamed 2026-08-13 from «کارکرد پروژه‌ای مهندسان». Source key deliberately unchanged, so
+        // reports and dashboard widgets already saved against it keep working.
         new SemanticModelDto
         {
             ModelKey    = "model-engineer-projects",
-            Name        = "کارکرد پروژه‌ای مهندسان",
-            Description = "تخصیص مهندسان به پروژه‌ها و متراژ کارکرد (tblDW_EngineerProjectInfo)",
+            Name        = "اطلاعات پروژه‌ای مهندسان",
+            Description = "پروژه‌های مهندسان: نوع پروژه، صلاحیت مهندس، شهر و متراژ درگیر در ظرفیت (tblDW_EngineerProjectInfo)",
             Source      = "engineer_projects",
             Table       = SourceToTable["engineer_projects"],
             Fields      =
@@ -126,34 +166,37 @@ internal sealed class KurdNezamSemanticModelStore : ISemanticModelStore
                     Description = "شماره پرونده پروژه" },
                 new SemanticFieldDto { Id = "Ozviat",     Name = "کد عضویت",       Type = "number", Role = "dimension",
                     Description = "کد عضویت مهندسِ تخصیص‌یافته" },
-                new SemanticFieldDto { Id = "TypEng",     Name = "نوع خدمت",       Type = "number", Role = "dimension",
-                    Description = "نوع خدمت مهندس در پروژه (کد داخلی سازمان)" },
+                new SemanticFieldDto { Id = "TypEng",     Name = "صلاحیت مهندس",   Type = "number", Role = "dimension",
+                    Description = "صلاحیت مهندس: 1=طراح معماری, 2=طراح سازه, 3=طراح برق, 4=طراح مکانیک, 5=ناظر معماری, 6=ناظر عمران, 7=ناظر برق, 8=ناظر مکانیک, 9=ناظر هماهنگ‌کننده, 11=ناظر نقشه‌برداری. صلاحیت‌های 1 تا 4 طراحی و 5 تا 11 نظارت هستند",
+                    ValueLabels = TypEngLabels },
                 new SemanticFieldDto { Id = "IsHogh",     Name = "حقیقی/حقوقی",    Type = "number", Role = "dimension",
                     Description = "1=حقوقی, 0=حقیقی", ValueLabels = HoghLabels },
-                new SemanticFieldDto { Id = "IsErja",     Name = "از طریق ارجاع",  Type = "number", Role = "dimension",
-                    Description = "1=تخصیص از طریق سامانه ارجاع, 0=خارج از ارجاع",
-                    ValueLabels = new Dictionary<string, string> { ["1"] = "از طریق ارجاع", ["0"] = "خارج از ارجاع" } },
+                new SemanticFieldDto { Id = "IsErja",     Name = "ارجاعی",         Type = "number", Role = "dimension",
+                    Description = "1=پروژه ارجاعی است و صلاحیت مهندس آن از نوع ناظر است, 0=پروژه ارجاعی نیست و صلاحیت مهندس آن از نوع طراح است",
+                    ValueLabels = new Dictionary<string, string> { ["1"] = "ارجاعی", ["0"] = "غیرارجاعی" } },
                 new SemanticFieldDto { Id = "IsHal",      Name = "وضعیت جاری",     Type = "number", Role = "dimension",
                     Description = "1=در حال کار",
                     ValueLabels = new Dictionary<string, string> { ["1"] = "در حال کار", ["0"] = "خاتمه‌یافته" } },
-                new SemanticFieldDto { Id = "RegDate",    Name = "تاریخ ثبت",      Type = "string", Role = "dimension",
-                    Description = "تاریخ ثبت تخصیص، شمسی مانند 1405/05/01" },
+                new SemanticFieldDto { Id = "RegDate",    Name = "تاریخ درج در ظرفیت", Type = "string", Role = "dimension",
+                    Description = "تاریخ درج پروژه در ظرفیت مهندس، شمسی و همیشه به شکل 1405/03/17. برای فیلتر یک سال، بازه 1405/01/01 تا 1405/12/30 استفاده شود" },
                 new SemanticFieldDto { Id = "TypProject", Name = "نوع پروژه",      Type = "number", Role = "dimension",
-                    Description = "نوع پروژه (کد داخلی سازمان)" },
+                    Description = "نوع پروژه: 0 و 1 هر دو=عادی, 2=صنعتی, 4=مسکن ملی, 5=بافت فرسوده, 6=تخفیف همکار پروانه‌دار, 7=روستایی, 8=زیر ۲۰ هزار نفر, 10=مساجد و اماکن خیریه, 11=مسکن ملی-سایت متمرکز, 12=خانه باغ, 15=بازسازی ساختمان جنگ تحمیلی",
+                    ValueLabels = TypProjectLabels },
                 new SemanticFieldDto { Id = "CityId",     Name = "شهر",            Type = "number", Role = "dimension",
-                    Description = "کد شهر محل پروژه" },
+                    Description = "شهر محل پروژه: 1=بانه, 2=سنندج (مرکزی), 18=کامیاران, 19=قروه, 20=سقز, 21=دهگلان, 22=مریوان, 23=دیواندره, 25=بیجار",
+                    ValueLabels = CityLabels },
                 new SemanticFieldDto { Id = "HasPayan",   Name = "پایان‌کار",       Type = "number", Role = "dimension",
                     Description = "1=دارای پایان‌کار",
                     ValueLabels = new Dictionary<string, string> { ["1"] = "دارد", ["0"] = "ندارد" } },
                 new SemanticFieldDto { Id = "ExitTyp",    Name = "نوع خروج",       Type = "number", Role = "dimension",
                     Description = "نوع خروج از پروژه (کد داخلی سازمان)" },
-                new SemanticFieldDto { Id = "IsAfza",     Name = "افزایش بنا",     Type = "number", Role = "dimension",
-                    Description = "1=پروژه افزایش بنا",
-                    ValueLabels = new Dictionary<string, string> { ["1"] = "افزایش بنا", ["0"] = "عادی" } },
+                new SemanticFieldDto { Id = "IsAfza",     Name = "توسعه بنا",      Type = "number", Role = "dimension",
+                    Description = "1=توسعه بنا, 0=عادی",
+                    ValueLabels = new Dictionary<string, string> { ["1"] = "توسعه بنا", ["0"] = "عادی" } },
                 // Measures
-                new SemanticFieldDto { Id = "Meter",      Name = "متراژ",          Type = "number", Role = "measure",
-                    Description = "متراژ کارکرد این تخصیص (مترمربع)" },
-                new SemanticFieldDto { Id = "MeterFull",  Name = "متراژ کل",       Type = "number", Role = "measure",
+                new SemanticFieldDto { Id = "Meter",      Name = "متراژ درگیر در ظرفیت", Type = "number", Role = "measure",
+                    Description = "متراژ درگیر در ظرفیت مهندس (مترمربع) — همان «متر کار»" },
+                new SemanticFieldDto { Id = "MeterFull",  Name = "متراژ کل پروژه", Type = "number", Role = "measure",
                     Description = "متراژ کل پروژه (مترمربع)" },
             ],
         },

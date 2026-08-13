@@ -1,7 +1,7 @@
 # Design: «اطلاعات پروژه‌ای مهندسان» in the Ask-AI dataset picker
 
 **Date:** 2026-08-13
-**Status:** step 1 done (رفاهی datasets hidden); steps 2–4 open
+**Status:** steps 1–2 done (رفاهی hidden; renamed + dictionaries); steps 3–4 open
 **Area:** `analytics-web` (picker + chips) and `src/Infrastructure/Analytics/Sql` (semantic store)
 
 ## Where the dropdown gets its list
@@ -156,7 +156,7 @@ year, and it can use an index.)
 | --- | --- |
 | 1 | Hide the three رفاهی datasets and their chips (front end only, easy to undo) |
 | 2 | Rename to «اطلاعات پروژه‌ای مهندسان» and add the dictionaries — backend store + front-end mirror |
-| 3 | The three chips, checked against real output on `/ask` |
+| 3 | The three chips, checked against real output on `/ask`. Also reword the three chips this dataset already has — they still say «متراژ کارکرد», which is now «متراژ درگیر در ظرفیت» |
 | 4 | Tests, build, deploy, worklog |
 
 Step 1 first because it has no open question in it and can ship alone.
