@@ -52,6 +52,15 @@ export function buildAntdTheme(mode: ThemeMode, brand: BrandTokens, dir: "rtl" |
         itemHoverColor: primaryInkFor(mode),
         inkBarColor: primaryInkFor(mode),
       },
+      // antd labels a Descriptions row with the *tertiary* text colour, which is 45%
+      // alpha in both themes: 3.35:1 on the white panel, 4.39 on the dark one. Both are
+      // under the 4.5 a 14px label needs, and «مالک» / «مدل داده» are the words that say
+      // what the value beside them means. The secondary colour is the same grey family
+      // one step darker — 6.9:1 and 7.67:1. Same token that made the sidebar divider
+      // vanish; 45% alpha is simply too little for text.
+      Descriptions: {
+        labelColor: mode === "dark" ? "rgba(255,255,255,0.65)" : "rgba(0,0,0,0.65)",
+      },
     },
   };
 }

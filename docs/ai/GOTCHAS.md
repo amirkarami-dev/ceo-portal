@@ -918,6 +918,21 @@ targets an `ant-*` class. A rule that silently does nothing is worse than no rul
 reads it and assumes the case is handled.
 **Why 16px matters:** any input under 16px makes iOS zoom the page on tap and never zoom back.
 
+### 45% alpha is too little for text — and antd uses it by default
+`--ant-color-text-tertiary` is `rgba(0,0,0,0.45)` in light and `rgba(255,255,255,0.45)` in dark.
+Blended onto the panel it is **3.35:1** and **4.39:1**. Both miss the 4.5 that normal text needs, so
+anything antd paints with it fails AA out of the box. Caught three times now:
+the sidebar divider (1.19:1), a mixed-down border that only reached 1.85 **because the token it was
+mixing was already translucent**, and the `Descriptions` row label.
+**When a colour is translucent, a percentage mix of it is translucent too** — mixing 55% of a 45%
+grey gives you a 25% grey, not a darker one. Go one step up the scale instead:
+`colorTextSecondary` is 65% — the same hue, **6.98:1** light and **7.67:1** dark.
+**Measure blended, never raw.** `getComputedStyle(el).color` returns `rgba(0,0,0,0.45)`; a contrast
+helper that treats that as a solid colour reports 1:1 or 21:1 and tells you nothing. Composite it
+onto the first ancestor with a non-transparent background first.
+Set it through the component token (`components: { Descriptions: { labelColor } }`), not CSS — see
+the two entries above for why a CSS rule loses.
+
 ### A frozen CSS transition will lie to `getComputedStyle`
 An element reported `width: 240px` while its own inline style said `80px` and no rule overrode it.
 The cause was not CSS: the browser pane was not displayed, so no frames were composited, so the
