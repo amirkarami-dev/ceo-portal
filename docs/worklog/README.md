@@ -22,6 +22,7 @@ Also, when a task teaches something reusable:
 
 | Date | Record | Area | Status |
 |---|---|---|---|
+| 2026-08-13 | [The charts in RTL — and what «left» actually means](2026-08-13-analytics-charts-rtl.md) | analytics-web | **live** on analytic.myceo.ir |
 | 2026-08-13 | [The pie, the views that did nothing, and «sum_amount»](2026-08-13-analytics-charts-and-labels.md) | analytics-web | **live** on analytic.myceo.ir |
 | 2026-08-13 | [AI gateway moved to DeepSeek-V4-Flash, and why «۱۴۰۵» came back empty](2026-08-13-analytics-ai-gateway-v4.md) | api | **live** — gateway switched, three bugs fixed |
 | 2026-08-13 | [«اطلاعات پروژه‌ای مهندسان» on the Ask-AI page](2026-08-13-analytics-engineer-project-info.md) | analytics-web / api | **live** on analytic.myceo.ir |

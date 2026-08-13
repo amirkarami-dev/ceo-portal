@@ -1,7 +1,8 @@
 # Design: the charts in RTL
 
 **Date:** 2026-08-13
-**Status:** steps 1–3 done (legend side; sweep, gap, centre total; ECharts); step 4 (deploy) open
+**Status:** all four steps done — **live** on analytic.myceo.ir.
+Work record: [`docs/worklog/2026-08-13-analytics-charts-rtl.md`](../worklog/2026-08-13-analytics-charts-rtl.md)
 **Area:** `analytics-web/src/presentation/renderers`
 
 ## Which libraries draw the charts

@@ -982,6 +982,30 @@ onto the first ancestor with a non-transparent background first.
 Set it through the component token (`components: { Descriptions: { labelColor } }`), not CSS — see
 the two entries above for why a CSS rule loses.
 
+### «left»/«right» in a chart library is TWO questions, and a grep cannot tell them apart
+For a **horizontal** legend (or a `visualMap` strip) it means *which end the items start from* — the
+reading edge, so `right` in RTL. For a **vertical, side-mounted** legend it means *which side the
+legend sits on*, and the chart takes the other — so `left` in RTL. **Opposite answers.**
+Recharts' donut was handed the horizontal legend's constant and put its legend on the right in RTL
+**and** on the left in LTR: wrong in both directions, for as long as the legend existed.
+Then, diagnosing `EChartsRenderer`, a grep for the same ternary "found" the same bug — and was wrong,
+because that legend is horizontal and was already correct. **Read the legend's orientation before
+judging its anchor.**
+
+**The deeper fix was to stop asking.** Recharts also measures the two things differently: a `Pie`'s
+`cx="68%"` is 68% of the *plot area* (what is left after the legend) while a raw `<text x="68%">` is
+68% of the *whole SVG*, so one number lands in two places and the centre label misses the hole. The
+donut now lays itself out — a flex row with a fixed square for the ring and an `<ul>` for the legend.
+A flex row follows `dir` on its own, so RTL needs no prop, the total is centred by construction, and
+the gap is a `gap` rather than leftover space.
+
+### A 0×0 browser tab answers every geometry question with rubbish
+A freshly opened preview tab reported the ring on the wrong side, a **negative** gap, and sideways
+scroll — in all four direction/theme combinations identically, which was the tell. `window.innerWidth`
+was **0**: the tab had never been laid out. `resize_window` to a real size gave the true numbers.
+**Read `window.innerWidth` before believing any layout measurement**, and treat "every variant is
+identical" as a symptom, not a result.
+
 ### Recharts paints legend TEXT in the series colour, and the engine names a column after its alias
 **Legend colour.** Series colours are chosen so slices can be told apart as *fills* — a much lower
 bar than being readable as 12px words. Measured on the dark panel: blue **2.54:1**, deep green
