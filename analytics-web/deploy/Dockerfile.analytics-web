@@ -26,7 +26,10 @@ ENV VITE_API_BASE=$VITE_API_BASE \
 # Install deps from analytics-web's own package.json. (.dockerignore drops **/node_modules and
 # **/.env, so the host node_modules and the committed mock .env are NOT copied — ARG/ENV win.)
 COPY analytics-web/package.json ./
-RUN npm install
+# --legacy-peer-deps: antd-jalali declares react ^18 peers; the app runs react 19. walfare-web has
+# shipped that same pair since its booking forms, and this install has no root package.json to carry
+# an override — it is analytics-web's package.json alone.
+RUN npm install --legacy-peer-deps
 
 # Copy the SPA source and build (tsc typecheck + vite build) -> /app/analytics-web/dist.
 COPY analytics-web/ ./

@@ -3,6 +3,7 @@ import { DatePicker, Input, Select, Typography } from "antd";
 import { useTranslation } from "react-i18next";
 import type { Filter, FilterValue, SemanticModel } from "@/contracts";
 import { Toolbar } from "@/components/ui";
+import { JalaliDateField } from "@/components/ui/JalaliDateField";
 
 interface Props {
   filters: Filter[];
@@ -18,6 +19,17 @@ export function FilterBar({ filters, semantic, onChange }: Props) {
 
   const fieldOf = (key: string) =>
     semantic.entities.flatMap((e) => e.fields).find((f) => f.id === key);
+
+  /**
+   * A Jalali date lives in the warehouse as TEXT ("1405/03/17"), so its `type` is "string" and it
+   * would otherwise get a free-text box — leaving people to type a Persian date by hand and to know
+   * the exact format. `format.kind` is the model's own hint that the string is a date.
+   *
+   * The picker reads and writes that same string, so nothing converts to Gregorian and back. That
+   * is why the built-in AntD picker cannot do this job: it has no year 1405.
+   */
+  const isJalaliDate = (field: ReturnType<typeof fieldOf>) =>
+    field?.type === "string" && field.format?.kind === "date";
 
   return (
     <div data-testid="filter-bar">
@@ -40,9 +52,27 @@ export function FilterBar({ filters, semantic, onChange }: Props) {
                 // Both bounds always travel together, so a half-filled range can never be sent.
                 onChange(i, next.every((v) => v === "") ? null : next);
 
-              // A real date field gets two pickers. A Jalali date is TEXT in the warehouse
-              // («1405/03/17»), so it is type "string" and falls to the boxes below — which is
-              // right, since a Gregorian picker cannot express 1405.
+              // A Jalali range gets two Persian calendars, reading and writing «1405/03/17».
+              if (isJalaliDate(field)) {
+                return (
+                  <span key={i} style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+                    <JalaliDateField
+                      style={{ width: 150 }}
+                      value={from}
+                      placeholder={`${label} — ${t("viewer.filterFrom")}`}
+                      onChange={(v) => emit([v, to])}
+                    />
+                    <JalaliDateField
+                      style={{ width: 150 }}
+                      value={to}
+                      placeholder={`${label} — ${t("viewer.filterTo")}`}
+                      onChange={(v) => emit([from, v])}
+                    />
+                  </span>
+                );
+              }
+
+              // A true Gregorian date field gets two ordinary pickers.
               if (field?.type === "date") {
                 return (
                   <span key={i} style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
@@ -73,6 +103,19 @@ export function FilterBar({ filters, semantic, onChange }: Props) {
                     onChange={(e) => emit([from, e.target.value])}
                   />
                 </span>
+              );
+            }
+
+            // A single Jalali date — an `eq` or a `gte`, say — gets one Persian calendar.
+            if (isJalaliDate(field)) {
+              return (
+                <JalaliDateField
+                  key={i}
+                  style={{ width: 170 }}
+                  value={typeof f.value === "string" ? f.value : undefined}
+                  placeholder={label}
+                  onChange={(v) => onChange(i, v || null)}
+                />
               );
             }
 

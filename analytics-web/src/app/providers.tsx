@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { I18nextProvider } from "react-i18next";
+import { JalaliLocaleListener } from "antd-jalali";
 import { AuthProvider } from "../auth/AuthProvider";
 import { ThemeProvider } from "../theme/ThemeProvider";
 import { i18n, applyLocale } from "../i18n";
@@ -23,6 +24,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <I18nextProvider i18n={i18n}>
         <ThemeProvider mode={themeMode} brand={brand} dir={dir} locale={locale}>
+          {/* Keeps the AntD pickers on the Jalali calendar (antd-jalali). It must sit INSIDE the
+              ConfigProvider that ThemeProvider renders — placed above it, the listener never sees
+              the locale context and every picker silently shows Gregorian dates. */}
+          <JalaliLocaleListener />
           <AuthProvider>{children}</AuthProvider>
         </ThemeProvider>
       </I18nextProvider>

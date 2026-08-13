@@ -12,9 +12,14 @@ const semantic = {
       id: "e",
       source: "e",
       fields: [
-        // A Jalali date is TEXT in the warehouse, so it is not type "date" and falls to an input.
+        // A Jalali date is TEXT in the warehouse, so `type` is "string"; `format.kind` is what says
+        // the string is a date and earns it a Persian calendar.
         { id: "RegDate", column: "RegDate", type: "string", role: "dimension",
-          label: { "fa-IR": "تاریخ درج در ظرفیت", "en-US": "Capacity Entry Date" } },
+          label: { "fa-IR": "تاریخ درج در ظرفیت", "en-US": "Capacity Entry Date" },
+          format: { kind: "date", pattern: "YYYY/MM/DD", locale: "fa-IR" } },
+        // Same type, no date hint — this one stays a plain box.
+        { id: "Note", column: "Note", type: "string", role: "dimension",
+          label: { "fa-IR": "یادداشت", "en-US": "Note" } },
         { id: "ProjectNo", column: "ProjectNo", type: "string", role: "dimension",
           label: { "fa-IR": "شماره پرونده", "en-US": "File No" } },
       ],
@@ -71,6 +76,32 @@ describe("FilterBar — a range needs both of its bounds", () => {
 
   it("still gives an ordinary filter a single box", () => {
     renderBar([{ field: "ProjectNo", operator: "contains", value: "140" }]);
+    expect(screen.getAllByRole("textbox")).toHaveLength(1);
+  });
+});
+
+describe("FilterBar — a Jalali date gets a Persian calendar", () => {
+  it("offers two pickers for a date range, not two text boxes", () => {
+    renderBar([between]);
+    // Typing «1405/03/17» by hand means knowing the exact format and the Persian digits. The model
+    // says this string is a date, so the field offers the calendar walfare-web already uses.
+    expect(screen.getAllByTestId("jalali-picker")).toHaveLength(2);
+  });
+
+  it("passes the bounds straight through as the warehouse's own strings", () => {
+    const onChange = renderBar([between]);
+    const pickers = screen.getAllByTestId("jalali-picker");
+
+    fireEvent.change(pickers[0], { target: { value: "1404/01/01" } });
+
+    // No Gregorian round trip: the column is nvarchar holding Jalali text, so the picker reads and
+    // writes exactly what the filter already contains.
+    expect(onChange).toHaveBeenCalledWith(0, ["1404/01/01", "1405/12/30"]);
+  });
+
+  it("leaves a string field WITHOUT the date hint as a plain box", () => {
+    renderBar([{ field: "Note", operator: "contains", value: "x" }]);
+    expect(screen.queryByTestId("jalali-picker")).toBeNull();
     expect(screen.getAllByRole("textbox")).toHaveLength(1);
   });
 });
