@@ -2,6 +2,7 @@
 import type { SemanticModel } from "../contracts/semantic";
 import type { ReportDefinition } from "../contracts/report-definition";
 import { normalizePrompt } from "./rules";
+import { HIDDEN_MODEL_IDS } from "../semantic/registry";
 
 export interface AIExample {
   id: string;
@@ -265,7 +266,14 @@ export function examplePromptsFor(datasetKey: string): ExamplePrompt[] {
   return matching.length > 0 ? matching : EXAMPLE_PROMPTS;
 }
 
-/** Active chips: KurdNezam in REAL mode, sample prompts in mock/dev mode. */
+/**
+ * Active chips: KurdNezam in REAL mode, sample prompts in mock/dev mode.
+ *
+ * The REAL set drops any chip whose dataset is hidden from the picker. A chip carries a
+ * `datasetKey` and switches to it on click, so a chip for a hidden dataset would put the picker
+ * into a state the user cannot reach or leave. The mock chips are not filtered: their `datasetKey`
+ * is an entity source (`"sales"`), not a model id, so they never match a hidden id anyway.
+ */
 export const EXAMPLE_PROMPTS: ExamplePrompt[] = USE_REAL_MODELS
-  ? REAL_EXAMPLE_PROMPTS
+  ? REAL_EXAMPLE_PROMPTS.filter((p) => !HIDDEN_MODEL_IDS.has(p.datasetKey))
   : MOCK_EXAMPLE_PROMPTS;

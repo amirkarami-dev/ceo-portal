@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   getSemanticModel,
   getDataset,
@@ -6,6 +6,18 @@ import {
   semanticModels,
   datasets,
 } from "./registry";
+
+afterEach(() => {
+  vi.resetModules();
+  vi.unstubAllEnvs();
+});
+
+/** Load the registry with the REAL (KurdNezam + welfare) model set active — the set is chosen at
+ *  import time from VITE_USE_MOCK_API, so the module has to be re-imported to switch. */
+async function loadReal() {
+  vi.stubEnv("VITE_USE_MOCK_API", "false");
+  return import("./registry");
+}
 
 describe("semantic registry", () => {
   it("resolves each model by id", () => {
@@ -41,6 +53,28 @@ describe("semantic registry", () => {
   it("exposes the maps keyed correctly", () => {
     expect(Object.keys(semanticModels).sort()).toEqual(["model-finance", "model-project", "model-sales"]);
     expect(Object.keys(datasets).sort()).toEqual(["finance", "projects", "sales"]);
+  });
+
+  it("hides the welfare datasets from the picker but keeps them resolvable", async () => {
+    const reg = await loadReal();
+    const offered = reg.listSemanticModels().map((m) => m.key);
+
+    // Off the picker…
+    expect(offered).toEqual(["model-oz-info", "model-engineer-projects"]);
+
+    // …but still reachable, so a report or widget already saved against one still opens.
+    // This is the whole point of hiding rather than deleting.
+    for (const id of reg.HIDDEN_MODEL_IDS) {
+      expect(reg.getSemanticModel(id).id, `${id} by id`).toBe(id);
+    }
+    expect(reg.getModelForDataset("walfare_reservations").id).toBe("model-walfare-reservations");
+  });
+
+  it("keeps «اعضا و پروانه‌ها» first, because that is the pre-selected dataset", async () => {
+    const reg = await loadReal();
+    // useAskAi takes listSemanticModels()[0] as the default. Filtering must not change which
+    // dataset a user lands on.
+    expect(reg.listSemanticModels()[0].key).toBe("model-oz-info");
   });
 
   it("every entity field id is unique within its model", () => {

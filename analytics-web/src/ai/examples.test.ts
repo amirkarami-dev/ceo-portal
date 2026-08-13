@@ -19,45 +19,52 @@ async function loadReal() {
 describe("examplePromptsFor — REAL mode", () => {
   it("returns only the chips for the selected dataset", async () => {
     const { examplePromptsFor } = await loadReal();
-    const chips = examplePromptsFor("model-walfare-reservations");
+    const chips = examplePromptsFor("model-engineer-projects");
 
     expect(chips.length).toBeGreaterThan(0);
-    expect(chips.every((c) => c.datasetKey === "model-walfare-reservations")).toBe(true);
+    expect(chips.every((c) => c.datasetKey === "model-engineer-projects")).toBe(true);
   });
 
-  it("does not leak welfare chips into the members dataset", async () => {
+  it("does not leak project chips into the members dataset", async () => {
     const { examplePromptsFor } = await loadReal();
     const labels = examplePromptsFor("model-oz-info").map((c) => c.label);
 
     expect(labels.length).toBeGreaterThan(0);
-    expect(labels).not.toContain("رزروها به تفکیک وضعیت");
-    expect(labels).not.toContain("درآمد ماهانه پرداخت‌ها");
+    expect(labels).not.toContain("متراژ کارکرد به تفکیک شهر");
+    expect(labels).not.toContain("۱۰ مهندس برتر متراژ");
   });
 
-  it("keeps reservations and payments separate", async () => {
+  it("keeps the two visible datasets separate", async () => {
     const { examplePromptsFor } = await loadReal();
-    const reservations = examplePromptsFor("model-walfare-reservations");
-    const payments = examplePromptsFor("model-walfare-payments");
+    const members = examplePromptsFor("model-oz-info");
+    const projects = examplePromptsFor("model-engineer-projects");
 
     // Both must be real filtered sets, not the fallback.
-    expect(reservations.length).toBeGreaterThan(0);
-    expect(payments.length).toBeGreaterThan(0);
+    expect(members.length).toBeGreaterThan(0);
+    expect(projects.length).toBeGreaterThan(0);
 
     // Disjoint — picking a chip must never silently switch the dataset.
-    const overlap = reservations.filter((r) => payments.some((p) => p.id === r.id));
+    const overlap = members.filter((m) => projects.some((p) => p.id === m.id));
     expect(overlap).toHaveLength(0);
   });
 
-  it("covers every welfare model with at least one chip", async () => {
-    const { examplePromptsFor } = await loadReal();
+  it("offers no chip for a dataset that is hidden from the picker", async () => {
+    const { EXAMPLE_PROMPTS } = await loadReal();
+    const { HIDDEN_MODEL_IDS } = await import("../semantic/registry");
 
-    for (const key of [
-      "model-walfare-reservations",
-      "model-walfare-payments",
-      "model-walfare-pools",
-    ]) {
-      const chips = examplePromptsFor(key);
-      expect(chips.every((c) => c.datasetKey === key), `${key} fell back`).toBe(true);
+    // A chip switches the picker to its own datasetKey on click. One pointing at a hidden
+    // dataset would drop the user somewhere the picker cannot show or leave.
+    const stranded = EXAMPLE_PROMPTS.filter((p) => HIDDEN_MODEL_IDS.has(p.datasetKey));
+    expect(stranded.map((p) => p.id)).toEqual([]);
+  });
+
+  it("every chip points at a dataset the picker actually offers", async () => {
+    const { EXAMPLE_PROMPTS } = await loadReal();
+    const { listSemanticModels } = await import("../semantic/registry");
+    const offered = new Set(listSemanticModels().map((m) => m.key));
+
+    for (const chip of EXAMPLE_PROMPTS) {
+      expect(offered.has(chip.datasetKey), `chip "${chip.id}" → ${chip.datasetKey}`).toBe(true);
     }
   });
 });

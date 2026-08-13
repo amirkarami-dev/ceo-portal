@@ -45,6 +45,21 @@ export const datasets: Record<string, Dataset> = {
   [financeModel.entities[0].source]: financeData,
 };
 
+/**
+ * Datasets kept off the Ask-AI picker for now, by request (2026-08-13). They come back later.
+ *
+ * Hidden, not removed. They stay in `semanticModels`, so `getSemanticModel` and
+ * `getModelForDataset` still resolve them — any report or dashboard widget already saved against
+ * one keeps opening. This hides them from the *chooser* and nothing else.
+ *
+ * To bring one back: delete its line.
+ */
+export const HIDDEN_MODEL_IDS: ReadonlySet<string> = new Set([
+  "model-walfare-reservations",
+  "model-walfare-payments",
+  "model-walfare-pools",
+]);
+
 export function getSemanticModel(id: string): SemanticModel {
   const model = semanticModels[id];
   if (!model) throw new Error(`Unknown semantic model: ${id}`);
@@ -57,12 +72,14 @@ export function getDataset(source: string): Dataset {
   return data;
 }
 
-/** List all bundled semantic models with their key and localised label (fa-IR default). */
+/** List the semantic models offered in the picker — everything bundled, minus HIDDEN_MODEL_IDS. */
 export function listSemanticModels(): { key: string; label: string }[] {
-  return Object.values(semanticModels).map((m) => ({
-    key: m.id,
-    label: m.name["fa-IR"] ?? m.name["en-US"] ?? m.id,
-  }));
+  return Object.values(semanticModels)
+    .filter((m) => !HIDDEN_MODEL_IDS.has(m.id))
+    .map((m) => ({
+      key: m.id,
+      label: m.name["fa-IR"] ?? m.name["en-US"] ?? m.id,
+    }));
 }
 
 /** Find the model that owns an entity whose `source` matches. */
