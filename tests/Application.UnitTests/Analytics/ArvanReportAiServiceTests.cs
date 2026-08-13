@@ -151,6 +151,20 @@ public class ArvanReportAiServiceTests
     }
 
     [Test]
+    public void BuildSystemPrompt_EndsAJalaliYearOnThe29th()
+    {
+        var model = BuildSalesModel();
+
+        var prompt = ArvanReportAiService.BuildSystemPrompt(model);
+
+        // Esfand has a 30th only in a leap year — 1404, 1408 and 1412 in this decade, but not 1405.
+        // A date that does not exist cannot be shown in a calendar: the picker silently normalised
+        // 1405/12/30 to 1406/01/01, so the box and the filter disagreed.
+        prompt.ShouldContain("1405/12/29");
+        prompt.ShouldNotContain("1405/12/30");
+    }
+
+    [Test]
     public void BuildSystemPrompt_ContainsNeverSqlInstruction()
     {
         var model = BuildSalesModel();

@@ -59,14 +59,14 @@ internal sealed class KurdNezamSemanticModelStore : ISemanticModelStore
             ["11"] = "ناظر نقشه‌برداری",
         };
 
+    /// <summary>The bucket every undocumented TypProject code falls into. Not a real org code.</summary>
+    private const string TypProjectOther = "9999";
+
     /// <summary>
     /// نوع پروژه. NOTE: <b>0 and 1 both mean عادی</b> — the org uses two codes for one kind.
     /// This map renames them both, which is display-only: grouping by TypProject still returns
     /// two rows that both read «عادی». Combining them has to happen in the query.
     /// </summary>
-    /// <summary>The bucket every undocumented TypProject code falls into. Not a real org code.</summary>
-    private const string TypProjectOther = "9999";
-
     private static readonly IReadOnlyDictionary<string, string> TypProjectLabels =
         new Dictionary<string, string>
         {
@@ -184,7 +184,7 @@ internal sealed class KurdNezamSemanticModelStore : ISemanticModelStore
                     Description = "1=در حال کار",
                     ValueLabels = new Dictionary<string, string> { ["1"] = "در حال کار", ["0"] = "خاتمه‌یافته" } },
                 new SemanticFieldDto { Id = "RegDate",    Name = "تاریخ درج در ظرفیت", Type = "string", Role = "dimension",
-                    Description = "تاریخ درج پروژه در ظرفیت مهندس، شمسی و همیشه به شکل 1405/03/17. برای فیلتر یک سال، بازه 1405/01/01 تا 1405/12/30 استفاده شود" },
+                    Description = "تاریخ درج پروژه در ظرفیت مهندس، شمسی و همیشه به شکل 1405/03/17. برای فیلتر یک سال، بازه 1405/01/01 تا 1405/12/29 استفاده شود" },
                 new SemanticFieldDto { Id = "TypProject", Name = "نوع پروژه",      Type = "number", Role = "dimension",
                     Description = "نوع پروژه: 0 و 1 هر دو=عادی, 2=صنعتی, 4=مسکن ملی, 5=بافت فرسوده, 6=تخفیف همکار پروانه‌دار, 7=روستایی, 8=زیر ۲۰ هزار نفر, 10=مساجد و اماکن خیریه, 11=مسکن ملی-سایت متمرکز, 12=خانه باغ, 15=بازسازی ساختمان جنگ تحمیلی",
                     ValueLabels = TypProjectLabels,

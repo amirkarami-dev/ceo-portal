@@ -118,10 +118,12 @@ internal sealed class ArvanReportAiService : IReportAiService
         sb.AppendLine("    budget and leave no room for it.");
         sb.AppendLine("  • A Jalali date field is TEXT shaped 1405/03/17, so a whole year is a between over");
         sb.AppendLine("    its first and last day — never a bare number like 1405.");
+        sb.AppendLine("    End the range on the 29th of Esfand (1405/12/29). Esfand has a 30th only in a leap");
+        sb.AppendLine("    year, and a date that does not exist cannot be shown in a calendar.");
         sb.AppendLine();
         sb.AppendLine("Worked example — «تعداد و درصد پروژه‌ها به تفکیک نوع در سال ۱۴۰۵» becomes:");
         sb.AppendLine("  filters: [{ \"field\": \"<the date field>\", \"operator\": \"between\",");
-        sb.AppendLine("             \"value\": [\"1405/01/01\", \"1405/12/30\"] }]");
+        sb.AppendLine("             \"value\": [\"1405/01/01\", \"1405/12/29\"] }]");
         sb.AppendLine("  groupBy: [{ \"field\": \"<the type field>\" }]");
         sb.AppendLine("  metrics: [{ \"field\": \"*\", \"aggregation\": \"count\",          \"alias\": \"cnt\" },");
         sb.AppendLine("            { \"field\": \"*\", \"aggregation\": \"percentOfTotal\", \"alias\": \"pct\" }]");
