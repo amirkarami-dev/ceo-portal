@@ -40,6 +40,23 @@ public class SemanticFieldDto
     /// </summary>
     public IReadOnlyDictionary<string, string>? ValueLabels { get; init; }
 
+    /// <summary>
+    /// Codes that mean the same thing and must count as ONE group. Key = the code to fold away,
+    /// value = the code it folds into (e.g. TypProject "0" → "1", because the organisation uses
+    /// two codes for عادی).
+    /// <para>
+    /// This exists because <see cref="ValueLabels"/> cannot do it: that map is applied to result
+    /// rows AFTER the SQL has run, so it renames a value but leaves two separate groups — two rows
+    /// both reading «عادی», with the count and the percentage split between them. Merging has to
+    /// happen in the GROUP BY, which is what this drives.
+    /// </para>
+    /// <para>
+    /// Comes from the TRUSTED semantic model, never from user input, and both sides are still
+    /// validated as integers before they reach SQL.
+    /// </para>
+    /// </summary>
+    public IReadOnlyDictionary<string, string>? EquivalentCodes { get; init; }
+
     // ── Optional code → label lookup ─────────────────────────────────────────
     // When all three are set (from the TRUSTED semantic model, never user input),
     // GROUP BY on this field LEFT JOINs the lookup table and returns the human-readable

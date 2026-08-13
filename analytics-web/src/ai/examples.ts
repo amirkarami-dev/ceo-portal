@@ -212,14 +212,27 @@ const REAL_EXAMPLE_PROMPTS: ExamplePrompt[] = [
   { id: "kn-avg-referral-by-grade", label: "میانگین ارجاع × بالاترین پایه",
     prompt: "میانگین تعداد شرکت در ارجاع کار به تفکیک بالاترین پایه اخذشده",
     datasetKey: "model-oz-info" },
-  { id: "kn-meter-by-city", label: "متراژ کارکرد به تفکیک شهر",
-    prompt: "مجموع متراژ کارکرد مهندسان به تفکیک شهر، مرتب از بیشترین متراژ",
+  // ── اطلاعات پروژه‌ای مهندسان (tblDW_EngineerProjectInfo) ────────────────
+  // The first three are the reports asked for on 2026-08-13. «متر کار» is the org's own word for
+  // Meter — متراژ درگیر در ظرفیت مهندس — and it is a synonym on the field, so either reaches it.
+  { id: "ep-type-1405", label: "دسته‌بندی نوع پروژه‌ها ۱۴۰۵",
+    prompt: "تعداد و درصد پروژه‌ها به تفکیک نوع پروژه در سال ۱۴۰۵، مرتب از بیشترین",
     datasetKey: "model-engineer-projects" },
-  { id: "kn-referral-vs-direct-monthly", label: "ارجاع در برابر مستقیم، ماهانه",
-    prompt: "تعداد تخصیص‌های از طریق ارجاع در مقابل خارج از ارجاع به تفکیک ماه تاریخ ثبت",
+  { id: "ep-meter-normal-vs-afza", label: "متر کار: عادی و توسعه بنا",
+    prompt: "مجموع متراژ درگیر در ظرفیت به تفکیک عادی یا توسعه بنا در سال جاری",
     datasetKey: "model-engineer-projects" },
-  { id: "kn-top-engineers-by-meter", label: "۱۰ مهندس برتر متراژ",
-    prompt: "۱۰ مهندس برتر بر اساس مجموع متراژ کارکرد همراه با تعداد تخصیص هر یک",
+  { id: "ep-meter-by-qualification", label: "متراژ ظرفیت × صلاحیت",
+    prompt: "مجموع متراژ درگیر در ظرفیت به تفکیک صلاحیت مهندس، فقط صلاحیت‌های ۱ تا ۸",
+    datasetKey: "model-engineer-projects" },
+
+  { id: "kn-meter-by-city", label: "متراژ ظرفیت به تفکیک شهر",
+    prompt: "مجموع متراژ درگیر در ظرفیت به تفکیک شهر، مرتب از بیشترین",
+    datasetKey: "model-engineer-projects" },
+  { id: "kn-referral-vs-direct-monthly", label: "ارجاعی در برابر غیرارجاعی، ماهانه",
+    prompt: "تعداد پروژه‌های ارجاعی در مقابل غیرارجاعی به تفکیک ماهِ تاریخ درج در ظرفیت",
+    datasetKey: "model-engineer-projects" },
+  { id: "kn-top-engineers-by-meter", label: "۱۰ مهندس برتر متر کار",
+    prompt: "۱۰ مهندس برتر بر اساس مجموع متراژ درگیر در ظرفیت همراه با تعداد پروژه هر یک",
     datasetKey: "model-engineer-projects" },
 
   // ── سامانه رفاهی (CeoDb) ────────────────────────────────────────────────

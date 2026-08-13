@@ -1,7 +1,8 @@
 # Design: «اطلاعات پروژه‌ای مهندسان» in the Ask-AI dataset picker
 
 **Date:** 2026-08-13
-**Status:** steps 1–2 done (رفاهی hidden; renamed + dictionaries); steps 3–4 open
+**Status:** steps 1–3 done (رفاهی hidden; renamed + dictionaries; chips + the two engine pieces);
+step 4 (deploy) open
 **Area:** `analytics-web` (picker + chips) and `src/Infrastructure/Analytics/Sql` (semantic store)
 
 ## Where the dropdown gets its list
@@ -139,9 +140,26 @@ year, and it can use an index.)
   reader. They must be merged, and `ValueLabels` cannot do it — that map is applied *after* SQL, for
   display only, so it renames rows but never combines them. The merge has to happen where the
   grouping does.
-- **"چند درصد" — the method is settled.** Read the grand total of `tblDW_EngineerProjectInfo` first,
-  then divide each group's count by that total. So this is one extra query for the denominator, not a
-  window function, and it does not depend on `calculatedFields` supporting percent-of-total.
+
+  Built as `EquivalentCodes` on a semantic field: `{"0": "1"}` on `TypProject` makes the GROUP BY
+  read `CASE WHEN [TypProject] = 0 THEN 1 ELSE [TypProject] END`, so عادی is one row with one count
+  and one percentage. Opt-in per field — a `CASE` in every GROUP BY would cost index use everywhere
+  for nothing. Both sides are parsed as integers before they are written into the SQL.
+- **"چند درصد" — the method is settled.** Divide each group's count by the grand total.
+
+  Built as `percentOfTotal`, a new aggregation: `COUNT(*) * 100.0 / NULLIF(SUM(COUNT(*)) OVER (), 0)`.
+  `SUM(COUNT(*)) OVER ()` is the same number a separate `SELECT COUNT(*)` would return, but read in
+  the one pass, so the parts and the total can never disagree. On a measure it becomes a share of
+  metres rather than of rows.
+
+  **The denominator is the filtered set, not the whole table.** For «نوع پروژه‌ها در ۱۴۰۵» that means
+  each type's share *of 1405*, and the column adds up to 100. Dividing by the whole table instead
+  would give percentages that sum to however much of history 1405 happens to be — true, but not what
+  «چند درصد پروژه‌ها عادی بوده» asks. **Say so if you meant share-of-all-time** and it is a one-line
+  change.
+
+  It also survives paging: the window runs before `OFFSET/FETCH`, so page 2 still shows shares of the
+  real total.
 - **Two files must move together.** Changing only the front-end mirror makes the picker show a name
   the AI does not know; changing only the backend leaves the picker stale. Both, every time.
 - **.NET builds run on the server** — NuGet is blocked locally, so step 2 cannot be verified on this

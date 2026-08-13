@@ -584,6 +584,118 @@ public class SqlQueryEngineTests
     }
 
     [Test]
+    public async Task BuildSql_TypProject_FoldsTheTwoAadiCodesIntoOneGroup()
+    {
+        var store = new KurdNezamSemanticModelStore();
+        var model = await store.GetBySourceAsync("engineer_projects");
+        model.ShouldNotBeNull();
+
+        var def = new ReportDefinitionDto
+        {
+            Dataset = "engineer_projects",
+            GroupBy = [new ReportGroupByDto { Field = "TypProject" }],
+            Metrics = [new ReportMetricDto { Field = "*", Aggregation = "count", Alias = "cnt" }],
+        };
+
+        var sql = SqlQueryEngine.BuildSql(def, model!, "tblDW_EngineerProjectInfo", out _);
+
+        // 0 folds into 1, so the two codes the org uses for عادی become one row.
+        sql.ShouldContain("CASE WHEN [TypProject] = 0 THEN 1 ELSE [TypProject] END");
+        // The SELECT and the GROUP BY must carry the SAME expression, or SQL Server rejects it.
+        sql.ShouldContain("CASE WHEN [TypProject] = 0 THEN 1 ELSE [TypProject] END AS [TypProject]");
+        sql.ShouldContain("GROUP BY CASE WHEN [TypProject] = 0 THEN 1 ELSE [TypProject] END");
+    }
+
+    [Test]
+    public async Task BuildSql_FieldWithoutEquivalentCodes_StaysAPlainColumn()
+    {
+        var store = new KurdNezamSemanticModelStore();
+        var model = await store.GetBySourceAsync("engineer_projects");
+        model.ShouldNotBeNull();
+
+        var def = new ReportDefinitionDto
+        {
+            Dataset = "engineer_projects",
+            GroupBy = [new ReportGroupByDto { Field = "TypEng" }],
+            Metrics = [new ReportMetricDto { Field = "*", Aggregation = "count", Alias = "cnt" }],
+        };
+
+        var sql = SqlQueryEngine.BuildSql(def, model!, "tblDW_EngineerProjectInfo", out _);
+
+        // Only the field that asks for folding gets a CASE. A CASE in every GROUP BY would cost
+        // index use everywhere for nothing.
+        sql.ShouldNotContain("CASE");
+        sql.ShouldContain("GROUP BY [TypEng]");
+    }
+
+    [Test]
+    public async Task BuildSql_PercentOfTotal_DividesTheGroupByTheGrandTotal()
+    {
+        var store = new KurdNezamSemanticModelStore();
+        var model = await store.GetBySourceAsync("engineer_projects");
+        model.ShouldNotBeNull();
+
+        var def = new ReportDefinitionDto
+        {
+            Dataset = "engineer_projects",
+            GroupBy = [new ReportGroupByDto { Field = "TypProject" }],
+            Metrics =
+            [
+                new ReportMetricDto { Field = "*", Aggregation = "count",          Alias = "cnt" },
+                new ReportMetricDto { Field = "*", Aggregation = "percentOfTotal", Alias = "pct" },
+            ],
+            // between takes Value AND Value2 — two properties, not a two-element array. Passing an
+            // array leaves Value2 null, and BETWEEN … AND NULL matches no row at all.
+            Filters =
+            [
+                new ReportFilterDto { Field = "RegDate", Operator = "between",
+                    Value = "1405/01/01", Value2 = "1405/12/30" },
+            ],
+        };
+
+        var sql = SqlQueryEngine.BuildSql(def, model!, "tblDW_EngineerProjectInfo", out var parameters);
+
+        // The grand total is read in the same pass as the counts, so the two cannot disagree.
+        sql.ShouldContain("COUNT(*) * 100.0 / NULLIF(SUM(COUNT(*)) OVER (), 0) AS [pct]");
+        // The year filter is still parameterised — the percentage is of the filtered set.
+        sql.ShouldContain("BETWEEN");
+
+        // Two filter parameters. The list also carries @offset and @limit, which every query gets.
+        var filterParams = parameters.Where(p => p.Name.StartsWith("@p", StringComparison.Ordinal)).ToList();
+        filterParams.Count.ShouldBe(2, sql);
+        filterParams.Select(p => p.Value?.ToString()).ShouldContain("1405/01/01");
+        filterParams.Select(p => p.Value?.ToString()).ShouldContain("1405/12/30");
+
+        // The paging clause comes AFTER the window function, so the denominator stays the total
+        // across every group even when the reader is on page 2 — the percentages still add to 100.
+        sql.IndexOf("OVER ()", StringComparison.Ordinal)
+           .ShouldBeLessThan(sql.IndexOf("OFFSET", StringComparison.Ordinal));
+    }
+
+    [Test]
+    public async Task BuildSql_PercentOfTotalOnAMeasure_UsesTheMeasureNotTheRowCount()
+    {
+        var store = new KurdNezamSemanticModelStore();
+        var model = await store.GetBySourceAsync("engineer_projects");
+        model.ShouldNotBeNull();
+
+        var def = new ReportDefinitionDto
+        {
+            Dataset = "engineer_projects",
+            GroupBy = [new ReportGroupByDto { Field = "IsAfza" }],
+            Metrics =
+            [
+                new ReportMetricDto { Field = "Meter", Aggregation = "percentOfTotal", Alias = "share" },
+            ],
+        };
+
+        var sql = SqlQueryEngine.BuildSql(def, model!, "tblDW_EngineerProjectInfo", out _);
+
+        // «چند درصد از متر کار» is a share of metres, not of rows.
+        sql.ShouldContain("SUM([Meter]) * 100.0 / NULLIF(SUM(SUM([Meter])) OVER (), 0) AS [share]");
+    }
+
+    [Test]
     public async Task ApplyValueLabels_EngineerProjects_DecodesTheOrgDictionaries()
     {
         var store = new KurdNezamSemanticModelStore();

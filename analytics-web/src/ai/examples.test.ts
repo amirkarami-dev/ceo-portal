@@ -30,8 +30,8 @@ describe("examplePromptsFor — REAL mode", () => {
     const labels = examplePromptsFor("model-oz-info").map((c) => c.label);
 
     expect(labels.length).toBeGreaterThan(0);
-    expect(labels).not.toContain("متراژ کارکرد به تفکیک شهر");
-    expect(labels).not.toContain("۱۰ مهندس برتر متراژ");
+    expect(labels).not.toContain("متراژ ظرفیت به تفکیک شهر");
+    expect(labels).not.toContain("دسته‌بندی نوع پروژه‌ها ۱۴۰۵");
   });
 
   it("keeps the two visible datasets separate", async () => {
@@ -56,6 +56,33 @@ describe("examplePromptsFor — REAL mode", () => {
     // dataset would drop the user somewhere the picker cannot show or leave.
     const stranded = EXAMPLE_PROMPTS.filter((p) => HIDDEN_MODEL_IDS.has(p.datasetKey));
     expect(stranded.map((p) => p.id)).toEqual([]);
+  });
+
+  it("carries the three reports asked for on the project dataset", async () => {
+    const { examplePromptsFor } = await loadReal();
+    const chips = examplePromptsFor("model-engineer-projects");
+    const byId = new Map(chips.map((c) => [c.id, c]));
+
+    // 1) نوع پروژه‌ها در ۱۴۰۵ — needs both the count and the share, and the year.
+    expect(byId.get("ep-type-1405")?.prompt).toContain("درصد");
+    expect(byId.get("ep-type-1405")?.prompt).toContain("۱۴۰۵");
+
+    // 2) متر کار، عادی در برابر توسعه بنا.
+    expect(byId.get("ep-meter-normal-vs-afza")?.prompt).toContain("توسعه بنا");
+
+    // 3) متراژ به تفکیک صلاحیت، فقط ۱ تا ۸.
+    expect(byId.get("ep-meter-by-qualification")?.prompt).toContain("صلاحیت");
+    expect(byId.get("ep-meter-by-qualification")?.prompt).toContain("۸");
+  });
+
+  it("no chip still uses the old «متراژ کارکرد» wording", async () => {
+    const { EXAMPLE_PROMPTS } = await loadReal();
+    // Meter is «متراژ درگیر در ظرفیت» now. A chip using the old words would ask the AI for a
+    // field name that no longer appears anywhere in the model.
+    const stale = EXAMPLE_PROMPTS.filter(
+      (p) => p.label.includes("متراژ کارکرد") || p.prompt.includes("متراژ کارکرد"),
+    );
+    expect(stale.map((p) => p.id)).toEqual([]);
   });
 
   it("every chip points at a dataset the picker actually offers", async () => {

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using Mabhas19.Application.Analytics.Reports;
 using Mabhas19.Application.Analytics.SemanticModels;
@@ -250,7 +251,8 @@ internal sealed class SqlQueryEngine : IQueryEngine
         {
             if (fieldDtos.TryGetValue(g.Field, out var fld) && fld.HasLookup)
                 return $"[lk_{g.Field}].[{fld.LookupNameColumn}]";
-            return BuildDimExpression(ColRef(g.Field), g, fieldTypes.GetValueOrDefault(g.Field, "string"));
+            return BuildDimExpression(
+                ColRef(g.Field), g, fieldTypes.GetValueOrDefault(g.Field, "string"), fld);
         }
 
         // ── SELECT columns ────────────────────────────────────────────────────
@@ -441,7 +443,8 @@ internal sealed class SqlQueryEngine : IQueryEngine
     private static string BuildDimExpression(
         string colExpr,   // already bracketed (and optionally table-qualified) column reference
         ReportGroupByDto g,
-        string fieldType)
+        string fieldType,
+        SemanticFieldDto? field = null)
     {
         if (g.DateBucket is not null && fieldType == "string")
         {
@@ -452,6 +455,32 @@ internal sealed class SqlQueryEngine : IQueryEngine
                 "month" => $"LEFT({colExpr}, 7)",
                 _       => colExpr,  // unsupported bucket → plain column
             };
+        }
+
+        // Fold codes that mean the same thing into one group, so «عادی» is one row and one
+        // percentage rather than two. ValueLabels cannot do this — it runs after the SQL.
+        if (field?.EquivalentCodes is { Count: > 0 } merges)
+        {
+            var cases = new StringBuilder("CASE");
+            var folded = 0;
+            foreach (var (from, to) in merges)
+            {
+                // Both sides must be whole numbers. They come from our own compiled store, but
+                // they are emitted as literals, so the parsed value is what gets written — never
+                // the raw string.
+                if (!long.TryParse(from, NumberStyles.Integer, CultureInfo.InvariantCulture, out var f) ||
+                    !long.TryParse(to,   NumberStyles.Integer, CultureInfo.InvariantCulture, out var t))
+                    continue;
+
+                cases.Append(CultureInfo.InvariantCulture, $" WHEN {colExpr} = {f} THEN {t}");
+                folded++;
+            }
+
+            if (folded > 0)
+            {
+                cases.Append(CultureInfo.InvariantCulture, $" ELSE {colExpr} END");
+                return cases.ToString();
+            }
         }
 
         return colExpr;
@@ -474,6 +503,17 @@ internal sealed class SqlQueryEngine : IQueryEngine
             "avg"           when m.Field != "*" => $"AVG(CAST({colRef(m.Field)} AS FLOAT))",
             "min"           when m.Field != "*" => $"MIN({colRef(m.Field)})",
             "max"           when m.Field != "*" => $"MAX({colRef(m.Field)})",
+
+            // «چند درصد» — this group's share of the whole set the query covers.
+            // SUM(COUNT(*)) OVER () is the grand total across all the groups: the same number a
+            // separate "SELECT COUNT(*)" would return, but read in the one pass, so the two can
+            // never disagree. It also follows the WHERE, so a report filtered to 1405 gives each
+            // type its share OF 1405 and the column adds up to 100.
+            // NULLIF guards the empty set: 0 rows yields NULL, not a divide-by-zero.
+            "percentOfTotal" when m.Field != "*" =>
+                $"SUM({colRef(m.Field)}) * 100.0 / NULLIF(SUM(SUM({colRef(m.Field)})) OVER (), 0)",
+            "percentOfTotal" => "COUNT(*) * 100.0 / NULLIF(SUM(COUNT(*)) OVER (), 0)",
+
             _               => "COUNT(*)",
         };
     }

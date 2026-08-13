@@ -181,7 +181,10 @@ internal sealed class KurdNezamSemanticModelStore : ISemanticModelStore
                     Description = "تاریخ درج پروژه در ظرفیت مهندس، شمسی و همیشه به شکل 1405/03/17. برای فیلتر یک سال، بازه 1405/01/01 تا 1405/12/30 استفاده شود" },
                 new SemanticFieldDto { Id = "TypProject", Name = "نوع پروژه",      Type = "number", Role = "dimension",
                     Description = "نوع پروژه: 0 و 1 هر دو=عادی, 2=صنعتی, 4=مسکن ملی, 5=بافت فرسوده, 6=تخفیف همکار پروانه‌دار, 7=روستایی, 8=زیر ۲۰ هزار نفر, 10=مساجد و اماکن خیریه, 11=مسکن ملی-سایت متمرکز, 12=خانه باغ, 15=بازسازی ساختمان جنگ تحمیلی",
-                    ValueLabels = TypProjectLabels },
+                    ValueLabels = TypProjectLabels,
+                    // 0 and 1 are one kind with two codes. Folded in the GROUP BY so عادی is a
+                    // single row with a single count and a single percentage.
+                    EquivalentCodes = new Dictionary<string, string> { ["0"] = "1" } },
                 new SemanticFieldDto { Id = "CityId",     Name = "شهر",            Type = "number", Role = "dimension",
                     Description = "شهر محل پروژه: 1=بانه, 2=سنندج (مرکزی), 18=کامیاران, 19=قروه, 20=سقز, 21=دهگلان, 22=مریوان, 23=دیواندره, 25=بیجار",
                     ValueLabels = CityLabels },
