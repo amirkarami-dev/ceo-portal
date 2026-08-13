@@ -130,10 +130,25 @@ describe("RechartsRenderer", () => {
     );
 
     // 1200 + 800 + 600. A pie makes the reader add the slices up; the hole says it outright.
-    const tspans = [...container.querySelectorAll("svg text tspan")].map((t) => t.textContent);
-    expect(tspans).toContain("2,600");
-    // …labelled with what the number is, taken from the measure's own column label.
-    expect(tspans).toContain("درآمد");
+    const total = container.querySelector('[data-testid="donut-total"]')?.textContent ?? "";
+    expect(total).toContain("2,600");
+    // …labelled with what the number is. This def carries no `metrics`, so there is nothing to
+    // compose from and the resolver falls back to the engine's own column label.
+    expect(total).toContain("درآمد");
+  });
+
+  it("draws the total as an overlay on the ring's own box, not as SVG text", () => {
+    const { container } = render(
+      <RechartsRenderer view={makeView("PieChart")} def={def} result={result} />,
+    );
+
+    // The Pie's `cx` percentage is measured against recharts' plot box while a raw <text x="%"> is
+    // measured against the whole SVG, so the same "68%" put the number beside the hole rather than
+    // in it. An overlay shares the box that draws the ring, so it is centred by construction.
+    const overlay = container.querySelector('[data-testid="donut-total"]') as HTMLElement;
+    expect(overlay).not.toBeNull();
+    expect(overlay.style.position).toBe("absolute");
+    expect(container.querySelectorAll("svg text tspan").length).toBe(0);
   });
 
   it("is a ring, not a filled circle", () => {
@@ -151,16 +166,21 @@ describe("RechartsRenderer", () => {
       <RechartsRenderer view={makeView("PieChart")} def={def} result={result} />,
     );
 
-    const legend = container.querySelector(".recharts-legend-wrapper")?.textContent ?? "";
+    const legend = container.querySelector('[data-testid="donut-legend"]');
+    expect(legend).not.toBeNull();
     // 1200/2600 → 46.15%. The share belongs beside the name: slice labels on the ring collide
     // as soon as a category is small.
-    expect(legend).toContain("46.15");
+    expect(legend!.textContent).toContain("46.15");
+    // One row per slice.
+    expect(legend!.children.length).toBe(3);
 
     // Recharts paints legend text in the SERIES colour, which is picked to work as a fill —
-    // measured at 2.54:1 as 12px text on the dark panel. The words must not carry that colour.
-    const span = container.querySelector(".recharts-legend-item-text span");
-    expect(span).not.toBeNull();
-    expect((span as HTMLElement).style.color).not.toBe("");
+    // measured at 2.54:1 as 12px text on the dark panel. The dot carries the colour; the words
+    // carry the normal text colour.
+    const [dot, words] = [...legend!.querySelector("li")!.children] as HTMLElement[];
+    expect(dot.style.background).not.toBe("");
+    expect(words.style.color).not.toBe("");
+    expect(words.style.color).not.toBe(dot.style.background);
   });
 
   it("renders a pie chart with one slice per category", () => {

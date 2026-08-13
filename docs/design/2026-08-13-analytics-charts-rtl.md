@@ -1,7 +1,7 @@
 # Design: the charts in RTL
 
 **Date:** 2026-08-13
-**Status:** step 1 done (legend side, both directions); steps 2–4 open
+**Status:** steps 1–2 done (legend side; sweep, gap, centre total); steps 3–4 open
 **Area:** `analytics-web/src/presentation/renderers`
 
 ## Which libraries draw the charts
@@ -100,11 +100,29 @@ counter-clockwise in RTL — so the largest slice opens where the eye lands.
 | Step | What |
 | --- | --- |
 | 1 | Split the legend constant; donut legend to the correct side, both directions — **done** |
-| 2 | Ring starts at 12 o'clock and sweeps with the reading direction; close the gap; stop the centre total overflowing the hole |
+| 2 | Ring starts at 12 o'clock and sweeps with the reading direction; close the gap; stop the centre total overflowing the hole — **done**, and it took a different shape than planned: see below |
 | 3 | The same fix in `EChartsRenderer`, so it is not left as the one that still mirrors wrongly |
 | 4 | Measure both directions and both themes, tests, deploy, worklog |
 
 Step 1 is the one you are looking at and can ship alone.
+
+## How step 2 actually went
+
+The plan was to nudge the ring with an explicit `cx` and cap the width. Both were tried and both
+failed, for the same reason: **recharts measures the two things against different boxes.** A `Pie`'s
+`cx="68%"` is 68% of the *plot area* — what is left after the legend — while a raw `<text x="68%">`
+is 68% of the *whole SVG*. The same number put the ring in one place and the total 42px away from it,
+and the gap only shrank from 337 to 225.
+
+So the donut now lays itself out: a flex row holding a fixed 240px square for the ring and a plain
+`<ul>` for the legend. That fixes four things at once and removes rather than adds cleverness:
+
+- the ring centres at 50% of its own box, so the total is centred **by construction** (measured
+  off-centre: 0px, in both directions),
+- the gap is a flex `gap`, not whatever is left over — **42px**, down from 337,
+- **RTL needs no prop at all**: a flex row follows the page's direction, so the ring lands at the
+  reading edge and the key after it. `legendPlacement().side` is now needed only by ECharts,
+- the legend is our markup, so the colour-on-text problem cannot come back through recharts.
 
 ## What could go wrong
 

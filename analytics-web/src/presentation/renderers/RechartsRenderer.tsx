@@ -18,12 +18,12 @@ import {
 import type { ReportView } from "../../contracts/presentation";
 import type { ReportDefinition } from "../../contracts/report-definition";
 import type { QueryResult, ResultRow, GroupNode } from "../../contracts/dataset";
-import { formatCategory, formatNumber, type Dir } from "../format";
+import { formatCategory, formatFitted, formatNumber, type Dir } from "../format";
 import { aggregateByCategory } from "./chart-utils";
 import { useUiStore } from "../../store/ui-store";
 import { chartColors } from "../../theme/tokens";
 import { useColumnLabel } from "../labels";
-import { legendPlacement } from "../chart-rtl";
+import { legendPlacement, pieSweep } from "../chart-rtl";
 
 export type RendererProps = {
   view: ReportView;
@@ -89,8 +89,10 @@ export default function RechartsRenderer({ view, def, result, onDrill }: Rendere
   const ys = yKeys(view);
   const kind = view.component || view.type;
   const numFmt = (v: number) => formatNumber(v, dir);
-  // `align` means one thing under the chart and the opposite beside it — see legendPlacement.
-  const { inline: legendAlign, side: sideLegendAlign } = legendPlacement(dir);
+  // Only the bottom, horizontal legend is recharts' to place now. The donut lays itself out as a
+  // flex row, so its side follows the page direction with no prop involved — see the pie block.
+  // `legendPlacement(dir).side` is still what EChartsRenderer needs.
+  const { inline: legendAlign } = legendPlacement(dir);
   // Recharts' default tooltip surface is white — with our light text colour that made
   // dark-mode tooltips white-on-white. Theme the surface AND both text layers (the header
   // uses labelStyle, the value rows use itemStyle; contentStyle.color alone covers neither).
@@ -139,64 +141,115 @@ export default function RechartsRenderer({ view, def, result, onDrill }: Rendere
       total > 0 && typeof v === "number" ? (v * 100) / total : 0;
     const measureLabel = label(measure);
 
+    const sweep = pieSweep(dir);
+
+    // The ring and the legend are laid out here rather than by recharts.
+    //
+    // Recharts positions a side legend itself and then centres the pie in whatever is left, which
+    // left ~300px of nothing between the two and no way to put the total in the hole: the Pie's
+    // `cx` percentage is measured against the plot box, while a raw <text x="%"> is measured against
+    // the whole SVG, so the same "68%" landed in two different places.
+    //
+    // As a flex row the ring is its own square box — the pie centres at 50% of it and the total sits
+    // dead centre by construction — and RTL needs no thought at all: the row follows the page's
+    // direction, so the ring lands at the reading edge and the key after it.
     return (
-      <ResponsiveContainer width="100%" height={340}>
-        <PieChart>
-          <Tooltip
-            {...tooltipProps}
-            formatter={(v: number) => `${numFmt(v)}  (${formatNumber(+share(v).toFixed(2), dir)}٪)`}
-          />
-          {/* The share belongs beside the name. Slice labels on the ring collide as soon as a
-              category is small — twelve project types include four under 0.1%. */}
-          <Legend
-            align={sideLegendAlign}
-            layout="vertical"
-            verticalAlign="middle"
-            formatter={(name: string, entry) => {
-              const v = (entry?.payload as Record<string, unknown> | undefined)?.[measure];
-              return (
-                <span style={{ color: colors.text }}>
-                  {name} — {formatNumber(+share(v).toFixed(2), dir)}٪
-                </span>
-              );
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 32,
+          flexWrap: "wrap",
+          padding: "8px 0",
+        }}
+      >
+        <div style={{ position: "relative", width: 240, height: 240, flex: "0 0 auto" }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Tooltip
+                {...tooltipProps}
+                formatter={(v: number) =>
+                  `${numFmt(v)}  (${formatNumber(+share(v).toFixed(2), dir)}٪)`
+                }
+              />
+              <Pie
+                data={data}
+                dataKey={measure}
+                nameKey={category}
+                cx="50%"
+                cy="50%"
+                // The hole. 62% of the outer radius keeps the ring thick enough to read at a glance
+                // while leaving room for the total.
+                innerRadius={68}
+                outerRadius={110}
+                paddingAngle={2}
+                cornerRadius={6}
+                // Largest slice at 12 o'clock, sweeping the way the language runs.
+                startAngle={sweep.startAngle}
+                endAngle={sweep.endAngle}
+                isAnimationActive={false}
+                // No labels on the ring: they collide as soon as a category is small, and twelve
+                // project types include four under 0.1%. The share goes in the legend instead.
+                label={false}
+                labelLine={false}
+              >
+                {data.map((_row, i) => (
+                  <Cell key={i} fill={palette[i % palette.length]} stroke="none" />
+                ))}
+              </Pie>
+            </PieChart>
+          </ResponsiveContainer>
+
+          {/* The total, in the hole. An overlay rather than an SVG <text>, so it is centred on the
+              ring by the same box that draws the ring. */}
+          <div
+            data-testid="donut-total"
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              pointerEvents: "none",
             }}
-          />
-          <Pie
-            data={data}
-            dataKey={measure}
-            nameKey={category}
-            // The hole. 62% of the outer radius keeps the ring thick enough to read at a glance
-            // while leaving room for the total.
-            innerRadius={68}
-            outerRadius={110}
-            paddingAngle={2}
-            cornerRadius={6}
-            isAnimationActive={false}
-            // No labels on the ring itself — see the Legend note above.
-            label={false}
-            labelLine={false}
           >
-            {data.map((_row, i) => (
-              <Cell key={i} fill={palette[i % palette.length]} stroke="none" />
-            ))}
-          </Pie>
-          {/* The total, in the hole. */}
-          <text
-            x="50%"
-            y="50%"
-            textAnchor="middle"
-            dominantBaseline="middle"
-            style={{ pointerEvents: "none" }}
-          >
-            <tspan x="50%" dy="-0.3em" fill={colors.text} style={{ fontSize: 22, fontWeight: 700 }}>
-              {numFmt(total)}
-            </tspan>
-            <tspan x="50%" dy="1.6em" fill={colors.axis} style={{ fontSize: 12 }}>
-              {measureLabel}
-            </tspan>
-          </text>
-        </PieChart>
-      </ResponsiveContainer>
+            <span style={{ fontSize: 22, fontWeight: 700, color: colors.text, lineHeight: 1.2 }}>
+              {/* The hole is 136px across and the number is whatever the data says. Ten characters
+                  fit; «۱۵٬۰۴۵٬۵۰۰٬۰۰۰» is fourteen and becomes «۱۵ میلیارد». */}
+              {formatFitted(total, dir)}
+            </span>
+            <span style={{ fontSize: 12, color: colors.axis }}>{measureLabel}</span>
+          </div>
+        </div>
+
+        {/* The legend, as markup. The dot carries the colour and the words carry the normal text
+            colour — recharts paints legend text in the series colour, which is chosen to work as a
+            fill and measured 2.54:1 as 12px words. */}
+        <ul
+          data-testid="donut-legend"
+          style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 6, minWidth: 0 }}
+        >
+          {data.map((row, i) => (
+            <li key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+              <span
+                aria-hidden
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: "50%",
+                  background: palette[i % palette.length],
+                  flex: "0 0 auto",
+                }}
+              />
+              <span style={{ color: colors.text }}>
+                {String(row[category] ?? "")} — {formatNumber(+share(row[measure]).toFixed(2), dir)}٪
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
     );
   }
 

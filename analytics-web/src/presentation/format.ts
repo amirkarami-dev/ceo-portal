@@ -26,6 +26,42 @@ export function formatNumber(
   return toPersianDigits(grouped).replace(/,/g, "٬");
 }
 
+/**
+ * Shortened number for somewhere with a fixed width: «۱۵ میلیارد», "15B".
+ *
+ * Only for places where the full number physically cannot fit — it trades digits for room, and a
+ * number that fits should never be shortened. `formatFitted` decides.
+ */
+export function formatCompact(
+  value: number | null | undefined,
+  dir: Dir,
+): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return "";
+  return new Intl.NumberFormat(dir === "rtl" ? "fa-IR" : "en-US", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
+/**
+ * The full grouped number when it is short enough, the shortened one when it is not.
+ *
+ * The donut's centre is a hole of fixed size while the number in it is whatever the data says.
+ * «۹٬۵۶۷» fits and stays exact; «۱۵٬۰۴۵٬۵۰۰٬۰۰۰» is fourteen characters and overflowed the ring, so
+ * it becomes «۱۵ میلیارد». Precision is given up only when the alternative is text drawn over the
+ * chart.
+ *
+ * @param maxChars width of the space, in characters.
+ */
+export function formatFitted(
+  value: number | null | undefined,
+  dir: Dir,
+  maxChars = 10,
+): string {
+  const full = formatNumber(value, dir);
+  return full.length <= maxChars ? full : formatCompact(value, dir);
+}
+
 // The KurdNezam DB stores dates as Jalali strings ("1405/03/16") — a 4-digit
 // year in the 1200–1599 range is Jalali and must pass through untouched, never
 // go through `new Date()` (which would read it as Gregorian year 1405).

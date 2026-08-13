@@ -6,6 +6,7 @@ import {
   formatCategory,
   formatCell,
   formatDateTime,
+  formatFitted,
 } from "./format";
 
 describe("toPersianDigits", () => {
@@ -110,5 +111,33 @@ describe("formatDateTime", () => {
     expect(formatDateTime("", "rtl")).toBe("");
     // never "Invalid Date"
     expect(formatDateTime("not a date", "rtl")).toBe("not a date");
+  });
+});
+
+describe("formatFitted — a number in a fixed-size hole", () => {
+  it("keeps the exact number when it fits", () => {
+    // 9,567 is five characters. Shortening it to «۹٫۶ هزار» would lose precision for nothing.
+    expect(formatFitted(9567, "rtl")).toBe("۹٬۵۶۷");
+    expect(formatFitted(154109, "rtl")).toBe("۱۵۴٬۱۰۹");
+    expect(formatFitted(9567, "ltr")).toBe("9,567");
+  });
+
+  it("shortens only when the full number cannot fit", () => {
+    // «۱۵٬۰۴۵٬۵۰۰٬۰۰۰» is fourteen characters and drew straight over the ring.
+    // ICU joins a number to its unit with U+00A0, not a plain space. The two look identical
+    // on screen, which is what made this assertion fail the first time.
+    expect(formatFitted(15045500000, "rtl")).toBe("۱۵ میلیارد");
+    expect(formatFitted(15045500000, "ltr")).toBe("15B");
+  });
+
+  it("respects the width it is given", () => {
+    // Same number, narrower space → shortened; wider space → left alone.
+    expect(formatFitted(154109, "ltr", 5)).toBe("154.1K");
+    expect(formatFitted(154109, "ltr", 20)).toBe("154,109");
+  });
+
+  it("has nothing to say about nothing", () => {
+    expect(formatFitted(null, "rtl")).toBe("");
+    expect(formatFitted(undefined, "ltr")).toBe("");
   });
 });
