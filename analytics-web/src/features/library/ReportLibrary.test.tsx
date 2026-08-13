@@ -23,10 +23,33 @@ function renderLib() {
   );
 }
 
+/**
+ * The global stub answers `false` to every media query, which antd reads as the
+ * narrowest breakpoint — a phone. That used to make no difference; now it decides
+ * whether the page renders a table or a card list, so each test says which it means.
+ */
+function viewport(kind: "desktop" | "phone") {
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: kind === "desktop" ? /min-width/.test(query) : false,
+    media: query,
+    onchange: null,
+    addListener: () => undefined,
+    removeListener: () => undefined,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+    dispatchEvent: () => false,
+  }));
+}
+
 describe("ReportLibrary", () => {
   beforeEach(() => {
     resetMockDb();
     seedReports();
+    viewport("desktop");
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("lists seeded reports in a table", async () => {
@@ -62,5 +85,42 @@ describe("ReportLibrary", () => {
     await waitFor(() =>
       expect(screen.getAllByTestId("report-row").length).toBeGreaterThanOrEqual(1),
     );
+  });
+
+  describe("on a phone", () => {
+    beforeEach(() => viewport("phone"));
+
+    // Six attributes across 375px gave every column a sliver: the report name got 67px
+    // and wrapped to 91px-tall rows while an empty tags column took 73.
+    it("shows cards instead of the table", async () => {
+      const { container } = renderLib();
+      await waitFor(() =>
+        expect(container.querySelectorAll(".report-card").length).toBeGreaterThan(0),
+      );
+      expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    });
+
+    it("gives every card a link to its report and a menu of its own", async () => {
+      const { container } = renderLib();
+      await waitFor(() => expect(container.querySelector(".report-card")).toBeTruthy());
+      const card = container.querySelector(".report-card") as HTMLElement;
+      expect(card.querySelector("a.report-card__open")).toHaveAttribute(
+        "href",
+        expect.stringContaining("/reports/"),
+      );
+      // a real button, and a sibling of the link rather than inside it
+      const menu = card.querySelector(".report-card__menu") as HTMLElement;
+      expect(menu.tagName).toBe("BUTTON");
+      expect(menu.closest("a")).toBeNull();
+    });
+
+    it("filters the cards too", async () => {
+      const user = userEvent.setup();
+      const { container } = renderLib();
+      await waitFor(() => expect(container.querySelector(".report-card")).toBeTruthy());
+
+      await user.type(screen.getByRole("searchbox"), "zzz-no-match");
+      await waitFor(() => expect(container.querySelectorAll(".report-card").length).toBe(0));
+    });
   });
 });

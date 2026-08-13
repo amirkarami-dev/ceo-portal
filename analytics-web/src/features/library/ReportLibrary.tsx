@@ -1,6 +1,7 @@
 // report-web/src/features/library/ReportLibrary.tsx
-import { Button, Dropdown, Input, Select, Tag } from "antd";
+import { Button, Dropdown, Grid, Input, Pagination, Select, Tag } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import type { MenuProps } from "antd";
 import { MoreOutlined, PlusOutlined } from "@ant-design/icons";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -21,6 +22,9 @@ import {
 import { reportOwnerLabel } from "./report-display";
 import "./reports.css";
 
+/** The table and the card list must agree, or one of them silently drops rows. */
+const PAGE_SIZE = 12;
+
 export function ReportLibrary() {
   const { t, i18n } = useTranslation();
   const rtl = i18n.dir() === "rtl";
@@ -31,6 +35,8 @@ export function ReportLibrary() {
   const [q, setQ] = useState("");
   const [model, setModel] = useState<string | undefined>();
   const [tag, setTag] = useState<string | undefined>();
+  const [page, setPage] = useState(1);
+  const screens = Grid.useBreakpoint();
 
   const canManage =
     roles.includes("ReportDesigner") ||
@@ -58,6 +64,29 @@ export function ReportLibrary() {
     () => Array.from(new Set((data ?? []).flatMap((r) => r.definition.tags ?? []))),
     [data],
   );
+
+  // One definition for the ⋮ menu. The table column and the card both open it, and a
+  // menu that means "what you can do with this report" should not be able to say two
+  // different things depending on how wide the window is.
+  const actionsFor = (r: SavedReport): MenuProps["items"] => [
+    { key: "run", label: t("library.run"), onClick: () => navigate(`/reports/${r.id}`) },
+    ...(canManage
+      ? [
+          {
+            key: "edit",
+            label: t("library.edit"),
+            onClick: () => navigate(`/ask?from=${r.id}`),
+          },
+          { type: "divider" as const },
+          {
+            key: "delete",
+            label: t("library.delete"),
+            danger: true,
+            onClick: () => void del.mutate(r.id),
+          },
+        ]
+      : []),
+  ];
 
   const columns: ColumnsType<SavedReport> = [
     {
@@ -96,34 +125,7 @@ export function ReportLibrary() {
       key: "actions",
       width: 56,
       render: (_v, r) => (
-        <Dropdown
-          trigger={["click"]}
-          menu={{
-            items: [
-              {
-                key: "run",
-                label: t("library.run"),
-                onClick: () => navigate(`/reports/${r.id}`),
-              },
-              ...(canManage
-                ? [
-                    {
-                      key: "edit",
-                      label: t("library.edit"),
-                      onClick: () => navigate(`/ask?from=${r.id}`),
-                    },
-                    { type: "divider" as const },
-                    {
-                      key: "delete",
-                      label: t("library.delete"),
-                      danger: true,
-                      onClick: () => void del.mutate(r.id),
-                    },
-                  ]
-                : []),
-            ],
-          }}
-        >
+        <Dropdown trigger={["click"]} menu={{ items: actionsFor(r) }}>
           <Button type="text" icon={<MoreOutlined />} aria-label={t("library.actions")} />
         </Dropdown>
       ),
@@ -183,6 +185,85 @@ export function ReportLibrary() {
     />
   );
 
+  // A card per report on a phone. Six attributes across a 375px screen gives every
+  // column a sliver — the name, the one thing every row is really about, was getting
+  // 67px while an empty tags column took 73. A card gives the name the whole width and
+  // simply omits the fields that have no value.
+  //
+  // `=== false` rather than `!screens.md`: useBreakpoint answers {} on the first render,
+  // and `!undefined` is true, which would flash the card list on a desktop load.
+  const phone = screens.md === false;
+
+  // Clamped, not reset. Filter down to one match while on page 3 and the slice was
+  // empty — no cards, no empty state, just a blank page. Deleting the last report on
+  // the final page does the same thing, so the guard belongs on the page number rather
+  // than on a filter-changed effect that would only cover one of the two causes.
+  const lastPage = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const safePage = Math.min(page, lastPage);
+  const paged = rows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  const cardList = (
+    <>
+      {toolbar}
+      {rows.length === 0 ? (
+        emptyNode
+      ) : (
+        <>
+          <ul className="report-cards">
+            {paged.map((r) => (
+              <li key={r.id} className="report-card" data-testid="report-row" data-id={r.id}>
+                <span className="report-card__accent" aria-hidden />
+                <Link to={`/reports/${r.id}`} className="report-card__open">
+                  <span className="report-card__name">{r.definition.name}</span>
+                  <span className="report-card__meta">
+                    {reportOwnerLabel(r.ownerName, user, t("library.organizationUser"))}
+                    {" · "}
+                    {r.definition.dataset}
+                  </span>
+                  <span className="report-card__tags">
+                    <Tag color={r.visibility === "tenant" ? "blue" : "default"}>
+                      {t(`library.vis.${r.visibility}`)}
+                    </Tag>
+                    {(r.definition.tags ?? []).map((x: string) => (
+                      <Tag key={x}>{x}</Tag>
+                    ))}
+                    {r.lastRunAt && (
+                      <span className="report-card__run">
+                        {t("library.colLastRun")}: {formatDateTime(r.lastRunAt, rtl ? "rtl" : "ltr")}
+                      </span>
+                    )}
+                  </span>
+                </Link>
+                {/* A sibling, not a child of the Link — a button inside an anchor is
+                    invalid and the whole card would become one confused target. */}
+                <Dropdown trigger={["click"]} menu={{ items: actionsFor(r) }}>
+                  <Button
+                    type="text"
+                    className="report-card__menu"
+                    icon={<MoreOutlined />}
+                    aria-label={t("library.actions")}
+                  />
+                </Dropdown>
+              </li>
+            ))}
+          </ul>
+          {/* The table pages at 12; the cards must too, or a long list silently stops. */}
+          {rows.length > PAGE_SIZE && (
+            <Pagination
+              className="report-cards__pager"
+              current={safePage}
+              pageSize={PAGE_SIZE}
+              total={rows.length}
+              onChange={setPage}
+              showSizeChanger={false}
+              align="center"
+            />
+          )}
+        </>
+      )}
+    </>
+  );
+
   return (
     <PageContainer>
       <PageHeader
@@ -197,15 +278,19 @@ export function ReportLibrary() {
           </Button>
         }
       />
-      <DataTable<SavedReport>
-        rowKey="id"
-        columns={columns}
-        data={rows}
-        toolbar={toolbar}
-        empty={emptyNode}
-        pageSize={12}
-        onRow={(r) => ({ "data-testid": "report-row", "data-id": r.id })}
-      />
+      {phone ? (
+        cardList
+      ) : (
+        <DataTable<SavedReport>
+          rowKey="id"
+          columns={columns}
+          data={rows}
+          toolbar={toolbar}
+          empty={emptyNode}
+          pageSize={PAGE_SIZE}
+          onRow={(r) => ({ "data-testid": "report-row", "data-id": r.id })}
+        />
+      )}
     </PageContainer>
   );
 }
