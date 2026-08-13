@@ -8,9 +8,10 @@ import {
   DashboardOutlined,
 } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
-import type { QueryResult, ReportView, ViewType } from "@/contracts";
+import type { QueryResult, ReportView } from "@/contracts";
+import { canRenderTarget, type SwitchTarget } from "@/presentation/view-switching";
 
-export type SwitchTarget = ViewType | "bar" | "line" | "pie";
+export type { SwitchTarget };
 
 interface Props {
   views: ReportView[];
@@ -21,20 +22,20 @@ interface Props {
 
 export function ViewSwitcher({ active, result, onSwitch }: Props) {
   const { t } = useTranslation();
-  const metricCount = result.columns.filter((c) => c.isMetric).length;
 
-  const options = [
-    { label: t("view.table"), value: "table" as SwitchTarget, icon: <TableOutlined /> },
-    { label: t("view.kpi"), value: "kpi" as SwitchTarget, icon: <DashboardOutlined /> },
-    { label: t("view.bar"), value: "bar" as SwitchTarget, icon: <BarChartOutlined /> },
-    { label: t("view.line"), value: "line" as SwitchTarget, icon: <LineChartOutlined /> },
-    {
-      label: t("view.pie"),
-      value: "pie" as SwitchTarget,
-      icon: <PieChartOutlined />,
-      disabled: metricCount > 1,
-    },
-  ];
+  // A view is offered when the result CAN be drawn that way. The pie used to be disabled whenever
+  // a report had more than one metric, which ruled it out for «تعداد و درصد …» — a count and its
+  // own percentage, the most natural pie there is. Two metrics are not an obstacle: a pie draws
+  // one, exactly as the bar chart already draws one.
+  const options = (
+    [
+      { label: t("view.table"), value: "table", icon: <TableOutlined /> },
+      { label: t("view.kpi"), value: "kpi", icon: <DashboardOutlined /> },
+      { label: t("view.bar"), value: "bar", icon: <BarChartOutlined /> },
+      { label: t("view.line"), value: "line", icon: <LineChartOutlined /> },
+      { label: t("view.pie"), value: "pie", icon: <PieChartOutlined /> },
+    ] as { label: string; value: SwitchTarget; icon: React.ReactNode }[]
+  ).map((o) => ({ ...o, disabled: !canRenderTarget(o.value, result) }));
 
   const current: SwitchTarget = !active
     ? "table"

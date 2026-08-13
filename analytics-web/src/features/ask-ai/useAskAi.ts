@@ -11,6 +11,7 @@ import type {
 import { createAIService } from "@/ai";
 import { drillIntoAsync } from "@/query/drilldown";
 import { chooseView } from "@/presentation/auto-viz";
+import { buildViewForTarget, findViewForTarget } from "@/presentation/view-switching";
 import { getSemanticModel, listSemanticModels } from "@/semantic/registry";
 import { executeReport } from "@/api/executeApi";
 
@@ -39,15 +40,6 @@ export interface AskAiState {
  *  (FarsNezam in real mode, sample models in mock mode). */
 const DEFAULT_MODEL_KEY = listSemanticModels()[0]?.key ?? "model-sales";
 
-/** Maps a view-switcher subtype to a ReportView shape. */
-const SUBTYPE_TO_VIEW: Record<
-  "bar" | "line" | "pie",
-  Pick<ReportView, "type" | "library" | "component">
-> = {
-  bar: { type: "chart", library: "recharts", component: "BarChart" },
-  line: { type: "chart", library: "recharts", component: "LineChart" },
-  pie: { type: "chart", library: "recharts", component: "PieChart" },
-};
 
 export function useAskAi() {
   const ai = useMemo(() => createAIService(), []);
@@ -104,45 +96,11 @@ export function useAskAi() {
     (type: ViewType | "bar" | "line" | "pie") => {
       setState((s) => {
         // Look for an existing view of that type/subtype first (avoids recompute).
-        const existing = s.views.findIndex((v) =>
-          type === "table" || type === "kpi"
-            ? v.type === type
-            : v.component.toLowerCase().includes(type),
-        );
+        const existing = findViewForTarget(s.views, type);
         if (existing >= 0) return { ...s, activeViewIndex: existing };
-        if (type === "table" || type === "kpi") {
-          const v: ReportView = {
-            type,
-            library: "antd",
-            component: type === "table" ? "Table" : "KpiCard",
-            mapping: {},
-          };
-          return { ...s, views: [...s.views, v], activeViewIndex: s.views.length };
-        }
-        // Build a chart view with correct axis mapping derived from result columns.
-        // Never blindly copy base.mapping: when the active view is a Table, its
-        // mapping only has `columns`, no x/y — the chart would silently get undefined
-        // axes and render nothing.  Derive dim/meas from the current result instead
-        // and use base.mapping's values only when they are actually set.
-        const base = s.views[s.activeViewIndex];
-        const cols = s.result?.columns ?? [];
-        const dim = cols.find((c) => !c.isMetric)?.key;
-        const meas = cols.find((c) => c.isMetric)?.key;
-        const chartKey = type as "bar" | "line" | "pie";
-        const subtype = SUBTYPE_TO_VIEW[chartKey] ?? SUBTYPE_TO_VIEW.bar;
-        let mapping: ReportView["mapping"];
-        if (chartKey === "pie") {
-          mapping = {
-            category: base?.mapping?.category ?? dim,
-            measure: base?.mapping?.measure ?? meas,
-          };
-        } else {
-          mapping = {
-            x: base?.mapping?.x ?? dim,
-            y: base?.mapping?.y ?? meas,
-          };
-        }
-        const v: ReportView = { ...subtype, mapping };
+
+        // Shared with the saved-report viewer so the two pages cannot drift apart.
+        const v = buildViewForTarget(type, s.result, s.views[s.activeViewIndex]);
         return { ...s, views: [...s.views, v], activeViewIndex: s.views.length };
       });
     },

@@ -27,7 +27,12 @@ import { getModelForDataset } from "@/semantic/registry";
 import { executeReport } from "@/api/executeApi";
 import { ReportViewRenderer } from "@/presentation/ReportView";
 import { buildExportMenuItems } from "@/features/export";
-import { ViewSwitcher, type SwitchTarget } from "@/features/ask-ai/ViewSwitcher";
+import { ViewSwitcher } from "@/features/ask-ai/ViewSwitcher";
+import {
+  buildViewForTarget,
+  findViewForTarget,
+  type SwitchTarget,
+} from "@/presentation/view-switching";
 import { useAuth } from "@/auth/useAuth";
 import { reportOwnerLabel } from "@/features/library/report-display";
 import {
@@ -54,6 +59,8 @@ export function ReportViewer() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [computed, setComputed] = useState<{ result: QueryResult; views: ReportView[] } | undefined>();
   const [execError, setExecError] = useState(false);
+  /** Views the switcher built on demand, on top of the ones auto-viz chose. */
+  const [extraViews, setExtraViews] = useState<ReportView[]>([]);
 
   const semantic = useMemo(() => {
     if (!data) return undefined;
@@ -102,6 +109,14 @@ export function ReportViewer() {
     return () => { cancelled = true; };
   }, [liveDef, semantic]);
 
+  // A built view names columns from the result it was built against. Refresh, a filter change or a
+  // drill can change those columns, so drop the built ones and go back to what auto-viz chose
+  // rather than point a chart at an axis that is no longer there.
+  useEffect(() => {
+    setExtraViews([]);
+    setActiveIdx(0);
+  }, [computed, drillPath.length]);
+
   // Derived values for the render — computed below the hooks (safe since hooks are unconditional).
   const activeResult = drillPath.length ? drillPath[drillPath.length - 1].result : computed?.result;
   const activeViews = drillPath.length ? drillPath[drillPath.length - 1].views : computed?.views ?? [];
@@ -138,7 +153,7 @@ export function ReportViewer() {
   }
 
   const result = activeResult;
-  const views = activeViews;
+  const views = [...activeViews, ...extraViews];
   const activeView = views[Math.min(activeIdx, views.length - 1)] ?? views[0];
 
   const canEdit =
@@ -152,13 +167,18 @@ export function ReportViewer() {
     setActiveIdx(0);
   };
 
+  // chooseView only ever returns the view it picked plus a Table, so four of the five buttons had
+  // nothing to find and fell back to index 0 — «خطی» and «KPI» looked enabled and quietly put you
+  // back on the bar chart. Build the view when it does not exist yet, the same as /ask does.
   const switchView = (target: SwitchTarget) => {
-    const idx = views.findIndex((v) =>
-      target === "table" || target === "kpi"
-        ? v.type === target
-        : v.component.toLowerCase().includes(target),
-    );
-    setActiveIdx(idx >= 0 ? idx : 0);
+    const idx = findViewForTarget(views, target);
+    if (idx >= 0) {
+      setActiveIdx(idx);
+      return;
+    }
+    const built = buildViewForTarget(target, result, views[activeIdx]);
+    setExtraViews((prev) => [...prev, built]);
+    setActiveIdx(views.length);
   };
 
   const headerActions = (
