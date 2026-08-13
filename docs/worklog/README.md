@@ -22,6 +22,7 @@ Also, when a task teaches something reusable:
 
 | Date | Record | Area | Status |
 |---|---|---|---|
+| 2026-08-13 | [The date filter is a Persian calendar now](2026-08-13-analytics-jalali-date-filter.md) | analytics-web | **live** on analytic.myceo.ir |
 | 2026-08-13 | [Typing in a filter gave «خطا در بارگذاری گزارش»](2026-08-13-analytics-range-filter.md) | analytics-web | **live** on analytic.myceo.ir |
 | 2026-08-13 | [The charts in RTL — and what «left» actually means](2026-08-13-analytics-charts-rtl.md) | analytics-web | **live** on analytic.myceo.ir |
 | 2026-08-13 | [The pie, the views that did nothing, and «sum_amount»](2026-08-13-analytics-charts-and-labels.md) | analytics-web | **live** on analytic.myceo.ir |

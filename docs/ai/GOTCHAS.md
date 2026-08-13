@@ -683,6 +683,29 @@ Check with `md5sum */src/layout/AppSwitcher.tsx` — all eight hashes must match
 
 ## Build & deploy
 
+### `--legacy-peer-deps` also stops npm INSTALLING peers, not just checking them
+`analytics-web`'s image needs it (antd-jalali declares `react ^18`; the app runs 19, as walfare-web
+has in production for months). The next build then died with every test file losing `screen`,
+`fireEvent` and `waitFor` from `@testing-library/react` — those are re-exports from
+`@testing-library/dom`, a **peer**, which existed on the dev machine only because npm auto-installed
+it long ago. **Whenever a Dockerfile uses `--legacy-peer-deps`, every peer the code imports must be
+declared explicitly.**
+Related: `analytics-web/deploy/Dockerfile.analytics-web` installs from `analytics-web/package.json`
+**alone**, with no root `package.json`, so npm `overrides` written at the monorepo root never apply
+to the image. Check the sibling app's Dockerfile before inventing a fix — `walfare-web` already had
+this one, comment and all.
+
+### antd-jalali: the listener goes INSIDE ConfigProvider, and its deep import breaks Vitest
+`<JalaliLocaleListener/>` must be a child of the `ConfigProvider` that carries the locale. Placed
+above it everything compiles, the pickers render, and they silently show **Gregorian** —
+`1405/01/01` displays as `2026/03/21`, with no error anywhere. Only reading the rendered value finds
+it.
+The package also imports `antd/es/date-picker/generatePicker/generateRangePicker` without an
+extension. Vite resolves that in dev and build; under Vitest antd stays externalised and the
+specifier reaches Node's ESM loader, which will not. `server.deps.inline` and a resolve alias both
+fail, because neither reaches an import made *inside* an externalised package — stub the package in
+`vitest.setup.ts` instead and check the real calendar in a browser.
+
 ### A piped build or test command reports the PIPE's exit code, not the build's
 `dotnet test … 2>&1 | tail -30` came back **exit 0** while the build had failed to compile. The
 status belongs to `tail`, which succeeded at printing the error. A background task therefore reports

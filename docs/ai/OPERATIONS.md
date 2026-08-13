@@ -66,6 +66,13 @@ and builds the SQL; `analytics-web/src/semantic/models/*.ts` is a mirror bundled
 build time and is what fills the Ask-AI picker. Rebuild `api` **and** `analytics-web`, api first —
 ship only the front end and the picker offers a dataset the engine does not know.
 
+**A FAILED build still lets the recreate succeed.** `docker compose up -d --force-recreate` does not
+care that `build` just failed — it starts the **previous** image, and the container comes up healthy
+with a 200. Chaining build → recreate → verify in one command therefore reports a perfectly green
+deploy while nothing shipped; the only tell is the bundle hash not changing. **Run the build as its
+own step, read its result, and compare the bundle hash before and after.** Health and status are not
+proof.
+
 Then **always verify** — a build that finishes is not a deploy that works:
 
 ```bash
