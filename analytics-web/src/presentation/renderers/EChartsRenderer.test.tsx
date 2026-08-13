@@ -63,4 +63,54 @@ describe("EChartsRenderer", () => {
     expect(legend.right).toBeDefined();
     expect(legend.left).toBeUndefined();
   });
+
+  // ── RTL ──────────────────────────────────────────────────────────────────
+  // The legend here is a horizontal strip, so anchoring it to the reading edge is the right answer
+  // — the same question recharts' bottom legend asks, NOT the side question that had the donut's
+  // legend on the wrong side. These pin what is already correct so it survives later edits.
+
+  const barView: ReportView = {
+    type: "chart",
+    library: "echarts",
+    component: "bar",
+    mapping: { x: "province", series: "city", measure: "revenue" },
+  };
+
+  const axes = () => ({
+    x: captured.option!.xAxis as { inverse?: boolean },
+    y: captured.option!.yAxis as { position?: string },
+  });
+
+  it("runs the categories from the right and puts the values on the right, in rtl", () => {
+    document.documentElement.dir = "rtl";
+    render(<EChartsRenderer view={barView} def={def} result={result} />);
+    const { x, y } = axes();
+    expect(x.inverse).toBe(true);
+    expect(y.position).toBe("right");
+  });
+
+  it("mirrors back in ltr", () => {
+    document.documentElement.dir = "ltr";
+    render(<EChartsRenderer view={barView} def={def} result={result} />);
+    const { x, y } = axes();
+    expect(x.inverse).toBe(false);
+    expect(y.position).toBe("left");
+  });
+
+  it("puts the heatmap's row labels on the same side the columns start from", () => {
+    document.documentElement.dir = "rtl";
+    render(<EChartsRenderer view={view} def={def} result={result} />);
+    const { x, y } = axes();
+    // Columns already ran right-to-left while the labels stayed left, so a reader crossed the whole
+    // matrix and came back. Only the horizontal order mirrors — rows stay top-to-bottom.
+    expect(x.inverse).toBe(true);
+    expect(y.position).toBe("right");
+  });
+
+  it("aligns the tooltip text to the reading edge", () => {
+    document.documentElement.dir = "rtl";
+    render(<EChartsRenderer view={barView} def={def} result={result} />);
+    const tooltip = captured.option!.tooltip as { textStyle?: { align?: string } };
+    expect(tooltip.textStyle?.align).toBe("right");
+  });
 });

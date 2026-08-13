@@ -94,7 +94,15 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
       tooltip: { ...tooltip, position: "top" },
       legend,
       xAxis: { type: "category", data: xCatLabels, inverse: dir === "rtl", ...axisStyle },
-      yAxis: { type: "category", data: yCats.map((c) => formatCategory(c, dir)), ...axisStyle },
+      yAxis: {
+        type: "category",
+        data: yCats.map((c) => formatCategory(c, dir)),
+        // The columns already run right-to-left, so the row labels belong on the right too —
+        // otherwise a reader starts at the labels, crosses the whole matrix, and comes back.
+        // Only the horizontal order mirrors; rows keep their top-to-bottom order in both.
+        position: dir === "rtl" ? "right" : "left",
+        ...axisStyle,
+      },
       visualMap: {
         min: 0,
         max: maxVal,

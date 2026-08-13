@@ -1,7 +1,7 @@
 # Design: the charts in RTL
 
 **Date:** 2026-08-13
-**Status:** steps 1–2 done (legend side; sweep, gap, centre total); steps 3–4 open
+**Status:** steps 1–3 done (legend side; sweep, gap, centre total; ECharts); step 4 (deploy) open
 **Area:** `analytics-web/src/presentation/renderers`
 
 ## Which libraries draw the charts
@@ -60,10 +60,30 @@ Seen after step 1 on a currency report: «۱۵٬۰۴۵٬۵۰۰٬۰۰۰» is wide
 the ring. The hole is a fixed size while the number is not, so a big figure has to shorten (۱۵.۰ میلیارد)
 or the text has to scale to fit. Folded into step 2, since both are about the ring's geometry.
 
-### 4. ECharts has the same inverted idea
+### 4. ECharts — **this finding was wrong**
 
-`EChartsRenderer` sets `legend.left = dir === "rtl" ? "right" : "left"`, which is the same
-mirror-the-wrong-thing move. It only shows on 2-dimension results, so nobody has hit it yet.
+The original claim here was that `EChartsRenderer` repeats the inverted move, based on seeing
+`dir === "rtl" ? "right" : "left"` in a grep. Reading the file at step 3 showed otherwise: that
+legend is a **horizontal** strip, and so is the heatmap's `visualMap`. For a horizontal strip,
+anchoring to the reading edge is the correct answer — the same question recharts' bottom legend
+asks, not the side question that had the donut wrong. ECharts was already right:
+
+| | |
+| --- | --- |
+| grouped bar `xAxis.inverse` | `dir === "rtl"` |
+| grouped bar `yAxis.position` | right in RTL |
+| legend / visualMap anchor | reading edge |
+| tooltip `textStyle.align` | right in RTL |
+
+**The lesson is the one this whole document is about:** `left`/`right` in a chart library means
+"which end" for a horizontal thing and "which side" for a vertical one, and a grep cannot tell them
+apart. I made the same category error diagnosing ECharts that the original code made writing the
+donut.
+
+**One real gap did turn up.** The heatmap's category `yAxis` had no `position`, so with the columns
+already running right-to-left the row labels stayed on the left — a reader started at the labels,
+crossed the whole matrix, and came back. Fixed; rows keep their top-to-bottom order, since only the
+horizontal axis mirrors.
 
 ## What is already right — and stays untouched
 
@@ -101,7 +121,7 @@ counter-clockwise in RTL — so the largest slice opens where the eye lands.
 | --- | --- |
 | 1 | Split the legend constant; donut legend to the correct side, both directions — **done** |
 | 2 | Ring starts at 12 o'clock and sweeps with the reading direction; close the gap; stop the centre total overflowing the hole — **done**, and it took a different shape than planned: see below |
-| 3 | The same fix in `EChartsRenderer`, so it is not left as the one that still mirrors wrongly |
+| 3 | `EChartsRenderer` — **done**: it needed no mirroring fix (finding 4 was wrong); the heatmap's row labels moved to the reading edge, and the RTL rules are now pinned by tests |
 | 4 | Measure both directions and both themes, tests, deploy, worklog |
 
 Step 1 is the one you are looking at and can ship alone.
