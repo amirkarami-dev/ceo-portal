@@ -999,6 +999,25 @@ donut now lays itself out — a flex row with a fixed square for the ring and an
 A flex row follows `dir` on its own, so RTL needs no prop, the total is centred by construction, and
 the gap is a `gap` rather than leftover space.
 
+### The report filter bar must respect the OPERATOR, not just the field
+`FilterBar` rendered one control per `definition.filters` entry and keyed it off the field's *type*.
+A `between` carries **two** bounds, so one input replaced both with a single string and left half a
+range — which `BETWEEN @p0 AND NULL` answers with no rows and no error. Every year-filtered report
+came back empty, silently, until the engine started refusing a half range and it became
+«خطا در بارگذاری گزارش». **The error did not cause the bug; it revealed one that had always been
+there.** Expect that whenever a silent wrong answer is turned into a loud one.
+
+Two rules fall out: an emptied filter means **do not filter**, not `col = NULL` (which matches
+nothing); and the bar must render every filter the report *defines*, not the pruned list actually
+being queried — otherwise clearing a filter deletes its own control and there is no way to type
+again.
+
+### A local fixture can fail in exactly the way you are hunting
+Reproducing the above needed a `between` filter in the seeded mock data. The first one pointed at
+`orderDate` on a report whose dataset is `projects`, where that field does not exist — so the page
+showed the very error being investigated, *before anything was typed*. **Confirm a reproduction
+fails for the reason you think**, or a broken fixture reads as a confirmed bug.
+
 ### A 0×0 browser tab answers every geometry question with rubbish
 A freshly opened preview tab reported the ring on the wrong side, a **negative** gap, and sideways
 scroll — in all four direction/theme combinations identically, which was the tell. `window.innerWidth`
