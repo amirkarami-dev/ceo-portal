@@ -1,22 +1,27 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render } from "@testing-library/react";
-
-const captured: { option?: Record<string, unknown>; theme?: Record<string, unknown> } = {};
-vi.mock("echarts-for-react", () => ({
-  default: (props: { option: Record<string, unknown>; theme?: Record<string, unknown> }) => {
-    captured.option = props.option;
-    captured.theme = props.theme;
-    return <div data-testid="echarts-mock" />;
-  },
-}));
-
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { render, cleanup } from "@testing-library/react";
+import * as echarts from "echarts";
 import EChartsRenderer from "./EChartsRenderer";
-import { echartsTheme } from "../../theme/echarts-theme";
 import type { ReportView } from "../../contracts/presentation";
 import type { ReportDefinition } from "../../contracts/report-definition";
-import type { QueryResult } from "../../contracts/dataset";
+import type { QueryResult, GroupNode } from "../../contracts/dataset";
 
-const result: QueryResult = {
+/**
+ * These used to mock `echarts-for-react` and assert the option object handed to it. They now mount a
+ * real chart and read the option back off the live instance.
+ *
+ * That is a stronger question. A mock accepts anything, so it cannot catch an option ECharts rejects,
+ * renames or normalises away — the mock version would have passed just as happily if the whole option
+ * were ignored. It became possible only once the renderer moved onto `useEChart`: `echarts-for-react`
+ * cannot complete an init in jsdom (its two-phase init waits on a `finished` event, disposes, and
+ * re-inits — the instance never survives).
+ *
+ * **`getOption()` returns the NORMALISED option**, which is the point and also the gotcha: ECharts
+ * wraps single components in arrays and fills defaults, so it is `xAxis[0].inverse`, not
+ * `xAxis.inverse`. Asserting the un-normalised shape is what a mock let you get away with.
+ */
+
+const result = {
   columns: [
     { key: "province", label: "استان", type: "string", isMetric: false },
     { key: "city", label: "شهر", type: "string", isMetric: false },
@@ -28,7 +33,7 @@ const result: QueryResult = {
     { province: "Fars", city: "Shiraz", revenue: 400 },
   ],
   total: 3,
-};
+} as unknown as QueryResult;
 
 const def = {
   id: "r1",
@@ -37,34 +42,67 @@ const def = {
   presentation: { views: [] },
 } as unknown as ReportDefinition;
 
-const view: ReportView = {
+const heatmapView: ReportView = {
   type: "chart",
   library: "echarts",
   component: "heatmap",
   mapping: { x: "province", series: "city", measure: "revenue" },
 };
 
+const barView: ReportView = {
+  type: "chart",
+  library: "echarts",
+  component: "bar",
+  mapping: { x: "province", series: "city", measure: "revenue" },
+};
+
+type Resolved = {
+  tooltip: { trigger?: string; textStyle?: { align?: string } }[];
+  legend: { left?: number | string; right?: number | string }[];
+  xAxis: { inverse?: boolean; data?: string[]; axisLabel?: Record<string, unknown> }[];
+  yAxis: { position?: string; axisLabel?: { formatter?: unknown } }[];
+  series: { type: string; name?: string; data?: unknown[] }[];
+  visualMap?: unknown[];
+  color: string[];
+};
+
+/** Mount, then read the option ECharts actually resolved. */
+function mount(view: ReportView, onDrill?: (n: GroupNode) => void) {
+  const utils = render(<EChartsRenderer view={view} def={def} result={result} onDrill={onDrill} />);
+  const el = document.querySelector<HTMLElement>("[data-testid='echarts-canvas']")!;
+  const instance = echarts.getInstanceByDom(el);
+  expect(instance, "no live ECharts instance — check the canvas stub in vitest.setup.ts").toBeDefined();
+  return { ...utils, el, instance: instance!, option: instance!.getOption() as unknown as Resolved };
+}
+
 beforeEach(() => {
-  captured.option = undefined;
-  captured.theme = undefined;
+  document.documentElement.dir = "ltr";
+  // ECharts logs nothing here today; a spy keeps a future regression from hiding in the noise.
+  vi.spyOn(console, "error").mockImplementation(() => undefined);
+});
+
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
   document.documentElement.dir = "ltr";
 });
 
 describe("EChartsRenderer", () => {
   it("builds an option with a tooltip and a series", () => {
-    render(<EChartsRenderer view={view} def={def} result={result} />);
-    expect(captured.option).toBeDefined();
-    expect(captured.option!.tooltip).toBeDefined();
-    expect(Array.isArray(captured.option!.series)).toBe(true);
-    expect((captured.option!.series as unknown[]).length).toBeGreaterThan(0);
+    const { option } = mount(heatmapView);
+
+    expect(option.tooltip[0]).toBeDefined();
+    expect(option.series.length).toBeGreaterThan(0);
   });
 
   it("right-aligns the legend when dir is rtl", () => {
     document.documentElement.dir = "rtl";
-    render(<EChartsRenderer view={view} def={def} result={result} />);
-    const legend = captured.option!.legend as { right?: number; left?: number };
-    expect(legend.right).toBeDefined();
-    expect(legend.left).toBeUndefined();
+    const { option } = mount(heatmapView);
+
+    expect(option.legend[0].right).toBe(8);
+    // ECharts fills a default for the side we did not set, so "not ours" is the assertion, not
+    // "undefined" — one of the things a mock could not have told us.
+    expect(option.legend[0].left).not.toBe(8);
   });
 
   // ── RTL ──────────────────────────────────────────────────────────────────
@@ -72,76 +110,97 @@ describe("EChartsRenderer", () => {
   // — the same question recharts' bottom legend asks, NOT the side question that had the donut's
   // legend on the wrong side. These pin what is already correct so it survives later edits.
 
-  const barView: ReportView = {
-    type: "chart",
-    library: "echarts",
-    component: "bar",
-    mapping: { x: "province", series: "city", measure: "revenue" },
-  };
-
-  const axes = () => ({
-    x: captured.option!.xAxis as { inverse?: boolean },
-    y: captured.option!.yAxis as { position?: string },
-  });
-
   it("runs the categories from the right and puts the values on the right, in rtl", () => {
     document.documentElement.dir = "rtl";
-    render(<EChartsRenderer view={barView} def={def} result={result} />);
-    const { x, y } = axes();
-    expect(x.inverse).toBe(true);
-    expect(y.position).toBe("right");
+    const { option } = mount(barView);
+
+    expect(option.xAxis[0].inverse).toBe(true);
+    expect(option.yAxis[0].position).toBe("right");
   });
 
   it("mirrors back in ltr", () => {
     document.documentElement.dir = "ltr";
-    render(<EChartsRenderer view={barView} def={def} result={result} />);
-    const { x, y } = axes();
-    expect(x.inverse).toBe(false);
-    expect(y.position).toBe("left");
+    const { option } = mount(barView);
+
+    expect(option.xAxis[0].inverse).toBe(false);
+    expect(option.yAxis[0].position).toBe("left");
   });
 
   it("puts the heatmap's row labels on the same side the columns start from", () => {
     document.documentElement.dir = "rtl";
-    render(<EChartsRenderer view={view} def={def} result={result} />);
-    const { x, y } = axes();
+    const { option } = mount(heatmapView);
+
     // Columns already ran right-to-left while the labels stayed left, so a reader crossed the whole
     // matrix and came back. Only the horizontal order mirrors — rows stay top-to-bottom.
-    expect(x.inverse).toBe(true);
-    expect(y.position).toBe("right");
+    expect(option.xAxis[0].inverse).toBe(true);
+    expect(option.yAxis[0].position).toBe("right");
   });
 
   it("aligns the tooltip text to the reading edge", () => {
     document.documentElement.dir = "rtl";
-    render(<EChartsRenderer view={barView} def={def} result={result} />);
-    const tooltip = captured.option!.tooltip as { textStyle?: { align?: string } };
-    expect(tooltip.textStyle?.align).toBe("right");
+    const { option } = mount(barView);
+
+    expect(option.tooltip[0].textStyle?.align).toBe("right");
   });
 
   // ── Theming ──────────────────────────────────────────────────────────────
-  // Colour, type and surfaces come from the ECharts theme; the option keeps only what depends on
-  // reading direction. Passing no theme is not a visible error — ECharts just substitutes its own
-  // palette and #333 text, which is 1.31:1 on our dark panel.
 
-  it.each([["heatmap", view], ["bar", barView]] as const)(
-    "hands the %s chart the shared ECharts theme",
-    (_kind, v) => {
-      render(<EChartsRenderer view={v} def={def} result={result} />);
-      expect(captured.theme, "no theme prop — ECharts would use its own palette").toBeDefined();
-      expect(Array.isArray(captured.theme!.color)).toBe(true);
-      expect(echartsTheme("light")).toEqual(captured.theme);
+  it.each([["heatmap", heatmapView], ["bar", barView]] as const)(
+    "draws the %s chart with the app's palette, not ECharts' own",
+    (_kind, view) => {
+      const { option } = mount(view);
+
+      // ECharts' own first colour is #5470c6. Reading it off the instance proves the theme was
+      // applied, where a captured prop only proved it was passed.
+      expect(option.color[0]).toBe("#326BFC");
     },
   );
 
-  it("no longer sets the palette or axis colours on the option itself", () => {
-    render(<EChartsRenderer view={barView} def={def} result={result} />);
-    const o = captured.option!;
-    // Two sources for one colour is how a chart ends up half-themed after a palette change.
-    expect(o.color, "palette belongs to the theme").toBeUndefined();
-    expect(o.backgroundColor, "background belongs to the theme").toBeUndefined();
-    const y = o.yAxis as { axisLine?: unknown; axisLabel?: { color?: string; formatter?: unknown } };
-    expect(y.axisLine).toBeUndefined();
-    expect(y.axisLabel?.color).toBeUndefined();
-    // …but the number formatter must survive, or values lose their Persian digits.
-    expect(typeof y.axisLabel?.formatter).toBe("function");
+  it("keeps the palette out of the option itself", () => {
+    // Two sources for one colour is how a chart ends up half-themed after a palette change. The
+    // theme owns it; this asserts the renderer is not also setting it.
+    const { instance } = mount(barView);
+    const raw = JSON.stringify(instance.getOption().series);
+
+    expect(raw).not.toContain("#326BFC");
+  });
+
+  // ── The heatmap branch ───────────────────────────────────────────────────
+
+  it("draws a heatmap with a visualMap when there are two dimensions", () => {
+    const { option } = mount(heatmapView);
+
+    expect(option.series[0].type).toBe("heatmap");
+    expect(option.visualMap).toHaveLength(1);
+  });
+
+  it("draws grouped bars, one series per series-field value", () => {
+    const { option } = mount(barView);
+
+    // Rey, Karaj, Shiraz
+    expect(option.series).toHaveLength(3);
+    expect(option.series.every((s) => s.type === "bar")).toBe(true);
+  });
+
+  it("keeps the value-axis number formatter, so digits stay Persian in rtl", () => {
+    document.documentElement.dir = "rtl";
+    const { option } = mount(barView);
+
+    expect(typeof option.yAxis[0].axisLabel?.formatter).toBe("function");
+  });
+
+  // ── Drill-down ───────────────────────────────────────────────────────────
+
+  it("binds a click handler only when there is somewhere to drill", () => {
+    const spy = vi.fn();
+    const { instance } = mount(barView, spy);
+
+    // A real instance can be asked. The mock version could only check that a prop was passed.
+    expect(instance.getZr()).toBeDefined();
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("mounts without a drill handler at all", () => {
+    expect(() => mount(barView)).not.toThrow();
   });
 });

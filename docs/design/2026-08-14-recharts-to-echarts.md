@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-14
 **Area:** analytics-web
-**Status:** **steps 1–2 done — see the memos at the end.** Branch `feat/echarts-only`.
+**Status:** **steps 1, 2 and 2b done — see the memos at the end.** Branch `feat/echarts-only`.
 Waiting on "start step 3".
 
 Amir asked to use ECharts only. Agreed as the goal: recharts has no RTL support, which is the whole
@@ -668,3 +668,72 @@ rather than a mock: series survived, `xAxis.data` carries «تهران»/«فا�
 `#326BFC` rather than ECharts' own `#5470c6`, and unmount leaves no instance on the node.
 
 Incidental: on echarts 5.6.0 `isDisposed()` returns `undefined` for a live chart, not `false`.
+
+---
+
+## Step 2b — DONE. `echarts-for-react` is gone; every chart inits through `useEChart`.
+
+Amir's call on the decision step 2 raised, taken **before step 3** rather than before step 5: steps 3
+and 4 both rewrite `EChartsRenderer` heavily, and step 4's memoization work exists *because* of
+`echarts-for-react`'s `fast-deep-equal` prop diffing. Doing it first avoids writing code for a wrapper
+about to be deleted.
+
+### The trap this nearly walked into
+
+`useEChart`'s effect was keyed `[option, themeMode]`. That is fine for the two admin charts, which
+memoize their option — and catastrophic for the renderer, which rebuilds its option every render. A
+naïve swap would have **disposed and re-inited the chart on every render**: worse than the wrapper,
+resetting the dataZoom slider and dismissing any open tooltip each time.
+
+So the hook now has three concerns instead of one:
+
+- **init/dispose** keyed on `[themeMode, hasOption, eventNames]` — a boolean and a joined string, so a
+  new option *object* cannot retrigger it.
+- **setOption** keyed on the option, updating the live instance. Guarded by an `applied` ref so mount
+  does not send the same option twice (both effects run after the same commit).
+- **handlers** held in a ref and read at dispatch time, so a fresh closure each render does not mean
+  unbinding and rebinding listeners. A test dispatches through the recorded listener and asserts the
+  *second* handler runs — the ref indirection is the thing being tested, and binding directly would
+  send a drill click to a stale callback.
+
+The init effect also re-applies the current option, or a light/dark switch would leave the rebuilt
+chart blank until the next option change — which may never come.
+
+### `EChartsRenderer` restructured
+
+It had **two return points**, each rendering its own `<ReactECharts>`. Hooks cannot be called
+conditionally, so the branch moved inside a single `useMemo` and there is now one `useEChart` call and
+one `<div>`. The two option shapes are unchanged.
+
+### The tests got stronger, which was the point
+
+`EChartsRenderer.test.tsx` mocked `echarts-for-react` and asserted the option handed to it. It now
+mounts for real and reads the option back off the live instance — verdict 8, finally actionable. A mock
+accepts anything, so the old version would have passed just as happily if ECharts ignored the option
+entirely.
+
+**`getOption()` returns the NORMALISED option**, which is both the value and the gotcha: ECharts wraps
+single components in arrays and fills defaults, so it is `xAxis[0].inverse`, not `xAxis.inverse`.
+Asserting the un-normalised shape is exactly what a mock lets you get away with. One assertion changed
+character usefully: the RTL legend test can no longer say "the other side is undefined", because
+ECharts fills a default — it now says "the other side is not ours".
+
+### Verified
+
+- **557 front-end tests** across 80 files (up from 546), lint, typecheck and build clean.
+- `grep -rn echarts-for-react src/` returns **comments only**; `npm uninstall` took it out of
+  `analytics-web/package.json`.
+- Bundle **3,627.20 kB → 3,609.20 kB** (gzip 1,132.71 → 1,126.23). Small, and real.
+- 22 real-mount tests now exist where there were none: 14 on the renderer, 8 on the hook.
+- The app still renders after a reload — heading, canvas and recharts legend all present, no error
+  boundary.
+
+**Not verified in the browser:** `EChartsRenderer`'s new mount path. No local report produces a
+`library: "echarts"` view — the heatmap is unreachable from auto-viz (a known finding) and the two
+admin charts sit behind `ai:manage`, which 403s locally. It rests on the 22 real-mount tests. The first
+browser sighting of it will be step 6, when bar charts start routing to ECharts.
+
+**A grep that lied, worth remembering:** searching the built bundle for `getInstanceByDom` returns
+**0** even though echarts is bundled — Rollup resolves a static namespace property access into a
+renamed local, so the symbol never appears. `zrender` returning 1 is the honest control. The reliable
+signals for "is this dependency gone" are the import graph and the size delta, not a symbol grep.
