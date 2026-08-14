@@ -484,14 +484,28 @@ Three other things the brief's sketch did not survive contact with:
 It was private to `EChartsRenderer` until a second chart needed it. Two copies reading
 `document.documentElement.dir` is two places to fix when that answer ever changes.
 
-### `scroll={{ x: "max-content" }}` cost three tests, and that was worth knowing
+### The table's width took three attempts, and the first two looked fine
 
-Six long composed headers do not fit a phone. With `scroll.x` set, **antd prepends an `aria-hidden`
-measure row** to `<tbody>` — zero-height cells it uses to size columns. The row is invisible in a
-screenshot, so the only symptom was the first entry of three assertions silently becoming
-`undefined`. Excluded in the test helper, where it is scaffolding rather than data.
+Six columns with long composed headers. What was measured, in order:
 
-Found only because the full suite ran after the change; the targeted run had happened before it.
+1. **No `scroll.x`** — shipped first, and wrong. At 375px the table is 394px wide inside a 287px box
+   with `overflow: visible` on every ancestor, so about **107px is clipped and unreachable**; in RTL
+   that is «ظرفیت باقی‌مانده» and «ظرفیت کل». It passed the check I ran because the *page* did not
+   scroll sideways — which I read as "the table scrolls inside its wrapper". It does not. Nothing
+   scrolls. That reading was the mistake, not the code.
+2. **`scroll={{ x: "max-content" }}`** — fixes the phone and breaks the desktop: `max-content` stops
+   the headers wrapping, so the columns claim their intrinsic width and the table overflows at
+   ordinary desktop widths too. It also cost three tests, which was worth knowing on its own —
+   with `scroll.x` set, **antd prepends an `aria-hidden` measure row** to `<tbody>`, invisible in a
+   screenshot, so the only symptom was the first entry of three assertions silently becoming
+   `undefined`. The test helper now excludes it.
+3. **`scroll={{ x: 640 }}`** — a min-width. Wider than it, the columns share the space and the headers
+   wrap; narrower, `.ant-table-content` becomes a real scrollable ancestor. Verified as such rather
+   than inferred: desktop `scrollWidth === clientWidth` (678/678, no scrollbar), phone 640 in a 287
+   box with a scrollable ancestor named in the chain, and six cells per row in both.
+
+Not unit-tested: jsdom has no layout, so a test here could only assert that a prop was passed. The
+measurement is the evidence, and it is written down here.
 
 ### Verified
 

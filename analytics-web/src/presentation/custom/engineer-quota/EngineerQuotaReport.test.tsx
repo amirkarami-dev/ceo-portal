@@ -29,10 +29,10 @@ function mount() {
 /**
  * Every data row's cells as text.
  *
- * `.ant-table-measure-row` is excluded: with `scroll.x` set, antd prepends an `aria-hidden` row of
- * zero-height cells it uses to measure column widths. It is scaffolding, not data — and it is
- * invisible in a screenshot, so without this filter the first entry of every assertion silently
- * became `undefined`.
+ * The `:not(.ant-table-measure-row)` is kept although the table no longer sets `scroll.x`. With that
+ * prop antd prepends an `aria-hidden` row of zero-height cells to measure column widths — invisible
+ * in a screenshot, so the only symptom was the first entry of three assertions silently becoming
+ * `undefined`. Anyone who adds `scroll.x` back should not have to rediscover that.
  */
 function tableRows(container: HTMLElement): string[][] {
   return [...container.querySelectorAll("tbody tr:not(.ant-table-measure-row)")].map((tr) =>

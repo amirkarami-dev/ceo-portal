@@ -42,12 +42,18 @@ export function EngineerQuotaReport({ data, params }: { data: QuotaRow; params: 
         size="middle"
         pagination={false}
         /**
-         * Six columns with long composed headers do not fit a phone. `max-content` makes the table
-         * scroll **inside its own wrapper** rather than squeezing the columns or pushing the page
-         * sideways — antd happens to do this without being asked here, and stating it removes the
-         * dependence on that.
+         * A **number**, not `"max-content"`, and not absent. All three were measured:
+         *
+         * - **absent** — nothing in the table's ancestry scrolls. At 375px the table is 394px wide in
+         *   a 287px box with `overflow: visible` everywhere, so ~107px is simply **clipped and
+         *   unreachable**; in RTL that is «ظرفیت باقی‌مانده» and «ظرفیت کل». The page not moving
+         *   sideways looked like success and was not.
+         * - **`"max-content"`** — stops the headers wrapping, so the six long composed headers claim
+         *   their intrinsic width and the table overflows at ordinary desktop widths too.
+         * - **a number** — a min-width. Wider than it, the columns share the space and the headers
+         *   wrap; narrower, the wrapper scrolls and every column stays reachable.
          */
-        scroll={{ x: "max-content" }}
+        scroll={{ x: 640 }}
         dataSource={models}
         columns={[
           { title: t("quota.base", { city }), dataIndex: "title", key: "title" },
