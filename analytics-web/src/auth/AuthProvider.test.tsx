@@ -6,6 +6,17 @@ import { useAuth } from "./useAuth";
 import type { SessionUser } from "@/contracts";
 import type { AppRole } from "@/contracts/rbac";
 import { MOCK_PERSONAS, getMockUser, setMockUser } from "./mock-user";
+// Imported at the top, not with `await import(...)` inside the test.
+//
+// routes.tsx pulls in antd and oidc-client-ts. A dynamic import puts that transform INSIDE the
+// test's timed window, so the first of the two RequirePermission tests paid for the whole module
+// graph: ~3s on an idle machine and ~19s when the full suite is competing for CPU, against a 10s
+// testTimeout — a test that passed alone and failed in the suite.
+//
+// Static is safe here: routes.tsx has no load-time side effects, and oidc.ts builds its UserManager
+// lazily inside getUserManager(), so nothing reads localStorage at import time and setMockUser()
+// does not have to run first.
+import { RequirePermission } from "./routes";
 
 // --- helpers ---------------------------------------------------------------
 
@@ -164,10 +175,9 @@ describe("mock-user", () => {
 describe("RequirePermission", () => {
   beforeEach(() => localStorage.clear());
 
-  it("renders children when user has the permission", async () => {
+  it("renders children when user has the permission", () => {
     // SuperAdmin has reports:write
-    setMockUser(["SuperAdmin"]);
-    const { RequirePermission } = await import("./routes");
+    setMockUser(["SuperAdmin"]);
     render(
       <MemoryRouter>
         <AuthProvider>
@@ -180,10 +190,9 @@ describe("RequirePermission", () => {
     expect(screen.getByTestId("content").textContent).toBe("secret");
   });
 
-  it("redirects to /403 when user lacks the permission", async () => {
+  it("redirects to /403 when user lacks the permission", () => {
     // Viewer does NOT have ai:manage
-    setMockUser(["Viewer"]);
-    const { RequirePermission } = await import("./routes");
+    setMockUser(["Viewer"]);
     render(
       <MemoryRouter initialEntries={["/protected"]}>
         <AuthProvider>
