@@ -19,7 +19,9 @@
     "theme": {
       "light": "Light",
       "dark": "Dark"
-    }
+    },
+    "saving": "Saving…",
+    "saved": "Saved"
   },
   "service": {
     "name": "Analytics",

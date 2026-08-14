@@ -1,5 +1,5 @@
 import { Button, Space, Switch, Tabs, message } from "antd";
-import { EditOutlined, SaveOutlined, SettingOutlined } from "@ant-design/icons";
+import { EditOutlined, SettingOutlined } from "@ant-design/icons";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -8,6 +8,7 @@ import { useAuth } from "@/auth/useAuth";
 import { DashboardCanvas } from "@/dashboard/DashboardCanvas";
 import type { GridLayoutItem } from "@/dashboard/widget";
 import { EmptyState, PageContainer, Loading } from "@/components/ui";
+import { SaveButton } from "@/components/ui/SaveButton";
 import { WidgetFrame } from "./WidgetFrame";
 import { canManageDashboards } from "./can-manage";
 import "./dashboards.css";
@@ -54,8 +55,11 @@ export function DashboardsPage() {
     try {
       await save.mutateAsync({ ...active, layout });
       void message.success(t("dash.saved"));
-    } catch {
+    } catch (err) {
       void message.error(t("dash.saveError"));
+      // Re-thrown on purpose: swallowing it would hand SaveButton a resolved promise, and it would
+      // show a success tick over the failure message.
+      throw err;
     }
   };
 
@@ -89,15 +93,7 @@ export function DashboardsPage() {
         <span className="dash-preview__edit-label">{t("dash.editMode")}</span>
         <Switch checked={editing} onChange={setEditing} aria-label={t("dash.editMode")} />
       </Space>
-      <Button
-        type="primary"
-        icon={<SaveOutlined />}
-        loading={save.isPending}
-        disabled={!editing}
-        onClick={() => void saveLayout()}
-      >
-        {t("common.save")}
-      </Button>
+      <SaveButton onSave={saveLayout} disabled={!editing} />
       <Button
         icon={<EditOutlined />}
         onClick={() => void navigate(`/dashboards/${active.id}/edit`)}

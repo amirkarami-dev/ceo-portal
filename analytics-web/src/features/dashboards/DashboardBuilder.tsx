@@ -1,5 +1,5 @@
 import { Button, Result, Space, Switch, message } from "antd";
-import { PlusOutlined, SaveOutlined, ArrowLeftOutlined } from "@ant-design/icons";
+import { PlusOutlined, ArrowLeftOutlined } from "@ant-design/icons";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
@@ -11,6 +11,7 @@ import { AddWidgetDrawer } from "./AddWidgetDrawer";
 import { canManageDashboards } from "./can-manage";
 import { WidgetFrame } from "./WidgetFrame";
 import { EmptyState, Loading, PageContainer, PageHeader } from "@/components/ui";
+import { SaveButton } from "@/components/ui/SaveButton";
 
 export function DashboardBuilder() {
   const { t } = useTranslation();
@@ -98,8 +99,11 @@ export function DashboardBuilder() {
     try {
       await save.mutateAsync({ ...data, widgets, layout });
       void message.success(t("dash.saved"));
-    } catch {
+    } catch (err) {
       void message.error(t("dash.saveError"));
+      // Re-thrown on purpose: swallowing it here would hand SaveButton a resolved promise, and it
+      // would show a success tick over the failure message.
+      throw err;
     }
   };
 
@@ -128,14 +132,7 @@ export function DashboardBuilder() {
               </span>
               <Switch checked={editing} onChange={setEditing} size="small" />
             </Space>
-            <Button
-              type="primary"
-              icon={<SaveOutlined />}
-              loading={save.isPending}
-              onClick={() => void onSave()}
-            >
-              {t("common.save")}
-            </Button>
+            <SaveButton onSave={onSave} />
           </Space>
         }
       />
