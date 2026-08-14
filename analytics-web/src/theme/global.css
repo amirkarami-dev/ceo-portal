@@ -186,3 +186,54 @@ body {
   white-space: nowrap;
   border: 0;
 }
+
+/* The chart's data table — hidden like `.sr-only`, but it comes BACK while a keyboard user is
+   inside it.
+
+   A focusable control in a permanently hidden box is a known trap: a sighted keyboard user tabs to
+   something they cannot see, press Enter, and the page changes for no visible reason. The drill
+   buttons in this table are exactly that risk, so the panel surfaces for as long as focus is within
+   it — the same bargain a skip link makes.
+
+   `position: static` rather than a repositioned overlay, so the panel pushes the page instead of
+   covering the chart it describes. */
+.chart-a11y-panel:focus-within {
+  position: static;
+  width: auto;
+  height: auto;
+  margin: 8px 0 0;
+  padding: 12px 16px;
+  overflow: visible;
+  clip-path: none;
+  white-space: normal;
+  border: 1px solid var(--rw-border, #e2e8f0);
+  border-radius: 8px;
+  background: var(--rw-surface-1, #fff);
+  color: var(--rw-text, #1f2937);
+}
+
+.chart-a11y-panel:focus-within caption {
+  padding-bottom: 8px;
+  font-weight: 600;
+  text-align: start;
+}
+
+.chart-a11y-panel:focus-within th,
+.chart-a11y-panel:focus-within td {
+  padding: 4px 12px;
+  text-align: start;
+  /* Digits line up in a column of numbers. */
+  font-variant-numeric: tabular-nums;
+}
+
+/* The drill control reads as a link rather than a button: it is a row label that happens to be
+   actionable, and a row of chunky buttons would drown the data the panel exists to show. */
+.chart-a11y-panel button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--rw-primary-ink, #326bfc);
+  text-decoration: underline;
+  cursor: pointer;
+}

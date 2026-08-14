@@ -2,7 +2,7 @@ import type { ReportView } from "../../contracts/presentation";
 import type { ReportDefinition } from "../../contracts/report-definition";
 import type { QueryResult, ResultRow, GroupNode } from "../../contracts/dataset";
 import { formatCategory, formatFitted, formatNumber, formatPercent, type Dir } from "../format";
-import { useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useUiStore } from "../../store/ui-store";
 import { chartColors } from "../../theme/tokens";
@@ -41,7 +41,72 @@ export interface A11yTable {
   rows: string[][];
 }
 
-function ChartDataTable({ table, caption }: { table: A11yTable; caption: string }) {
+/**
+ * The keyboard path into a drill-down.
+ *
+ * Bars drill on a **canvas** click, and a canvas cannot be tabbed to or hit-tested by a keyboard, so
+ * until now the feature simply did not exist without a mouse. The data table is the natural place to
+ * put it: it already lists exactly the drillable categories, in the chart's own order, built from the
+ * same values the click handler resolves against.
+ *
+ * ## Why one tab stop and not one per row
+ *
+ * A roving tabindex. Only the active row's button is reachable with Tab; Up/Down (and Home/End) move
+ * between rows. The alternative — every row focusable — puts eleven tab stops in one report and, on a
+ * six-widget dashboard, over sixty in the page's tab order. That is a keyboard regression dressed up
+ * as an accessibility feature.
+ *
+ * ## Why the panel becomes visible
+ *
+ * A focusable control inside a `.sr-only` box is a known trap: a **sighted** keyboard user tabs to
+ * something they cannot see. `.chart-a11y-panel:focus-within` unhides it for exactly as long as focus
+ * is inside, the same bargain a skip link makes.
+ */
+interface DrillProps {
+  /** Fired with the row's index. Absent when this chart cannot drill at all. */
+  onDrillRow?: (rowIndex: number) => void;
+  /** Per row: does a group actually exist behind it? A button that resolves to nothing is worse
+   *  than no button, so those rows stay plain text. */
+  drillable?: boolean[];
+  /** Accessible name for the button, given the row's category. */
+  drillLabel?: (category: string) => string;
+}
+
+function ChartDataTable({
+  table,
+  caption,
+  onDrillRow,
+  drillable,
+  drillLabel,
+}: { table: A11yTable; caption: string } & DrillProps) {
+  const rows = useRef<HTMLTableSectionElement>(null);
+
+  /** Indices of the rows that carry a button, in visual order. */
+  const stops = table.rows.map((_, i) => i).filter((i) => onDrillRow && drillable?.[i]);
+
+  const move = useCallback(
+    (from: number, key: string) => {
+      if (!stops.length) return;
+      const at = stops.indexOf(from);
+      const next =
+        key === "ArrowDown"
+          ? stops[Math.min(at + 1, stops.length - 1)]
+          : key === "ArrowUp"
+            ? stops[Math.max(at - 1, 0)]
+            : key === "Home"
+              ? stops[0]
+              : stops[stops.length - 1];
+      rows.current?.querySelector<HTMLButtonElement>(`[data-row="${next}"]`)?.focus();
+    },
+    [stops],
+  );
+
+  const onKeyDown = (e: React.KeyboardEvent, rowIndex: number) => {
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) return;
+    // Otherwise Up/Down scroll the page out from under the panel that just appeared.
+    e.preventDefault();
+    move(rowIndex, e.key);
+  };
   /**
    * The wrapper is not decoration. `.sr-only` pins width/height to 1px, and a <div> obeys that — a
    * <table> does not: the table layout algorithm treats `width` as a floor, so the bare table
@@ -50,7 +115,7 @@ function ChartDataTable({ table, caption }: { table: A11yTable; caption: string 
    * parked over the layout is one stacking-context change away from being a real bug.
    */
   return (
-    <div className="sr-only">
+    <div className="sr-only chart-a11y-panel">
       <table data-testid="chart-a11y-table">
         <caption>{caption}</caption>
         <thead>
@@ -62,14 +127,29 @@ function ChartDataTable({ table, caption }: { table: A11yTable; caption: string 
             ))}
           </tr>
         </thead>
-        <tbody>
+        <tbody ref={rows}>
           {table.rows.map((row, r) => (
             <tr key={r}>
               {row.map((cell, c) =>
                 // The first cell of each row is the category, which makes it the row's header.
                 c === 0 ? (
                   <th key={c} scope="row">
-                    {cell}
+                    {onDrillRow && drillable?.[r] ? (
+                      <button
+                        type="button"
+                        data-row={r}
+                        // Roving: the first drillable row is the single tab stop, the rest are
+                        // reachable from it with the arrow keys.
+                        tabIndex={r === stops[0] ? 0 : -1}
+                        onKeyDown={(e) => onKeyDown(e, r)}
+                        onClick={() => onDrillRow(r)}
+                        aria-label={drillLabel?.(cell)}
+                      >
+                        {cell}
+                      </button>
+                    ) : (
+                      cell
+                    )}
                   </th>
                 ) : (
                   <td key={c}>{cell}</td>
@@ -590,9 +670,16 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
   const events = useMemo(() => {
     if (!onDrill) return undefined;
     const meta = option as { rwCategories?: (string | number | null)[]; rwKind?: ChartKind };
-    // Only bars drill, which is what recharts did — its onClick lived on `<BarChart>` alone. Giving a
-    // line chart a drill it never had is a product change, not a migration detail.
-    if (meta.rwKind && meta.rwKind !== "bar") return undefined;
+    /**
+     * Only bars drill, which is what recharts did — its onClick lived on `<BarChart>` alone. Giving a
+     * line chart a drill it never had is a product change, not a migration detail.
+     *
+     * The guard used to read `meta.rwKind && meta.rwKind !== "bar"`, and the **heatmap branch sets no
+     * `rwKind` at all**, so it fell through the `&&` and bound a handler. A heatmap's `dataIndex` is
+     * an index into the flat `[x, y, value]` list, not into `rwCategories`, so the lookup was reading
+     * an unrelated category — usually resolving to nothing, occasionally to the wrong report.
+     */
+    if (meta.rwKind !== "bar") return undefined;
     const cats = meta.rwCategories;
     return {
       click: (p: { dataIndex?: number }) => {
@@ -611,6 +698,38 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
    */
   const a11yTable = (option as { rwTable?: A11yTable }).rwTable;
   const a11yCaption = t("chartA11y.caption", { title: view.title ?? def.name ?? "" });
+
+  /**
+   * The same drill the canvas click performs, reachable from the keyboard.
+   *
+   * Resolved per row up front rather than on activation, so a category with no group behind it never
+   * gets a button — the rule applied to `advancedECharts` in step 10, that a control which does
+   * nothing is worse than a missing one.
+   */
+  const drill = useMemo(() => {
+    const meta = option as { rwCategories?: (string | number | null)[]; rwKind?: ChartKind };
+    /**
+     * `def.drilldown` is checked here even though it belongs to the query layer, because **both**
+     * consumers go through `buildDrilldownDefinition`, which throws without it, and both catch that
+     * and *silently skip*. On the mouse path that is invisible — a click on a bar simply does
+     * nothing. A button is not invisible: it is announced as «جزئیات تهران», which promises
+     * something the app will not do. Same rule as the `advancedECharts` toggle in step 10.
+     */
+    if (!onDrill || !def.drilldown || meta.rwKind !== "bar" || !a11yTable) return undefined;
+    const cats = meta.rwCategories ?? [];
+    // Row order and `rwCategories` order are the same array in the option memo, so index is a safe
+    // key between them — but only because they are built together. Guard the length anyway.
+    const nodes = a11yTable.rows.map((_, i) => resolveDrillTarget(result.groups, cats[i]));
+    if (!nodes.some(Boolean)) return undefined;
+    return {
+      onDrillRow: (i: number) => {
+        const node = nodes[i];
+        if (node) onDrill(node);
+      },
+      drillable: nodes.map(Boolean),
+      drillLabel: (category: string) => t("chartA11y.drill", { category }),
+    };
+  }, [onDrill, def.drilldown, option, result.groups, a11yTable, t]);
 
   const ref = useEChart(option, events as never);
 
@@ -720,7 +839,7 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
           ))}
         </ul>
 
-        {a11yTable && <ChartDataTable table={a11yTable} caption={a11yCaption} />}
+        {a11yTable && <ChartDataTable table={a11yTable} caption={a11yCaption} {...drill} />}
       </div>
     );
   }
@@ -742,7 +861,7 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
         aria-hidden
         style={{ height: 320, width: "100%" }}
       />
-      {a11yTable && <ChartDataTable table={a11yTable} caption={a11yCaption} />}
+      {a11yTable && <ChartDataTable table={a11yTable} caption={a11yCaption} {...drill} />}
     </div>
   );
 }

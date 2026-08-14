@@ -22,6 +22,7 @@ Also, when a task teaches something reusable:
 
 | Date | Record | Area | Status |
 |---|---|---|---|
+| 2026-08-15 | [Drill-down reachable from the keyboard](2026-08-15-keyboard-drill-down.md) | analytics | merged, **not deployed** |
 | 2026-08-15 | [Charts were invisible to a screen reader; each one now carries its data as a table](2026-08-15-chart-canvas-accessibility.md) | analytics | merged, **not deployed** |
 | 2026-08-14 | [Every chart moved from recharts to ECharts](2026-08-14-recharts-to-echarts.md) | analytics | merged to `feat/echarts-only`, **not deployed** |
 | 2026-08-14 | [Renaming a chart label in place, and the two blockers that made it a backend job](2026-08-14-analytics-editable-labels.md) | analytics + api | **live** on analytic.myceo.ir |

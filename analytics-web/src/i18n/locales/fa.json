@@ -128,7 +128,8 @@
     "caption": "داده‌های نمودار: {{title}}",
     "category": "دسته",
     "value": "مقدار",
-    "share": "سهم"
+    "share": "سهم",
+    "drill": "جزئیات {{category}}"
   },
   "reports": {
     "title": "کتابخانه گزارش‌ها",

@@ -18,6 +18,9 @@ const def = {
   id: "r1",
   dataset: "sales",
   columns: [],
+  // Drill-down needs a `drilldown` config: both consumers build the child definition with
+  // `buildDrilldownDefinition`, which throws without one and is caught as a silent skip.
+  drilldown: { operator: "eq" },
   presentation: { views: [] },
 } as unknown as ReportDefinition;
 
@@ -327,5 +330,149 @@ describe("EChartsRenderer data layer — the missing bucket on the uniq paths", 
 
     expect(option.xAxis[0].data).toHaveLength(2);
     expect(option.series[0].data).toEqual([10, 4]);
+  });
+});
+
+// ── Keyboard drill-down ──────────────────────────────────────────────────────
+/**
+ * Bars drill on a **canvas** click, so until this existed the feature had no keyboard path at all —
+ * a canvas cannot be tabbed to and cannot be hit-tested by a key press. The buttons live in the
+ * chart's data table, which already lists exactly the drillable categories in the chart's own order.
+ *
+ * These assert the same value-not-index rule the mouse path is held to, plus the roving tabindex,
+ * because eleven tab stops per report would be a keyboard regression sold as an improvement.
+ */
+describe("EChartsRenderer — drilling from the keyboard", () => {
+  const groups = [
+    { key: "Tehran", value: "Tehran", rows: [] },
+    { key: "Fars", value: "Fars", rows: [] },
+    { key: "Yazd", value: "Yazd", rows: [] },
+  ] as unknown as GroupNode[];
+
+  const sorted = () =>
+    makeResult(
+      [
+        { month: "Fars", revenue: 900 },
+        { month: "Yazd", revenue: 500 },
+        { month: "Tehran", revenue: 100 },
+      ],
+      groups,
+    );
+
+  const buttons = (c: HTMLElement) => [
+    ...c.querySelectorAll<HTMLButtonElement>('[data-testid="chart-a11y-table"] tbody button'),
+  ];
+
+  it("puts a control on every drillable category", () => {
+    const { container } = mount(bar({ x: "month", measure: "revenue" }), sorted(), vi.fn());
+
+    expect(buttons(container).map((b) => b.textContent)).toEqual(["Fars", "Yazd", "Tehran"]);
+  });
+
+  it("opens the group for the row activated, not the one at that index", () => {
+    // The same trap the mouse path fell into: rows are sorted, `groups` is in insertion order.
+    const onDrill = vi.fn();
+    const { container } = mount(bar({ x: "month", measure: "revenue" }), sorted(), onDrill);
+
+    buttons(container)[0].click();
+
+    expect(onDrill).toHaveBeenCalledTimes(1);
+    // Indexing would have handed back groups[0] = "Tehran".
+    expect((onDrill.mock.calls[0][0] as GroupNode).value).toBe("Fars");
+  });
+
+  it("leaves a category with no group behind it as plain text", () => {
+    // "Qom" is in the chart but not in `groups`, so there is nothing to open.
+    const result = makeResult(
+      [{ month: "Tehran", revenue: 1 }, { month: "Qom", revenue: 2 }],
+      [{ key: "Tehran", value: "Tehran", rows: [] }] as unknown as GroupNode[],
+    );
+    const { container } = mount(bar({ x: "month", measure: "revenue" }), result, vi.fn());
+
+    // A control that resolves to nothing is worse than no control.
+    expect(buttons(container).map((b) => b.textContent)).toEqual(["Tehran"]);
+    expect(container.querySelectorAll('[data-testid="chart-a11y-table"] tbody tr')).toHaveLength(2);
+  });
+
+  it("is one tab stop, not one per row", () => {
+    const { container } = mount(bar({ x: "month", measure: "revenue" }), sorted(), vi.fn());
+
+    // Eleven categories on a real report, six widgets on a dashboard: per-row tab stops would put
+    // sixty extra stops in the page's tab order.
+    expect(buttons(container).map((b) => b.tabIndex)).toEqual([0, -1, -1]);
+  });
+
+  it("moves between rows with the arrow keys", () => {
+    const { container } = mount(bar({ x: "month", measure: "revenue" }), sorted(), vi.fn());
+    const bs = buttons(container);
+
+    bs[0].focus();
+    bs[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    expect(document.activeElement).toBe(bs[1]);
+
+    bs[1].dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
+    expect(document.activeElement).toBe(bs[2]);
+
+    bs[2].dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true }));
+    expect(document.activeElement).toBe(bs[0]);
+  });
+
+  it("stops at the ends rather than wrapping", () => {
+    const { container } = mount(bar({ x: "month", measure: "revenue" }), sorted(), vi.fn());
+    const bs = buttons(container);
+
+    bs[0].focus();
+    bs[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
+    expect(document.activeElement).toBe(bs[0]);
+  });
+
+  it("offers nothing when the report has no drilldown configured", () => {
+    /**
+     * The button is a **visible, announced** promise («جزئیات تهران»). Without a `drilldown` config
+     * both consumers throw inside `buildDrilldownDefinition` and swallow it, so the promise would go
+     * unkept. The mouse path has the same dead end, but a click on a bar is silent — it never
+     * offered anything.
+     */
+    const noConfig = { ...def, drilldown: undefined } as unknown as ReportDefinition;
+    const { container } = render(
+      <EChartsRenderer view={bar({ x: "month", measure: "revenue" })} def={noConfig} result={sorted()} onDrill={vi.fn()} />,
+    );
+
+    expect(buttons(container)).toHaveLength(0);
+    // The data is still there to read; only the control is gone.
+    expect(container.querySelectorAll('[data-testid="chart-a11y-table"] tbody tr')).toHaveLength(3);
+  });
+
+  it("offers nothing to activate when the report cannot drill", () => {
+    const { container } = mount(bar({ x: "month", measure: "revenue" }), sorted());
+
+    // No `onDrill` prop: the table is still there as text, with no controls in it.
+    expect(buttons(container)).toHaveLength(0);
+    expect(container.querySelector('[data-testid="chart-a11y-table"]')).not.toBeNull();
+  });
+
+  it("offers nothing on a line chart, which never drilled", () => {
+    const line = { type: "chart", library: "echarts", component: "line", mapping: { x: "month", measure: "revenue" } } as unknown as ReportView;
+    const { container } = mount(line, sorted(), vi.fn());
+
+    expect(buttons(container)).toHaveLength(0);
+  });
+
+  it("binds no click handler on a heatmap", () => {
+    /**
+     * The heatmap branch sets no `rwKind`, and the guard used to read `rwKind && rwKind !== "bar"`,
+     * so it fell through the `&&`. A heatmap's `dataIndex` indexes the flat [x, y, value] list, not
+     * `rwCategories`, so the lookup read an unrelated category.
+     */
+    const heat = { type: "chart", library: "echarts", component: "heatmap", mapping: { x: "month", series: "city", measure: "revenue" } } as unknown as ReportView;
+    const onDrill = vi.fn();
+    const { instance } = mount(
+      heat,
+      makeResult([{ month: "Fars", city: "A", revenue: 1 }], groups),
+      onDrill,
+    );
+
+    (instance as unknown as { trigger: (n: string, p: unknown) => void }).trigger("click", { dataIndex: 0 });
+    expect(onDrill).not.toHaveBeenCalled();
   });
 });

@@ -128,7 +128,8 @@
     "caption": "Chart data: {{title}}",
     "category": "Category",
     "value": "Value",
-    "share": "Share"
+    "share": "Share",
+    "drill": "Drill into {{category}}"
   },
   "reports": {
     "title": "Report Library",

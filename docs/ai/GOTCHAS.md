@@ -1246,7 +1246,26 @@ Persian — and even then it is a summary, not the data.
   Wrap it in a `<div class="sr-only">`.
 - Use visually-hidden, never `display: none` — that takes it back out of the tree and undoes the fix.
 **Where:** `presentation/renderers/EChartsRenderer.tsx` (`ChartDataTable`), `theme/global.css`.
-**Still open:** bars drill on a canvas click and there is no keyboard path to it.
+**Drill-down works from that table too**, since a canvas click has no keyboard equivalent. Three
+things that had to be right:
+- **A roving tabindex, not a tab stop per row.** Eleven categories in one report, six widgets on a
+  dashboard: per-row stops would put sixty extra entries in the page's tab order.
+- **The panel must become visible while focused** (`:focus-within`). A focusable control inside a
+  permanently hidden box is a trap for *sighted* keyboard users.
+- **Only offer the control where a drill will really happen.** Both consumers build the child with
+  `buildDrilldownDefinition`, which throws without `def.drilldown` and is caught as a silent skip. On
+  the mouse path that dead end is invisible; a button announced as «جزئیات تهران» is a promise.
+
+### A guard written as `x && x !== "wanted"` lets the case with no `x` straight through
+**Symptom:** a heatmap bound a chart click handler it should never have had, read `dataIndex` against
+the wrong list, and drilled to an unrelated category — usually nothing, occasionally a real but wrong
+report.
+**Cause:** `if (meta.rwKind && meta.rwKind !== "bar") return undefined;`. The heatmap branch sets no
+`rwKind`, so the `&&` short-circuits and the guard never fires. The `x &&` was there to tolerate a
+missing value and instead inverted the rule for exactly that case.
+**Fix:** `if (meta.rwKind !== "bar") return undefined;` — state the allowed value, do not enumerate
+the disallowed ones.
+**Where:** `presentation/renderers/EChartsRenderer.tsx`, the `events` memo.
 
 ### A chart index is NOT a data index — drill-down opened the wrong report for months
 **Symptom:** clicking a bar drills into a different category than the one clicked. Silently: the
