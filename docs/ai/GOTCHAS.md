@@ -425,6 +425,11 @@ The matching giveaway is `computer{action:"screenshot"}` failing with *"the Brow
 displayed"*.
 **Fix:** display the pane, or verify the panel's *content* by reading the DOM and accept that the
 slide cannot be seen. Do not "fix" working motion code.
+**Recharts fails the same way but looks different:** the bars are *there* in the DOM as
+`<g class="recharts-bar-rectangle">` with **no `path` child at all** — the entrance animation never
+gets its first frame, so the geometry is never written. Axes, grid and legend render fine, which
+makes it read like a data problem. To check a series **colour** without a displayed pane, read
+`.recharts-legend-icon`'s `fill` — it is drawn unanimated and carries the same palette entry.
 
 ### A blanket `prefers-reduced-motion` rule parks every AntD Drawer off-screen
 **Symptom:** the mobile menu button "does nothing". The DOM is right — `.ant-drawer` is mounted and
@@ -977,18 +982,70 @@ it — do not reach for `!important` first. **And check by effect, not by readin
 Scanning `document.styleSheets` for the competing rule gave contradictory answers twice; injecting a
 candidate rule and measuring what moved settled it in one try.
 
-### analytics-web has two brand greens, and the unreadable one wins
-`theme/tokens.ts` sets `colorPrimary: "#0f6e56"` (**6.2:1** on white). `theme/theme.ts` sets
-`tokens.primary = "#10b981"` (**2.54:1**), `providers.tsx` passes that as the brand, and
-`ThemeProvider` merges the brand-built token **over** the tokens.ts one:
+### analytics-web sets `colorPrimary` in two files, and `theme.ts` wins
+`theme/tokens.ts` sets it in `lightTokens` / `darkTokens`. `theme/theme.ts` sets
+`tokens.primary`, `providers.tsx` passes that as the brand, and `ThemeProvider` merges the
+brand-built token **over** the tokens.ts one:
 `token: { ...tokenOverrides.token, ...antdBaseTheme.token }`.
-**So the readable green is never rendered**, and everything the brand touches as *text* fails AA.
-Editing `tokens.ts` to fix a colour therefore does nothing — check `theme.ts` first.
+**So editing `tokens.ts` to change a rendered colour does nothing** — change `theme.ts` too, or the
+value you edited is never painted. This cost a whole debugging pass once, when the readable green in
+`tokens.ts` turned out never to reach the screen while the 2.54:1 one in `theme.ts` did.
 **Do not read the brand colour from `buildTheme()`** when you mean the one on screen; a test written
-that way asserted a failing ratio and got 6.2.
-Where the brand colour has to be **read** rather than seen, use `primaryInk` (`tokens.ts`) or
-`--rw-primary-ink` (`global.css`) — `#047857`, 5.48:1, same hue two steps down. Fills, bars and
-markers keep the brand.
+that way asserted a failing ratio and got the unrendered value's 6.2.
+Since 2026-08-14 both files carry `#326BFC` and `theme.ts` imports it from `tokens.ts` rather than
+restating it, so they cannot drift apart again. The brand's three roles are still three separate
+constants — `primary`, `primaryInk`/`primaryInkDark`, `primarySolid` (and `--rw-primary`,
+`--rw-primary-ink`, `--rw-primary-solid` in `global.css`) — because a future brand may again need a
+different value for text than for a fill.
+
+### `echarts.init(el)` with no theme silently ships ECharts' palette, not yours
+recharts and ECharts are not the same kind of library and the difference decides where colour lives:
+
+| | colour template? | consequence |
+| --- | --- | --- |
+| **recharts** | **none** — no theme, no palette config | every colour is a prop on every element (`fill`, `stroke`, one `<Cell>` per slice). Hardcoding is forced. |
+| **ECharts** | **yes** — `echarts.init(el, theme)` takes a name *or a plain object* | omit it and you get ECharts' own defaults, with no error |
+
+**Symptom:** a chart looks like a different product and ignores dark mode, while every other chart
+is fine. **Cause:** a bare `echarts.init(ref.current)`. ECharts then supplies its palette (five of
+its nine colours miss 3:1 on white; its yellow is **1.56:1**), `#333` body text — **1.31:1** on our
+dark panel — and a blue-to-red heatmap ramp. A palette change never reaches such a chart.
+**Fix:** use `useEChart` (`components/charts/useEChart.ts`), which applies `echartsTheme(mode)` from
+`theme/echarts-theme.ts`. `echarts-for-react` takes the **same object** as its `theme` prop and
+deep-compares it, so building it per render is fine.
+**Two things that are easy to get wrong:**
+- **`themeMode` must be in the effect's dependency list.** A theme binds at `init` and cannot be
+  changed on a live instance — following light/dark means dispose and re-init, or the chart keeps
+  light-mode axis text on the dark panel.
+- **ECharts has four separate axis theme keys** — `categoryAxis`, `valueAxis`, `logAxis`,
+  `timeAxis`. Theme one and a chart that switches axis type loses its colours with no warning.
+**And check the dead ones:** `buildEChartsTheme` sat in `theme.ts` for months called by nothing but
+its own test, which made the code read as if ECharts was centrally themed when it was not. Before
+trusting a theme helper, grep for its callers.
+
+### Dark mode in analytics-web has SIX grounds, so one contrast measurement proves nothing
+A colour checked against one dark panel passes your test and still fails a reader, because the app
+paints six different dark backgrounds from two different places:
+
+| token | hex | set in |
+| --- | --- | --- |
+| `--rw-bg` | `#0b0f14` | `applyCssVars` (`theme.ts`) |
+| `--rw-surface-1` | `#111827` | `applyCssVars` |
+| **`--rw-surface-2`** | **`#1f2937`** | `applyCssVars` — the **Table header**, and the lightest |
+| `colorBgContainer` | `#15211d` | `darkTokens` (`tokens.ts`) |
+| `colorBgLayout` | `#0e1513` | `darkTokens` |
+
+**Seen:** a lifted brand blue solved against `#15211d` read **5.03:1** there and **4.456:1** on the
+`#1f2937` table header — under AA, with a green test. Re-solving against all five at once moved it
+one step. The same split is why chart series need checking on more than one ground: the dashboard
+widget draws on `#15211d`, the report viewer on `#0b0f14`.
+**Rule:** `#1f2937` is the lightest, so it decides. Solve against the whole set, and make the test
+iterate the list (`DARK_GROUNDS` in `theme/tokens.test.ts`) rather than naming one shade.
+**Also:** the light values in `SERIES_LIGHT` are solved to ~3.15, not 3.0 — landing on 3.005 passes
+`>= 3` and still loses to hex rounding, an anti-aliased edge or a 1px stroke.
+**And a mark is not text:** WCAG asks **3:1** for a bar or a slice, 4.5 for a word. Four of the six
+brand hues clear 3:1 on the dark grounds and fail on white (yellow reads **1.71:1**), which is why
+`chartColors(mode)` returns two different lists.
 
 ### If antd has a prop for it, use the prop — do not override its CSS
 Following on from the tie above: sometimes you cannot win the tie at all. `Input`'s font size comes

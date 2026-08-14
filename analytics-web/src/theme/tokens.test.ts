@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { buildTheme, chartColors, primaryInk, primaryInkFor } from "./tokens";
+import { buildTheme, chartColors, primary, primaryInk, primaryInkFor, primarySolid } from "./tokens";
 import { tokens as brandTokens } from "./theme";
+import { echartsTheme } from "./echarts-theme";
 
 /** WCAG relative luminance, then the contrast ratio between two hex colours. */
 function contrast(a: string, b: string): number {
@@ -13,49 +14,94 @@ function contrast(a: string, b: string): number {
   return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
 }
 
+const WHITE = "#ffffff";
+
+/**
+ * Every dark ground the app actually paints, not one representative shade. --rw-* come from
+ * applyCssVars in theme.ts; the other two are antd's own layout tokens in this file. #1f2937 is the
+ * lightest — it is the Table header — so it is the one a colour has to survive.
+ *
+ * Testing a single shade is how #5a88fd shipped at 4.46:1 on the table header while passing a check
+ * written against #15211d, where it read 5.03.
+ */
+const DARK_GROUNDS = ["#0b0f14", "#111827", "#1f2937", "#15211d", "#0e1513", "#152922"] as const;
+
 describe("theme tokens", () => {
-  it("light theme uses emerald primary", () => {
+  it("light theme uses the brand blue", () => {
     const t = buildTheme("light");
-    expect(t.token?.colorPrimary).toBe("#0f6e56");
+    expect(t.token?.colorPrimary).toBe(primary);
   });
-  it("dark theme sets a dark base background", () => {
+  it("dark theme sets a dark base background and the lifted brand", () => {
     const t = buildTheme("dark");
     expect(t.algorithm).toBeDefined();
-    expect(t.token?.colorPrimary).toBe("#1d9e75");
+    expect(t.token?.colorPrimary).toBe(primaryInkFor("dark"));
   });
-  // The brand green is 2.54:1 on white — it fails AA as text and is hard to read at
-  // 14px. primaryInk exists so the brand colour can be *read*; if someone ever
-  // "simplifies" it back to colorPrimary, this fails instead of the users.
+
   it("primaryInk is readable as text on a light surface", () => {
-    expect(contrast(primaryInk, "#ffffff")).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(primaryInk, WHITE)).toBeGreaterThanOrEqual(4.5);
   });
 
-  // Two primaries live in this app and the brand one wins: providers.tsx passes
-  // theme.ts's `tokens.primary` (#10b981) as the brand, and ThemeProvider merges the
-  // brand-built token OVER the one in this file (#0f6e56). So #0f6e56 is 6.2:1 and
-  // never rendered, while the colour on screen is 2.54:1. That is why primaryInk
-  // exists rather than simply reusing colorPrimary.
-  it("the colour that actually renders is too light for text, which is why primaryInk exists", () => {
-    expect(contrast(brandTokens.primary, "#ffffff")).toBeLessThan(4.5);
-    expect(contrast(primaryInk, "#ffffff")).toBeGreaterThan(contrast(brandTokens.primary, "#ffffff"));
+  // Two primaries live in this app and the brand one wins: providers.tsx passes theme.ts's
+  // `tokens.primary` as the brand, and ThemeProvider merges the brand-built token OVER the one in
+  // this file. So it is the brand value, not lightTokens.colorPrimary, that reaches the screen —
+  // which is exactly why it has to clear AA on its own. Under the old emerald brand it did not
+  // (2.54:1) and this test asserted the failure; the blue removed the gap rather than papering
+  // over it. If someone repoints the brand at a colour that cannot be read, this fails here.
+  it("the colour that actually renders clears AA as text", () => {
+    expect(brandTokens.primary).toBe(primary);
+    expect(contrast(brandTokens.primary, WHITE)).toBeGreaterThanOrEqual(4.5);
   });
 
-  // The deep green is legible on white and nearly invisible on the dark panel, where
-  // the brand itself is the readable one. Whichever way round, the answer has to clear
-  // AA against the surface it is actually drawn on.
-  it.each([
-    ["light", "#ffffff"],
-    ["dark", "#152922"],
-  ] as const)("primaryInkFor(%s) is readable on that surface", (mode, surface) => {
-    expect(contrast(primaryInkFor(mode), surface)).toBeGreaterThanOrEqual(4.5);
+  // Whichever way round, the answer has to clear AA against the surface it is actually drawn on.
+  it("primaryInkFor(light) is readable on the white panel", () => {
+    expect(contrast(primaryInkFor("light"), WHITE)).toBeGreaterThanOrEqual(4.5);
   });
 
-  it("does not hand the same green to both modes", () => {
+  it.each(DARK_GROUNDS)("primaryInkFor(dark) is readable on %s", (surface) => {
+    expect(contrast(primaryInkFor("dark"), surface)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("does not hand the same value to both modes", () => {
     expect(primaryInkFor("light")).not.toBe(primaryInkFor("dark"));
+  });
+
+  // primarySolid is the brand as a FILL with white text on it — the head mark, the active chip.
+  // Different question from primaryInk, and the old green failed it at 2.54:1.
+  it("white is readable on primarySolid", () => {
+    expect(contrast(WHITE, primarySolid)).toBeGreaterThanOrEqual(4.5);
   });
 
   it("chartColors differ between modes", () => {
     expect(chartColors("light").text).not.toBe(chartColors("dark").text);
     expect(chartColors("dark").series.length).toBeGreaterThan(3);
+  });
+
+  // The palette rule, and the reason light and dark carry different lists. A data mark is
+  // non-text content: WCAG asks 3:1, not 4.5. Four of the six brand hues clear that on the dark
+  // panel and fail on white — yellow reads 1.71:1 there — so light mode carries deepened twins.
+  // Ship the raw brand list into light mode and this fails four times over.
+  it("every light series colour is visible on the white panel", () => {
+    for (const c of chartColors("light").series) {
+      expect(contrast(c, WHITE), `${c} on ${WHITE}`).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  // Same reasoning as the ink: a chart can land on any of the dark grounds. It does — the dashboard
+  // widget draws on #15211d and the report viewer on #0b0f14.
+  it.each(DARK_GROUNDS)("every dark series colour is visible on %s", (surface) => {
+    for (const c of chartColors("dark").series) {
+      expect(contrast(c, surface), `${c} on ${surface}`).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it("light and dark series line up, so one dataset keeps its colour across themes", () => {
+    expect(chartColors("light").series).toHaveLength(chartColors("dark").series.length);
+  });
+
+  // ECharts draws the heatmap and the grouped bars; recharts draws everything else. They have to
+  // agree, or one dashboard shows two palettes.
+  it.each(["light", "dark"] as const)("the %s echarts theme carries the palette recharts uses", (mode) => {
+    const t = echartsTheme(mode);
+    expect(t.color).toEqual(chartColors(mode).series);
   });
 });

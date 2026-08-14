@@ -4,7 +4,7 @@ import type { ReportDefinition } from "../../contracts/report-definition";
 import type { QueryResult, ResultRow, GroupNode } from "../../contracts/dataset";
 import { formatCategory, formatNumber, type Dir } from "../format";
 import { useUiStore } from "../../store/ui-store";
-import { chartColors } from "../../theme/tokens";
+import { echartsTheme } from "../../theme/echarts-theme";
 import { useColumnLabel } from "../labels";
 
 export type RendererProps = {
@@ -42,7 +42,10 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
   const columnLabel = useColumnLabel(def, result);
   const dir = currentDir();
   const themeMode = useUiStore((s) => s.themeMode);
-  const colors = chartColors(themeMode);
+  // Palette, type, axis and tooltip surfaces all come from the ECharts theme (theme/echarts-theme.ts)
+  // rather than being set on each option. What stays in the options below is only what a theme cannot
+  // know: reading direction and number formatting.
+  const theme = echartsTheme(themeMode);
   const rows = result.rows as ResultRow[];
   // Map an ECharts click (by dataIndex on the category axis) back to its group node.
   const onEvents = onDrill
@@ -62,13 +65,11 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
     formatNumber(typeof v === "number" ? v : Number(v), dir);
 
   const legend: Record<string, unknown> = dir === "rtl" ? { right: 8 } : { left: 8 };
+  // The tooltip's surface and text colour come from the theme. `align` cannot: it follows the
+  // reading direction, and a theme has no idea which way the page runs.
   const tooltip: Record<string, unknown> = {
     trigger: "item",
-    // ECharts' default tooltip surface is white; give it the themed surface or the
-    // light `text` colour becomes white-on-white in dark mode.
-    backgroundColor: colors.tooltipBg,
-    borderColor: colors.tooltipBorder,
-    textStyle: { align: dir === "rtl" ? "right" : "left", color: colors.text },
+    textStyle: { align: dir === "rtl" ? "right" : "left" },
     valueFormatter,
   };
 
@@ -88,12 +89,10 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
       if (xi >= 0 && yi >= 0) data.push([xi, yi, val]);
     });
     const maxVal = Math.max(1, ...data.map((d) => d[2]));
-    const axisStyle = { axisLine: { lineStyle: { color: colors.axis } }, axisLabel: { color: colors.axis } };
     const option = {
-      backgroundColor: "transparent",
       tooltip: { ...tooltip, position: "top" },
       legend,
-      xAxis: { type: "category", data: xCatLabels, inverse: dir === "rtl", ...axisStyle },
+      xAxis: { type: "category", data: xCatLabels, inverse: dir === "rtl" },
       yAxis: {
         type: "category",
         data: yCats.map((c) => formatCategory(c, dir)),
@@ -101,8 +100,9 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
         // otherwise a reader starts at the labels, crosses the whole matrix, and comes back.
         // Only the horizontal order mirrors; rows keep their top-to-bottom order in both.
         position: dir === "rtl" ? "right" : "left",
-        ...axisStyle,
       },
+      // The colour ramp itself is in the theme's visualMap.inRange — it used to be ECharts'
+      // default blue-to-red, a second palette on the same page.
       visualMap: {
         min: 0,
         max: maxVal,
@@ -110,7 +110,6 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
         orient: "horizontal",
         left: dir === "rtl" ? "right" : "left",
         bottom: 0,
-        textStyle: { color: colors.text },
       },
       series: [
         {
@@ -121,7 +120,7 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
         },
       ],
     };
-    return <ReactECharts option={option} style={{ height: 360, width: "100%" }} notMerge onEvents={onEvents} />;
+    return <ReactECharts option={option} theme={theme} style={{ height: 360, width: "100%" }} notMerge onEvents={onEvents} />;
   }
 
   // Otherwise: grouped bar (one ECharts series per series-field value, or a
@@ -153,30 +152,24 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
   }
 
   const option = {
-    backgroundColor: "transparent",
-    color: colors.series,
     tooltip: { ...tooltip, trigger: "axis" },
     legend,
     // containLabel keeps billion-scale value labels inside the canvas instead
     // of clipping them at the fixed margins.
-    grid: { left: 48, right: 48, bottom: 64, top: 32, containLabel: true, borderColor: colors.grid },
+    grid: { left: 48, right: 48, bottom: 64, top: 32, containLabel: true },
     xAxis: {
       type: "category",
       data: xCatLabels,
       inverse: dir === "rtl",
-      axisLine: { lineStyle: { color: colors.axis } },
-      axisLabel: { interval: 0, rotate: xCats.length > 8 ? 30 : 0, color: colors.axis },
-      splitLine: { lineStyle: { color: colors.grid } },
+      axisLabel: { interval: 0, rotate: xCats.length > 8 ? 30 : 0 },
     },
     yAxis: {
       type: "value",
       position: dir === "rtl" ? "right" : "left",
-      axisLine: { lineStyle: { color: colors.axis } },
-      axisLabel: { formatter: (v: number) => valueFormatter(v), color: colors.axis },
-      splitLine: { lineStyle: { color: colors.grid } },
+      axisLabel: { formatter: (v: number) => valueFormatter(v) },
     },
     dataZoom: xCats.length > 25 ? [{ type: "slider" }] : undefined,
     series,
   };
-  return <ReactECharts option={option} style={{ height: 360, width: "100%" }} notMerge onEvents={onEvents} />;
+  return <ReactECharts option={option} theme={theme} style={{ height: 360, width: "100%" }} notMerge onEvents={onEvents} />;
 }

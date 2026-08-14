@@ -31,7 +31,7 @@ export function TenantFormModal({
       displayName: v.displayName,
       status: initial?.status ?? "trial",
       plan: v.plan,
-      branding: initial?.branding ?? { primaryColor: "#10b981" },
+      branding: initial?.branding ?? { primaryColor: "#326BFC" },
       aiConfig: initial?.aiConfig ?? ({} as Tenant["aiConfig"]),
       quotas: initial?.quotas ?? ({} as Tenant["quotas"]),
       dataSourceIds: initial?.dataSourceIds ?? [],

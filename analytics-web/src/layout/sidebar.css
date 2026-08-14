@@ -24,12 +24,12 @@
   font-weight: 700;
   /* The bar stays brand green — it is a mark, not words. The label does not: the
      brand green measured 2.54:1 against the panel, which is unreadable at 14px. */
-  color: var(--rw-primary-ink, #047857);
-  box-shadow: inset 3px 0 0 var(--ant-color-primary, #10b981);
+  color: var(--rw-primary-ink, #326BFC);
+  box-shadow: inset 3px 0 0 var(--ant-color-primary, #326BFC);
 }
 
 [dir="rtl"] .app-sidebar .ant-menu-item-selected {
-  box-shadow: inset -3px 0 0 var(--ant-color-primary, #10b981);
+  box-shadow: inset -3px 0 0 var(--ant-color-primary, #326BFC);
 }
 
 .app-sidebar .ant-menu-item-group-title {

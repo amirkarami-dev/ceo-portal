@@ -2,7 +2,7 @@
 @import "@fontsource/vazirmatn/500.css";
 @import "@fontsource/vazirmatn/700.css";
 
-:root { --rw-primary: #10b981; --rw-accent: #0ea5e9; }
+:root { --rw-primary: #326BFC; --rw-accent: #06B5F8; }
 
 html, body, #root { height: 100%; margin: 0; }
 body {
@@ -16,7 +16,7 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--rw-border, #e2e8f0); border-radius: 8px; }
 
 /* ── Ambient animated backdrop (AmbientBackground.tsx) ───────────────────────
-   Brand-coloured blobs (--rw-primary emerald / --rw-accent sky) drifting behind
+   Brand-coloured blobs (--rw-primary blue / --rw-accent cyan) drifting behind
    the app. transform/opacity only — no layout work per frame — and fully off
    under prefers-reduced-motion. Opacities are low enough for BOTH themes. */
 .rw-ambient {
@@ -81,24 +81,26 @@ body {
   .rw-ambient-blob { animation: none; }
 }
 
-/* Two jobs the brand green cannot do at once.
+/* Two jobs, and the brand blue can do both — unlike the green it replaced, which needed a
+   separate deeper value for each.
 
-   --rw-primary-ink is the brand as *text and icons*, on whatever the panel is. On a
-   light surface #10b981 measures 2.54:1, so it steps down to #047857 (5.48:1). On the
-   dark surface the opposite is true — #047857 falls to 2.8:1 and the brand itself
-   reads at 6.06:1 — so in dark it steps back up. Same idea both ways: whichever of
-   the two is legible against the surface in front of you.
+   --rw-primary-ink is the brand as *text and icons*, on whatever the panel is. #326BFC reads
+   4.52:1 on the white panel, so it clears AA as itself. On the dark panels it falls to 3.2–4.3:1,
+   under AA for a word, so there it lifts to #5e8bfd — which clears 4.5 on every dark ground the
+   app paints, the #1f2937 table header included. Same idea both ways: whichever of the two is
+   legible against the surface in front of you.
 
-   --rw-primary-solid is the brand as a *fill that white sits on*: the head mark, the
-   active chip. That has to stay dark in both themes, because white on #10b981 is
-   2.54:1 no matter what is behind it. */
+   --rw-primary-solid is the brand as a *fill that white sits on*: the head mark, the active
+   chip. White on #326BFC is 4.52:1, so the brand itself holds this job in both themes.
+
+   Mirrors primaryInk / primaryInkDark / primarySolid in tokens.ts. Change both together. */
 :root {
-  --rw-primary-ink: #047857;
-  --rw-primary-solid: #047857;
+  --rw-primary-ink: #326BFC;
+  --rw-primary-solid: #326BFC;
 }
 
 :root[data-theme="dark"] {
-  --rw-primary-ink: #10b981;
+  --rw-primary-ink: #5e8bfd;
 }
 
 /* ── Controls on a phone ────────────────────────────────────────────────────

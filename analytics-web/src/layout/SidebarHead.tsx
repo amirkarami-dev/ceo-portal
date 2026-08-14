@@ -8,7 +8,7 @@ import "./sidebar-head.css";
  * byte-identical across all eight SPAs — importing from it is fine, editing it is not.
  *
  * The launcher tints each service its own colour (this one is #0284c7). That is right
- * in a grid of eight; inside the app it would fight the emerald the whole interface is
+ * in a grid of eight; inside the app it would fight the blue the whole interface is
  * built from, so the mark takes the brand instead. Same shape, this app's voice.
  */
 function ServiceMark() {

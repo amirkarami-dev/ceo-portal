@@ -1,26 +1,12 @@
-import { useEffect, useMemo, useRef } from "react";
-import * as echarts from "echarts";
+import { useMemo } from "react";
 import type { EChartsCoreOption } from "echarts";
 import { Row, Col, Skeleton } from "antd";
 import { useTranslation } from "react-i18next";
 import { useAIUsageSeries } from "../../../api/queries";
 import { PageHeader, KpiTile, SectionCard } from "../../../components/ui";
-
-function useEChart(option: EChartsCoreOption | null) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!ref.current || !option) return;
-    const chart = echarts.init(ref.current);
-    chart.setOption(option);
-    const onResize = () => chart.resize();
-    window.addEventListener("resize", onResize);
-    return () => {
-      window.removeEventListener("resize", onResize);
-      chart.dispose();
-    };
-  }, [option]);
-  return ref;
-}
+// Was a local copy of this hook that called echarts.init(el) with no theme, so both charts here
+// rendered in ECharts' own palette and kept #333 text on the dark panel (1.31:1).
+import { useEChart } from "../../../components/charts/useEChart";
 
 export function AIUsageCost() {
   const { t } = useTranslation();

@@ -22,6 +22,7 @@ Also, when a task teaches something reusable:
 
 | Date | Record | Area | Status |
 |---|---|---|---|
+| 2026-08-14 | [The palette moved from emerald to blue, and the charts got two lists instead of one](2026-08-14-analytics-blue-palette.md) | analytics | merged, not deployed |
 | 2026-08-13 | [The organisation switcher offered a choice that changed nothing](2026-08-13-analytics-hide-tenant-switcher.md) | analytics-web | **live** on analytic.myceo.ir |
 | 2026-08-13 | [A save button that shows its own progress](2026-08-13-analytics-save-button.md) | analytics-web | **live** on analytic.myceo.ir |
 | 2026-08-13 | [The flaky permission test was paying for a module graph inside its own timer](2026-08-13-analytics-flaky-permission-test.md) | analytics-web | fixed, test-only |

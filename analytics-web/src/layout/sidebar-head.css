@@ -10,7 +10,7 @@
   border-bottom: 1px solid var(--ant-color-border-secondary, #ebece9);
   background: linear-gradient(
     to bottom,
-    color-mix(in srgb, var(--ant-color-primary, #10b981) 7%, transparent),
+    color-mix(in srgb, var(--ant-color-primary, #326BFC) 7%, transparent),
     transparent
   );
 }
@@ -26,10 +26,10 @@
   /* Not the brand green: white on it measures 2.54:1, under the 3:1 a graphic needs —
      and in the 80px rail this mark is the only thing naming the service. The deeper
      green of the same family puts the glyph at 5.48:1. The halo below keeps the brand. */
-  background: var(--rw-primary-solid, #047857);
+  background: var(--rw-primary-solid, #326BFC);
   /* A soft brand halo, offset and blurred — a mark sitting on the panel, not a
      zero-offset ring pretending to be depth. */
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--ant-color-primary, #10b981) 30%, transparent);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--ant-color-primary, #326BFC) 30%, transparent);
 }
 
 .sidebar-head__mark svg {

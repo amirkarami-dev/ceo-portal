@@ -1,6 +1,6 @@
 import { theme as antdTheme } from "antd";
 import type { ThemeConfig } from "antd";
-import { primaryInkFor } from "./tokens";
+import { primaryInkFor, primary as brandPrimary } from "./tokens";
 
 export type ThemeMode = "light" | "dark";
 export interface BrandTokens {
@@ -12,29 +12,29 @@ export interface BrandTokens {
 export type AntdThemeConfig = ThemeConfig & { direction: "rtl" | "ltr" };
 
 export const tokens = {
-  primary: "#10b981", // emerald brand
-  accent: "#0ea5e9",
+  // The brand blue. This is the value that actually reaches antd: ThemeProvider merges
+  // buildAntdTheme's token ON TOP of tokens.ts, so colorPrimary here wins over lightTokens /
+  // darkTokens. Keep it equal to `primary` in tokens.ts.
+  primary: brandPrimary,
+  accent: "#06B5F8", // the palette's cyan
   radius: 10,
   fontFa: "'Vazirmatn', system-ui, sans-serif",
   fontEn: "'Inter', system-ui, sans-serif",
 } as const;
 
-const lighten = (hex: string, amt: number): string => {
-  const n = parseInt(hex.replace("#", ""), 16);
-  const r = Math.min(255, ((n >> 16) & 0xff) + amt);
-  const g = Math.min(255, ((n >> 8) & 0xff) + amt);
-  const b = Math.min(255, (n & 0xff) + amt);
-  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
-};
-
 export function buildAntdTheme(mode: ThemeMode, brand: BrandTokens, dir: "rtl" | "ltr"): AntdThemeConfig {
   const primary = brand.primary || tokens.primary;
+  // antd paints primary *text* and borders from this token, not only fills — a link, a selected
+  // menu word, the focus ring. On the dark panel the brand blue is 3.67:1: fine for a fill, under
+  // AA for a word. The default brand keeps a lifted twin for exactly that surface. A tenant's own
+  // colour is used as given; we cannot guess how they want it adjusted.
+  const primaryForMode = primary === tokens.primary ? primaryInkFor(mode) : primary;
   return {
     direction: dir,
     algorithm: mode === "dark" ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
     token: {
-      colorPrimary: primary,
-      colorInfo: primary,
+      colorPrimary: primaryForMode,
+      colorInfo: primaryForMode,
       borderRadius: tokens.radius,
       fontFamily: dir === "rtl" ? tokens.fontFa : tokens.fontEn,
     },
@@ -65,16 +65,14 @@ export function buildAntdTheme(mode: ThemeMode, brand: BrandTokens, dir: "rtl" |
   };
 }
 
-export function buildEChartsTheme(mode: ThemeMode, brand: BrandTokens): Record<string, unknown> {
-  const p = brand.primary || tokens.primary;
-  const a = brand.accent || tokens.accent;
-  return {
-    color: [p, a, lighten(p, 40), lighten(a, 40), "#f59e0b", "#ef4444"],
-    backgroundColor: "transparent",
-    textStyle: { fontFamily: tokens.fontFa, color: mode === "dark" ? "#e5e7eb" : "#1f2937" },
-    legend: { textStyle: { color: mode === "dark" ? "#e5e7eb" : "#1f2937" } },
-  };
-}
+/**
+ * The ECharts theme lives in `theme/echarts-theme.ts` and is applied by the charts themselves.
+ *
+ * There used to be a `buildEChartsTheme` here that **nothing called** — only its own tests. It
+ * invented series 3 and 4 by lightening the brand a fixed amount, so it looked like ECharts was
+ * centrally themed while every real chart set its colours by hand or took ECharts' defaults.
+ * A theme builder that no chart consumes is worse than none: it answers the question wrongly.
+ */
 
 export function applyCssVars(mode: ThemeMode, brand: BrandTokens): void {
   const el = document.documentElement;

@@ -11,7 +11,7 @@ export const SEED_TENANTS: Tenant[] = [
     displayName: "شرکت آلفا",
     status: "active",
     plan: "pro",
-    branding: { primaryColor: "#10b981", accentColor: "#0ea5e9", productName: "گزارش‌ساز آلفا" },
+    branding: { primaryColor: "#326BFC", accentColor: "#06B5F8", productName: "گزارش‌ساز آلفا" },
     aiConfig: {
       defaultProviderId: "prov-openai",
       providers: [],

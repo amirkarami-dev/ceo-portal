@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { buildAntdTheme, buildEChartsTheme, applyCssVars, tokens, type AntdThemeConfig } from "./theme";
+import { buildAntdTheme, applyCssVars, tokens, type AntdThemeConfig } from "./theme";
 
 describe("buildAntdTheme", () => {
   it("uses dark algorithm + rtl direction in dark/rtl", () => {
@@ -54,13 +54,8 @@ describe("Descriptions label contrast", () => {
   });
 });
 
-describe("buildEChartsTheme", () => {
-  it("derives a color palette seeded by brand primary", () => {
-    const t = buildEChartsTheme("light", { primary: "#10b981" });
-    expect(Array.isArray((t as { color: string[] }).color)).toBe(true);
-    expect((t as { color: string[] }).color[0]).toBe("#10b981");
-  });
-});
+// buildEChartsTheme used to be tested here. It was deleted because nothing in the app called it —
+// see theme/echarts-theme.test.ts for the theme that charts actually use.
 
 describe("applyCssVars", () => {
   beforeEach(() => document.documentElement.removeAttribute("data-theme"));

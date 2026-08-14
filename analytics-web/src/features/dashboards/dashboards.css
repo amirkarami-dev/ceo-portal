@@ -14,7 +14,7 @@
   background:
     linear-gradient(
       135deg,
-      color-mix(in srgb, var(--ant-color-primary, #0f6e56) 14%, var(--ant-color-bg-container, #fff)),
+      color-mix(in srgb, var(--ant-color-primary, #326BFC) 14%, var(--ant-color-bg-container, #fff)),
       var(--ant-color-bg-container, #fff) 62%
     );
 }
@@ -28,7 +28,7 @@
   border-radius: 50%;
   background: radial-gradient(
     circle,
-    color-mix(in srgb, var(--ant-color-primary, #0f6e56) 22%, transparent),
+    color-mix(in srgb, var(--ant-color-primary, #326BFC) 22%, transparent),
     transparent 70%
   );
   pointer-events: none;
@@ -45,7 +45,7 @@
 }
 
 .dash-hero__title .anticon {
-  color: var(--ant-color-primary, #0f6e56);
+  color: var(--ant-color-primary, #326BFC);
 }
 
 .dash-hero__subtitle {
@@ -70,8 +70,8 @@
   border-radius: 999px;
   /* 12px counts, and brand green on a 10% brand chip is about 2.4:1. The chip keeps
      the brand tint; the digits on it have to be readable. */
-  color: var(--rw-primary-ink, #047857);
-  background: color-mix(in srgb, var(--ant-color-primary, #0f6e56) 10%, transparent);
+  color: var(--rw-primary-ink, #326BFC);
+  background: color-mix(in srgb, var(--ant-color-primary, #326BFC) 10%, transparent);
 }
 
 .dash-hero__actions {
@@ -110,18 +110,18 @@
 .dash-card:hover,
 .dash-card:focus-within {
   transform: translateY(-2px);
-  border-color: color-mix(in srgb, var(--ant-color-primary, #0f6e56) 45%, transparent);
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--ant-color-primary, #0f6e56) 12%, transparent);
+  border-color: color-mix(in srgb, var(--ant-color-primary, #326BFC) 45%, transparent);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--ant-color-primary, #326BFC) 12%, transparent);
 }
 
 .dash-card--selected {
-  border-color: var(--ant-color-primary, #0f6e56);
+  border-color: var(--ant-color-primary, #326BFC);
   background: color-mix(
     in srgb,
-    var(--ant-color-primary, #0f6e56) 6%,
+    var(--ant-color-primary, #326BFC) 6%,
     var(--ant-color-bg-container, #fff)
   );
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--ant-color-primary, #0f6e56) 12%, transparent);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--ant-color-primary, #326BFC) 12%, transparent);
 }
 
 .dash-card__accent {
@@ -132,8 +132,8 @@
   width: 3px;
   background: linear-gradient(
     180deg,
-    var(--ant-color-primary, #0f6e56),
-    color-mix(in srgb, var(--ant-color-primary, #0f6e56) 20%, transparent)
+    var(--ant-color-primary, #326BFC),
+    color-mix(in srgb, var(--ant-color-primary, #326BFC) 20%, transparent)
   );
 }
 
@@ -156,7 +156,7 @@
 }
 
 .dash-card__select:focus-visible {
-  outline: 2px solid var(--ant-color-primary, #0f6e56);
+  outline: 2px solid var(--ant-color-primary, #326BFC);
   outline-offset: -3px;
 }
 
@@ -259,12 +259,12 @@
 
 /* react-grid-layout: themed drag placeholder + visible resize handle */
 .dashboard-canvas .react-grid-placeholder {
-  background: color-mix(in srgb, var(--ant-color-primary, #0f6e56) 22%, transparent) !important;
+  background: color-mix(in srgb, var(--ant-color-primary, #326BFC) 22%, transparent) !important;
   border-radius: 12px;
 }
 
 .dashboard-canvas .react-grid-item > .react-resizable-handle::after {
-  border-color: var(--ant-color-primary, #0f6e56);
+  border-color: var(--ant-color-primary, #326BFC);
 }
 
 .dashboard-canvas .ant-card-head {
@@ -302,7 +302,7 @@
 
 .add-widget-item:hover,
 .add-widget-item:focus-visible {
-  border-color: var(--ant-color-primary, #0f6e56);
+  border-color: var(--ant-color-primary, #326BFC);
   background: var(--ant-color-primary-bg, #e1faed);
   outline: none;
 }
@@ -314,7 +314,7 @@
   width: 36px;
   height: 36px;
   border-radius: 8px;
-  color: var(--ant-color-primary, #0f6e56);
+  color: var(--ant-color-primary, #326BFC);
   background: var(--ant-color-primary-bg, #e1faed);
   font-size: 18px;
 }
