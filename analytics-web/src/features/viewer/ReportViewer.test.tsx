@@ -7,9 +7,16 @@ import { AuthProvider } from "@/auth/AuthProvider";
 import { i18n } from "@/i18n";
 import { resetMockDb, seedReports, firstSeededReportId } from "@/api/seed";
 import { mockApi } from "@/api/mockApi";
+import { setMockUser } from "@/auth/mock-user";
+import type { AppRole } from "@/contracts/rbac";
 import { ReportViewer } from "./ReportViewer";
 
-function renderViewer(id: string) {
+/**
+ * @param roles Who is looking. The mock user defaults to `["PowerUser"]`, who is NOT a report editor
+ *   — so any test that expects a pencil has to say so.
+ */
+function renderViewer(id: string, roles: AppRole[] = ["ReportDesigner"]) {
+  setMockUser(roles);
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
@@ -239,12 +246,41 @@ describe("ReportViewer", () => {
     // itself is checked in a real browser.
   });
 
-  it("offers no series pencils to someone who cannot edit", async () => {
+  // ── Who gets a pencil ─────────────────────────────────────────────────────
+
+  it.each([["Viewer"], ["PowerUser"], ["DashboardDesigner"], ["AIManager"]] as const)(
+    "offers no rename controls to %s",
+    async (role) => {
+      await i18n.changeLanguage("fa");
+      renderViewer(firstSeededReportId(), [role]);
+      await waitFor(() => expect(screen.getByTestId("result-canvas")).toBeInTheDocument());
+
+      expect(screen.queryByRole("button", { name: "ویرایش عنوان" })).not.toBeInTheDocument();
+      expect(screen.queryByTestId("series-labels")).not.toBeInTheDocument();
+    },
+  );
+
+  it.each([["ReportDesigner"], ["TenantAdmin"], ["SuperAdmin"]] as const)(
+    "offers them to %s",
+    async (role) => {
+      await i18n.changeLanguage("fa");
+      renderViewer(firstSeededReportId(), [role]);
+      await waitFor(() => expect(screen.getByTestId("result-canvas")).toBeInTheDocument());
+
+      expect(screen.getByRole("button", { name: "ویرایش عنوان" })).toBeInTheDocument();
+      expect(screen.getByTestId("series-labels")).toBeInTheDocument();
+    },
+  );
+
+  // A deliberate split, not an oversight. «ویرایش در Ask AI» goes to /ask, which has no role guard,
+  // so narrowing it to the editor roles would remove an existing affordance rather than fix a
+  // mismatch. Renaming is new and gets the strict rule; this keeps what it had.
+  it("still shows «ویرایش در Ask AI» to a PowerUser, who gets no pencil", async () => {
     await i18n.changeLanguage("fa");
-    // AuthProvider gives the test user editing roles, so assert the bar is gated on canEdit by
-    // checking the flag's effect rather than faking a role here: with edit rights the bar exists.
-    renderViewer(firstSeededReportId());
+    renderViewer(firstSeededReportId(), ["PowerUser"]);
     await waitFor(() => expect(screen.getByTestId("result-canvas")).toBeInTheDocument());
-    expect(screen.queryByTestId("series-labels")).toBeInTheDocument();
+
+    expect(screen.getByRole("button", { name: /Ask AI/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "ویرایش عنوان" })).not.toBeInTheDocument();
   });
 });

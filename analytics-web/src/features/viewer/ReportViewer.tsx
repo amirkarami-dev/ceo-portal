@@ -46,6 +46,7 @@ import {
 } from "@/components/ui";
 import { FilterBar } from "./FilterBar";
 import { SeriesLabelBar } from "./SeriesLabelBar";
+import { canEditReports, canRenameSeries } from "./can-edit";
 
 type Crumb = { label: string; def: ReportDefinition; result: QueryResult; views: ReportView[] };
 
@@ -240,7 +241,25 @@ export function ReportViewer() {
   const views = [...activeViews, ...extraViews];
   const activeView = views[Math.min(activeIdx, views.length - 1)] ?? views[0];
 
-  const canEdit =
+  /**
+   * May this reader change the report's definition — rename the title, rename a series?
+   *
+   * One shared predicate, matching the editor route. This used to be an inline list here that also
+   * counted `PowerUser`, who the editor route refuses.
+   */
+  const canEditDefinition = canEditReports(roles);
+
+  /**
+   * Kept separate, and kept as it was. The «ویرایش در Ask AI» button below does NOT go to the
+   * guarded editor route — it navigates to `/ask`, which has no role guard at all — so narrowing it
+   * to the editor roles would take an existing affordance away from `PowerUser` rather than fix an
+   * inconsistency. Left alone on purpose; renaming a label is a new capability and gets the strict
+   * rule, while this one is a separate decision.
+   *
+   * (It is also a dead link: `?from=` is never read, so it drops you at a blank prompt. Worth fixing,
+   * but that is not this change.)
+   */
+  const canOpenInAsk =
     roles.includes("ReportDesigner") ||
     roles.includes("PowerUser") ||
     roles.includes("TenantAdmin") ||
@@ -271,7 +290,7 @@ export function ReportViewer() {
       <Button icon={<ReloadOutlined />} onClick={() => setRefreshKey((k) => k + 1)}>
         {t("viewer.refresh")}
       </Button>
-      {canEdit && (
+      {canOpenInAsk && (
         <Button icon={<EditOutlined />} onClick={() => navigate(`/ask?from=${reportId}`)}>
           {t("viewer.openInAsk")}
         </Button>
@@ -293,7 +312,7 @@ export function ReportViewer() {
             onSave={saveTitle}
             level={3}
             tooltip={t("common.editLabel")}
-            disabled={!canEdit}
+            disabled={!canEditDefinition}
             style={{ fontWeight: 500 }}
           />
         }
@@ -350,7 +369,7 @@ export function ReportViewer() {
         def={activeDef}
         result={result}
         onRename={renameSeries}
-        canEdit={canEdit}
+        canEdit={canRenameSeries(roles, { drilledDown: drillPath.length > 0 })}
       />
 
       <div data-testid="result-canvas">
