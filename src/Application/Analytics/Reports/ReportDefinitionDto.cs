@@ -173,4 +173,40 @@ public class ReportDefinitionDto
     /// <summary>Derived columns — computed post-aggregate or per-row from arithmetic expressions.</summary>
     [JsonPropertyName("calculatedFields")]
     public IReadOnlyList<CalculatedFieldDto> CalculatedFields { get; init; } = [];
+
+    /// <summary>
+    /// The report title a person typed, per language. Null or an absent language means "no override" —
+    /// fall back to <see cref="Name"/>.
+    /// </summary>
+    [JsonPropertyName("titleOverrides")]
+    public LocalizedLabelDto? TitleOverrides { get; init; }
+
+    /// <summary>
+    /// Column labels a person typed, per language, keyed by result column key (a metric alias such as
+    /// <c>sum_amount</c>, or a dimension field id).
+    ///
+    /// Deliberately separate from <see cref="ReportMetricDto.Alias"/> and from the frontend's
+    /// <c>metric.label</c>: the AI writes a Persian <c>label</c> onto every report it generates, so the
+    /// two must stay distinguishable. "A machine guessed this" is not "a human typed this", and only
+    /// the second may override the composed, language-aware name.
+    /// </summary>
+    [JsonPropertyName("labelOverrides")]
+    public IReadOnlyDictionary<string, LocalizedLabelDto>? LabelOverrides { get; init; }
+}
+
+/// <summary>
+/// One human-authored string per language. Mirrors the shape the semantic model already uses for
+/// field labels (<c>{ "fa-IR": …, "en-US": … }</c>), so there is one convention rather than two.
+///
+/// Both sides are optional on purpose: a Persian user renames a chart and the English reader keeps
+/// the automatically composed name rather than being shown Persian — which is the bug the frontend's
+/// label composition exists to prevent.
+/// </summary>
+public class LocalizedLabelDto
+{
+    [JsonPropertyName("fa-IR")]
+    public string? FaIR { get; init; }
+
+    [JsonPropertyName("en-US")]
+    public string? EnUS { get; init; }
 }
