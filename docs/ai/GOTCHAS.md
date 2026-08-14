@@ -683,6 +683,17 @@ Check with `md5sum */src/layout/AppSwitcher.tsx` — all eight hashes must match
 
 ## Build & deploy
 
+### A dynamic import inside a test charges the test for the whole module graph
+`await import("./routes")` inside a test made it pass alone (~3.2s) and fail in the full suite
+(~19s against a 10s `testTimeout`) — intermittently, so rerunning the one file always looked green.
+The body was four synchronous lines; the time was **antd + oidc-client-ts being transformed inside
+the test's timed window**. A top-level import pays that during collection, when no timer is running,
+which is why every other file was fine. Static import → 88ms for the file, from 3226ms.
+**Before raising a timeout, check whether the test is importing something heavy at runtime.** Raising
+it hides the flake and keeps the suite slow.
+**And verify by running the FULL suite several times** — for this class of bug, running the single
+file proves nothing.
+
 ### `--legacy-peer-deps` also stops npm INSTALLING peers, not just checking them
 `analytics-web`'s image needs it (antd-jalali declares `react ^18`; the app runs 19, as walfare-web
 has in production for months). The next build then died with every test file losing `screen`,
