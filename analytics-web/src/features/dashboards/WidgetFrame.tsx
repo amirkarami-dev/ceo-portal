@@ -25,7 +25,7 @@ import {
 } from "@/presentation/view-switching";
 import { getModelForDataset } from "@/semantic/registry";
 import { ReportViewRenderer } from "@/presentation/ReportView";
-import { exportCsv, exportPdf, exportXlsx } from "@/features/export";
+import { exportCsv, exportPdf, exportXlsx, useExportResult } from "@/features/export";
 import { KpiTile, SectionCard } from "@/components/ui";
 
 interface Props {
@@ -81,6 +81,8 @@ export function WidgetFrame({ widget, editing, onRemove, onChange }: Props) {
 
   const title = widget.title ?? data?.definition.name ?? t("dash.widget");
   const result = exec.data;
+  // Exports read columns[].label from the engine, which knows nothing about human overrides.
+  const exportResult = useExportResult(data?.definition, result);
   const loading = isLoading || exec.isLoading;
   const broken = isError || exec.isError || (!!data && !loading && views.length === 0);
 
@@ -132,7 +134,7 @@ export function WidgetFrame({ widget, editing, onRemove, onChange }: Props) {
               {...iconBtn}
               aria-label="CSV"
               icon={<FileTextOutlined />}
-              onClick={() => exportCsv(data.definition, result)}
+              onClick={() => exportCsv(data.definition, exportResult ?? result)}
             />
           </Tooltip>
           <Tooltip title="Excel">
@@ -140,7 +142,7 @@ export function WidgetFrame({ widget, editing, onRemove, onChange }: Props) {
               {...iconBtn}
               aria-label="Excel"
               icon={<FileExcelOutlined />}
-              onClick={() => void exportXlsx(exportName, result)}
+              onClick={() => void exportXlsx(exportName, exportResult ?? result)}
             />
           </Tooltip>
           <Tooltip title="PDF">
@@ -148,7 +150,7 @@ export function WidgetFrame({ widget, editing, onRemove, onChange }: Props) {
               {...iconBtn}
               aria-label="PDF"
               icon={<FilePdfOutlined />}
-              onClick={() => exportPdf(title, result, bodyRef.current)}
+              onClick={() => exportPdf(title, exportResult ?? result, bodyRef.current)}
             />
           </Tooltip>
         </>

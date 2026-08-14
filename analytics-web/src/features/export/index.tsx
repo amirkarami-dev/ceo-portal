@@ -11,6 +11,7 @@ export { toJson } from "./json";
 export { downloadBlob } from "./download";
 export { exportXlsx, resultToAoa } from "./xlsx";
 export { exportPdf, chartSnapshot } from "./pdf";
+export { useExportResult } from "./useExportResult";
 
 function baseName(def: ReportDefinition): string {
   return (

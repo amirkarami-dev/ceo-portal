@@ -998,6 +998,38 @@ constants — `primary`, `primaryInk`/`primaryInkDark`, `primarySolid` (and `--r
 `--rw-primary-ink`, `--rw-primary-solid` in `global.css`) — because a future brand may again need a
 different value for text than for a fill.
 
+### A report has TWO label chains, and exports use the one you did not fix
+`presentation/labels.ts` (`useColumnLabel` / `resolveColumnLabel`) is what the **screen** shows.
+`result.columns[].label` is what the **engine** produced — `push(key, m.label ?? key, …)` in
+`query/engine.ts` — and it knows nothing about human overrides or composition.
+
+Six consumers read the engine's one and never touch the hook: `features/export/csv.ts`,
+`xlsx.ts`, `pdf.ts`, `presentation/renderers/KpiRenderer.tsx`, the Ask-AI KPI row in
+`AskAiBuilder.tsx`, and `api/executeApi.ts`. So a series renamed on a chart still came out of Excel as
+`sum_amount`: the picture said one thing and the spreadsheet another, with no error anywhere.
+
+**The exporters are plain functions and cannot call a hook**, which is why `resolveColumnLabel` exists
+as a non-hook form. Resolve at the **boundary** — `features/export/useExportResult.ts` rewrites
+`columns[].label` once and hands that on — rather than threading a locale through three signatures.
+**When you change how a label is derived, grep for `columns[].label` as well**, or half the app will
+disagree with the other half.
+
+### `PageHeader`'s `title` wraps whatever you give it in an `<h3>`
+Pass a node that renders its own heading — an `EditableLabel`, say — and you get a heading **inside** a
+heading. Invalid DOM, and `getByRole("heading")` starts throwing *"found multiple elements"* in every
+existing test that touches the page, which is how it announces itself. Use `titleNode`, which replaces
+the heading outright. Same shape of trap for any `title`/`label` prop that wraps.
+
+### The mock user is a `PowerUser`, so role-gated UI vanishes in dev and in tests
+`auth/mock-user.ts` defaults to `["PowerUser"]`. Gate a control on the report-editor roles and it
+disappears locally with no explanation — and every existing test that clicks it fails with *"Unable to
+find an accessible element…"*, which reads like a broken selector rather than a working guard.
+**Set the role explicitly in tests** (`setMockUser([...])` before render; note `resetMockDb()` clears
+`localStorage`, so set it *after*). `features/viewer/can-edit.ts` and
+`features/dashboards/can-manage.ts` are the two predicates; both deliberately mirror a route's
+`RequireRole` list, and **neither is `reports:write`** — `PowerUser` and `DashboardDesigner` hold that
+permission and the editor routes admit neither.
+
 ### antd Typography `editable` fires `onChange` TWICE for one edit, and saves on blur
 All measured against antd 5.29.3, not read off the docs.
 

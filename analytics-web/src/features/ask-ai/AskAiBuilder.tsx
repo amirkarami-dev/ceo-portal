@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ReportViewRenderer } from "@/presentation/ReportView";
-import { buildExportMenuItems } from "@/features/export";
+import { buildExportMenuItems, useExportResult } from "@/features/export";
 import { useAuth } from "@/auth/useAuth";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -49,6 +49,8 @@ export function AskAiBuilder() {
   const [saveOpen, setSaveOpen] = useState(false);
 
   const resultKpis = useResultKpis(state.result);
+  // Same rule as the report viewer: exports carry the engine's labels unless resolved here.
+  const exportResult = useExportResult(state.def, state.result);
 
   if (state.phase === "hero") {
     return (
@@ -154,7 +156,7 @@ export function AskAiBuilder() {
                     </Button>
                   )}
                   <Dropdown
-                    menu={{ items: buildExportMenuItems(state.def, state.result) }}
+                    menu={{ items: buildExportMenuItems(state.def, exportResult ?? state.result) }}
                     trigger={["click"]}
                   >
                     <Button icon={<DownloadOutlined />} data-testid="export-btn">

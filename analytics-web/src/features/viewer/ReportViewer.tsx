@@ -27,7 +27,7 @@ import { labelLocaleOf, useReportTitle } from "@/presentation/labels";
 import { getModelForDataset } from "@/semantic/registry";
 import { executeReport } from "@/api/executeApi";
 import { ReportViewRenderer } from "@/presentation/ReportView";
-import { buildExportMenuItems } from "@/features/export";
+import { buildExportMenuItems, useExportResult } from "@/features/export";
 import { ViewSwitcher } from "@/features/ask-ai/ViewSwitcher";
 import {
   buildViewForTarget,
@@ -202,6 +202,10 @@ export function ReportViewer() {
    * needs its own field to stay distinguishable. An empty box clears the override and the automatic
    * name comes back.
    */
+  // Exports read columns[].label, which the engine fills in — it knows nothing about human
+  // overrides. Resolve them here or the spreadsheet disagrees with the chart.
+  const exportResult = useExportResult(activeDef, activeResult);
+
   const renameSeries = useCallback(
     async (columnKey: string, next: string) => {
       if (!data) return;
@@ -295,7 +299,7 @@ export function ReportViewer() {
           {t("viewer.openInAsk")}
         </Button>
       )}
-      <Dropdown menu={{ items: buildExportMenuItems(activeDef, result) }} trigger={["click"]}>
+      <Dropdown menu={{ items: buildExportMenuItems(activeDef, exportResult ?? result) }} trigger={["click"]}>
         <Button icon={<DownloadOutlined />}>{t("viewer.export")}</Button>
       </Dropdown>
     </>

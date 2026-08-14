@@ -4,6 +4,7 @@ import type { ReportView } from "../../contracts/presentation";
 import type { ReportDefinition } from "../../contracts/report-definition";
 import type { QueryResult, ResolvedColumn, GroupNode } from "../../contracts/dataset";
 import { formatNumber, formatCell, type Dir } from "../format";
+import { useColumnLabel } from "../labels";
 
 export type RendererProps = {
   view: ReportView;
@@ -20,8 +21,9 @@ function currentDir(): Dir {
   return "ltr";
 }
 
-export default function KpiRenderer({ view, result }: RendererProps) {
+export default function KpiRenderer({ view, def, result }: RendererProps) {
   const dir = currentDir();
+  const columnLabel = useColumnLabel(def, result);
   const key =
     view.mapping.value ??
     result.columns.find((c) => c.isMetric)?.key ??
@@ -29,7 +31,10 @@ export default function KpiRenderer({ view, result }: RendererProps) {
   const col: ResolvedColumn | undefined = result.columns.find(
     (c) => c.key === key,
   );
-  const label = view.title ?? col?.label ?? key ?? "";
+  // `col.label` is the ENGINE's label — `metric.label ?? key` — so a metric renamed on the chart
+  // still read `sum_amount` here, and a metric with no stored label read its raw alias. `view.title`
+  // still wins: someone who titled this tile by hand meant it.
+  const label = view.title ?? (key ? columnLabel(key) : "");
   const row = result.rows[0] ?? {};
   const raw = key ? row[key] : null;
   const display = col ? formatCell(raw ?? null, col.type, dir) : "";
