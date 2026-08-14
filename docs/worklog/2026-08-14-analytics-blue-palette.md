@@ -2,8 +2,8 @@
 
 - **Date:** 2026-08-14
 - **Area:** analytics
-- **Branch / commits:** `main` — not committed yet
-- **Status:** merged, not deployed
+- **Branch / commits:** `main` — `6b6a56f`
+- **Status:** **live** on analytic.myceo.ir
 
 ## Goal
 
@@ -154,8 +154,16 @@ answers the question wrongly.*
   `--rw-accent` `#06B5F8`, `--rw-primary-ink` `#326BFC` light / `#5e8bfd` dark. The series mark
   renders `#326bfc` — 4.52:1 on the white panel, 3.67:1 on `#15211d`, 4.25:1 on `#0b0f14`. Legend
   text `#e6efe9` at 14.12:1 in dark; axis ticks 5.36:1 light, 6.14:1 dark.
-- **Built bundle grep** — all eleven new hex values present in `index-B87QUg5Y.js` /
-  `index-CnvYlgox.css`; `10b981`, `0f6e56`, `047857`, `0ea5e9`, `1d9e75` all **0**.
+- **Deployed and checked against the LIVE bundle, not the local one.** Bundle moved
+  `index-6Twt7tN5.js` → `index-B-yZSKoG.js` and `index-0irK965-.css` → `index-CnvYlgox.css`.
+  Downloading what the origin actually serves and grepping it: all twelve new hex values present;
+  `10b981`, `0f6e56`, `047857`, `0ea5e9`, `1d9e75`, `5dcaa5`, `ef9f27` all **0**; `buildEChartsTheme`
+  **0**. Container healthy, origin 200, public URL 200 on the new hash. 15 `ceo-portal-*` and
+  20 neighbour containers untouched.
+- The build was run as its **own** step and its exit code read (0) before recreating — a failed
+  build still lets `--force-recreate` start the previous image and report a green deploy.
+- The public URL returned **404 for about a minute** right after the recreate. Expected: ArvanCloud
+  serves a 404 briefly after an origin container restarts.
 - **Impeccable detector** — one advisory, `codex-grid-background` on the pre-existing
   `.rw-ambient-grid` backdrop, not introduced here. Clean on all five ECharts files.
 
