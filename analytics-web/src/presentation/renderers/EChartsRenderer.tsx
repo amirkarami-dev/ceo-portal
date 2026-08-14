@@ -3,6 +3,7 @@ import type { ReportDefinition } from "../../contracts/report-definition";
 import type { QueryResult, ResultRow, GroupNode } from "../../contracts/dataset";
 import { formatCategory, formatFitted, formatNumber, formatPercent, type Dir } from "../format";
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { useUiStore } from "../../store/ui-store";
 import { chartColors } from "../../theme/tokens";
 import { useEChart } from "../../components/charts/useEChart";
@@ -11,6 +12,76 @@ import { aggregateByCategory } from "./chart-utils";
 import { seriesKeysOf } from "../series-keys";
 import { resolveDrillTarget } from "./drill";
 import { legendPlacement, pieSweep } from "../chart-rtl";
+
+/**
+ * The chart's data as text, for anyone who cannot see the chart.
+ *
+ * Every chart is a **canvas**, so its axis labels, its legend and its values are pixels — they are
+ * not in the DOM and not in the accessibility tree. Measured on `/reports/rep-revenue`: the tree
+ * ended at the last toolbar button and the chart was **absent entirely**. Not an unlabelled image,
+ * which a screen reader at least announces: nothing at all. That is a WCAG 1.1.1 failure on the one
+ * element the page exists to show.
+ *
+ * A table rather than ECharts' own `aria` option, which was the alternative:
+ *
+ * - `aria: { enabled: true }` puts `role="img"` and a generated sentence on the container. The
+ *   sentence is built from English templates ("the chart type is bar, and the data is —"), so every
+ *   one of them would have to be translated into Persian before it said anything useful.
+ * - Even translated it is a **summary**. A table is the data, navigable cell by cell.
+ * - A table reuses the formatters the visible UI already uses, so Persian digits, the Jalali
+ *   calendar and «٪» come for free and cannot drift from what is drawn.
+ *
+ * Built inside the option memo, from the same local variables the series are built from, so the two
+ * cannot disagree about what the chart shows.
+ */
+export interface A11yTable {
+  /** Column headers. The first names the category axis; the rest name the series. */
+  columns: string[];
+  /** One row per category, pre-formatted. */
+  rows: string[][];
+}
+
+function ChartDataTable({ table, caption }: { table: A11yTable; caption: string }) {
+  /**
+   * The wrapper is not decoration. `.sr-only` pins width/height to 1px, and a <div> obeys that — a
+   * <table> does not: the table layout algorithm treats `width` as a floor, so the bare table
+   * measured **251x149** and sat absolutely positioned over the page. `clip-path: inset(50%)` meant
+   * it painted nothing and took no clicks, so it was invisible in both senses, but a 251px box
+   * parked over the layout is one stacking-context change away from being a real bug.
+   */
+  return (
+    <div className="sr-only">
+      <table data-testid="chart-a11y-table">
+        <caption>{caption}</caption>
+        <thead>
+          <tr>
+            {table.columns.map((c, i) => (
+              <th key={i} scope="col">
+                {c}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {table.rows.map((row, r) => (
+            <tr key={r}>
+              {row.map((cell, c) =>
+                // The first cell of each row is the category, which makes it the row's header.
+                c === 0 ? (
+                  <th key={c} scope="row">
+                    {cell}
+                  </th>
+                ) : (
+                  <td key={c}>{cell}</td>
+                ),
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 export type RendererProps = {
   view: ReportView;
@@ -156,6 +227,7 @@ function makeTooltipFormatter(valueFormatter: (v: number | string) => string) {
 export default function EChartsRenderer({ view, def, result, onDrill }: RendererProps) {
   // Series carry the engine's column alias; a legend showing "sum_amount" is the key, not a name.
   const columnLabel = useColumnLabel(def, result);
+  const { t } = useTranslation();
   const dir = currentDir();
   const rows = result.rows as ResultRow[];
   // The donut draws its own key and total, so it needs the same palette and text colours the theme
@@ -183,7 +255,8 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
 
   /** Aggregated slices, shared by the ring and the key beside it so they cannot disagree. */
   const donutRows = useMemo(
-    () => (kind === "pie" ? aggregateByCategory(rows, pieCategory, pieMeasure ? [pieMeasure] : []) : []),
+    () =>
+      kind === "pie" ? aggregateByCategory(rows, pieCategory, pieMeasure ? [pieMeasure] : []) : [],
     [kind, rows, pieCategory, pieMeasure],
   );
 
@@ -235,6 +308,7 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
      */
     if (kind === "pie") {
       const sweep = pieSweep(dir);
+      const pieTotal = donutRows.reduce((sum, r) => sum + Number(r[pieMeasure] ?? 0), 0);
       return {
         // No ECharts legend: the <ul> beside the ring is the legend, and it is there because
         // recharts painted legend text in the series colour, which measured 2.54:1 as 12px words.
@@ -282,6 +356,25 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
         ],
         rwCategories: donutRows.map((r) => r[pieCategory] as string | number | null),
         rwKind: kind,
+        /**
+         * Name, value AND share. The visible key beside the ring carries name and share only, so a
+         * screen reader would otherwise never reach the numbers the ring is actually drawn from.
+         */
+        rwTable: {
+          columns: [
+            columnLabel(pieCategory) || t("chartA11y.category"),
+            columnLabel(pieMeasure) || t("chartA11y.value"),
+            t("chartA11y.share"),
+          ],
+          rows: donutRows.map((r) => {
+            const v = Number(r[pieMeasure] ?? 0);
+            return [
+              formatCategory(r[pieCategory] as string | number | null, dir),
+              valueFormatter(v),
+              formatPercent(pieTotal > 0 ? Number(((v * 100) / pieTotal).toFixed(2)) : 0, dir),
+            ];
+          }),
+        } satisfies A11yTable,
       };
     }
 
@@ -329,6 +422,24 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
         },
         series: [{ name: columnLabel(measure), type: "heatmap", data, label: { show: false } }],
         rwCategories: xCats,
+        /**
+         * The matrix, read as rows. Cells the result had no row for stay **blank** rather than
+         * becoming a zero — the chart leaves them unpainted, and "no data" and "zero" are different
+         * claims to make to someone who cannot see the gap.
+         */
+        rwTable: {
+          columns: [
+            columnLabel(seriesField) || t("chartA11y.category"),
+            ...xCats.map((c) => formatCategory(c, dir)),
+          ],
+          rows: yCats.map((yc, yi) => [
+            formatCategory(yc, dir),
+            ...xCats.map((_, xi) => {
+              const cell = data.find((d) => d[0] === xi && d[1] === yi);
+              return cell ? valueFormatter(cell[2]) : "";
+            }),
+          ]),
+        } satisfies A11yTable,
       };
     }
 
@@ -453,8 +564,21 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
       // what it does not recognise.
       rwCategories: cats,
       rwKind: kind,
+      // One column per series, so a two-measure chart reads as two columns rather than losing one.
+      rwTable: {
+        columns: [
+          columnLabel(x) || t("chartA11y.category"),
+          // `series` is Record<string, unknown>[] because the two multi-series shapes build it
+          // differently; the two fields the table needs are read back explicitly.
+          ...series.map((sr, i) => (sr.name as string) || `${t("chartA11y.value")} ${i + 1}`),
+        ],
+        rows: cats.map((c, i) => [
+          formatCategory(c, dir),
+          ...series.map((sr) => valueFormatter(Number((sr.data as unknown[])[i] ?? 0))),
+        ]),
+      } satisfies A11yTable,
     };
-  }, [view, result, rows, dir, columnLabel, kind, donutRows, pieCategory, pieMeasure]);
+  }, [view, result, rows, dir, columnLabel, kind, donutRows, pieCategory, pieMeasure, t]);
 
   /**
    * Turn a click into the group behind the category that was clicked.
@@ -478,6 +602,15 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
       },
     };
   }, [onDrill, option, result.groups]);
+
+  /**
+   * The text alternative, and the caption naming it.
+   *
+   * `view.title` is what `auto-viz` puts there — the report's own name — so the caption says which
+   * chart this is rather than just "chart data", which matters on a dashboard of six of them.
+   */
+  const a11yTable = (option as { rwTable?: A11yTable }).rwTable;
+  const a11yCaption = t("chartA11y.caption", { title: view.title ?? def.name ?? "" });
 
   const ref = useEChart(option, events as never);
 
@@ -517,7 +650,14 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
         }}
       >
         <div style={{ position: "relative", width: 240, height: 240, flex: "0 0 auto" }}>
-          <div ref={ref} data-testid="echarts-canvas" style={{ width: "100%", height: "100%" }} />
+          {/* A canvas has nothing to read, so it is hidden from assistive tech and the table
+              below carries the data instead. */}
+          <div
+            ref={ref}
+            data-testid="echarts-canvas"
+            aria-hidden
+            style={{ width: "100%", height: "100%" }}
+          />
 
           {/* The total, in the hole. An overlay rather than an SVG <text>, so it is centred on the
               ring by the same box that draws the ring. */}
@@ -542,7 +682,13 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
           </div>
         </div>
 
+        {/*
+          Hidden from assistive tech, not from the eye: it carries name and share, and the table
+          below carries name, value AND share. Two partial announcements of the same slices is worse
+          than one complete one.
+        */}
         <ul
+          aria-hidden
           data-testid="donut-legend"
           style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 6, minWidth: 0 }}
         >
@@ -573,6 +719,8 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
             </li>
           ))}
         </ul>
+
+        {a11yTable && <ChartDataTable table={a11yTable} caption={a11yCaption} />}
       </div>
     );
   }
@@ -587,6 +735,14 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
    * migration.
    */
   return (
-    <div key="cartesian" ref={ref} data-testid="echarts-canvas" style={{ height: 320, width: "100%" }} />
+    <div key="cartesian">
+      <div
+        ref={ref}
+        data-testid="echarts-canvas"
+        aria-hidden
+        style={{ height: 320, width: "100%" }}
+      />
+      {a11yTable && <ChartDataTable table={a11yTable} caption={a11yCaption} />}
+    </div>
   );
 }

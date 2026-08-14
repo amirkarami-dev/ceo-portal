@@ -499,3 +499,116 @@ describe("EChartsRenderer — donut", () => {
     expect(option.series[0].data?.find((d) => d.name === "Tehran")?.value).toBe(1200);
   });
 });
+
+// ── The text alternative ─────────────────────────────────────────────────────
+/**
+ * Measured before this existed: on `/reports/rep-revenue` the accessibility tree ended at the last
+ * toolbar button and the chart was **absent entirely** — not an unlabelled image, which is at least
+ * announced, but nothing at all. Every chart is a canvas, so its axis labels, legend and values are
+ * pixels.
+ *
+ * These read the table off the DOM rather than the option, because the DOM is what a screen reader
+ * gets.
+ */
+describe("EChartsRenderer — the chart as text", () => {
+  const cells = (container: HTMLElement, sel: string) =>
+    [...container.querySelectorAll(sel)].map((e) => e.textContent ?? "");
+
+  it("hides the canvas from assistive tech and offers a table instead", () => {
+    const { container, el } = mount(barView);
+
+    // A canvas has nothing to read; announcing it as an empty region is noise.
+    expect(el.getAttribute("aria-hidden")).toBe("true");
+    const table = container.querySelector('[data-testid="chart-a11y-table"]');
+    expect(table).not.toBeNull();
+    // Visually hidden, not display:none — display:none would take it back out of the tree. The
+    // class sits on a wrapping div rather than the table: `.sr-only` pins width to 1px and a table
+    // ignores that, so the bare table measured 251×149 and sat absolutely over the page.
+    expect(table!.closest(".sr-only")).not.toBeNull();
+    expect(table!.querySelector("caption")?.textContent).toBeTruthy();
+  });
+
+  it("gives every series its own column and every category its own row", () => {
+    const { container } = mount(barView);
+
+    // x = province (Tehran, Fars) split by city (Rey, Karaj, Shiraz).
+    expect(cells(container, '[data-testid="chart-a11y-table"] thead th')).toEqual([
+      "استان",
+      "Rey",
+      "Karaj",
+      "Shiraz",
+    ]);
+    expect(cells(container, '[data-testid="chart-a11y-table"] tbody th')).toEqual([
+      "Tehran",
+      "Fars",
+    ]);
+  });
+
+  it("carries the same numbers the chart is drawn from", () => {
+    const { container, option } = mount(barView);
+
+    // Read off the rendered option, so this fails if the table is ever built from anything else.
+    const drawn = option.series.map((s) => (s.data as number[])[0]);
+    const firstRow = cells(container, '[data-testid="chart-a11y-table"] tbody tr:first-child td');
+    expect(firstRow).toEqual(drawn.map((n) => String(n)));
+  });
+
+  it("marks the category as the row header, not a plain cell", () => {
+    const { container } = mount(barView);
+
+    const firstRow = container.querySelector('[data-testid="chart-a11y-table"] tbody tr')!;
+    expect(firstRow.firstElementChild!.tagName).toBe("TH");
+    expect(firstRow.firstElementChild!.getAttribute("scope")).toBe("row");
+  });
+
+  it("leaves a heatmap cell blank when the result had no row for it", () => {
+    const { container } = mount(heatmapView);
+
+    // Three rows over a 2×3 matrix: Rey and Karaj are Tehran's, Shiraz is Fars'. The three empty
+    // cells are empty on purpose — the chart paints nothing there, and "no data" is not "zero".
+    const rows = [...container.querySelectorAll('[data-testid="chart-a11y-table"] tbody tr')].map(
+      (tr) => [...tr.children].map((c) => c.textContent ?? ""),
+    );
+    expect(rows).toEqual([
+      ["Rey", "500", ""],
+      ["Karaj", "700", ""],
+      ["Shiraz", "", "400"],
+    ]);
+  });
+
+  it("gives the donut its values, which the visible key does not show", () => {
+    const { container } = mount(pieView);
+
+    // The key beside the ring carries name and share only. Without the value column a screen reader
+    // never reaches the numbers the ring is drawn from.
+    const rows = [...container.querySelectorAll('[data-testid="chart-a11y-table"] tbody tr')].map(
+      (tr) => [...tr.children].map((c) => c.textContent ?? ""),
+    );
+    expect(rows).toEqual([
+      ["Tehran", "1,200", "75%"],
+      ["Fars", "400", "25%"],
+    ]);
+  });
+
+  it("does not announce the donut's key twice", () => {
+    const { container } = mount(pieView);
+
+    // The visible key stays visible; it is hidden from assistive tech because the table supersedes
+    // it. Two partial announcements of the same slices is worse than one complete one.
+    const legend = container.querySelector('[data-testid="donut-legend"]')!;
+    expect(legend.getAttribute("aria-hidden")).toBe("true");
+    // Still on screen, and still saying what it said before.
+    expect(legend.textContent).toContain("75");
+  });
+
+  it("formats the table the way the page is formatted, in rtl", () => {
+    document.documentElement.dir = "rtl";
+    const { container } = mount(pieView);
+
+    // Persian digits and «٪», because the table goes through the same formatters as everything else
+    // — the reason it is a table and not ECharts' English-templated `aria` summary.
+    const row = container.querySelector('[data-testid="chart-a11y-table"] tbody tr')!;
+    expect(row.textContent).toContain("۱٬۲۰۰");
+    expect(row.textContent).toContain("٪");
+  });
+});

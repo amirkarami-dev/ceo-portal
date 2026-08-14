@@ -1227,6 +1227,27 @@ was **0**: the tab had never been laid out. `resize_window` to a real size gave 
 **Read `window.innerWidth` before believing any layout measurement**, and treat "every variant is
 identical" as a symptom, not a result.
 
+### A canvas chart is not in the accessibility tree at ALL — not even as an image
+**Symptom:** none, on screen. `read_page` on a report showed the tree ending at the last toolbar
+button with **no node for the chart**. Not an unlabelled image, which a screen reader announces as
+"image": absent. The page's whole point, missing, and WCAG 1.1.1 failed.
+**Cause:** ECharts paints axis labels, the legend and every value onto a `<canvas>`. Under recharts
+they were SVG `<text>` and happened to be readable; the migration took that away as a side effect
+nobody would see.
+**Fix:** every chart renders a visually-hidden `<table>` of its data beside the canvas, and the
+canvas is `aria-hidden`. Built inside the option memo from the same variables the series are built
+from, so the text and the picture cannot disagree.
+**Why not ECharts' own `aria: { enabled: true }`:** it puts `role="img"` plus a generated sentence on
+the container, from **English** templates — every one needs translating before it says anything in
+Persian — and even then it is a summary, not the data.
+**Two traps in the hidden table itself:**
+- `.sr-only` pins width to 1px and **a `<table>` ignores it** — the table layout algorithm treats
+  `width` as a floor. The bare table measured 251x149 and sat absolutely positioned over the page.
+  Wrap it in a `<div class="sr-only">`.
+- Use visually-hidden, never `display: none` — that takes it back out of the tree and undoes the fix.
+**Where:** `presentation/renderers/EChartsRenderer.tsx` (`ChartDataTable`), `theme/global.css`.
+**Still open:** bars drill on a canvas click and there is no keyboard path to it.
+
 ### A chart index is NOT a data index — drill-down opened the wrong report for months
 **Symptom:** clicking a bar drills into a different category than the one clicked. Silently: the
 child report is real and renders fine, it is just the wrong one.

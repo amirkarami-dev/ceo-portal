@@ -124,6 +124,12 @@
     "line": "Line",
     "pie": "Pie"
   },
+  "chartA11y": {
+    "caption": "Chart data: {{title}}",
+    "category": "Category",
+    "value": "Value",
+    "share": "Share"
+  },
   "reports": {
     "title": "Report Library",
     "new": "New report",
