@@ -79,7 +79,13 @@ export function Topbar({ isMobile = false, onMenuClick }: { isMobile?: boolean; 
           />
         </Tooltip>
       )}
-      {!isMobile && (
+      {/* Only when there is something to switch BETWEEN.
+          The choice is part of the react-query cache key and scopes the mock API and the admin user
+          list, but in real mode nothing sends it to the server — the API scopes by the tenant claim
+          in the token. With one tenant the control therefore looked like it changed organisation and
+          did not, which is worse than not offering it. The moment a second tenant exists it comes
+          back on its own; nothing here needs revisiting. */}
+      {!isMobile && tenants.length > 1 && (
         <Select
           aria-label={t("tenant.switcher")}
           value={currentTenantId ?? undefined}
