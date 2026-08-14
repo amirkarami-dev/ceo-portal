@@ -20,6 +20,7 @@ import type { ReportDefinition } from "../../contracts/report-definition";
 import type { QueryResult, ResultRow, GroupNode } from "../../contracts/dataset";
 import { formatCategory, formatFitted, formatNumber, type Dir } from "../format";
 import { aggregateByCategory } from "./chart-utils";
+import { resolveDrillTarget } from "./drill";
 import { useUiStore } from "../../store/ui-store";
 import { chartColors } from "../../theme/tokens";
 import { seriesKeysOf } from "../series-keys";
@@ -113,9 +114,19 @@ export default function RechartsRenderer({ view, def, result, onDrill }: Rendere
     formatter: (value: string) => <span style={{ color: colors.text }}>{value}</span>,
   } as const;
 
-  // Map a clicked datum back to its engine group node (drill source); no-op without onDrill or groups.
-  const handleClick = (index: number) => {
-    const node = result.groups?.[index];
+  /**
+   * Map a clicked datum back to its engine group, **by category value rather than by position**.
+   *
+   * This was `result.groups?.[index]`, which is wrong on any sorted report: the engine builds
+   * `groups` while collecting rows and then sorts and slices the rows without re-ordering it, and
+   * `ai/rules.ts` puts a sort on essentially every Ask-AI report. Measured, every bar opened the
+   * wrong one — see `drill.ts`.
+   *
+   * The defect was never ECharts-specific and this path is the one almost every chart uses today, so
+   * it is fixed here too rather than left broken until recharts is deleted.
+   */
+  const drillTo = (category: unknown) => {
+    const node = resolveDrillTarget(result.groups, category);
     if (onDrill && node) onDrill(node);
   };
 
@@ -304,14 +315,18 @@ export default function RechartsRenderer({ view, def, result, onDrill }: Rendere
   }
 
   // default: BarChart
-  const data = withCategoryLabels(aggregateByCategory(rawRows, x, ys), x, dir);
+  const barAgg = aggregateByCategory(rawRows, x, ys);
+  // Kept before `withCategoryLabels`, which overwrites the category with its formatted label — the
+  // reason the click handler had nothing but an index to work with.
+  const barCats = barAgg.map((r) => r[x]);
+  const data = withCategoryLabels(barAgg, x, dir);
   const yw = valueAxisWidth(data, ys, numFmt);
   return (
     <ResponsiveContainer width="100%" height={320}>
       <BarChart
         data={data}
         onClick={(e: { activeTooltipIndex?: number }) => {
-          if (typeof e?.activeTooltipIndex === "number") handleClick(e.activeTooltipIndex);
+          if (typeof e?.activeTooltipIndex === "number") drillTo(barCats[e.activeTooltipIndex]);
         }}
       >
         <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />

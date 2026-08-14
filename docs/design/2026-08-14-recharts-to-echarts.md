@@ -2,8 +2,8 @@
 
 **Date:** 2026-08-14
 **Area:** analytics-web
-**Status:** **steps 1, 2 and 2b done — see the memos at the end.** Branch `feat/echarts-only`.
-Waiting on "start step 3".
+**Status:** **steps 1, 2, 2b and 3 done — see the memos at the end.** Branch `feat/echarts-only`.
+Waiting on "start step 4".
 
 Amir asked to use ECharts only. Agreed as the goal: recharts has no RTL support, which is the whole
 reason `presentation/chart-rtl.ts` exists; ECharts has a real theme system; and dropping recharts
@@ -737,3 +737,75 @@ browser sighting of it will be step 6, when bar charts start routing to ECharts.
 **0** even though echarts is bundled — Rollup resolves a static namespace property access into a
 renamed local, so the symbol never appears. `zrender` returning 1 is the honest control. The reliable
 signals for "is this dependency gone" are the import graph and the size delta, not a symbol grep.
+
+---
+
+## Step 3 — DONE. The data layer, and the drill bug fixed in both renderers.
+
+All five bullets. None of these threw before; they produced quietly wrong charts, which is worse.
+
+### Aggregation
+
+`rows.find(r => r[x] === xc)` took the **first** matching row and discarded the rest. Four rows over
+two months drew two bars each holding one row's value. Now `aggregateByCategory`, with the category
+axis derived from the aggregated rows rather than from `uniq`. Duplicates inside a *split* series are
+summed too, which the old code also got wrong.
+
+### The missing bucket
+
+`uniq` did `if (v === null) continue`, deleting a whole category. It now keeps one missing bucket,
+using a separate flag rather than a sentinel string so no real category can collide with it, and
+`formatCategory(null)` renders it as the blank tick recharts already shows. `undefined` joins `null`
+in that one bucket.
+
+### More than one measure
+
+`mapping.y` is `string | string[]` and this collapsed to the first. Now one series per y key, named
+through `useColumnLabel` — the same names the legend, the table and the exports use. The other meaning
+of multi-series (one measure split by `mapping.series`) still works; both coexist.
+
+### Series names
+
+`name: String(sv)` was raw, so a chart split by month showed a Jalali date on the axis and an ISO one
+in the legend at the same time. Now through `formatCategory`, the same function the axis uses.
+
+### Drill by value — fixed in BOTH renderers
+
+The verdict correction stands: this was never ECharts-specific, and `RechartsRenderer` — the path
+almost every chart uses today — had the identical positional lookup. Fixed in both via a shared
+`renderers/drill.ts`, rather than leaving the recharts path knowingly broken until step 9.
+
+The recharts side needed one extra thing: `withCategoryLabels` **overwrites** the category with its
+formatted label, which is precisely why the click handler had nothing but an index to work with. The
+raw categories are now captured before that.
+
+`resolveDrillTarget` matches on value, comparing as strings (a year is `1405` on one side and `"1405"`
+on the other), and treats `null`/`undefined` as one bucket so a click on the blank tick still drills.
+
+### Verified
+
+**582 tests** across 82 files (up from 557), lint, typecheck and build clean. 8 tests on the shared
+helper, 17 on the renderer's data layer.
+
+Each fix was reverted to confirm it is load-bearing:
+
+| reverted | result |
+| --- | --- |
+| positional drill | `expected 'Tehran' to be 'Fars'` |
+| first-match instead of aggregation | `expected [100, 40] to deeply equal [350, 100]` |
+| `uniq` dropping nulls | **passed — 13/13** |
+
+**That third row is the useful one.** The null fix had *no coverage*: every null test went through the
+single-series path, which `aggregateByCategory` covers, while `uniq` is what covers the other two paths
+— the heatmap matrix and a split series. Four tests were added for those, and reverting the fix now
+fails four times instead of zero.
+
+### Not verified
+
+No browser sighting. No local report produces a `library: "echarts"` view — the heatmap is unreachable
+from auto-viz and the admin charts 403 locally — so this rests on 25 real-mount tests. Step 6 is the
+first time these code paths appear on a screen.
+
+The drill change is **user-visible on the recharts path today**: clicking a bar on a sorted report now
+opens a different report than it did yesterday. That is the fix, not a regression, but it is worth
+knowing before someone reports it as a change in behaviour.
