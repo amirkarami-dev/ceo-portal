@@ -185,9 +185,23 @@ answers the question wrongly.*
 - **Deploy**, then on production: a multi-series chart and the donut for colours 2–6, and
   `/admin/ai/usage` + the audit page in **dark mode** for the two charts that could not be reached
   locally. That last one is the least-proven part of this change.
-- **Remove recharts, render everything with ECharts** — agreed direction, needs its own numbered
-  plan. A read-only audit of what the migration must reproduce was run; the plan comes from that.
-  Key open question it must settle: ECharts defaults to a **canvas** renderer, so every test
-  asserting on `.recharts-*` DOM disappears unless `{ renderer: 'svg' }` is forced.
+- **Remove recharts, render everything with ECharts** — agreed direction, planned and verified but
+  **not started**. Ten steps in
+  [`docs/design/2026-08-14-recharts-to-echarts.md`](../design/2026-08-14-recharts-to-echarts.md),
+  4–6 days, shippable after each. Waiting on "start step 1".
+- **Live defects that verification turned up, none of which needs the migration first:**
+  - **Positional drill-down opens the wrong report.** `result.groups?.[i]` is indexed by row
+    position, but `groupNodes` is built before the sort and slice (`engine.ts:576-589`) and never
+    re-ordered. With one `desc` sort and no nulls, **all three** bars in a test drilled into the
+    wrong group. Both renderers — `RechartsRenderer.tsx:121` and `EChartsRenderer.tsx:53` — and
+    `ai/rules.ts` puts a sort on nearly every Ask-AI report. Zero test coverage.
+  - **`EChartsRenderer.uniq()` deletes null categories**, so a bar silently disappears where the
+    recharts path keeps it.
+  - **Dark-mode PDF chart is unreadable.** `echarts-theme.ts:39` is `backgroundColor: "transparent"`,
+    so the snapshot is a transparent PNG and light axis text prints onto the white page. *From the
+    theme shipped in this very task.* Also: only dashboard widgets ever export a chart image at all —
+    ReportViewer and Ask-AI PDFs never have. No test covers any of it.
+  - **`advancedECharts`** is a user-visible admin toggle that nothing reads.
+  - **The heatmap is unreachable from auto-viz** — rule 5 never sets `mapping.series`.
 - The ambient-grid advisory, if it is ever worth acting on.
 - `KpiTile`'s `tone="emerald"` could be renamed `success` — cosmetic, touches four call sites.

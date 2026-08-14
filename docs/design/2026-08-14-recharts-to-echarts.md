@@ -8,44 +8,193 @@ Amir asked to use ECharts only. Agreed as the goal: recharts has no RTL support,
 reason `presentation/chart-rtl.ts` exists; ECharts has a real theme system; and dropping recharts
 takes ~500KB out of a 3.6MB bundle. Not agreed as a same-day change, which is why this is a plan.
 
-The plan below came out of a read-only audit (four parallel surveys over the renderer, the tests,
-the consumers and the ECharts baseline; three independent critics; one synthesis). It found 125
-things the migration must reproduce and 19 gaps. **I verified its one blocker myself before
-writing this down** — see immediately below. I have not re-verified every one of the other 124
-line-level claims; treat file:line references as leads to check, not as facts.
+## How much of this is checked
+
+The plan came out of a read-only audit (four parallel surveys, three critics, one synthesis): 125
+things the migration must reproduce, 19 gaps. It was then put through a second, **adversarial** pass
+whose only job was to confirm or refute its load-bearing claims — 23 verdicts, plus a critic whose
+job was to find what the verification itself missed.
+
+| | count |
+| --- | --- |
+| CONFIRMED | 15 |
+| PARTLY-TRUE | 5 |
+| REFUTED | 3 |
+| critic findings against the verification | 5 |
+
+Mechanical sweep of the plan's own references, done by hand: of 18 cited `file:line`, **15 exact**,
+2 off by one line, 1 wrong folder (`ReportView.tsx` is in `presentation/`, not
+`presentation/renderers/`). Line counts 335 / 175 exact. `auto-viz.test.ts:55/61/72`,
+`contracts.test.ts:132` and `view-switching.test.ts:79/89` all exact.
+
+**What is marked CONFIRMED below was checked.** The ~100 remaining line-level claims inside the step
+descriptions were *not* individually re-verified — treat their file:line as leads, not facts.
 
 ---
 
-## Verified before anything else: a live bug, today, in code that is already deployed
+## The live bug: positional drill-down, and a correction to what was first reported
 
-The audit claimed `EChartsRenderer` silently deletes null category values while the recharts path
-keeps them. **It is right, and it is not only a migration concern — it is shipped.** Proven with a
-throwaway test against the real renderer:
+**This is the most important thing in this document, and the first version of it was wrong.**
+
+First reported as: *"EChartsRenderer drops null categories, and drill-down therefore targets the
+wrong report — with 3 groups and 2 bars, clicking the second bar opens the third group."*
+
+Half of that holds. Corrected, and proved by running it:
+
+### Half one — null categories are dropped. CONFIRMED, and ECharts-only.
 
 | path | categories produced |
 | --- | --- |
 | recharts (`aggregateByCategory`) | `["Tehran", null, "Fars"]` — 3 bars |
-| **ECharts (`uniq`)** | `["Tehran", "Fars"]` — **2 bars, the third value is gone** |
+| **ECharts (`uniq`)** | `["Tehran", "Fars"]` — **2 bars, one value silently gone** |
 
-Two separate defects fall out of it:
+`uniq()` at `EChartsRenderer.tsx:30` does `if (v === null) continue`; `aggregateByCategory` keeps the
+bucket via `row[categoryKey] ?? null`, and `formatCategory(null)` renders it as a blank tick. The
+engine deliberately buckets nulls and pins the behaviour (`engine.edge.test.ts:69`).
 
-1. **A whole bar disappears** with no error and no failing test. `uniq()` at
-   `EChartsRenderer.tsx:31` does `if (v === null) continue`, while `aggregateByCategory` keeps the
-   bucket via `row[categoryKey] ?? null` and `formatCategory(null)` renders it as a blank tick.
-2. **Drill-down then targets the wrong report.** The click handler maps `dataIndex` positionally
-   into `result.groups`. In the test above `groups.length` is 3 and the axis has 2 entries, so
-   clicking the second bar opens the third group.
+### Half two — drill-down. Bigger than reported, and not what was said.
 
-This is reachable: the query engine deliberately buckets nulls under a stable key and pins the
-behaviour in `query/engine.test.ts` — `engine.edge.test.ts:69`, "null grouping key buckets nulls
-together under a stable key". Any report grouped on a column with a missing value hits it.
+Three corrections:
 
-Today it only affects heatmaps and auto-viz rule-5 views, which are rare — **which is exactly why
-it is cheap to fix now and expensive after every chart routes through this file.** It is step 3.
+1. **The arithmetic was wrong.** Groups are `[Tehran, null, Fars]` and bars are `[Tehran, Fars]`, so
+   clicking the second bar opens `groups[1]` — the **null** group, the second one. `groups[2]`
+   (Fars) becomes unreachable. Not "the third group".
+2. **It is not caused by the null drop, and it is not ECharts-specific.**
+   `RechartsRenderer.tsx:121` does the identical `result.groups?.[index]`. **The shipped recharts
+   path — what almost every chart in the app uses today — has the same bug.**
+3. **A plain sort is enough to break it, with no nulls anywhere.** `groupNodes.push` happens during
+   collection (`engine.ts:576-580`); rows are sorted at `engine.ts:585` and sliced at `:588-589`,
+   while `groupNodes` is never re-ordered or sliced. `ai/rules.ts:118-126` adds a sort to
+   essentially every Ask-AI report.
+
+Proved against the real engine — three provinces, no nulls, one `desc` sort:
+
+```
+  bars drawn (rows order): ["Fars","Yazd","Tehran"]
+  groups[] order         : ["Tehran","Fars","Yazd"]
+   click bar 0 "Fars"   -> groups[0] = "Tehran"  <= WRONG REPORT
+   click bar 1 "Yazd"   -> groups[1] = "Fars"    <= WRONG REPORT
+   click bar 2 "Tehran" -> groups[2] = "Yazd"    <= WRONG REPORT
+```
+
+**Every bar drills into the wrong report.** Reachable through `ReportViewer.tsx:272` and
+`AskAiBuilder.tsx:209`, which pass `onDrill` down. Dashboard widgets do not pass it
+(`WidgetFrame.tsx:207`), so they are unaffected.
+
+Drill-down has **zero test coverage** — no test anywhere passes `onDrill` to a renderer.
+
+**This is not really migration work.** It is a shipped, library-independent defect that resolving the
+group by category *value* instead of by index would close today, in both renderers. It sits at step 3
+below only because that is where the plan put it.
 
 ---
 
-# Removing recharts: an ECharts-only migration, step by step
+## Verdicts on the plan's load-bearing claims
+
+### Corrections that change what a step must do
+
+**1. The jsdom canvas stub is necessary but NOT sufficient.** *(PARTLY-TRUE)*
+With the stub alone you still get one `[ECharts] Can't get DOM width or height` warning per chart,
+because `EChartsRenderer.tsx:123/174` sizes with `width: "100%"` and jsdom reports `clientWidth` as
+0. Measured: stub **plus** an explicit `opts={{width,height}}` gives **0 errors, 0 warnings**. So
+step 2 must also stub `clientWidth`/`clientHeight`, or pass explicit sizes, or accept one warning
+per chart.
+
+**2. The SVG renderer's console noise is a one-off, not per chart.** *(PARTLY-TRUE)*
+zrender caches text measurement per (text, font). Measured: first chart 11 errors, a second
+identical chart **0**, a third with different Persian labels 8. Two further corrections: each
+occurrence prints a ~11-line jsdom stack, so real stderr is 100+ lines rather than 12; and **SVG
+renderer + canvas stub together measured 0 errors and 0 warnings**. The plan's "SVG is noisy"
+argument does not survive — if SVG is chosen, the stub removes the noise.
+
+**3. SVG output has NO class names and NO `data-*` attributes. At all.** *(REFUTED — worse than the plan said)*
+The complete attribute vocabulary of a rendered chart is `baseProfile, d, dominant-baseline, fill,
+fill-opacity, height, stroke, stroke-linecap, stroke-width, style, text-anchor, transform, version,
+width, x, xmlns, xmlns:xlink, y`. No `class`, no `id`, no `data-*`, no `viewBox`.
+What *is* assertable: `<text>` textContent (verified localized —
+`["0","200","400","600","800","1,000","1,200","الف","ب","ج","درآمد"]`), tag counts, and geometry
+attributes. Every `.recharts-bar-rectangle` / `.recharts-pie-sector` / `.recharts-line` selector must
+be **rewritten, not translated**.
+
+**4. PDF chart export is narrower than anyone thought, and untested.** *(PARTLY-TRUE + REFUTED)*
+- Only **dashboard widgets** ever export a chart image. `WidgetFrame.tsx:151` is the sole call site
+  that passes a chart root. `features/export/index.tsx:49` passes none — and that is the menu used by
+  **ReportViewer** (`:210`) and **Ask-AI** (`:157`). Those PDFs have *never* contained a chart.
+- **Zero test coverage.** If `chartSnapshot` returned null for every chart, `npm test` would stay
+  fully green. Only a human exporting a widget PDF would notice.
+- **A new defect found in passing:** `echarts-theme.ts:39` sets `backgroundColor: "transparent"`, so
+  the canvas snapshot is a transparent PNG. In **dark mode its light axis text prints onto the white
+  PDF page** and is unreadable. Live today, from the theme shipped this morning.
+- Critic's warning: if SVG is ever chosen, `pdf.ts:19` must change **in the same step**, not deferred
+  to step 9 — after step 8 the blast radius is total, not narrow.
+
+**5. The `notMerge` rebuild is our own doing, and one of its three consequences is false.** *(PARTLY-TRUE)*
+`echarts-for-react` compares props with `fast-deep-equal` (CONFIRMED) and fresh closures do make it
+false on every render (CONFIRMED). But the destructive rebuild comes from **our own `notMerge`
+prop** — out of the box the library does a merge `setOption`, which `echarts.js:381` skips. Of the
+three claimed consequences: dataZoom reset **real**; tooltip loss **real and worse than stated** (the
+DOM node is destroyed, so it vanishes mid-hover rather than flickering); animation restart
+**REFUTED** — echarts deliberately reuses views across `notMerge`.
+
+**6. The freshly-built `theme` object is harmless.** *(REFUTED — a worry the plan raised needlessly)*
+`echartsTheme(mode)` returns a function-free literal, so `fast-deep-equal` returns true for two calls
+with the same mode. It does **not** trigger the dispose-and-recreate path at `core.js:39`. Only the
+closures matter.
+
+**7. `pieSweep` — the dangerous path is KEEPING it, not deleting it.** *(critic, PARTLY-TRUE)*
+The confirmed finding — that deleting the call is invisible to every test — points an implementer at
+the safe-looking wrong choice. A verbatim port of `startAngle`/`endAngle` onto an ECharts pie is
+**bit-identical to passing nothing**, in both directions, while `chart-rtl.test.ts` keeps passing.
+ECharts wants `clockwise: dir !== "rtl"`. Still the highest silent-failure risk in the plan.
+
+**8. Prefer a real mount over asserting what you handed to a mock.** *(critic)*
+A `vi.mock("echarts-for-react")` capture cannot catch an option ECharts rejects, renames or
+normalises away. `echarts.getInstanceByDom(el).getOption()` on a real mount can, and is stronger than
+both the mock and the old recharts DOM counts.
+
+**9. Step 2's acceptance criterion is nondeterministic as written.** *(critic)*
+"Zero unhandled rejections" is not a pass/fail a partially-effective stub can satisfy reliably:
+errors landing off a `requestAnimationFrame` after a file completes surface in whichever file runs
+next, giving intermittently green CI and unbisectable blame.
+
+### Confirmed exactly as written
+
+- Un-mocked ECharts in this jsdom fails with the `dpr` **unhandled rejection**.
+- zrender emits **zero** `<tspan>` ever, so `RechartsRenderer.test.tsx:151` becomes a vacuously green
+  assertion under ECharts. Delete it, do not port it.
+- The SVG renderer **would** silently break the PDF chart image.
+- Only PDF touches chart DOM — CSV / Excel / JSON do not.
+- **`advancedECharts` is read by nothing.** A user-visible admin toggle («ECharts پیشرفته») wired
+  through six places and consumed by none.
+- **The heatmap is unreachable from auto-viz.** Rule 5 emits `component: "EChart"` without
+  `mapping.series`; the heatmap branch needs both. Every matrix report renders as a single-series bar
+  with a dimension dropped.
+- **No producer emits an area chart** — confirmed independently: `SwitchTarget` is
+  `ViewType | "bar" | "line" | "pie"`, `CHART_SUBTYPES` has only those three, and the only
+  `AreaChart` reference is the branch inside `RechartsRenderer` itself.
+- ECharts' tooltip hard-codes `float:right` on the value and `margin-left:2px` on the name, and
+  **neither is overridable** through `tooltip.textStyle.align`. A custom formatter is mandatory for
+  RTL.
+
+---
+
+## Worth doing before, or independently of, the migration
+
+Live defects, not migration work. None of them needs recharts removed first:
+
+1. **Positional drill-down** — every bar on a sorted report opens the wrong one, in *both* renderers.
+   The biggest and most reachable of these.
+2. **Null categories dropped** by `EChartsRenderer.uniq()`.
+3. **Dark-mode PDF chart** — transparent PNG, light text, white page.
+4. **`advancedECharts`** — delete the toggle or make it mean something.
+5. **The unreachable heatmap** — auto-viz rule 5 never sets `mapping.series`.
+
+---
+
+## The plan itself, step by step
+
+*Everything from here down is the audit's original output, kept as written. Where the verdicts above
+contradict it, **the verdicts win** — they were measured, this was reasoned.*
 
 ## Where this starts from
 
@@ -65,6 +214,12 @@ So steps 0-2 of the older plan are done. What remains is the renderer itself. Fo
 ---
 
 ## The canvas-vs-SVG decision — decide this first, it shapes every test below
+
+> **The table in this section is superseded — read verdicts 1, 2 and 3 above first.** Measured
+> afterwards: the noise is a one-off per distinct text, not per chart; the canvas stub alone still
+> warns unless the chart also gets an explicit size; and SVG **plus** the stub measured 0 errors and
+> 0 warnings, which removes this section's main argument against SVG. What survives intact is the
+> PDF consequence: SVG breaks the chart image, and `pdf.ts:19` would have to change in the same step.
 
 **Recommendation: keep the default canvas renderer in production, and stub `HTMLCanvasElement.prototype.getContext` in `C:/Projects/ceo-portal/analytics-web/vitest.setup.ts`.**
 
@@ -121,6 +276,13 @@ One assertion deserves a warning: `RechartsRenderer.test.tsx:151` checks `svg te
 ---
 
 ## Step 3 — Fix EChartsRenderer's data layer (before anything is routed to it)
+
+> **The five bullets stand; the framing does not.** "Drill by value, not position" is not an
+> EChartsRenderer data-layer problem — `RechartsRenderer.tsx:121` has the identical positional
+> lookup, and a plain sort breaks it with no nulls involved. See the live-bug section above, where it
+> is proved. Fix it in a shared helper for both renderers, or state plainly that the recharts path
+> stays broken until step 9 deletes it. Do not use this step's per-bar arithmetic as the acceptance
+> criterion — it was wrong.
 
 Today this only affects heatmaps and auto-viz rule-5 views, which are rare. That is exactly why it is cheap now and expensive later.
 
