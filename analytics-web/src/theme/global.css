@@ -134,11 +134,18 @@ body {
     position: relative;
   }
 
+  /* Sized outright rather than as a negative inset. The first attempt used `inset: -14px` on the
+     assumption of a 16px icon; measured on /reports at 375px the pencil is actually 13×15, so the hit
+     area came to 41×43 — passing a reading of the rule and failing a finger. Centring a fixed 44×44
+     box is 44 whatever the icon turns out to be. */
   main .ant-typography-edit::after {
     content: "";
     position: absolute;
-    /* 16px icon + 14px each side = 44 */
-    inset: -14px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px;
+    height: 44px;
   }
 
   /* The segmented control centres its own label, so the height goes on the item and

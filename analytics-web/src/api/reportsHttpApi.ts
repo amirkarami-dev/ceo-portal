@@ -70,9 +70,11 @@ export const reportsHttpApi = {
   },
 
   /**
-   * POST /api/Reports — saves a new report or updates an existing one.
-   * The backend returns { id } for new records; we echo back a SavedReport
-   * using the provided definition so the caller has an up-to-date object.
+   * POST /api/Reports — **creates**. It does not update.
+   *
+   * The handler calls `Add` unconditionally and ignores the definition's id, so posting an existing
+   * report inserts a second row rather than changing the first. Use {@link update} to edit one.
+   * The endpoint returns the new id; we echo back a SavedReport from the definition we sent.
    */
   async save(opts: {
     definition: ReportDefinition;
@@ -99,5 +101,30 @@ export const reportsHttpApi = {
       visibility: visibility ?? "private",
       updatedAt: new Date().toISOString(),
     };
+  },
+
+  /**
+   * PUT /api/Reports/{id} — edits a report in place.
+   *
+   * `id` is the **row** id (`SavedReport.id`), not `definition.id`. Those are different values in
+   * real mode: the row id is the database key, while `definition.id` is an AI-generated string like
+   * `rpt_monthly_revenue_by_province`. They happen to be equal in the mock seed, which is exactly how
+   * a mix-up would go unnoticed locally.
+   *
+   * No `name` argument: the server takes the report's name from the definition, because it is stored
+   * both as a column and inside the definition JSON and accepting both invites them to disagree.
+   *
+   * Returns nothing — the endpoint is 204. Callers should invalidate rather than trust a local echo.
+   */
+  async update(opts: {
+    id: string;
+    definition: ReportDefinition;
+    visibility?: "private" | "tenant";
+  }): Promise<void> {
+    const { id, definition, visibility } = opts;
+    await httpClient.put<void>(`/api/Reports/${encodeURIComponent(id)}`, {
+      definition,
+      visibility,
+    });
   },
 };

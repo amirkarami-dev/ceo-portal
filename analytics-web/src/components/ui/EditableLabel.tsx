@@ -1,7 +1,5 @@
 import { Typography, message } from "antd";
-// No EditOutlined: antd draws its own pencil for the trigger. The two icons here are the progress
-// state, which lives beside the label rather than inside antd's element.
-import { CheckOutlined, LoadingOutlined } from "@ant-design/icons";
+import { CheckOutlined, EditOutlined, LoadingOutlined } from "@ant-design/icons";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -151,6 +149,11 @@ export function EditableLabel({
                 // A string, deliberately — antd reads aria-label off this and a ReactNode gives "".
                 tooltip: triggerName,
                 maxLength,
+                // Supplied only to stop antd using its own fallback, which is
+                // `EditOutlined role="button"` *inside* the real `<button>` — a nested interactive
+                // role, visible in the accessibility tree as a button within a button. Same pencil,
+                // without the second role. (The progress state is not here; see below.)
+                icon: <EditOutlined />,
               }
         }
       >

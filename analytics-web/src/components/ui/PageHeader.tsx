@@ -3,11 +3,21 @@ import type { ReactNode } from "react";
 
 export function PageHeader({
   title,
+  titleNode,
   subtitle,
   breadcrumbs,
   actions,
 }: {
-  title: ReactNode;
+  title?: ReactNode;
+  /**
+   * Replaces the heading outright, for a caller that renders its own — an editable title, say.
+   *
+   * It exists because passing such a node as `title` puts a heading **inside** a heading: this
+   * component's own `Typography.Title` wrapping another one. The DOM is invalid and
+   * `getByRole("heading")` starts throwing "found multiple elements" in every test that touches the
+   * page. Use this instead and the caller's element is the heading.
+   */
+  titleNode?: ReactNode;
   subtitle?: ReactNode;
   breadcrumbs?: { title: ReactNode; href?: string }[];
   actions?: ReactNode;
@@ -19,9 +29,11 @@ export function PageHeader({
       ) : null}
       <Flex align="center" justify="space-between" gap={12} wrap>
         <div>
-          <Typography.Title level={3} style={{ margin: 0, fontWeight: 500 }}>
-            {title}
-          </Typography.Title>
+          {titleNode ?? (
+            <Typography.Title level={3} style={{ margin: 0, fontWeight: 500 }}>
+              {title}
+            </Typography.Title>
+          )}
           {subtitle ? (
             <Typography.Text type="secondary">{subtitle}</Typography.Text>
           ) : null}

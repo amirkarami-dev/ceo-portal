@@ -19,10 +19,11 @@ import type {
   ReportDefinition,
   ReportView,
 } from "@/contracts";
-import { useReport } from "@/api/queries";
+import { useReport, useUpdateReport } from "@/api/queries";
 import { buildDrilldownDefinition } from "@/query/drilldown";
 import { chooseView } from "@/presentation/auto-viz";
 import { formatDateTime } from "@/presentation/format";
+import { labelLocaleOf, useReportTitle } from "@/presentation/labels";
 import { getModelForDataset } from "@/semantic/registry";
 import { executeReport } from "@/api/executeApi";
 import { ReportViewRenderer } from "@/presentation/ReportView";
@@ -36,6 +37,7 @@ import {
 import { useAuth } from "@/auth/useAuth";
 import { reportOwnerLabel } from "@/features/library/report-display";
 import {
+  EditableLabel,
   ErrorState,
   Loading,
   PageContainer,
@@ -59,6 +61,9 @@ export function ReportViewer() {
   const navigate = useNavigate();
   const { roles, user } = useAuth();
   const { data, isLoading, isError } = useReport(reportId);
+  const updateReport = useUpdateReport();
+  // The title a reader sees: what a person typed for this language, else the definition's own name.
+  const title = useReportTitle(data?.definition);
 
   const [filterValues, setFilterValues] = useState<Record<number, FilterValue>>({});
   const [activeIdx, setActiveIdx] = useState(0);
@@ -157,6 +162,36 @@ export function ReportViewer() {
     [activeDef, semantic],
   );
 
+
+  /**
+   * Rename the report in place.
+   *
+   * Written into `titleOverrides` for the language being read, not into `name`. `name` stays the
+   * original: it is what the server keeps in its own column and what the library list sorts and
+   * searches on, and overwriting it would push one language's wording onto every reader.
+   *
+   * An empty box clears the override rather than saving a blank title, which is the only way back to
+   * the automatic name once one has been set.
+   */
+  const saveTitle = useCallback(
+    async (next: string) => {
+      if (!data) return;
+      const locale = labelLocaleOf(i18n.language);
+      const overrides = { ...(data.definition.titleOverrides ?? {}) };
+      if (next) overrides[locale] = next;
+      else delete overrides[locale];
+
+      await updateReport.mutateAsync({
+        id: data.id,
+        definition: {
+          ...data.definition,
+          titleOverrides: Object.keys(overrides).length ? overrides : undefined,
+        },
+      });
+    },
+    [data, i18n.language, updateReport],
+  );
+
   if (isLoading) return <Loading rows={8} />;
   if (isError || (data === null && !isLoading)) {
     return <Result status="404" title={t("viewer.notFound")} />;
@@ -177,6 +212,7 @@ export function ReportViewer() {
     roles.includes("PowerUser") ||
     roles.includes("TenantAdmin") ||
     roles.includes("SuperAdmin");
+
 
   const drillUp = (toRoot = false) => {
     setDrillPath((p) => (toRoot ? [] : p.slice(0, -1)));
@@ -216,7 +252,18 @@ export function ReportViewer() {
   return (
     <PageContainer>
       <PageHeader
-        title={data.definition.name}
+        // titleNode, not title: PageHeader wraps `title` in its own Typography.Title, and
+        // EditableLabel already renders one — nesting them makes two headings in the DOM.
+        titleNode={
+          <EditableLabel
+            value={title}
+            onSave={saveTitle}
+            level={3}
+            tooltip={t("common.editLabel")}
+            disabled={!canEdit}
+            style={{ fontWeight: 500 }}
+          />
+        }
         subtitle={data.definition.description}
         actions={headerActions}
       />

@@ -1035,13 +1035,18 @@ silently stops matching mid-test. Assert on text, not role, for anything editabl
 ### `userEvent.keyboard("{Enter}")` has keyCode 0, so antd never sees it
 antd's `Editable` confirms on **keyUp**, gated on `keyCode === KeyCode.ENTER` and on the preceding
 keyDown having recorded the same code (`antd/es/typography/Editable.js:57-85`). Measured: user-event
-delivers `{"key":"Enter","keyCode":0,"which":0}`. Real browsers send 13, so **the component works and
-only the test is broken** — the symptom is a save that never fires and an editor that never closes,
-which reads exactly like a broken component.
+delivers `{"key":"Enter","keyCode":0,"which":0}`, which never satisfies that check. The symptom is a
+save that never fires and an editor that never closes — which reads exactly like a broken component.
 **Fix:** drive the events directly — `fireEvent.keyDown(el, { keyCode: 13 })` then
-`fireEvent.keyUp(el, { keyCode: 13 })`. Escape needs `keyCode: 27`. Or test the **blur** path, which
-needs no keyCode and is a real user path anyway.
+`fireEvent.keyUp(el, { keyCode: 13 })`. Escape needs `keyCode: 27`. Better still, test the **blur**
+path, which needs no keyCode, is a real user action, and is the one that has actually been verified in
+a browser.
 **Applies to any rc-* component that gates on `keyCode`**, not just Typography.
+**Still open, do not assume:** whether a *physical* Enter confirms in a real browser is **unverified**.
+`keyCode` is deprecated but browsers do populate it, so it ought to work — that is an inference from
+the spec, not a measurement. The in-app browser could not settle it either: its `key` action delivered
+**zero** keydown/keyup events to a focused textarea (measured with listeners attached), so the Enter
+path has never been exercised by a real keypress in this project. Confirm by hand before relying on it.
 
 ### A CSS shorthand you grep for may not be the shorthand that ships
 `inset: -14px` in the source comes out of the Vite build as

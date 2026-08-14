@@ -109,6 +109,50 @@ export const useSaveReport = () => {
   });
 };
 
+/**
+ * Edit a saved report in place (PUT), as opposed to {@link useSaveReport}, which always creates.
+ *
+ * `id` is the **row** id (`SavedReport.id`). In real mode that is not `definition.id`; they coincide
+ * only in the mock seed.
+ *
+ * Invalidates the single report as well as the list. The list alone is not enough — the viewer reads
+ * `rk.report(id)`, so a rename would show in the library and not on the page you just renamed it on.
+ */
+export const useUpdateReport = () => {
+  const qc = useQueryClient();
+  const t = useTid();
+  return useMutation<
+    void,
+    Error,
+    { id: string; definition: ReportDefinition; visibility?: "private" | "tenant" }
+  >({
+    mutationFn: USE_REAL_API
+      ? ({ id, definition, visibility }) => reportsHttpApi.update({ id, definition, visibility })
+      : async ({ id, definition, visibility }) => {
+          // The mock store replaces the whole row, so read it first and keep the fields this call is
+          // not about. Passing a fresh object would blank ownerName and reset visibility to private —
+          // and an absent visibility means "leave it alone", matching the server.
+          const existing = await mockApi.reports.get(id);
+          await mockApi.reports.save({
+            ...(existing ?? {
+              id,
+              tenantId: t ?? "",
+              ownerName: "",
+              visibility: "private" as const,
+              updatedAt: "",
+            }),
+            id,
+            definition,
+            ...(visibility ? { visibility } : {}),
+          });
+        },
+    onSuccess: (_data, { id }) => {
+      void qc.invalidateQueries({ queryKey: rk.reports(t) });
+      void qc.invalidateQueries({ queryKey: rk.report(id) });
+    },
+  });
+};
+
 export const useDeleteReport = () => {
   const qc = useQueryClient();
   const t = useTid();
