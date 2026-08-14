@@ -96,8 +96,14 @@ export function chooseView(
     }
 
     // RULE 3 — one categorical dimension + measure, ≤12 categories → BarChart
+    //
+    // ECharts, not recharts, since step 6 of docs/design/2026-08-14-recharts-to-echarts.md. The
+    // component string stays "BarChart": it is the identity key for `findViewForTarget`,
+    // `ViewSwitcher`, `WidgetFrame` and AskAiBuilder's motion key, all of which sniff it as a
+    // case-insensitive substring. Renaming it to "bar" breaks the view switcher with nothing to
+    // type-check the break.
     if (measure && catDims.length === 1 && dateDims.length === 0 && categories <= BAR_MAX_CATEGORIES) {
-      return view("chart", "recharts", "BarChart", def.name, {
+      return view("chart", "echarts", "BarChart", def.name, {
         x: catDims[0].field, y: measure.key,
       });
     }

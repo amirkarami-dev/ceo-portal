@@ -8,7 +8,8 @@ const CHART_SUBTYPES: Record<
   "bar" | "line" | "pie",
   Pick<ReportView, "type" | "library" | "component">
 > = {
-  bar: { type: "chart", library: "recharts", component: "BarChart" },
+  // ECharts since step 6. Line and pie follow in steps 7 and 8; the component strings never change.
+  bar: { type: "chart", library: "echarts", component: "BarChart" },
   line: { type: "chart", library: "recharts", component: "LineChart" },
   pie: { type: "chart", library: "recharts", component: "PieChart" },
 };

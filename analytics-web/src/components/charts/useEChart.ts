@@ -79,6 +79,24 @@ export function useEChart(option: EChartsCoreOption | null, events?: EChartEvent
     window.addEventListener("resize", onResize);
 
     /**
+     * Follow the CONTAINER, not just the window.
+     *
+     * recharts sized itself through `ResponsiveContainer`, which watches its own box with a
+     * ResizeObserver. A bare `echarts.init` measures once and then only ever hears about window
+     * resizes — so a chart whose container changes without the window changing keeps its old canvas
+     * size. On a dashboard that is the normal case, not an edge one: react-grid-layout drags and
+     * resizes widgets, and the sidebar folds, none of which resizes the window.
+     *
+     * Losing this was a parity regression waiting to happen, and it is invisible in tests because
+     * jsdom reports no layout at all.
+     */
+    const ro =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(() => instance.resize())
+        : undefined;
+    if (ref.current) ro?.observe(ref.current);
+
+    /**
      * Redraw once the webfont has landed.
      *
      * Vazirmatn is loaded asynchronously (`theme/global.css`), canvas text is rasterised once, and
@@ -97,6 +115,7 @@ export function useEChart(option: EChartsCoreOption | null, events?: EChartEvent
     return () => {
       alive = false;
       window.removeEventListener("resize", onResize);
+      ro?.disconnect();
       instance.dispose();
       chart.current = null;
     };

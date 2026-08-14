@@ -6,6 +6,18 @@ const setOptionCalls: unknown[][] = [];
 const boundEvents: string[] = [];
 const listeners: Record<string, (p: unknown) => void> = {};
 const disposed = { count: 0 };
+const observed: unknown[] = [];
+const resizes: number[] = [];
+const observers: CapturingResizeObserver[] = [];
+const disconnects = { count: 0 };
+class CapturingResizeObserver {
+  constructor(public cb: () => void) {
+    observers.push(this);
+  }
+  observe(el: unknown) { observed.push(el); }
+  unobserve() {}
+  disconnect() { disconnects.count++; }
+}
 vi.mock("echarts", () => ({
   init: (...args: unknown[]) => {
     initCalls.push(args);
@@ -15,7 +27,7 @@ vi.mock("echarts", () => ({
         boundEvents.push(name);
         listeners[name] = handler;
       },
-      resize: vi.fn(),
+      resize: () => void resizes.push(1),
       dispose: () => { disposed.count++; },
     };
   },
@@ -44,6 +56,11 @@ beforeEach(() => {
   boundEvents.length = 0;
   for (const k of Object.keys(listeners)) delete listeners[k];
   disposed.count = 0;
+  observed.length = 0;
+  resizes.length = 0;
+  observers.length = 0;
+  disconnects.count = 0;
+  vi.stubGlobal("ResizeObserver", CapturingResizeObserver);
   useUiStore.setState({ themeMode: "light" });
 });
 
@@ -160,5 +177,44 @@ describe("useEChart — event handlers", () => {
 
     expect(boundEvents).toEqual([]);
     expect(initCalls).toHaveLength(1);
+  });
+});
+
+/**
+ * recharts sized itself through ResponsiveContainer, which watches its own box. A bare echarts.init
+ * measures once and then hears only window resizes — so on a dashboard, where react-grid-layout drags
+ * and resizes widgets and the sidebar folds, the chart would keep its old canvas size. jsdom reports
+ * no layout, so this is only checkable by the wiring.
+ */
+describe("useEChart — follows its container, not just the window", () => {
+  it("observes the chart element", () => {
+    render(<Chart option={option} />);
+
+    expect(observed).toHaveLength(1);
+    expect(observed[0]).toBe(document.querySelector('[data-testid="chart"]'));
+  });
+
+  it("disconnects on unmount, so the observer does not outlive the chart", () => {
+    const { unmount } = render(<Chart option={option} />);
+    unmount();
+
+    expect(disconnects.count).toBe(1);
+  });
+
+  it("resizes the instance when the container changes", () => {
+    render(<Chart option={option} />);
+    expect(resizes).toHaveLength(0);
+
+    // Fire the observer's own callback, which is what a layout change does.
+    observers[0].cb();
+
+    expect(resizes, "a container resize did not reach instance.resize()").toHaveLength(1);
+  });
+
+  it("a window resize still works too", () => {
+    render(<Chart option={option} />);
+    window.dispatchEvent(new Event("resize"));
+
+    expect(resizes).toHaveLength(1);
   });
 });

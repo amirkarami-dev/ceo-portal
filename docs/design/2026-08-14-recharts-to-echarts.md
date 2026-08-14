@@ -2,8 +2,8 @@
 
 **Date:** 2026-08-14
 **Area:** analytics-web
-**Status:** **steps 1-5 done (2b included) — see the memos at the end.** Branch `feat/echarts-only`.
-Waiting on "start step 6". Nothing is routed to ECharts yet.
+**Status:** **steps 1-6 done (2b included) — see the memos at the end.** Branch `feat/echarts-only`.
+Waiting on "start step 7". **Bar charts now render with ECharts;** line and pie are still recharts.
 
 Amir asked to use ECharts only. Agreed as the goal: recharts has no RTL support, which is the whole
 reason `presentation/chart-rtl.ts` exists; ECharts has a real theme system; and dropping recharts
@@ -966,3 +966,66 @@ Nothing on a screen, still. No local report produces a `library: "echarts"` view
 parity details rest on the tests. **Step 6 is the first time any of this is visible**, and it is the
 step to slow down on: it flips `auto-viz` and `CHART_SUBTYPES`, so every bar chart in the app changes
 library at once.
+
+---
+
+## Step 6 — DONE. Bar charts render with ECharts. First visible step.
+
+### The change itself was two words
+
+`library: "recharts"` → `"echarts"` in `auto-viz.ts` rule 3 and `CHART_SUBTYPES.bar`. **`component`
+stays `"BarChart"`** — it is the identity key that `findViewForTarget`, `ViewSwitcher`, `WidgetFrame`
+and AskAiBuilder's motion key all sniff as a case-insensitive substring, and renaming it breaks the
+switcher with nothing to type-check the break.
+
+Exactly **one** existing test failed: the `library: "recharts"` expectation on auto-viz rule 3. Nothing
+else — the integration tests in `ReportViewer`, `WidgetFrame` and `AskAiBuilder` all kept passing, which
+is the canvas stub from step 2 earning its keep.
+
+New guards in `view-switching.test.ts`: bar builds as ECharts but is still called `BarChart`; the
+switcher finds an ECharts bar view rather than building a duplicate; **it still finds a bar view saved
+under the old library**; and line and pie have *not* moved, so an accidental flip in steps 7-8 fails
+loudly.
+
+### Seen in a browser, at last
+
+| check | result |
+| --- | --- |
+| library actually swapped | `.recharts-surface` gone, real `<canvas>`, `_echarts_instance_` present |
+| height | **320px** — the step-5 parity fix holding; it would have been 360 |
+| is it drawing | 26,460 inked pixels |
+| palette | dominant colour `rgb(50,107,252)` = **#326BFC**, 21,475 pixels; axis `#6B6B66`, grid `#EBECE9` — all three from the theme |
+| view switcher | «میله‌ای» highlighted — proof the component string still matches through `findViewForTarget` |
+| switch to table and back | table renders, then bar returns with **exactly one** canvas and the same 26,460 pixels. One canvas is the point: a component-string mismatch would have built a duplicate view |
+| dashboard | widget renders ECharts, no recharts left on the page, no horizontal scroll |
+| error boundary | none |
+
+### A parity regression found by looking, and fixed
+
+The dashboard widget rendered **60px wide**. Chasing it up the tree showed the whole widget collapsed at
+this viewport — `react-grid-item` 94×40 — so recharts would have drawn 60px too. Not a step-6
+regression.
+
+But it exposed one. recharts sized itself through `ResponsiveContainer`, which watches **its own box**
+with a ResizeObserver. A bare `echarts.init` measures once and afterwards hears only `window.resize`. On
+a dashboard that difference is the normal case, not an edge one: react-grid-layout drags and resizes
+widgets and the sidebar folds, none of which resizes the window. The chart would have kept its old
+canvas size, and jsdom reports no layout so no test would ever have noticed.
+
+`useEChart` now observes its container and disconnects on unmount. Three tests cover the wiring —
+removing the observer fails all three.
+
+### Not verified
+
+- **The drill hit area.** The plan flags it shrinking from the whole column to the bar rectangle, and
+  no seeded report has a `drilldown` config, so clicking a bar locally does nothing either way. The
+  drill *logic* is covered by tests; the hit area is not.
+- **Label rotation above 8 categories** and **the dataZoom slider above 25** — the seed has four
+  provinces. Both are option-tested, neither has been seen.
+- **PDF export with a chart image.** Only dashboard widgets pass a chart root, and the widget is
+  collapsed at this viewport.
+
+### Reverting
+
+Still one word in two files: `auto-viz.ts` rule 3 and `CHART_SUBTYPES.bar`. Worth knowing before the
+first real deploy of this branch.

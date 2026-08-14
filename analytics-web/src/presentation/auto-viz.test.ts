@@ -55,10 +55,12 @@ describe("chooseView (§8.6 thresholds)", () => {
     expect(views[0]).toMatchObject({ type: "chart", library: "recharts", component: "LineChart", mapping: { x: "orderDate", y: "revenue" } });
   });
 
-  it("rule 3 — one dimension + measure, ≤12 categories → BarChart (recharts)", () => {
+  it("rule 3 — one dimension + measure, ≤12 categories → BarChart (echarts)", () => {
     const r = result([col("province", "string", false), col("revenue", "number", true)], nRows(10));
     const views = chooseView(def({ groupBy: [{ field: "province" }], metrics: [{ field: "revenue", aggregation: "sum", alias: "revenue" }] }), r, semantic);
-    expect(views[0]).toMatchObject({ type: "chart", library: "recharts", component: "BarChart", mapping: { x: "province", y: "revenue" } });
+    // ECharts since step 6. The COMPONENT string deliberately stays "BarChart" — it is the identity
+    // key that findViewForTarget, ViewSwitcher, WidgetFrame and AskAiBuilder all sniff.
+    expect(views[0]).toMatchObject({ type: "chart", library: "echarts", component: "BarChart", mapping: { x: "province", y: "revenue" } });
   });
 
   it("rule 3 boundary — exactly 12 categories → still BarChart", () => {
