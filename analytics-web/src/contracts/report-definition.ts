@@ -55,7 +55,44 @@ export interface ReportDefinition {
 
   /** Tenant + audit context (later phase; optional in v1 mock). */
   meta?: ReportMeta;
+
+  /**
+   * The report title a person typed, per language. An absent language means "no override" — fall
+   * back to `name`.
+   */
+  titleOverrides?: LocalizedLabel;
+
+  /**
+   * Column labels a person typed, per language, keyed by result column key (a metric alias such as
+   * `sum_amount`, or a dimension field id).
+   *
+   * Deliberately NOT `Metric.label`. The AI writes a Persian `label` onto every report it generates
+   * (`ai/rules.ts`), so if a stored label were promoted above the composed name, every AI-made report
+   * would show Persian to an English reader again — the exact bug `presentation/labels.ts` composes
+   * to avoid. Keeping human overrides in their own field is what lets "a machine guessed this" and
+   * "a human typed this" be told apart.
+   *
+   * Mirrored by `LabelOverrides` on the server's `ReportDefinitionDto`; the DTO drops anything it does
+   * not declare, on read as well as write, so the two must stay in step.
+   */
+  labelOverrides?: Record<string, LocalizedLabel>;
 }
+
+/**
+ * One human-authored string per language.
+ *
+ * Same shape the semantic model already uses for field labels (`contracts/semantic.ts`), so there is
+ * one convention rather than two — except both sides are optional here. That is the point: a Persian
+ * user renames a chart and an English reader keeps the automatically composed name instead of being
+ * shown Persian.
+ */
+export type LocalizedLabel = {
+  "fa-IR"?: string;
+  "en-US"?: string;
+};
+
+/** The locale keys used by `LocalizedLabel`, matching the semantic model's. */
+export type LabelLocale = "fa-IR" | "en-US";
 
 // ---------- Columns ----------
 export interface ColumnDef {

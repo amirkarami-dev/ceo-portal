@@ -5,7 +5,12 @@ import type { ReactNode } from "react";
 import { i18n } from "../i18n";
 import type { QueryResult } from "@/contracts";
 import type { ReportDefinition } from "@/contracts/report-definition";
-import { useColumnLabel } from "./labels";
+import {
+  labelLocaleOf,
+  resolveColumnLabel,
+  resolveReportTitle,
+  useColumnLabel,
+} from "./labels";
 
 const wrapper = ({ children }: { children: ReactNode }) => (
   <I18nextProvider i18n={i18n}>{children}</I18nextProvider>
@@ -103,5 +108,112 @@ describe("useColumnLabel", () => {
     // A drill-down child can carry a source with no bundled model. It must not throw.
     expect(() => render(orphan)("sum_amount")).not.toThrow();
     expect(render(orphan)("sum_amount")).toBe("مجموع");
+  });
+});
+
+// ── What a person typed ──────────────────────────────────────────────────────
+// The distinction that makes this safe: a stored `metric.label` is one string with no language, and
+// the AI writes a Persian one onto every report it generates — so it must NOT beat composition (the
+// test above pins that). A `labelOverrides` entry is per language, so it can.
+
+const overridden = (overrides: Record<string, { "fa-IR"?: string; "en-US"?: string }>) =>
+  ({ ...def, labelOverrides: overrides }) as unknown as ReportDefinition;
+
+describe("useColumnLabel — human overrides", () => {
+  it("uses what a person typed, in the language they typed it in", async () => {
+    const d = overridden({ sum_amount: { "fa-IR": "فروش خالص" } });
+
+    await i18n.changeLanguage("fa");
+    expect(render(d)("sum_amount")).toBe("فروش خالص");
+  });
+
+  it("leaves the other language composing, rather than showing it someone else's Persian", async () => {
+    const d = overridden({ sum_amount: { "fa-IR": "فروش خالص" } });
+
+    // The whole reason overrides are per language.
+    await i18n.changeLanguage("en");
+    expect(render(d)("sum_amount")).toBe("Sum Revenue");
+  });
+
+  it("keeps both languages when both were typed", async () => {
+    const d = overridden({ sum_amount: { "fa-IR": "فروش خالص", "en-US": "Net sales" } });
+
+    await i18n.changeLanguage("fa");
+    expect(render(d)("sum_amount")).toBe("فروش خالص");
+    await i18n.changeLanguage("en");
+    expect(render(d)("sum_amount")).toBe("Net sales");
+  });
+
+  it("beats a composed name — otherwise editing a label would appear to do nothing", async () => {
+    await i18n.changeLanguage("fa");
+    // Without the override this composes «مجموع درآمد».
+    expect(render()("sum_amount")).toBe("مجموع درآمد");
+    expect(render(overridden({ sum_amount: { "fa-IR": "فروش خالص" } }))("sum_amount")).toBe("فروش خالص");
+  });
+
+  it("overrides a dimension too, not only a metric", async () => {
+    await i18n.changeLanguage("en");
+    expect(render()("province")).toBe("Province");
+    expect(render(overridden({ province: { "en-US": "Region" } }))("province")).toBe("Region");
+  });
+
+  it("ignores an empty or blank override instead of rendering a nameless column", async () => {
+    await i18n.changeLanguage("fa");
+    // Clearing the box must restore the automatic name, not leave the legend blank.
+    expect(render(overridden({ sum_amount: { "fa-IR": "" } }))("sum_amount")).toBe("مجموع درآمد");
+    expect(render(overridden({ sum_amount: { "fa-IR": "   " } }))("sum_amount")).toBe("مجموع درآمد");
+  });
+
+  it("touches only the column it names", async () => {
+    await i18n.changeLanguage("fa");
+    const d = overridden({ sum_amount: { "fa-IR": "فروش خالص" } });
+    expect(d.labelOverrides).toBeDefined();
+    expect(render(d)("province")).toBe("استان");
+  });
+});
+
+describe("resolveColumnLabel — the plain function the exporters use", () => {
+  // csv.ts / xlsx.ts / pdf.ts are not components, so they cannot call the hook. They must be able to
+  // reach the same answer, or a renamed series would change the chart and not the Excel header.
+  it("gives the same answer as the hook, without React", async () => {
+    await i18n.changeLanguage("fa");
+    const d = overridden({ sum_amount: { "fa-IR": "فروش خالص" } });
+
+    expect(resolveColumnLabel(d, result, "sum_amount", "fa-IR", i18n.t)).toBe("فروش خالص");
+    expect(resolveColumnLabel(d, result, "sum_amount", "fa-IR", i18n.t)).toBe(render(d)("sum_amount"));
+    // and composes when there is no override
+    expect(resolveColumnLabel(def, result, "sum_amount", "en-US", i18n.t)).toBe("Sum Revenue");
+  });
+
+  it("does not depend on the app's current language, only on the locale it is given", async () => {
+    // An export must be able to ask for a specific language regardless of what the UI is showing.
+    await i18n.changeLanguage("fa");
+    expect(resolveColumnLabel(def, result, "sum_amount", "en-US", i18n.t)).toBe("Sum Revenue");
+  });
+});
+
+describe("labelLocaleOf", () => {
+  it.each([
+    ["fa", "fa-IR"],
+    ["en", "en-US"],
+    ["en-GB", "en-US"],
+    [undefined, "fa-IR"],
+  ] as const)("maps %s to %s", (lang, expected) => {
+    expect(labelLocaleOf(lang)).toBe(expected);
+  });
+});
+
+describe("resolveReportTitle", () => {
+  it("uses the typed title for this language, else the definition's name", () => {
+    const d = { name: "Monthly revenue", titleOverrides: { "fa-IR": "درآمد ماهانه" } };
+
+    expect(resolveReportTitle(d, "fa-IR")).toBe("درآمد ماهانه");
+    // Not yet typed in English → the original name, not the Persian.
+    expect(resolveReportTitle(d, "en-US")).toBe("Monthly revenue");
+  });
+
+  it("ignores a blank override and never returns undefined", () => {
+    expect(resolveReportTitle({ name: "x", titleOverrides: { "fa-IR": "  " } }, "fa-IR")).toBe("x");
+    expect(resolveReportTitle(undefined, "fa-IR")).toBe("");
   });
 });
