@@ -1,7 +1,7 @@
 # Custom reports, and the first one: engineer quota by city and discipline
 
-**Status:** **steps 1-2 done** — see the memos at the end. Branch `feat/custom-reports`.
-Waiting on "start step 3".
+**Status:** **steps 1-3 done** — see the memos at the end. Branch `feat/custom-reports`.
+Waiting on "start step 4".
 **Host:** `analytics-web`. **Scope agreed:** frontend first against a mock row; the .NET endpoint is a
 separate follow-up with its contract pinned here (§ *The endpoint contract*).
 
@@ -399,3 +399,47 @@ bite-checked by reverting.
 In a browser: RTL order matches the reference (رشته, then منطقه, then the button), all nine cities in
 the declared order, no console errors beyond the pre-existing antd/React-19 warning. At 375px the bar
 wraps to two rows with no horizontal overflow and a 44px-tall button.
+
+---
+
+## Step 3 — DONE. The arithmetic.
+
+`quota.ts`: `BASE_CAPACITY` (frozen), `BASE_CONFIG` (ordered), `buildQuotaModels`. Pure — no React,
+no formatting, no ECharts — so the part where correctness is actually decided can be read as what it
+is: four subtractions and a clamp.
+
+### The fixtures are exact, and that was checked rather than hoped
+
+The four rows in the design table are asserted with `toBe`, not a tolerance. Before writing them down
+the sums were run through node: all four are exact in binary floating point for this row.
+
+**Nothing is rounded.** Where a different row does leave a tail, the display absorbs it —
+`Intl.NumberFormat` shows at most three fraction digits, so `149854.01999999998` prints as
+«۱۴۹٬۸۵۴.۰۲», also verified rather than assumed. Rounding in the model would make it claim a precision
+the arithmetic does not have.
+
+### Two choices that look like verbosity and are not
+
+**The column names are spelled out per base** instead of built as `` `usedInTarahi_${base}` ``. The
+template version is shorter and type-checks against nothing: a typo, or a base whose columns are ever
+named differently, becomes `undefined` at runtime and draws as zero. Listed, they are checked against
+`QuotaRow` by the compiler — and a test asserts the twelve names are distinct, which is the
+copy-paste failure four near-identical blocks invite.
+
+**`BASE_CONFIG` is an ordered array, not a map keyed by base.** The display order — ارشد، یک، دو، سه —
+is neither numeric nor the procedure's column order, and a map would leave it to whatever key order
+the runtime chose.
+
+### Bite-checked, both as the plan specified
+
+- Swapping base 2's supervision field for base 3's fails **three** tests, including the distinct-names
+  guard. This is the brief's "do not swap the fields" turned into something that cannot be ignored.
+- Removing the clamp fails exactly *never reports a negative remainder*.
+
+A missing or non-numeric field counts as nothing consumed rather than becoming `NaN`, because `NaN`
+would be painted across a ring on screen instead of appearing in a log.
+
+### Verified
+
+**701 tests across 86 files** (up from 690), lint, typecheck and build clean. Eleven new. No UI change
+in this step — the placeholder still shows the raw row; step 6 is where these models reach the screen.
