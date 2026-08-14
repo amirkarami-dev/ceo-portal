@@ -1,0 +1,296 @@
+# Custom reports, and the first one: engineer quota by city and discipline
+
+**Status:** designed, not started. Waiting on "start step 1".
+**Host:** `analytics-web`. **Scope agreed:** frontend first against a mock row; the .NET endpoint is a
+separate follow-up with its contract pinned here (§ *The endpoint contract*).
+
+---
+
+## Why this cannot be an ordinary report
+
+«وضعیت سهمیه ثبت شده مهندسان به تفکیک شهر و رشته» is driven by
+`[dbo].[F_ShowQuataInCity] @CityId, @Reshte` on **KurdNezam**. Three things put it outside the
+analytics engine, and all three are structural rather than missing features:
+
+1. **`SqlQueryEngine.cs` builds `SELECT … FROM [table] … GROUP BY …`** from a `ReportDefinition`.
+   Nothing in the analytics path calls a stored procedure — `CommandType.StoredProcedure` appears in
+   `Auth/External/KurdNezamDirectory.cs` and `Infrastructure/MunSanandaj/Sql/MunSanandajSourceReader.cs`,
+   never in `Infrastructure/Analytics`.
+2. **The proc returns one wide row** whose dimension lives in the *column names* — `UsedInTarahi_1`,
+   `…_2`, `…_3`, `…_4`. The engine's model is rows × dimensions × measures. There is nothing to group
+   by, and no amount of definition-writing produces a pivot the engine does not do.
+3. **`@CityId` / `@Reshte` are procedure parameters**, not filters over columns.
+
+A fourth, from the requirement itself: the four capacities are a **client-side constant**, explicitly
+not from SQL and not user-editable.
+
+**This also settles "can AI create this report".** Ask AI emits `ReportDefinition`s for that same
+engine, so it can only ever produce what the engine can already express. No prompt reaches a stored
+procedure.
+
+## The shape of the answer
+
+A registered **custom report**: an escape hatch for reports whose data or presentation the
+dimensional engine cannot describe, integrated into the *existing* report shell rather than parked
+beside it.
+
+`ViewLibrary` already reads `"antd" | "recharts" | "echarts" | "grid"`, and **`"grid"` is declared and
+implemented nowhere** — the union was built to be extended. `ReportView.tsx` already dispatches on
+`view.library`. That is the extension point.
+
+The rejected alternative was a parallel `/reports/custom/:id` world with its own page and widget type.
+Conceptually cleaner — no envelope definitions, no branches in shared files — but the report library,
+favourites, permissions, export, the widget picker and the breadcrumb would each have to learn that
+there are two kinds of report, and that tax is paid again for every custom report after this one.
+With "first of several" as the answer, it is the more expensive path.
+
+---
+
+## The registry
+
+One module owns the set. An entry declares what it is, how it is parameterised, where its data comes
+from, and how it draws:
+
+```ts
+interface CustomReport<P, D> {
+  id: string;                                    // "engineer-quota"
+  title: LocalizedText;
+  params: ParamSpec[];                           // { key, label, options[] } — drives the picker bar
+  defaults: P;
+  fetch(params: P): Promise<D>;                  // mock row now, endpoint later
+  Component: ComponentType<{ data: D; params: P }>;
+}
+```
+
+`fetch` sits on the **entry**, not in the component: the presentation component only renders supplied
+data, so it can be tested with a literal and never reaches for a network. `params` is declared rather
+than hand-built, so the next custom report gets its filter bar by describing it.
+
+The saved definition is a thin envelope:
+
+```ts
+{ type: "chart", library: "custom", component: "EngineerQuota", mapping: { cityId: 25, reshte: 4 } }
+```
+
+`dataset`, `groupBy` and `metrics` carry nothing meaningful on a custom report. That is a real wart,
+and it is the price of reusing the shell — no worse than `library: "recharts"` on a chart ECharts
+draws, which the codebase already lives with, and unlike that one it is load-bearing rather than
+legacy.
+
+### An unknown component renders an empty state
+
+When `view.component` names something not in the registry, the renderer shows an explicit empty state.
+The codebase's own precedent (`chartKind`) silently defaults to a bar — deliberately, because a stored
+view naming an unknown *chart* still has a sensible chart to fall back to. Here there is nothing to
+fall back to, and a silent fallback would hide a typo'd or deleted registry id behind a plausible
+screen. Decided, not inherited.
+
+---
+
+## The quota report
+
+### Field mapping — do not swap these
+
+| Base | Title | Design used | Supervision used | Engineers |
+| --- | --- | --- | --- | --- |
+| 4 | پایه ارشد | `UsedInTarahi_4` | `UsedInNezart_4` | `CntEngin_4` |
+| 1 | پایه یک | `UsedInTarahi_1` | `UsedInNezart_1` | `CntEngin_1` |
+| 2 | پایه دو | `UsedInTarahi_2` | `UsedInNezart_2` | `CntEngin_2` |
+| 3 | پایه سه | `UsedInTarahi_3` | `UsedInNezart_3` | `CntEngin_3` |
+
+Display order is **ارشد، یک، دو، سه** — base 4 first. Note that this is neither numeric nor the order
+the proc returns its columns in; it is the order the reference screenshot uses, and it is the reason
+`BASE_CONFIG` is an ordered array rather than a map keyed by base number.
+
+### Capacity and arithmetic
+
+```ts
+const BASE_CAPACITY = { 4: 20_000, 1: 160_000, 2: 72_000, 3: 48_000 } as const;
+```
+
+Fixed, frozen, identical for every city and discipline. Not from SQL, not from the API, not editable.
+
+```
+used      = designUsed + supervisionUsed
+remaining = Math.max(total - used, 0)
+```
+
+The clamp is not decoration: the proc can report more consumed than the constant allows, and a
+negative slice would render as a nonsense ring.
+
+Generated from one `BASE_CONFIG` array, not four copies of the same arithmetic.
+
+### The four models, from the sample row
+
+Row supplied for the mock:
+
+```
+UsedInTarahi_4=2357.45  UsedInNezart_4=0        CntEngin_4=2
+UsedInTarahi_1=9034.42  UsedInNezart_1=1111.56  CntEngin_1=16
+UsedInTarahi_2=6362.96  UsedInNezart_2=2617.29  CntEngin_2=21
+UsedInTarahi_3=2348.91  UsedInNezart_3=9405.64  CntEngin_3=55
+```
+
+which must produce exactly:
+
+| Base | Used | Total | Remaining | Engineers |
+| --- | --- | --- | --- | --- |
+| پایه ارشد | 2 357.45 | 20 000 | **17 642.55** | 2 |
+| پایه یک | 10 145.98 | 160 000 | **149 854.02** | 16 |
+| پایه دو | 8 980.25 | 72 000 | **63 019.75** | 21 |
+| پایه سه | 11 754.55 | 48 000 | **36 245.45** | 55 |
+
+These are the unit-test fixtures. (The worked example in the brief and the numbers in the screenshot
+are two *other* city/discipline combinations — all three are internally consistent; none of them
+contradict each other.)
+
+### Table
+
+Six columns, matching the screenshot, right to left:
+پایه · متراژ ثبت شده در طراحی · متراژ ثبت شده در نظارت · تعداد مهندس · ظرفیت باقی‌مانده · ظرفیت کل.
+
+The city and discipline names appear in the *column headers* in the reference («… رشته (مکانیک)»,
+«… در شهر (بیجار)»), so the headers are composed from the selected parameters, not static strings.
+
+### Donuts
+
+Four, below the table, same order. Two slices only — «ظرفیت مصرفی» and «ظرفیت باقی‌مانده». Design and
+supervision are **combined**; they are not separate slices. Engineer count is metadata, never a slice.
+
+A small `QuotaDonut` built on `useEChart` directly, the way `admin/ai/usage/AIUsageCost.tsx` and
+`admin/audit/AuditCostChart.tsx` already do. Reusing `EChartsRenderer`'s pie branch would mean
+fabricating a `QueryResult` and a `ReportView` per donut, which is more contortion than ~40 lines of
+option. `radius: ['55%','78%']`, `itemStyle: { borderColor: '#fff', borderWidth: 2 }` per the brief —
+but the **colours come from the theme** (`chartColors(themeMode).series`), not hardcoded green, or the
+report will be the one page in the product wearing a different palette.
+
+### Accessibility, and why this report needs no hidden table
+
+Four canvases would be four holes in the accessibility tree — the exact defect fixed in
+`2026-08-15-chart-canvas-accessibility.md`, since `QuotaDonut` does not inherit `EChartsRenderer`'s
+hidden data table.
+
+**This report does not need one:** the table above the donuts already carries the same numbers as
+text, and it is a real `<table>`. So the donuts are `aria-hidden` and the visible table is their text
+alternative.
+
+That reasoning holds *only because this report shows both*. A future custom report that draws a chart
+without a table beside it must carry its own text alternative — written down here so the exemption is
+not inherited by accident.
+
+---
+
+## The endpoint contract
+
+The `fetch` sits behind the same `VITE_USE_MOCK_API` gate `executeApi.ts` uses, so switching to real
+data is one branch. What the backend must implement:
+
+```
+POST /api/Reports/custom/engineer-quota
+  request   { "cityId": 25, "reshte": 4 }
+  response  { "usedInTarahi_4": 2357.45, "usedInNezart_4": 0,    "cntEngin_4": 2,
+              "usedInTarahi_1": 9034.42, "usedInNezart_1": 1111.56, "cntEngin_1": 16,
+              "usedInTarahi_2": 6362.96, "usedInNezart_2": 2617.29, "cntEngin_2": 21,
+              "usedInTarahi_3": 2348.91, "usedInNezart_3": 9405.64, "cntEngin_3": 55 }
+```
+
+Twelve numbers, camelCase (matching how `executeApi` already maps backend payloads), one flat object.
+It EXECs `[dbo].[F_ShowQuataInCity]` with the two parameters. **No capacities in the response** — they
+are a client constant by requirement, and returning them would create a second source of truth.
+
+Authorisation should match the existing report-execute endpoint; the proc reads membership data.
+
+## Parameters
+
+Hardcoded typed constants, as agreed — no extra endpoint, consistent with the fixed capacities.
+
+**Cities:** 1 بانه · 2 سنندج (مرکزی) · 18 کامیاران · 19 قروه · 20 سقز · 21 دهگلان · 22 مریوان ·
+23 دیواندره · 25 بیجار
+**Disciplines:** 1 معماری · 2 شهرسازی · 3 عمران · 4 مکانیک · 5 برق · 6 نقشه‌برداری · 7 ترافیک
+
+The id gaps (no 3–17, no 24) are the database's, carried verbatim rather than tidied.
+
+---
+
+## Steps
+
+Each step ends green — tests, lint, typecheck, build — and is committed on its own.
+
+### Step 1 — The plumbing, visible end to end
+
+`ViewLibrary` gains `"custom"`. New `presentation/custom/registry.ts` (the interface plus an empty
+map) and `CustomRenderer`, dispatched from `ReportView.tsx`. A **stub entry** that renders its own
+params so the path can be seen. `ReportViewer`'s execute effect gets its skip branch, and the report
+is seeded so it has a URL.
+
+The branch must sit **before** the `!semantic` guard (`ReportViewer.tsx:111`). `semantic` is
+`getModelForDataset(data.definition.dataset)` **wrapped in a `try/catch` that returns `undefined`**
+(`:79-86`), and a custom report has no real dataset — so a branch placed after that guard produces a
+blank page with no error and nothing in the console. Verified by reading it, not assumed.
+
+**Proof:** the seeded custom report opens on a URL and draws the stub; `executeReport` is never
+called for it; an unknown `component` shows the empty state, not a chart.
+**Risk:** the shared branch. A mistake here breaks *ordinary* reports, so the existing viewer tests
+are the guard.
+
+### Step 2 — The params bar
+
+Generic, driven by `ParamSpec`: two selects and a «نمایش» button. Persian labels, RTL, keyboard
+reachable.
+
+**Proof:** changing a param refetches with the new arguments and does not refetch on every keystroke.
+
+### Step 3 — The quota arithmetic
+
+`BASE_CONFIG`, `BASE_CAPACITY`, and the model builder. Pure functions, no React.
+
+**Proof:** the four-row fixture table above, asserted exactly. Plus the clamp: consumption over
+capacity yields `0`, never a negative. Bite-check by swapping two field names — the test must fail.
+
+### Step 4 — The mock fetch and the real-mode switch
+
+The entry's `fetch`, gated on `VITE_USE_MOCK_API`, returning the sample row in mock mode and calling
+the contract above in real mode.
+
+**Proof:** mock mode resolves the row; real mode issues the documented POST (asserted against a
+stubbed client). Nothing is deployed until the endpoint exists.
+
+### Step 5 — `QuotaDonut`
+
+One donut, `useEChart`, theme palette, two slices, `aria-hidden`.
+
+**Proof:** read off a live instance — two data points, `used` and `remaining` and *not* design and
+supervision; radius is a two-element array; colours equal `chartColors(mode).series`. Both themes.
+
+### Step 6 — The report component
+
+Table plus four donuts, in order, registered in place of the stub. Headers composed from the selected
+city and discipline.
+
+**Proof:** the fixture row renders four rows and four donuts in the order ارشد، یک، دو، سه; the table
+totals match the donut slices; a browser pass against the reference screenshot.
+
+### Step 7 — The dashboard widget
+
+`WidgetFrame` gets the same skip branch, so a custom report can be pinned to a dashboard.
+
+**Proof:** a seeded widget renders the report inside a widget frame; ordinary widgets are unaffected.
+**Risk:** second shared-file branch; the dashboard tests are the guard.
+
+### Step 8 — Polish and record
+
+RTL and LTR, light and dark, 375px. Confirm the accessibility reasoning holds in the tree: donuts
+absent, table present. Worklog, and propagate to `GOTCHAS.md` / `PROJECT-MAP.md`.
+
+---
+
+## Open questions, deliberately unanswered
+
+- **Who may see it.** The proc reads membership data across a city. The report inherits whatever the
+  report shell enforces; if it needs to be narrower than an ordinary report, that is a decision for
+  when the endpoint is built, not a frontend guess.
+- **Export.** The toolbar's PDF/CSV export assumes a `QueryResult`. A custom report has none, so
+  export will be inert unless it is given something. Left inert in step 1–8 rather than half-wired;
+  the export button's behaviour on a custom report should be settled explicitly.
+- **Whether `"grid"` should be removed** from `ViewLibrary` while adding `"custom"`. It is dead today.
+  Out of scope here, worth its own line in a sweep.
