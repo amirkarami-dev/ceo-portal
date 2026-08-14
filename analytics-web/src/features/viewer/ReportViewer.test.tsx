@@ -320,9 +320,10 @@ describe("ReportViewer — custom reports", () => {
   it("passes the stored parameters through to the report", async () => {
     renderViewer("rep-quota");
 
-    // Seeded as Bijar (25) / mechanical (4) — the reference screenshot's combination.
-    const params = await screen.findByTestId("engineer-quota-params", undefined, { timeout: 3000 });
-    expect(params.textContent).toContain("بیجار");
-    expect(params.textContent).toContain("مکانیک");
+    // Seeded as Bijar (25) / mechanical (4) — the reference screenshot's combination. The report puts
+    // them in its column headers, so the check is that they reached the body at all.
+    const body = await screen.findByTestId("engineer-quota", undefined, { timeout: 3000 });
+    expect(body.textContent).toContain("بیجار");
+    expect(body.textContent).toContain("مکانیک");
   });
 });

@@ -1,7 +1,7 @@
 # Custom reports, and the first one: engineer quota by city and discipline
 
-**Status:** **steps 1-3 done** — see the memos at the end. Branch `feat/custom-reports`.
-Waiting on "start step 4".
+**Status:** **steps 1-6 done** — see the memos at the end. Branch `feat/custom-reports`.
+Waiting on "start step 7" (the dashboard widget). Step 4's real-mode switch shipped inside step 1.
 **Host:** `analytics-web`. **Scope agreed:** frontend first against a mock row; the .NET endpoint is a
 separate follow-up with its contract pinned here (§ *The endpoint contract*).
 
@@ -443,3 +443,79 @@ would be painted across a ring on screen instead of appearing in a log.
 
 **701 tests across 86 files** (up from 690), lint, typecheck and build clean. Eleven new. No UI change
 in this step — the placeholder still shows the raw row; step 6 is where these models reach the screen.
+
+---
+
+## Steps 4-6 — DONE, and pulled forward. The report is real.
+
+Asked for out of order: the step-1 placeholder was still dumping raw JSON on screen, so the table and
+the donuts came before the fetch-gate step. Step 4 turned out to be mostly already done —
+`fetch.ts` shipped in step 1 with the mock row, the `VITE_USE_MOCK_API` gate and the endpoint
+constant — so what was left was 5 and 6.
+
+### The table
+
+Six columns, headers composed from the selected city and discipline so a printed or exported table
+still says what it is about. Values straight from `buildQuotaModels`, so the fixtures in this document
+are what reaches the screen — checked in a browser, all four rows.
+
+The reference's note about «پایه» is carried verbatim. It is not decoration: without it the figures
+look wrong, because they are per-city and use the highest grade active in *that city*, not the
+engineer's grade in general.
+
+### The donuts, and a colour decision the tests now hold
+
+`QuotaDonut` on `useEChart` directly, as the two admin charts already do.
+
+First attempt took `series[0]` and `series[1]` in data order, which put **orange on the majority of
+every ring** — a base with 12% consumed looked alarming at a glance. Colour is now assigned by
+meaning: remaining is the brand blue, consumed is the accent. Seen on screen before and after; a test
+holds it, and reverting to palette order fails that test.
+
+Three other things the brief's sketch did not survive contact with:
+
+- **`borderColor: '#fff'`** verbatim would be a white seam in dark mode. It is the panel colour.
+- **No `totalCapacity` prop.** Used + remaining *is* the total, by construction. Taking a third number
+  would let a caller pass one that disagrees, and the ring could not say which was right.
+- **The base titles stay Persian in English mode** — see the open question below.
+
+### `currentDir` moved to `format.ts`
+
+It was private to `EChartsRenderer` until a second chart needed it. Two copies reading
+`document.documentElement.dir` is two places to fix when that answer ever changes.
+
+### `scroll={{ x: "max-content" }}` cost three tests, and that was worth knowing
+
+Six long composed headers do not fit a phone. With `scroll.x` set, **antd prepends an `aria-hidden`
+measure row** to `<tbody>` — zero-height cells it uses to size columns. The row is invisible in a
+screenshot, so the only symptom was the first entry of three assertions silently becoming
+`undefined`. Excluded in the test helper, where it is scaffolding rather than data.
+
+Found only because the full suite ran after the change; the targeted run had happened before it.
+
+### Verified
+
+**711 tests across 87 files** (up from 701), lint, typecheck and build clean. Sixteen new across the
+report body and the donuts; the colour-by-meaning and `aria-hidden` decisions both bite when reverted.
+
+In a browser, all four combinations:
+
+| | table | donuts |
+| --- | --- | --- |
+| RTL light/dark | six columns, Persian digits, values match the fixtures exactly | rings mostly blue with an orange arc, counts in the holes, order ارشد→سه right to left |
+| LTR light/dark | English headers with the Persian city and discipline interpolated | mirrored, order left to right |
+
+The accessibility tree carries the whole table — headers and all twenty-four values — and **no chart
+nodes at all**, which is the exemption in *Donuts* above working as designed. (`read_page` collapses
+some short numeric cells in its own output; the DOM was checked directly and has all six per row.)
+
+At 375px: no page overflow in either direction, the donuts stack, and the table scrolls inside its own
+wrapper.
+
+### Open question for the user
+
+**The four base titles — «پایه ارشد», «پایه یک», «پایه دو», «پایه سه» — stay Persian in English mode.**
+They sit beside city and discipline names that are Persian-only data, so they are consistent with
+their row; but every header around them translates. Rendering "Senior level" / "Level 1" would be
+guessing at terminology for the Iranian engineering order's grading system, which is a translation
+decision rather than a coding one. Left as-is and raised rather than invented.

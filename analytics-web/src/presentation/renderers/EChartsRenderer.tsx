@@ -1,7 +1,13 @@
 import type { ReportView } from "../../contracts/presentation";
 import type { ReportDefinition } from "../../contracts/report-definition";
 import type { QueryResult, ResultRow, GroupNode } from "../../contracts/dataset";
-import { formatCategory, formatFitted, formatNumber, formatPercent, type Dir } from "../format";
+import {
+  currentDir,
+  formatCategory,
+  formatFitted,
+  formatNumber,
+  formatPercent,
+} from "../format";
 import { useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useUiStore } from "../../store/ui-store";
@@ -171,13 +177,6 @@ export type RendererProps = {
    *  group node so the consumer can re-run `drillInto`. */
   onDrill?: (node: GroupNode) => void;
 };
-
-function currentDir(): Dir {
-  if (typeof document !== "undefined" && document.documentElement.dir === "rtl") {
-    return "rtl";
-  }
-  return "ltr";
-}
 
 /**
  * Distinct values, first-seen order, **keeping the missing bucket**.
