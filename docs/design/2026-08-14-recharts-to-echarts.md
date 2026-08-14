@@ -2,7 +2,8 @@
 
 **Date:** 2026-08-14
 **Area:** analytics-web
-**Status:** **plan only — nothing built.** Waiting on "start step 1".
+**Status:** **DONE — all ten steps (2b included), see the memos at the end.** Branch
+`feat/echarts-only`, not yet merged or deployed. One chart library in the app.
 
 Amir asked to use ECharts only. Agreed as the goal: recharts has no RTL support, which is the whole
 reason `presentation/chart-rtl.ts` exists; ECharts has a real theme system; and dropping recharts
@@ -438,3 +439,915 @@ Then flip `auto-viz.ts:93` and `CHART_SUBTYPES.pie`.
 - **The real font timing.** It depends on cache state, network and device — step 1 must measure it, not reason about it.
 - **Canvas performance with many widgets on one dashboard.** recharts SVG and ECharts canvas scale differently; nothing in the repo measures either.
 - **Whether anyone uses legend toggling.** No telemetry visible. It arrives by ECharts default, not by decision.
+
+---
+
+## Step 1 — DONE. The spike's answers.
+
+**Run on** `feat/echarts-only`, echarts **5.6.0** / echarts-for-react **3.0.6** / zrender **5.6.1**,
+Chromium via the in-app browser, RTL page, Vazirmatn loaded. The spike was a throwaway
+`spike.html` + `spike.tsx` at the Vite root; both are deleted.
+
+**No screenshots.** The Browser pane is not displayed in this environment, so
+`computer{action:"screenshot"}` fails outright, and ECharts draws to canvas so there is no DOM to
+read. Everything below is measured instead — canvas text metrics, ink-column profiles, resolved
+option read-back and tooltip DOM. Where a question could only be answered by eye, that is said.
+
+### Q1 — RTL tooltip word order. **CONFIRMED. A custom formatter is mandatory.**
+
+The emitted tooltip HTML carries exactly the two physical properties the plan predicted:
+
+```html
+<span style="…margin-left:2px">تعداد پروژه</span>
+<span style="float:right;margin-left:20px;…">6,550</span>
+```
+
+Measured geometry in an RTL block: the name occupies x 907–967, the value x 1001–1037. **The value
+sits to the right of the name**, and right is the reading edge in RTL — so the tooltip reads
+*value, then name*, reversing recharts' «name : value». Neither `float:right` nor `margin-left`
+comes from anything reachable through `tooltip.textStyle`.
+
+→ **Step 4 must ship a custom `tooltip.formatter`.** The existing
+`EChartsRenderer.test.tsx` assertion that `textStyle.align === "right"` guards nothing.
+
+### Q2 — Font race. **CONFIRMED, and it changes layout, not just glyphs.**
+
+| | `document.fonts.check("12px Vazirmatn")` | measured width of «آذربایجان شرقی» |
+| --- | --- | --- |
+| first paint | **false** | 62.27px |
+| after `document.fonts.ready` | true | **71.97px** |
+
+A **15.6%** metric shift. Canvas text is rasterised once and `grid.containLabel` sizes the plot from
+those metrics, so a chart painted before the webfont lands keeps fallback glyphs *and* a plot box
+measured for the wrong font.
+
+→ **`document.fonts.ready.then(() => chart.resize())` belongs in the shared seam**
+(`components/charts/useEChart.ts` and the renderer), not per chart. Not reproduced from a genuinely
+cold HTTP cache — the font was already cached in this session — but the metric difference is the
+mechanism and it is not in doubt.
+
+### Q3 — Negatives in RTL. **CONFIRMED BROKEN, and a fix is measured.**
+
+The app's real `formatNumber` (`presentation/format.ts:16-27`) emits **`-۱٬۲۳۴`** — ASCII
+hyphen-minus, Persian digits, Persian comma «٬».
+
+The chart canvas reports **`ctx.direction === "rtl"`** (it inherits the CSS direction; zrender never
+sets it), so the bidi algorithm runs RTL. Rendering that string at 20px and reading ink-column
+heights — a hyphen is ~2px tall, a digit ~7–10px:
+
+| `ctx.direction` | leading glyph | trailing glyph | where the minus lands |
+| --- | --- | --- | --- |
+| `ltr` | **2px** | 7px | left — correct |
+| `rtl` | 10px | **2px** | **right — «۱٬۲۳۴-»** |
+
+recharts defended this with `tick={{ style: { direction: "ltr" } }}`. **That has no canvas
+counterpart** — `ctx.direction` is not exposed by any echarts option.
+
+Remedies tested on the RTL canvas:
+
+| candidate | result |
+| --- | --- |
+| as-is | RIGHT (wrong) |
+| **`U+2066` LRI … `U+2069` PDI** | **LEFT (correct)** |
+| **`U+200E` LRM prefix** | **LEFT (correct)** |
+| `U+2212` MINUS SIGN instead of hyphen | RIGHT (wrong) |
+| `U+200F` RLM suffix | RIGHT (wrong) |
+
+→ **Step 4: wrap negative output in an LRI…PDI isolate** (or an LRM prefix) inside `formatNumber`.
+Note this affects the **table and export paths too**, which use the same formatter — so it is worth
+doing deliberately rather than only for charts. Swapping to U+2212 does *not* help.
+
+### Q4 — Legend click. **`selectedMode` is `true` by default; one click blanks a single-series chart.**
+
+Measured: `legend[0].selectedMode === true`; `legendUnSelect` sets `{"تعداد پروژه": false}` while the
+series still holds its 3 data points — hidden, not removed. With one series (auto-viz rules 2 and 3,
+the common case) a stray legend click empties the chart, and our own `notMerge` restores it on the
+next re-render, so it reads as a flicker rather than a toggle.
+
+→ **Step 4: set `selectedMode: false` when there is one series**, keep it for multi-series.
+
+### Q5 — Label collision under 9 categories. **CONFIRMED. `interval: 0` is wrong for narrow widgets.**
+
+Six real province names, 12px Vazirmatn, in a 360px chart with the renderer's `grid.left/right: 48`:
+
+- plot width ceiling **264px** → **44px per category**
+- label widths: 72.0, 93.6, 98.3, 93.6, 65.6, 38.5 px
+- **5 of 6 exceed their slot**; the widest is 98.3px in 44px — more than double
+
+`EChartsRenderer.tsx` forces `interval: 0` (draw every label), the opposite of recharts'
+`preserveEnd` thinning.
+
+→ **Step 4: drop the forced `interval: 0`.** Let ECharts thin (`interval: "auto"`), or rotate.
+Rotation is arithmetically sufficient here — rotated labels collide when the slot is below
+`labelHeight / sin θ` ≈ 14/0.5 ≈ 28px, and the slot is 44px — but that is arithmetic, not measured.
+
+### Q6 — Accessibility. **Better than the plan implied, still not parity. A decision for Amir.**
+
+`aria: { enabled: true }` **does** work, and my first reading of it was wrong: it puts the attributes
+on the **container div**, not on any child, which is why an inner-element query found nothing.
+Measured output:
+
+```html
+<div role="img" aria-label="This is a chart with type Bar chart named مقدار.
+     The data is as follows: the data for الف is 0, 3, the data for ب is 1, 7. ">
+```
+
+Three things follow. It is **off by default** — the other six charts in the spike had no aria
+attributes at all. The boilerplate is **hard-coded English on a Persian page**, though every template
+is overridable (`aria.label.general.*`, `.series.*`, `.data.*`). And the data phrasing emits index and
+value together — *"the data for الف is 0, 3"* — which reads as noise.
+
+What is lost against recharts either way: axis ticks and legend text stop being real DOM, so no
+selection, no find-in-page, no per-datum navigation. `role="img"` plus one summary string is a
+mitigation, not parity.
+
+→ **Amir's call.** The cheap, honest position: enable `aria` with translated templates in step 4 and
+accept summary-level access. If per-datum access matters, the alternative is a visually-hidden table
+beside each chart — real work, not a flag.
+
+### Q7 — API details on the installed build. **All confirmed.**
+
+`echarts@5.6.0` is installed and `analytics-web/package.json` pins `^5.5.0`, which guarantees
+≥ 5.5.0 — so `padAngle` (added in 5.5.0) can never resolve away. No need to tighten the range.
+
+Every option the plan's donut config depends on survived the round trip through `getOption()`:
+`padAngle: 2`, `clockwise: false`, `startAngle: 90`, `showEmptyCircle: false`,
+`emphasis.scale: false`, `radius: [68, 110]`.
+
+### What this changes in the plan
+
+- **Step 4 grows**, as its "low confidence" sizing anticipated. It now definitely carries: a custom
+  RTL tooltip formatter (Q1), a font-ready `resize()` in the shared seam (Q2), a bidi isolate for
+  negatives (Q3), `selectedMode` (Q4), and removing the forced `interval: 0` (Q5).
+- **Q3 reaches past the charts.** `formatNumber` is shared with the table and the exporters, so the
+  isolate is a formatter change with wider blast radius than "RTL chart parity".
+- **Step 8's donut config is safe to write as specified** — all six options verified on 5.6.0.
+- **Q6 is the only open decision**, and it is Amir's.
+- **Not answered by this spike**, because it needs eyes and the pane cannot be shown: whether the
+  rotated 6-label layout actually looks right, and whether the donut's ring reads correctly in RTL.
+  Both are step 4 / step 8 visual checks on a real screen.
+
+---
+
+## Step 2 — DONE. ECharts mounts for real in jsdom, but not through the wrapper.
+
+**What shipped:** two stubs in `analytics-web/vitest.setup.ts`, and one real-mount test at
+`src/components/charts/useEChart.mount.test.tsx`. Nothing in `src/` that ships changed.
+
+### The stubs, and proof each one is load-bearing
+
+**1. A 2D canvas context.** jsdom returns `null` from `getContext("2d")`. A Proxy rather than a
+hand-listed object, because zrender reaches for a long tail of context members and a missing one is a
+TypeError deep inside a render; unknown members answer with a no-op. `measureText` estimates 6px per
+character rather than the plan's `{ width: 0 }` — zero-width text quietly collapses
+`grid.containLabel` maths. It is not real font metrics and the comment says so.
+
+**2. `clientWidth` / `clientHeight` on `HTMLElement.prototype`.** Inline px wins where given, else
+800×600. Verdict 1 called this and it was right: the canvas stub alone is not enough.
+
+Removing each one, measured:
+
+| removed | what happens |
+| --- | --- |
+| canvas stub | `Cannot set properties of null (setting 'dpr')` — the exact error the plan named |
+| size stub | one `console.warn` "[ECharts] Can't get DOM width or height", and `clientWidth` reads 0 instead of 400 |
+
+The improvement over the status quo is not only that it mounts: it now **fails in the right file**. The
+old failure was an unhandled rejection that Vitest attributes at run level, so it landed on whichever
+file ran next.
+
+### Verdict 9 addressed
+
+The plan's acceptance criterion — "zero unhandled rejections across the run" — is not a thing a test
+can assert, and a half-working stub satisfies it intermittently depending on file order. Replaced with
+a file-local, deterministic equivalent: spy on `console.error`/`console.warn` and assert both are empty
+for one mount. Same question, asked somewhere it can be answered.
+
+### The finding that changes the plan: **`echarts-for-react` cannot complete an init in jsdom**
+
+Its `initEchartsInstance` (`node_modules/echarts-for-react/lib/core.js:68-89`) is two-phase: create a
+temporary instance, wait for **that instance's `finished` event**, `dispose` it, then re-init using the
+container's measured `clientWidth`/`clientHeight`.
+
+Measured, with both stubs in place: the container ends up carrying `_echarts_instance_`, a `<canvas>`
+sits inside it, `clientWidth`/`clientHeight` report 400/300, **zero errors are logged** — and
+`getInstanceByDom` returns undefined, because the last thing to happen to the element was the dispose.
+Neither pumping 80 animation frames nor passing explicit `opts={{width,height}}` rescues it. A separate
+probe confirmed `finished` *does* fire for a directly-created instance, so the event is not the whole
+story.
+
+**A direct `echarts.init` works perfectly** — instance registered, option readable, palette applied,
+disposes cleanly. That is what `components/charts/useEChart.ts` already does, and what the two admin
+charts already use.
+
+So the smoke test the plan asked for exists, but against `useEChart` rather than `EChartsRenderer`.
+`EChartsRenderer` keeps its `vi.mock("echarts-for-react")` option-shape tests for now.
+
+### The decision this raises — for Amir
+
+**Move `EChartsRenderer` off `echarts-for-react` and onto `useEChart`.** It is not required by any
+later step, but it buys a lot:
+
+- **Real-mount tests for the renderer**, which is verdict 8's whole point — option-shape assertions
+  against a mock cannot catch an option ECharts rejects or normalises away.
+- **One init path** for every chart in the app instead of two.
+- **One less dependency**, and the end of the dispose-and-re-init churn that also causes the
+  `notMerge` tooltip/dataZoom loss described in verdict 5.
+
+Cost: `EChartsRenderer` currently leans on the wrapper's prop diffing (`fast-deep-equal`) and its
+`onEvents` plumbing; both would move into the hook. Roughly half a day, and it belongs before step 5
+rather than after, since step 5 adds three more chart kinds to whichever path is chosen.
+
+If the answer is no, later steps still work — they just keep testing options rather than charts.
+
+### Verified
+
+546 front-end tests across 80 files (up from 538/79), lint, typecheck and build clean. Both stubs were
+removed one at a time to confirm the failure they prevent. The eight new tests read a live instance
+rather than a mock: series survived, `xAxis.data` carries «تهران»/«فارس», the palette resolved to
+`#326BFC` rather than ECharts' own `#5470c6`, and unmount leaves no instance on the node.
+
+Incidental: on echarts 5.6.0 `isDisposed()` returns `undefined` for a live chart, not `false`.
+
+---
+
+## Step 2b — DONE. `echarts-for-react` is gone; every chart inits through `useEChart`.
+
+Amir's call on the decision step 2 raised, taken **before step 3** rather than before step 5: steps 3
+and 4 both rewrite `EChartsRenderer` heavily, and step 4's memoization work exists *because* of
+`echarts-for-react`'s `fast-deep-equal` prop diffing. Doing it first avoids writing code for a wrapper
+about to be deleted.
+
+### The trap this nearly walked into
+
+`useEChart`'s effect was keyed `[option, themeMode]`. That is fine for the two admin charts, which
+memoize their option — and catastrophic for the renderer, which rebuilds its option every render. A
+naïve swap would have **disposed and re-inited the chart on every render**: worse than the wrapper,
+resetting the dataZoom slider and dismissing any open tooltip each time.
+
+So the hook now has three concerns instead of one:
+
+- **init/dispose** keyed on `[themeMode, hasOption, eventNames]` — a boolean and a joined string, so a
+  new option *object* cannot retrigger it.
+- **setOption** keyed on the option, updating the live instance. Guarded by an `applied` ref so mount
+  does not send the same option twice (both effects run after the same commit).
+- **handlers** held in a ref and read at dispatch time, so a fresh closure each render does not mean
+  unbinding and rebinding listeners. A test dispatches through the recorded listener and asserts the
+  *second* handler runs — the ref indirection is the thing being tested, and binding directly would
+  send a drill click to a stale callback.
+
+The init effect also re-applies the current option, or a light/dark switch would leave the rebuilt
+chart blank until the next option change — which may never come.
+
+### `EChartsRenderer` restructured
+
+It had **two return points**, each rendering its own `<ReactECharts>`. Hooks cannot be called
+conditionally, so the branch moved inside a single `useMemo` and there is now one `useEChart` call and
+one `<div>`. The two option shapes are unchanged.
+
+### The tests got stronger, which was the point
+
+`EChartsRenderer.test.tsx` mocked `echarts-for-react` and asserted the option handed to it. It now
+mounts for real and reads the option back off the live instance — verdict 8, finally actionable. A mock
+accepts anything, so the old version would have passed just as happily if ECharts ignored the option
+entirely.
+
+**`getOption()` returns the NORMALISED option**, which is both the value and the gotcha: ECharts wraps
+single components in arrays and fills defaults, so it is `xAxis[0].inverse`, not `xAxis.inverse`.
+Asserting the un-normalised shape is exactly what a mock lets you get away with. One assertion changed
+character usefully: the RTL legend test can no longer say "the other side is undefined", because
+ECharts fills a default — it now says "the other side is not ours".
+
+### Verified
+
+- **557 front-end tests** across 80 files (up from 546), lint, typecheck and build clean.
+- `grep -rn echarts-for-react src/` returns **comments only**; `npm uninstall` took it out of
+  `analytics-web/package.json`.
+- Bundle **3,627.20 kB → 3,609.20 kB** (gzip 1,132.71 → 1,126.23). Small, and real.
+- 22 real-mount tests now exist where there were none: 14 on the renderer, 8 on the hook.
+- The app still renders after a reload — heading, canvas and recharts legend all present, no error
+  boundary.
+
+**Not verified in the browser:** `EChartsRenderer`'s new mount path. No local report produces a
+`library: "echarts"` view — the heatmap is unreachable from auto-viz (a known finding) and the two
+admin charts sit behind `ai:manage`, which 403s locally. It rests on the 22 real-mount tests. The first
+browser sighting of it will be step 6, when bar charts start routing to ECharts.
+
+**A grep that lied, worth remembering:** searching the built bundle for `getInstanceByDom` returns
+**0** even though echarts is bundled — Rollup resolves a static namespace property access into a
+renamed local, so the symbol never appears. `zrender` returning 1 is the honest control. The reliable
+signals for "is this dependency gone" are the import graph and the size delta, not a symbol grep.
+
+---
+
+## Step 3 — DONE. The data layer, and the drill bug fixed in both renderers.
+
+All five bullets. None of these threw before; they produced quietly wrong charts, which is worse.
+
+### Aggregation
+
+`rows.find(r => r[x] === xc)` took the **first** matching row and discarded the rest. Four rows over
+two months drew two bars each holding one row's value. Now `aggregateByCategory`, with the category
+axis derived from the aggregated rows rather than from `uniq`. Duplicates inside a *split* series are
+summed too, which the old code also got wrong.
+
+### The missing bucket
+
+`uniq` did `if (v === null) continue`, deleting a whole category. It now keeps one missing bucket,
+using a separate flag rather than a sentinel string so no real category can collide with it, and
+`formatCategory(null)` renders it as the blank tick recharts already shows. `undefined` joins `null`
+in that one bucket.
+
+### More than one measure
+
+`mapping.y` is `string | string[]` and this collapsed to the first. Now one series per y key, named
+through `useColumnLabel` — the same names the legend, the table and the exports use. The other meaning
+of multi-series (one measure split by `mapping.series`) still works; both coexist.
+
+### Series names
+
+`name: String(sv)` was raw, so a chart split by month showed a Jalali date on the axis and an ISO one
+in the legend at the same time. Now through `formatCategory`, the same function the axis uses.
+
+### Drill by value — fixed in BOTH renderers
+
+The verdict correction stands: this was never ECharts-specific, and `RechartsRenderer` — the path
+almost every chart uses today — had the identical positional lookup. Fixed in both via a shared
+`renderers/drill.ts`, rather than leaving the recharts path knowingly broken until step 9.
+
+The recharts side needed one extra thing: `withCategoryLabels` **overwrites** the category with its
+formatted label, which is precisely why the click handler had nothing but an index to work with. The
+raw categories are now captured before that.
+
+`resolveDrillTarget` matches on value, comparing as strings (a year is `1405` on one side and `"1405"`
+on the other), and treats `null`/`undefined` as one bucket so a click on the blank tick still drills.
+
+### Verified
+
+**582 tests** across 82 files (up from 557), lint, typecheck and build clean. 8 tests on the shared
+helper, 17 on the renderer's data layer.
+
+Each fix was reverted to confirm it is load-bearing:
+
+| reverted | result |
+| --- | --- |
+| positional drill | `expected 'Tehran' to be 'Fars'` |
+| first-match instead of aggregation | `expected [100, 40] to deeply equal [350, 100]` |
+| `uniq` dropping nulls | **passed — 13/13** |
+
+**That third row is the useful one.** The null fix had *no coverage*: every null test went through the
+single-series path, which `aggregateByCategory` covers, while `uniq` is what covers the other two paths
+— the heatmap matrix and a split series. Four tests were added for those, and reverting the fix now
+fails four times instead of zero.
+
+### Not verified
+
+No browser sighting. No local report produces a `library: "echarts"` view — the heatmap is unreachable
+from auto-viz and the admin charts 403 locally — so this rests on 25 real-mount tests. Step 6 is the
+first time these code paths appear on a screen.
+
+The drill change is **user-visible on the recharts path today**: clicking a bar on a sorted report now
+opens a different report than it did yesterday. That is the fix, not a regression, but it is worth
+knowing before someone reports it as a change in behaviour.
+
+---
+
+## Step 4 — DONE. RTL and interaction parity, on everything step 1 loaded onto it.
+
+### The tooltip is hand-built now, because ECharts' own is physically laid out
+
+Step 1 measured it: ECharts emits `float:right` on the value and `margin-left:2px` on the name, and in
+an RTL block `float:right` puts the value at the *reading* edge — so the tooltip read **value then
+name**, reversing recharts' «name : value». Neither property is reachable through
+`tooltip.textStyle`, which is why the old `align === "right"` assertion guarded nothing and has been
+deleted rather than ported.
+
+The replacement uses logical properties only (`margin-inline-start`, `margin-block-end`), so one
+formatter serves both directions, escapes category values (they are data, and they reach markup), and
+reads a heatmap datum's `[x, y, value]` triple as well as a plain value. `confine: true` is set too —
+widget bodies scroll, and an unconfined tooltip is positioned against the viewport, so near an edge it
+spilled outside the widget.
+
+### Negatives in RTL — fixed in `formatNumber`, which reaches further than the charts
+
+The measurement from step 1: `-۱٬۲۳۴` renders with the minus on the **wrong side** because
+U+002D is bidi-neutral and the chart canvas reports `ctx.direction === "rtl"`. recharts defended this
+with `tick={{ style: { direction: "ltr" } }}`, a CSS property with **no canvas counterpart**.
+
+`formatNumber` now wraps a negative in `U+2066 … U+2069` (LRI…PDI). Of five candidates tested on the
+RTL canvas, that and an LRM prefix work; U+2212 MINUS SIGN and a trailing RLM do not.
+
+Placed there rather than in each chart formatter deliberately: **the on-screen table and the PDF go
+through `formatCell` → `formatNumber`, so they are fixed too, while CSV and Excel take raw row values
+and get no control characters in a spreadsheet cell.** Only negatives are wrapped, so every positive
+number stays byte-identical — verified on the live page, zero stray isolates.
+
+**A pre-existing bug fell out of writing that test.** `Intl.NumberFormat` formats `-0` as `"-0"`, so an
+axis tick or a delta that rounded down to zero read as «-۰». Zero is not negative; normalised.
+
+### Legend
+
+`legendPlacement(dir).inline` instead of a second inline copy of the same decision, plus `bottom: 0` —
+ECharts defaults a legend to top-centre while recharts put it underneath, so without it the legend
+landed on the plot. `grid.bottom` clears it.
+
+`selectedMode` is now `series.length > 1`. Step 1 measured the default as `true`, and with a single
+series — the common shape auto-viz produces — one click empties the chart while our `notMerge` puts it
+back on the next re-render. A toggle that blanks everything and then undoes itself reads as a glitch,
+not a control. With several series it is genuinely useful, so it stays.
+
+### Axis labels
+
+The forced `interval: 0` is gone, replaced by `hideOverlap: true`. Step 1's arithmetic: at 360px with
+six real province names the plot gives **44px per category** against label widths of 72.0, 93.6, 98.3,
+93.6, 65.6 and 38.5px — five of six overflow, the widest by more than double. recharts thinned with
+`preserveEnd`; ECharts hides what will not fit rather than overlapping it.
+
+### The heatmap's colour scale
+
+`visualMap.formatter` wired to the same value formatter. Its min/max labels fell back to `toFixed` —
+ASCII digits with no grouping, the one number on the chart not going through our formatter.
+
+### The font race
+
+`document.fonts.ready.then(() => instance.resize())`, in `useEChart` rather than per chart, since every
+chart now comes through it. Step 1 measured «آذربایجان شرقی» at 62.27px in the fallback face and
+71.97px in Vazirmatn — a 15.6% shift that `grid.containLabel` sizes the plot box from, so a chart drawn
+before the font lands keeps both the wrong glyphs and a plot measured for the wrong font.
+
+### One bullet became moot rather than done
+
+The plan asked for `valueFormatter`, `axisLabel.formatter` and `onEvents` to be memoized, because
+`echarts-for-react` gated updates on `fast-deep-equal` and fresh closures forced a destructive
+`notMerge` rebuild every render. **Step 2b deleted that wrapper.** The option is built inside a
+`useMemo` and handlers are held in a ref, so there is no per-render rebuild left to prevent. Recorded
+rather than silently skipped.
+
+### Verified
+
+**599 tests** across 82 files (up from 582), lint, typecheck and build clean. Four guards were reverted
+to confirm they bite:
+
+| reverted | result |
+| --- | --- |
+| value before name, with `float:right` | 2 failures, including the name/value ordering |
+| `interval: 0` restored | `expected +0 not to be +0` |
+| `selectedMode` removed | `expected true to be false` |
+| — negatives and −0 — | covered by 6 new `formatNumber` tests |
+
+On the live page: axis ticks unchanged («۱٬۵۰۰٬۰۰۰٬۰۰۰»), **zero stray isolate characters**, no console
+errors.
+
+**Not verified:** the negative-number fix on a real screen — no seeded report contains a negative, so
+there is nothing local to look at. It rests on the canvas ink-column measurement from step 1 and the
+unit tests. Also still unseen: the ECharts tooltip and legend in a browser, since no local report
+produces an `echarts` view. Step 6 is the first time any of this appears on screen.
+
+---
+
+## Step 5 — DONE. Line, area and bar parity. Still nothing routed.
+
+### The decision the plan left open: **area stays**
+
+Confirmed again that nothing in the app emits it — `SwitchTarget` is `ViewType | "bar" | "line" | "pie"`,
+`CHART_SUBTYPES` has only those three, and the only other `AreaChart` reference is the branch inside
+`RechartsRenderer` itself. So it is reachable only from a hand-written or AI-authored view.
+
+Kept anyway. Whether a *stored* definition names it cannot be answered from the code, only from the
+database, and the cost of being wrong is asymmetric: keeping it costs six lines, dropping it silently
+changes the shape of a report someone saved. Same reasoning that keeps the legacy `library: "recharts"`
+alias alive in step 9. If a backend query later shows no stored view names it, deleting it is trivial.
+
+### The kinds
+
+An alias table ported from `RechartsRenderer` verbatim, **including the silent bar default** — a stored
+view whose component string nothing recognises draws a bar rather than nothing, which is what saved
+definitions already rely on.
+
+- **line** — `smooth: true, smoothMonotone: "x", showSymbol: false`. The monotone part is not
+  decoration: plain `smooth: true` is a different spline that overshoots between points, so a sparse
+  series dips below zero where recharts' curve did not. `showSymbol: false` matches `dot={false}`.
+- **area** — the line shape plus `areaStyle: { opacity: 0.25 }`, **overlaid not stacked**, which is what
+  recharts drew.
+
+The shape is spread into every series, so a multi-measure or split-series chart is not half bar and
+half line.
+
+### Parity details, each of which would otherwise be a silent visual change
+
+| | |
+| --- | --- |
+| **height 320, not 360** | The renderer had 360. Routing views here would have made every dashboard widget's chart 40px taller — a layout change disguised as a library change. |
+| `axisPointer` | `shadow` for bars, `line` for curves; recharts drew the same distinction. |
+| grid lines | recharts dashed **both** axes; ECharts hides the category one by default, so it is asked for explicitly. |
+| dash pattern | `[3, 3]`, in the theme where grid appearance belongs — not `type: "dashed"`, which is a visibly longer pattern. |
+| **only bars drill** | recharts' `onClick` lived on `<BarChart>` alone, so line and area never drilled. Giving them one would be a product change wearing a migration's clothes. |
+
+`valueAxisWidth` is **not** ported. `grid.containLabel` already measures the value labels and reserves
+room. That is the cleanest net deletion in this migration.
+
+### Verified
+
+**619 tests** across 83 files (up from 599), lint, typecheck and build clean. 20 new, covering all six
+component aliases, the unrecognised-component fallback, the curve settings, area fill and non-stacking,
+and the parity table above.
+
+Guards reverted to confirm they bite:
+
+| reverted | result |
+| --- | --- |
+| height back to 360 | `expected '360px' to be '320px'` |
+| plain `smooth`, no monotone | 3 failures |
+| drill gating removed | line and area both drilled — `called 1 times` |
+
+### Not verified
+
+Nothing on a screen, still. No local report produces a `library: "echarts"` view, so line, area and the
+parity details rest on the tests. **Step 6 is the first time any of this is visible**, and it is the
+step to slow down on: it flips `auto-viz` and `CHART_SUBTYPES`, so every bar chart in the app changes
+library at once.
+
+---
+
+## Step 6 — DONE. Bar charts render with ECharts. First visible step.
+
+### The change itself was two words
+
+`library: "recharts"` → `"echarts"` in `auto-viz.ts` rule 3 and `CHART_SUBTYPES.bar`. **`component`
+stays `"BarChart"`** — it is the identity key that `findViewForTarget`, `ViewSwitcher`, `WidgetFrame`
+and AskAiBuilder's motion key all sniff as a case-insensitive substring, and renaming it breaks the
+switcher with nothing to type-check the break.
+
+Exactly **one** existing test failed: the `library: "recharts"` expectation on auto-viz rule 3. Nothing
+else — the integration tests in `ReportViewer`, `WidgetFrame` and `AskAiBuilder` all kept passing, which
+is the canvas stub from step 2 earning its keep.
+
+New guards in `view-switching.test.ts`: bar builds as ECharts but is still called `BarChart`; the
+switcher finds an ECharts bar view rather than building a duplicate; **it still finds a bar view saved
+under the old library**; and line and pie have *not* moved, so an accidental flip in steps 7-8 fails
+loudly.
+
+### Seen in a browser, at last
+
+| check | result |
+| --- | --- |
+| library actually swapped | `.recharts-surface` gone, real `<canvas>`, `_echarts_instance_` present |
+| height | **320px** — the step-5 parity fix holding; it would have been 360 |
+| is it drawing | 26,460 inked pixels |
+| palette | dominant colour `rgb(50,107,252)` = **#326BFC**, 21,475 pixels; axis `#6B6B66`, grid `#EBECE9` — all three from the theme |
+| view switcher | «میله‌ای» highlighted — proof the component string still matches through `findViewForTarget` |
+| switch to table and back | table renders, then bar returns with **exactly one** canvas and the same 26,460 pixels. One canvas is the point: a component-string mismatch would have built a duplicate view |
+| dashboard | widget renders ECharts, no recharts left on the page, no horizontal scroll |
+| error boundary | none |
+
+### A parity regression found by looking, and fixed
+
+The dashboard widget rendered **60px wide**. Chasing it up the tree showed the whole widget collapsed at
+this viewport — `react-grid-item` 94×40 — so recharts would have drawn 60px too. Not a step-6
+regression.
+
+But it exposed one. recharts sized itself through `ResponsiveContainer`, which watches **its own box**
+with a ResizeObserver. A bare `echarts.init` measures once and afterwards hears only `window.resize`. On
+a dashboard that difference is the normal case, not an edge one: react-grid-layout drags and resizes
+widgets and the sidebar folds, none of which resizes the window. The chart would have kept its old
+canvas size, and jsdom reports no layout so no test would ever have noticed.
+
+`useEChart` now observes its container and disconnects on unmount. Three tests cover the wiring —
+removing the observer fails all three.
+
+### Not verified
+
+- **The drill hit area.** The plan flags it shrinking from the whole column to the bar rectangle, and
+  no seeded report has a `drilldown` config, so clicking a bar locally does nothing either way. The
+  drill *logic* is covered by tests; the hit area is not.
+- **Label rotation above 8 categories** and **the dataZoom slider above 25** — the seed has four
+  provinces. Both are option-tested, neither has been seen.
+- **PDF export with a chart image.** Only dashboard widgets pass a chart root, and the widget is
+  collapsed at this viewport.
+
+### Reverting
+
+Still one word in two files: `auto-viz.ts` rule 3 and `CHART_SUBTYPES.bar`. Worth knowing before the
+first real deploy of this branch.
+
+---
+
+## Step 7 — DONE. Line charts render with ECharts. Quiet, as predicted.
+
+Same two-word shape as step 6: `auto-viz.ts` rule 2 and `CHART_SUBTYPES.line`, component string
+`"LineChart"` untouched.
+
+**Two tests failed, and the second one is the point.** The first was the rule-2 expectation. The
+second was the guard written in step 6 — *"has not moved line or pie yet"* — firing on the deliberate
+flip. That is the guard proving it would also catch an accidental one. It now reads "has not moved pie
+yet" and still watches step 8.
+
+### The RTL gap the plan called out
+
+`RechartsRenderer.test.tsx` **never sets `document.documentElement.dir`** — verified, the grep returns
+nothing — so the whole recharts suite runs LTR and none of its RTL behaviour ever had renderer-level
+coverage. There was nothing to inherit, so it is written fresh: a date axis in RTL carries «۱۴۰۴/۰۲»
+rather than `2025-05`, stays Gregorian in LTR, runs `inverse`, and keeps the monotone curve settings.
+Bypassing the Jalali conversion fails it with
+`expected ['2025-05','2025-06'] to deeply equal ['۱۴۰۴/۰۲','۱۴۰۴/۰۳']`.
+
+### Seen in a browser
+
+Switching a report to «خطی» renders an ECharts line: one canvas, no recharts, 320px, and **15,427
+inked pixels of which only 1,547 are brand blue** — a thin stroke, where the bar chart was 95,071. The
+switcher highlight follows and no duplicate view is built.
+
+### And finally, the two admin charts
+
+They had been unreachable all session (`ai:manage` 403s the default mock user). With the role set to
+`SuperAdmin` they render for the first time:
+
+| chart | size | inked | dominant colours |
+| --- | --- | --- | --- |
+| `tokens-chart` (line) | 390×280 | 10,385 | #326BFC 1,457 · axis #6B6B66 · grid #EBEBE7 |
+| `cost-chart` (bar) | 390×280 | 27,146 | **#326BFC 21,673** · axis · grid |
+
+This closes a loop that has been open since the palette work: these are the two charts that used to
+call `echarts.init(el)` bare and render in ECharts' own palette with `#333` text at **1.31:1** on the
+dark panel. In dark mode now: axis `#8AA39A`, grid in dark tones, **no `51,51,51` anywhere**, still
+drawing. It also gives `useEChart`'s three-effect rewrite from step 2b its first browser exercise.
+
+### Verified
+
+**632 tests** across 83 files (up from 627), lint, typecheck and build clean.
+
+### Still not verified
+
+The drill hit area, label rotation above 8 categories, the dataZoom slider above 25, and PDF chart
+export — all four need richer seed data or production, and all four have been carried forward since
+step 6 rather than quietly dropped.
+
+### What is left
+
+Only the pie. **Step 8 is the risky one** — the donut is a layout, not a chart, and `pieSweep` has to
+change shape: nothing connects it to a rendered ring, so a verbatim port is bit-identical to passing
+nothing while every test stays green and the RTL ring spins backwards.
+
+---
+
+## Step 8 — DONE. The donut is ECharts. The risky step, and it did bite.
+
+Predicted as the highest-risk step, and it earned that. Two real defects, one of them mine and one
+inherited — and **neither was caught by a test**. Both were found in a browser.
+
+### The sweep trap, caught as designed
+
+`pieSweep` now returns `{ startAngle: 90, clockwise }` instead of recharts' `endAngle`. Proven by
+reverting: with the verbatim port (`endAngle: -270 | 450`) the live instance reports
+`clockwise: true` in RTL — ECharts' default — and the new test fails with *expected true to be
+false*. That is exactly the silent bit-identical-to-nothing outcome the plan warned about, caught.
+
+### The defect the plan did not predict: **a moved ref**
+
+Switching a report to «دایره‌ای» rendered an **empty rectangle**. No error, no warning, 643 green
+tests.
+
+`useEChart` returned a `useRef` object. `ref.current` is read once, inside the init effect, whose
+deps are theme / has-option / event-names — **none of which notice the ref pointing somewhere
+else**. The donut is a flex row with the chart in an inner box; every other chart is a single div.
+Switching between them keeps the component mounted, so React reused the outer node and moved the ref
+inwards. The instance stayed bound to the node React had just repurposed as the flex row, and React
+filled that same node with the row's children. Confirmed in the DOM: `_echarts_instance_` sat on the
+flex row, and the ring was gone.
+
+**Fix:** the hook returns a **callback ref** backed by state, so the element is a dependency like any
+other and a move disposes and rebuilds the way a theme change does. Plus distinct `key`s on the two
+branches, so React unmounts instead of repurposing and no ECharts inline styles (`position`,
+`user-select`) survive onto a plain flex row.
+
+Three regression tests, bite-checked precisely: against the pre-fix `useRef` hook exactly the two
+new ones fail and the other sixteen pass. The third pins the other half — a fresh callback each
+render would detach and reattach every time, which is the churn the three-effect split exists to
+prevent.
+
+**This is a whole-hook fix, not a donut fix.** Any future chart whose markup changes shape while
+mounted was going to hit it.
+
+### The inherited defect: the legend line in English
+
+The plan flagged «٪» as a deliberate-decision point. Seen on screen it was worse than a wrong sign:
+in an LTR page the row `تهران — 36.97٪` **reordered** — the share jumped to the front of the line and
+the percent sign came off its number. A Persian name is a right-to-left run, the share is a
+left-to-right one, and the neutral dash between them belongs to neither.
+
+Fixed deliberately, and said out loud rather than carried:
+
+- one `<bdi>` per part, so the two keep the order the markup gives them in either direction;
+- new `formatPercent(value, dir)` in `format.ts` — «٪» (U+066A) in Persian, `%` in English. recharts
+  appended U+066A unconditionally, so an English reader saw `36.97٪`.
+
+The two-space separator in the tooltip **is** kept verbatim.
+
+### Seen in a browser — all four combinations
+
+| | ring | key | hole | sweep |
+| --- | --- | --- | --- | --- |
+| RTL light | right | left | «۱۵ میلیارد» | counter-clockwise |
+| RTL dark | right | left | «۱۵ میلیارد» | counter-clockwise |
+| LTR light | left | right | "15B" | clockwise |
+| LTR dark | left | right | "15B" | clockwise |
+
+`formatFitted` did its job unprompted: the real total is fourteen characters and became «۱۵ میلیارد».
+Dark-mode contrast on the panel `#0b0f14`: total and legend **16.37:1**, sub-label **7.13:1**. Round
+trip pie → bar restores an 870×320 canvas with no donut markup left behind. Zero `.recharts-surface`
+on the page.
+
+**Mobile (375px):** the flex row wraps to ring-over-key, 287×389, and `documentElement.scrollWidth`
+equals `clientWidth` — no horizontal overflow.
+
+### Verified
+
+**651 tests** across 83 files (up from 632), lint, typecheck and build clean.
+
+### Still not verified
+
+Unchanged from step 7, and still not quietly dropped: the drill hit area, label rotation above 8
+categories, the dataZoom slider above 25, and PDF chart export.
+
+### What is left
+
+Steps 9 and 10 — deleting recharts, and the sweep-up. Nothing routes to it now, so step 9 is a
+deletion, not a migration.
+
+---
+
+## Step 9 — DONE. recharts is gone.
+
+A deletion, as predicted, and the quietest step since 6 — but the two checks that mattered both
+needed a browser, and the first version of both was **worthless**.
+
+### What went
+
+`RechartsRenderer.tsx` and `RechartsRenderer.test.tsx`, the `vi.mock` in `ReportView.test.tsx`, the
+package (`npm uninstall recharts --workspace=analytics-web`, −329 lines of lockfile). `pdf.ts` now
+falls back to a plain `svg` rather than `svg.recharts-surface` — a dead class selector would have
+made a later switch to ECharts' SVG renderer look like it silently broke PDF export.
+
+**Bundle: 3,613.10 kB → 3,171.31 kB** (gzip 1,127.80 → 1,009.83). That is the proof it left the
+bundle and not merely `package.json`.
+
+The three `aggregateByCategory` tests moved to a new `chart-utils.test.ts` **before** the delete.
+Nothing in them was ever about a library; left in place they would have gone as collateral and the
+loss would have been silent.
+
+### Two tests deliberately not ported, said out loud
+
+- *"bar chart with duplicate x-values renders without React duplicate-key warning"* — recharts built
+  one React child per datum. ECharts has no React children. Not portable, and nothing to replace it.
+- *"one bar per DISTINCT x value (not per raw row)"* — already covered by *"sums rows that share a
+  category instead of keeping only the first"* in `EChartsRenderer.data.test.tsx`.
+
+### The legacy alias, proven both ways — after two false readings
+
+`case "recharts":` now falls through to `EChartsRenderer`. The plan's whole argument for keeping it
+is that deleting it turns every pre-migration saved chart into a **table**, silently.
+
+The first two attempts to see that in a browser proved nothing, and it is worth writing down why:
+
+1. Seeding a stored `library: "recharts"` view into `seed.ts` changed nothing, because the seed is
+   persisted to **`localStorage['report.db.reports']`** and the browser was reading its own older
+   copy. The chart that rendered was the auto-chosen ECharts one.
+2. So removing the alias also changed nothing — and *that* looked like the alias not mattering.
+   Reading "still renders" as "the alias is unnecessary" would have deleted it.
+
+Patching `localStorage` directly and reloading gave the real answer, both directions:
+
+| dispatcher | what a stored `library: "recharts"` chart renders |
+| --- | --- |
+| alias removed | **a 4-row antd table** — no error, no warning |
+| alias present | an 870×320 ECharts bar chart |
+
+Two unit tests now hold that, one of which asserts the *failure mode* (`queryByTestId("r-table")` is
+absent) rather than only the success.
+
+### Stale comments, which in this repo are part of the code
+
+A comment naming a deleted file is a trap. Fixed, not left: `ui-store.ts` listed `RechartsRenderer`
+as a theme consumer; `can-edit.ts` blamed jsdom sizing for why drill is untestable (the real reason
+is canvas hit-testing); `SeriesLabelBar.tsx` argued in the present tense about a legend that no
+longer exists; `ReportViewer.test.tsx` pointed at `RechartsRenderer.test.tsx`; `drill.ts` said
+"shared by both renderers"; two theme tests were named after the palette recharts drew with.
+
+`EChartsRenderer`'s reachability note on `AreaChart` was re-checked rather than reworded: with the
+recharts branch gone there is now **no other `AreaChart` reference in `src` outside a test**. Area
+still stays — that argument was never about recharts.
+
+### Seen in a browser
+
+Saved report, Ask AI, dashboard. Ask AI's «فروش به تفکیک دسته» draws a seven-slice donut that wraps
+the six-colour palette correctly. All five switcher targets cycled on one page. **Zero console
+errors** — and that too needed a second look: the console buffer survives navigation *and* a dev
+server restart, so it was still full of HMR debris from this session's own bite checks (including a
+hook-order dump that was literally the `useRef`-vs-callback-ref experiment). A **fresh tab** gave the
+clean read: one pre-existing antd `rowKey` deprecation warning, nothing else.
+
+The dashboard widget still renders 133×40 — byte-identical to `main`, the pre-existing sizing bug,
+untouched by this step.
+
+### Verified
+
+**643 tests** across 83 files (651 − 12 deleted + 4 added), lint, typecheck and build clean.
+`grep -rn recharts src` returns only the `ViewLibrary` union, the alias case, and test names
+describing inherited behaviour. No live import and no live selector.
+
+### Still not verified
+
+Unchanged and still not dropped: the drill hit area, label rotation above 8 categories, the dataZoom
+slider above 25, and PDF chart export — the last of which this step touched, so it is now the most
+worth doing.
+
+### What is left
+
+Step 10 only.
+
+---
+
+## Step 10 — DONE. The sweep, and one live bug hiding in it.
+
+Five of the six items were tidy-up. The auto-viz one was not.
+
+### Rule 5 was drawing all-zero charts
+
+The plan called this "the heatmap is unreachable from auto-viz — every matrix report renders as a
+single-series bar with a dimension dropped". Probed against a live instance, it was worse:
+
+```
+VIEW    {component: "EChart", mapping: {x: "orderDate", y: "province", measure: "revenue"}}
+SERIES  [{type: "bar", name: "Province", data: [0, 0]}]
+XAXIS   ["2025-01", "2025-02"]
+FIND    bar/line/pie -> [-1, -1, -1]
+```
+
+Not "a dimension dropped" — **the measure dropped**. `seriesKeysOf` prefers `mapping.y` over
+`mapping.measure`, so the chart plotted the province column; `Number("Tehran")` is NaN and ECharts
+draws NaN as zero. Every two-dimension report in the product rendered an all-zero bar chart with a
+legend naming a dimension. Rule 5b was the same bug in miniature: with one dimension, `y` resolved to
+the *same field as `x`*.
+
+Split into the two questions it was conflating:
+
+- **5a matrix** → a real heatmap: `component: "heatmap"` with `mapping: { x, series, measure }`, which
+  is what the renderer's heatmap branch actually requires. The second dimension is picked by identity
+  (`.find(f => f !== x)`), not by position — `catDims[0]` returned the same field as `x` whenever both
+  dimensions were categorical.
+- **5b/5c** → still a chart, but one that plots the measure: `{ x, y: measure.key }`. A tag cannot
+  conjure a second dimension, and above 25 categories the renderer already adds a dataZoom slider,
+  which is the real answer to label crowding.
+
+Four end-to-end tests in `auto-viz.matrix.test.tsx` go rule → renderer → live instance and assert the
+**rendered** option, because that is exactly the gap the bug lived in. Three of the four fail against
+the old rule. Seen in a browser: months across the x-axis, four provinces down the y-axis, a colour
+scale, real values.
+
+### The switcher lied twice, in two different ways
+
+Three separate `component.toLowerCase().includes("bar")` ladders — `findViewForTarget`, `ViewSwitcher`
+and `WidgetFrame` — ending in three **different** fallbacks: line, bar, and bar. One `targetOfView`
+now answers for all three, and returns **undefined** when a view has no button.
+
+Undefined turned out not to be enough. **antd's Segmented reads `undefined` as "the first option"**,
+so a heatmap lit «جدول» instead of «خطی» — a different wrong answer, caught only by looking at the
+page after the "fix". Hence `NO_TARGET`, a value that matches no option and leaves the strip blank.
+
+### `advancedECharts` deleted
+
+Six sites. Nothing read it, and after "every chart is ECharts" its label promised control over a
+distinction that no longer exists — a toggle that does nothing invites someone to flip it and
+conclude the product is broken.
+
+The plan's risk note — *"confirm the backend tolerates its absence"* — resolves to: **there is no
+backend.** System settings are `localStorage` (`report.db.systemSettings`). Tested by planting a
+legacy object that still carries the flag: the page renders two switches, saving works, and the stale
+property rides along ignored.
+
+`dashboardSharing` and `exportFormats` are read by nothing either. Left alone deliberately — their
+labels do not lie about what they would do. Noted in the worklog as a decision for someone else.
+
+### Documentation
+
+`GOTCHAS.md`'s recharts entry replaced rather than deleted, as the plan insisted: how to inspect a
+canvas chart in a non-displayed pane (`getInstanceByDom(el).getOption()`, `getDataURL()`), plus a new
+entry for the jsdom canvas stub. Two more added from bugs found during the migration — the index-vs-
+value drill trap and `mapping.y` beating `mapping.measure`. `PROJECT-MAP.md` gained a chart section,
+which it had never had.
+
+### Verified
+
+**658 tests across 84 files** (606 at the start of the migration), lint, typecheck and build clean.
+
+### Not verified
+
+The four carried since step 6, unchanged: drill hit area, label rotation above 8 categories, the
+dataZoom slider above 25, and PDF chart export. And **nothing here has been deployed** — it is all
+localhost against mock data.
+
+### The migration is finished
+
+Worklog: `docs/worklog/2026-08-14-recharts-to-echarts.md`. The open decision left for the user is
+canvas accessibility — ECharts' `aria` with translated templates, or a visually-hidden table per
+chart.

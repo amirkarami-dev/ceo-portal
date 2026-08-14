@@ -5,7 +5,7 @@
 import type { QueryResult } from "@/contracts";
 import { formatCell, type Dir } from "@/presentation/format";
 
-/** Snapshot the widget's chart (Recharts SVG or ECharts canvas) as an <img> src. */
+/** Snapshot the widget's chart (ECharts canvas, or any SVG) as an <img> src. */
 export function chartSnapshot(root: HTMLElement | null): string | null {
   if (!root) return null;
   const canvas = root.querySelector("canvas");
@@ -16,7 +16,11 @@ export function chartSnapshot(root: HTMLElement | null): string | null {
       return null;
     }
   }
-  const svg = root.querySelector("svg.recharts-surface");
+  // Every chart is a canvas now, so this branch is a fallback rather than a path. It stays plain
+  // `svg` rather than a class from a library that is no longer installed: ECharts can be told to
+  // render SVG instead of canvas, and a dead class selector would have made that switch look like it
+  // silently broke PDF export.
+  const svg = root.querySelector("svg");
   if (svg) {
     const xml = new XMLSerializer().serializeToString(svg);
     return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(xml)}`;

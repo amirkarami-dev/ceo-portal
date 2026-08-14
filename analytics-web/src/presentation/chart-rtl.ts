@@ -34,15 +34,26 @@ export function legendPlacement(dir: Dir): LegendPlacement {
 /**
  * Where the ring starts and which way it sweeps.
  *
- * Recharts measures angles the way maths does — 0° at 3 o'clock, positive counter-clockwise — and by
- * default starts a pie at 0° and sweeps counter-clockwise, so the first and largest slice begins at
- * the right edge. The convention is to start the largest slice at **12 o'clock**, which is 90°.
+ * Both libraries put 0° at 3 o'clock, so **90° is 12 o'clock** either way — that half is unchanged.
+ * The convention is to start the largest slice there. The sweep then follows reading direction:
+ * clockwise in LTR, counter-clockwise in RTL, so a reader's eye leaves the top and travels the way
+ * their language runs and the slices arrive in order rather than backwards.
  *
- * The sweep follows reading direction: clockwise in LTR, counter-clockwise in RTL. A reader's eye
- * leaves the top and travels the way their language runs, so the slices arrive in order rather than
- * backwards.
+ * ## Why this returns `clockwise` and not `endAngle`
+ *
+ * It used to return `{ startAngle: 90, endAngle: -270 | 450 }`, which is **recharts' way of saying
+ * it**: recharts derives direction from whether the end angle is below or above the start.
+ *
+ * ECharts does not. It takes an explicit `clockwise` boolean, and its `endAngle` means something
+ * else entirely — where a *partial* ring stops. Handing ECharts `endAngle: 450` is not a
+ * counter-clockwise circle; it is a request it quietly normalises, producing a plausible-looking
+ * ring for the wrong reason.
+ *
+ * That is the trap worth naming: **nothing connects this function to a rendered ring**. Port the old
+ * shape verbatim and the result is bit-identical to passing nothing at all, in both directions,
+ * while every test here keeps passing and the RTL donut spins backwards on screen.
  */
-export function pieSweep(dir: Dir): { startAngle: number; endAngle: number } {
-  // 90 is 12 o'clock. Ending 360° below it sweeps clockwise; 360° above, counter-clockwise.
-  return dir === "rtl" ? { startAngle: 90, endAngle: 450 } : { startAngle: 90, endAngle: -270 };
+export function pieSweep(dir: Dir): { startAngle: number; clockwise: boolean } {
+  // 90 is 12 o'clock in both libraries. Direction is explicit rather than inferred from an end angle.
+  return { startAngle: 90, clockwise: dir !== "rtl" };
 }

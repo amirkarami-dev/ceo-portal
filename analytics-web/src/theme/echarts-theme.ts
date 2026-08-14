@@ -5,9 +5,8 @@ import { tokens, type ThemeMode } from "./theme";
  * The ECharts theme — the palette, type and surfaces every ECharts chart in the app gets for free.
  *
  * ECharts, unlike recharts, has a real theme system: `echarts.init(el, theme)` takes either a
- * registered theme name or a plain object, and echarts-for-react forwards its `theme` prop straight
- * into that same call. So ONE object serves both the report renderers and the raw
- * `echarts.init` in the admin charts.
+ * registered theme name or a plain object. Every chart in the app now goes through
+ * `components/charts/useEChart.ts`, so this one object themes all of them from a single `init` call.
  *
  * Use it. The two admin charts used to call `echarts.init(el)` with nothing, which silently gave
  * them ECharts' own defaults: a palette where five of nine colours miss 3:1 on white (its yellow
@@ -28,7 +27,9 @@ export function echartsTheme(mode: ThemeMode): Record<string, unknown> {
     axisLine: { show: true, lineStyle: { color: c.axis } },
     axisTick: { show: true, lineStyle: { color: c.axis } },
     axisLabel: { show: true, color: c.axis },
-    splitLine: { show: true, lineStyle: { color: c.grid } },
+    // Dashed, matching recharts' `<CartesianGrid strokeDasharray="3 3">`. `[3, 3]` rather than
+    // `type: "dashed"`, which is a different, longer pattern.
+    splitLine: { show: true, lineStyle: { color: c.grid, type: [3, 3] } },
     splitArea: { show: false },
   };
 

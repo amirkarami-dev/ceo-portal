@@ -425,11 +425,33 @@ The matching giveaway is `computer{action:"screenshot"}` failing with *"the Brow
 displayed"*.
 **Fix:** display the pane, or verify the panel's *content* by reading the DOM and accept that the
 slide cannot be seen. Do not "fix" working motion code.
-**Recharts fails the same way but looks different:** the bars are *there* in the DOM as
-`<g class="recharts-bar-rectangle">` with **no `path` child at all** — the entrance animation never
-gets its first frame, so the geometry is never written. Axes, grid and legend render fine, which
-makes it read like a data problem. To check a series **colour** without a displayed pane, read
-`.recharts-legend-icon`'s `fill` — it is drawn unanimated and carries the same palette entry.
+**Charts fail the same way but leave nothing to read.** Every chart in `analytics-web` is an ECharts
+**canvas** since 2026-08-14, so there is no `<g>`, no `<path>` and no legend node — a chart in a
+non-displayed pane is one `<canvas>` element with an empty bitmap, and `read_page` shows nothing at
+all. Ask the *instance* instead of the DOM:
+```js
+const el = document.querySelector('[data-testid="echarts-canvas"]');
+const c  = echarts.getInstanceByDom(el);      // undefined = never mounted, which is a real bug
+c.getOption().series[0].data                   // the data it was given
+c.getOption().color                            // the palette in use
+c.getDataURL()                                 // a PNG, even when the pane is hidden
+```
+`getOption()` returns the **normalised** option, so it is `xAxis[0].inverse`, not `xAxis.inverse`.
+From the outside, `document.querySelector('canvas').toDataURL()` gives the same picture and is what
+`chartSnapshot` in `features/export/pdf.ts` uses.
+
+### An ECharts chart renders blank in a test, with no error
+**Symptom:** `echarts-canvas` is in the DOM, the container even carries `_echarts_instance_`, and a
+`<canvas>` child exists — but nothing is drawn and `echarts.getInstanceByDom(el)` returns undefined.
+**Cause:** jsdom implements no canvas 2D context and reports every element as 0×0. `echarts-for-react`
+compounds it with a two-phase init that waits on a `finished` event, disposes and re-inits — that
+never completes, so the instance never survives.
+**Fix:** `analytics-web/vitest.setup.ts` stubs a Proxy-backed 2D context (`measureText` estimates 6px
+per character) and puts `clientWidth`/`clientHeight` on `HTMLElement.prototype` — inline px wins,
+otherwise 800×600. Charts go through the app's own `useEChart`, not `echarts-for-react`.
+**Why it matters:** without the stub the only testable thing is the option object handed to a mock,
+and a mock accepts anything — including options ECharts rejects, renames, or normalises into
+something else. Assert against `getInstanceByDom(el).getOption()`, never against a captured prop.
 
 ### A blanket `prefers-reduced-motion` rule parks every AntD Drawer off-screen
 **Symptom:** the mobile menu button "does nothing". The DOM is right — `.ant-drawer` is mounted and
@@ -1205,7 +1227,34 @@ was **0**: the tab had never been laid out. `resize_window` to a real size gave 
 **Read `window.innerWidth` before believing any layout measurement**, and treat "every variant is
 identical" as a symptom, not a result.
 
-### Recharts paints legend TEXT in the series colour, and the engine names a column after its alias
+### A chart index is NOT a data index — drill-down opened the wrong report for months
+**Symptom:** clicking a bar drills into a different category than the one clicked. Silently: the
+child report is real and renders fine, it is just the wrong one.
+**Cause:** the renderer did `groups[clickedIndex]`. `groupNodes` is built while the engine collects
+rows (`query/engine.ts:576-580`), and the rows are **sorted at :585 and sliced at :588-589** — after.
+The two lists stop being parallel the moment anything reorders or drops a row, and `ai/rules.ts:118`
+adds a sort to nearly every Ask-AI report, so this was the common case rather than an edge one.
+Aggregating duplicate categories and dropping nulls shorten the chart relative to `groups` too, but
+they are not the cause.
+**Fix:** match on the category VALUE — `resolveDrillTarget` in
+`presentation/renderers/drill.ts`.
+**How to check it bites:** add a plain sort to the fixture. With no nulls and no duplicates at all,
+three bars still drilled to three wrong groups.
+
+### `mapping.y` beats `mapping.measure`, so a dimension in `y` is plotted as a value
+**Symptom:** a chart of all-zero bars, with a legend naming a *dimension* («استان» / "Province").
+No error, no warning, and every unit test green.
+**Cause:** `seriesKeysOf` reads `mapping.y` first and only falls back to `mapping.measure`. A view
+that sets both — as `auto-viz`'s matrix rule did, with the second dimension in `y` — plots the
+dimension column. `Number("Tehran")` is NaN, and ECharts draws NaN as zero.
+**Fix:** a view names its measure in exactly one place. The matrix rule now emits
+`{ x, series, measure }` and no `y`.
+**Related:** the heatmap branch needs **both** `mapping.series` and `component === "heatmap"`. Set
+one without the other and it falls through to the cartesian path, where an unrecognised component
+string silently defaults to `bar`.
+**Where:** `presentation/auto-viz.ts` rule 5, `presentation/series-keys.ts`.
+
+### A chart library paints legend TEXT in the series colour, and the engine names a column after its alias
 **Legend colour.** Series colours are chosen so slices can be told apart as *fills* — a much lower
 bar than being readable as 12px words. Measured on the dark panel: blue **2.54:1**, deep green
 **2.67:1**, against a floor of 4.5. The dot already carries the colour, so paint the words in the
@@ -1218,6 +1267,13 @@ showed literally `sum_amount`. The parts of a real name are elsewhere: the defin
 `presentation/labels.ts` joins them; anything displaying a column key must go through it.
 **Compose before honouring a label stored on the report** — a stored label is one fixed string with
 no language, so preferring it left an English reader looking at Persian.
+
+**Also:** never sniff a view's component string with `includes("bar")`. There were three such ladders
+— in `findViewForTarget`, `ViewSwitcher` and `WidgetFrame` — ending in three DIFFERENT fallbacks
+(line, bar, bar), so one view showed a different pressed button depending on the screen. They now all
+go through `targetOfView`, which returns **undefined** when a view has no button of its own (a
+heatmap). Pass `NO_TARGET` to antd's `Segmented` in that case: it reads `undefined` as "the first
+option" and lights «جدول».
 
 **Also:** the view switcher can only select a view that EXISTS, and `chooseView` returns just the one
 it picked plus a Table. Any switcher must therefore *build* the view it is asked for

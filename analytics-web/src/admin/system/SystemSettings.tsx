@@ -19,11 +19,15 @@ import {
 import type { SystemSettings as SystemSettingsData } from "./types";
 import { PageHeader, PageContainer } from "../../components/ui";
 
-const FLAGS: (keyof SystemSettingsData["flags"])[] = [
-  "advancedECharts",
-  "dashboardSharing",
-  "exportFormats",
-];
+/**
+ * `advancedECharts` was removed here. It was a switch nothing read, and once every chart became an
+ * ECharts chart its label («ECharts پیشرفته» / "Advanced ECharts") promised control over a
+ * distinction that no longer exists. A toggle that does nothing is worse than a missing one: it
+ * invites someone to flip it and conclude the product is broken.
+ *
+ * The two below are read by nothing either — but their labels do not lie about what they would do.
+ */
+const FLAGS: (keyof SystemSettingsData["flags"])[] = ["dashboardSharing", "exportFormats"];
 
 export function SystemSettings() {
   const { t } = useTranslation();

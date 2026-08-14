@@ -13,17 +13,63 @@ export function toPersianDigits(input: string | number): string {
  * Grouped thousands formatting. LTR uses ASCII comma grouping; RTL uses
  * Persian digits with the Persian thousands separator (U+066C).
  */
+/** U+2066 LEFT-TO-RIGHT ISOLATE … U+2069 POP DIRECTIONAL ISOLATE. */
+const LRI = "⁦";
+const PDI = "⁩";
+
 export function formatNumber(
   value: number | null | undefined,
   dir: Dir,
 ): string {
   if (value === null || value === undefined || Number.isNaN(value)) return "";
+  // `Intl.NumberFormat` formats -0 as "-0", so an axis tick or a delta that rounded down to zero read
+  // as «-۰». Zero is not negative. (`value === 0` is true for -0, which is the point.)
+  const n = value === 0 ? 0 : value;
   if (dir === "ltr") {
-    return new Intl.NumberFormat("en-US").format(value);
+    return new Intl.NumberFormat("en-US").format(n);
   }
   // Group with ASCII first, then transliterate separators + digits.
-  const grouped = new Intl.NumberFormat("en-US").format(value);
-  return toPersianDigits(grouped).replace(/,/g, "٬");
+  const grouped = new Intl.NumberFormat("en-US").format(n);
+  const fa = toPersianDigits(grouped).replace(/,/g, "٬");
+
+  /**
+   * A negative needs a directional isolate, or the minus paints on the wrong side.
+   *
+   * U+002D HYPHEN-MINUS is bidi-neutral, so in an RTL run it reorders to the *end* of the number:
+   * «۱٬۲۳۴-» instead of «-۱٬۲۳۴». Measured on a canvas at 20px by ink-column height — a hyphen is ~2px
+   * tall and a digit ~7-10px — with only `ctx.direction` differing:
+   *
+   * | ctx.direction | leading glyph | trailing glyph |
+   * | ltr           | 2px (hyphen)  | 7px (digit)    |
+   * | rtl           | 10px (digit)  | 2px (hyphen)   |
+   *
+   * The chart canvas reports `rtl` (it inherits the CSS direction; zrender never sets it), so this is
+   * what real charts do. recharts defended it with `tick={{ style: { direction: "ltr" } }}` — a CSS
+   * property with **no canvas counterpart**, since `ctx.direction` is not exposed by any ECharts
+   * option. An isolate is the only fix that works in both.
+   *
+   * Tested against four alternatives: LRI…PDI and a U+200E LRM prefix both fix it; swapping the
+   * hyphen for U+2212 MINUS SIGN and appending U+200F RLM both do not.
+   *
+   * Only wrapped when there is actually a sign, so positive numbers stay byte-identical. Applied here
+   * rather than at each call site so the on-screen table and the PDF get it too — CSV and Excel take
+   * raw row values, so no control characters reach a spreadsheet cell.
+   */
+  return fa.startsWith("-") ? `${LRI}${fa}${PDI}` : fa;
+}
+
+/**
+ * A share, with its sign: «۳۶٫۹۷٪» or "36.97%".
+ *
+ * The sign is not decoration. U+066A ARABIC PERCENT SIGN and U+0025 PERCENT SIGN are different
+ * characters, and the donut's legend and tooltip appended U+066A **unconditionally** — so an English
+ * reader saw "36.97٪". Inherited from the recharts donut and fixed here deliberately while moving
+ * that donut to ECharts, rather than carried across because it was already there.
+ */
+export function formatPercent(value: number | null | undefined, dir: Dir): string {
+  const n = formatNumber(value, dir);
+  if (n === "") return "";
+  return dir === "rtl" ? `${n}٪` : `${n}%`;
 }
 
 /**

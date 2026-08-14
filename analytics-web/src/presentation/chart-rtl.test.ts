@@ -15,23 +15,38 @@ describe("legendPlacement", () => {
   });
 
   it("starts the ring at 12 o'clock in both directions", () => {
-    // Recharts puts 0° at 3 o'clock, which is where the largest slice used to begin. 90° is the top.
+    // 0° is 3 o'clock in both libraries, so 90° is the top either way. This half did not change.
     expect(pieSweep("rtl").startAngle).toBe(90);
     expect(pieSweep("ltr").startAngle).toBe(90);
   });
 
+  /**
+   * Direction is now an explicit boolean, not something inferred from an end angle.
+   *
+   * The old shape was recharts': `{ startAngle: 90, endAngle: -270 | 450 }`, where the library works
+   * out the direction from whether the end is below or above the start. ECharts takes `clockwise`
+   * outright, and its `endAngle` means where a PARTIAL ring stops — so feeding it 450 is not a
+   * counter-clockwise circle, it is a value it quietly normalises into a plausible-looking ring for
+   * the wrong reason.
+   */
   it("sweeps the way the language runs", () => {
-    // Recharts angles grow counter-clockwise, so ending BELOW the start sweeps clockwise.
-    expect(pieSweep("ltr").endAngle).toBeLessThan(pieSweep("ltr").startAngle);
-    expect(pieSweep("rtl").endAngle).toBeGreaterThan(pieSweep("rtl").startAngle);
+    expect(pieSweep("ltr").clockwise, "LTR reads left-to-right, so the ring runs clockwise").toBe(true);
+    expect(pieSweep("rtl").clockwise, "RTL reads right-to-left, so it runs the other way").toBe(false);
   });
 
-  it("sweeps a full circle, never more or less", () => {
-    // An arc of 359° leaves a wedge missing; 361° overlaps the first slice. Either reads as a bug.
+  it("says direction outright rather than encoding it in an angle", () => {
+    // The guard against a verbatim port. `endAngle` is ECharts' partial-ring control, and handing it
+    // recharts' ±360 values renders something plausible while meaning nothing — with every test here
+    // still green, because nothing joins this function to a rendered ring.
     for (const dir of ["rtl", "ltr"] as const) {
-      const { startAngle, endAngle } = pieSweep(dir);
-      expect(Math.abs(endAngle - startAngle), dir).toBe(360);
+      const sweep = pieSweep(dir) as Record<string, unknown>;
+      expect(typeof sweep.clockwise, dir).toBe("boolean");
+      expect(sweep.endAngle, `${dir}: endAngle means "partial ring" to ECharts, not a direction`).toBeUndefined();
     }
+  });
+
+  it("gives the two directions opposite sweeps, never the same one", () => {
+    expect(pieSweep("rtl").clockwise).not.toBe(pieSweep("ltr").clockwise);
   });
 
   it("never gives the two legends the same value", () => {

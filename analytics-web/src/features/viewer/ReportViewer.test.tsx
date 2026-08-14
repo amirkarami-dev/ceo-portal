@@ -237,13 +237,12 @@ describe("ReportViewer", () => {
       expect(screen.getByTestId("series-labels").textContent).toContain("برچسب دستی"),
     );
 
-    // Deliberately NOT asserting the chart's own legend text here. recharts sizes itself through
-    // ResponsiveContainer, which measures 0 in jsdom, so it renders no legend and
-    // `result-canvas` is empty — the assertion would fail for a reason that has nothing to do with
-    // labels. The chain to the chart is covered instead by labels.test.tsx (override →
-    // useColumnLabel) plus RechartsRenderer.test.tsx (useColumnLabel → the series `name` prop, which
-    // recharts uses for the legend AND the tooltip, so they cannot drift apart). The rendered legend
-    // itself is checked in a real browser.
+    // Deliberately NOT asserting the chart's own legend text here — and the reason is now stronger
+    // than it was. ECharts paints its legend onto a **canvas**, so there is no text node to read at
+    // any viewport size; under recharts it was merely a jsdom sizing problem. The chain to the chart
+    // is covered instead by labels.test.tsx (override → useColumnLabel) plus
+    // EChartsRenderer.data.test.tsx (useColumnLabel → the series `name`, which feeds the legend AND
+    // the tooltip, so they cannot drift apart). The rendered legend itself is checked in a browser.
   });
 
   // ── Who gets a pencil ─────────────────────────────────────────────────────

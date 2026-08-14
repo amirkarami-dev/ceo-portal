@@ -3,7 +3,7 @@ export interface SystemSettings {
   defaultLocale: "fa-IR" | "en-US";
   defaultTheme: "light" | "dark";
   dateSystem: "jalali" | "gregorian";
-  flags: { advancedECharts: boolean; dashboardSharing: boolean; exportFormats: boolean };
+  flags: { dashboardSharing: boolean; exportFormats: boolean };
   ai: {
     defaultProvider: string;
     defaultModel: string;

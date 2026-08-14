@@ -7,6 +7,7 @@ import {
   formatCell,
   formatDateTime,
   formatFitted,
+  formatPercent,
 } from "./format";
 
 describe("toPersianDigits", () => {
@@ -29,6 +30,44 @@ describe("formatNumber", () => {
   it("renders null/undefined as an empty string", () => {
     expect(formatNumber(null, "rtl")).toBe("");
     expect(formatNumber(undefined, "ltr")).toBe("");
+  });
+
+  // ── Negatives in RTL ─────────────────────────────────────────────────────
+  // U+002D HYPHEN-MINUS is bidi-neutral, so inside an RTL run it reorders to the END of the number:
+  // «۱٬۲۳۴-» rather than «-۱٬۲۳۴». Measured on a canvas by ink-column height, with only
+  // ctx.direction differing, and the chart canvas reports rtl. An isolate is the only fix that works
+  // on canvas — recharts' `direction: "ltr"` trick has no canvas counterpart.
+
+  const LRI = "⁦";
+  const PDI = "⁩";
+
+  it("wraps a negative in a directional isolate in RTL", () => {
+    expect(formatNumber(-1234, "rtl")).toBe(`${LRI}-۱٬۲۳۴${PDI}`);
+  });
+
+  it("leaves positives untouched, so nothing gains invisible characters for no reason", () => {
+    const out = formatNumber(1234, "rtl");
+    expect(out).toBe("۱٬۲۳۴");
+    expect(out).not.toContain(LRI);
+    expect(out).not.toContain(PDI);
+  });
+
+  it("does not isolate in LTR, where the minus is already on the correct side", () => {
+    expect(formatNumber(-1234, "ltr")).toBe("-1,234");
+  });
+
+  // Found by this test, and it predates the isolate: Intl formats -0 as "-0", so an axis tick or a
+  // delta that rounded down to zero read as «-۰». Zero is not negative.
+  it("shows negative zero as zero, in both directions", () => {
+    expect(formatNumber(0, "rtl")).toBe("۰");
+    expect(formatNumber(-0, "rtl")).toBe("۰");
+    expect(formatNumber(-0, "ltr")).toBe("0");
+  });
+
+  it("still reads as the same number once the controls are stripped", () => {
+    // Whatever a reader's software does with the isolate, the digits must be unchanged.
+    const stripped = formatNumber(-98765, "rtl").replaceAll(LRI, "").replaceAll(PDI, "");
+    expect(stripped).toBe("-۹۸٬۷۶۵");
   });
 });
 
@@ -139,5 +178,26 @@ describe("formatFitted — a number in a fixed-size hole", () => {
   it("has nothing to say about nothing", () => {
     expect(formatFitted(null, "rtl")).toBe("");
     expect(formatFitted(undefined, "ltr")).toBe("");
+  });
+});
+
+describe("formatPercent", () => {
+  it("uses the Arabic percent sign with Persian digits in rtl", () => {
+    // The decimal point stays ASCII, because `formatNumber` transliterates the digits and the
+    // thousands separator and not the point. Pre-existing and left alone — this function only owns
+    // the sign.
+    expect(formatPercent(36.97, "rtl")).toBe("۳۶.۹۷٪");
+  });
+
+  it("uses the ASCII percent sign in ltr", () => {
+    // The bug this function exists for: the donut appended «٪» (U+066A) in both directions, so an
+    // English reader saw "36.97٪".
+    expect(formatPercent(36.97, "ltr")).toBe("36.97%");
+    expect(formatPercent(36.97, "ltr")).not.toContain("٪");
+  });
+
+  it("gives back nothing for nothing, rather than a bare sign", () => {
+    expect(formatPercent(null, "rtl")).toBe("");
+    expect(formatPercent(undefined, "ltr")).toBe("");
   });
 });

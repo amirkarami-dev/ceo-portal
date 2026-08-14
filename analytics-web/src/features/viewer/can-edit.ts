@@ -32,8 +32,9 @@ export function canEditReports(roles: readonly AppRole[]): boolean {
  * a different report with different column keys, and the override is written under keys nothing will
  * ever read: a rename that reports success and changes nothing.
  *
- * A named rule rather than an inline `&&` because the drill-down half cannot be reached from a test —
- * recharts draws nothing in jsdom, so there is no datum to click. This much is at least covered.
+ * A named rule rather than an inline `&&` because the drill-down half cannot be reached from a test:
+ * a chart drills from a click on a canvas datum, and a test can dispatch the event but not produce
+ * the hit-test that decides which datum it landed on. This much is at least covered.
  */
 export function canRenameSeries(
   roles: readonly AppRole[],

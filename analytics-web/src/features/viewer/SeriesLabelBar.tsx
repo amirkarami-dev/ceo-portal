@@ -22,16 +22,16 @@ export interface SeriesLabelBarProps {
  * Rename the series a chart draws.
  *
  * **Why it sits beside the chart and not on the legend.** The obvious place is the legend text
- * itself, and for recharts that would even work — its legend is HTML and its `formatter` returns a
- * React node. But ECharts draws its legend into a **canvas**: there is no element to mount an editor
- * into, at any price. Putting the control on the legend would mean charts you can rename and charts
- * you cannot, decided by which library happened to draw them. One place, both renderers.
+ * itself. It would have worked under recharts, whose legend was HTML — which is exactly why this
+ * control is not there: ECharts draws its legend into a **canvas**, so there is no element to mount
+ * an editor into, at any price. Deciding the answer per library would have meant charts you can
+ * rename and charts you cannot. Now that every chart is ECharts, there is only the canvas.
  *
  * The swatch is not decoration — it is the only thing tying a row here to a line on the chart, since
  * the two are no longer adjacent. It uses the same palette in the same order the renderers do.
  *
- * Renaming here changes the legend **and** the tooltip: recharts takes both from one `name` prop, so
- * they cannot drift apart.
+ * Renaming here changes the legend **and** the tooltip, because both read the series `name` — the
+ * renderer sets it once, so the two cannot drift apart.
  */
 export function SeriesLabelBar({ view, def, result, onRename, canEdit }: SeriesLabelBarProps) {
   const { t } = useTranslation();

@@ -25,7 +25,7 @@ type Axis = {
 };
 
 describe("echartsTheme", () => {
-  it.each(MODES)("%s carries the same palette recharts draws with", (mode) => {
+  it.each(MODES)("%s carries the same palette the design tokens define", (mode) => {
     expect(echartsTheme(mode).color).toEqual(chartColors(mode).series);
   });
 

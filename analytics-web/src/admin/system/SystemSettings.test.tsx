@@ -32,7 +32,7 @@ vi.mock("../../api/queries", () => ({
       defaultLocale: "fa-IR",
       defaultTheme: "light",
       dateSystem: "jalali",
-      flags: { advancedECharts: true, dashboardSharing: false, exportFormats: true },
+      flags: { dashboardSharing: false, exportFormats: true },
       ai: {
         defaultProvider: "openai",
         defaultModel: "gpt-4o-mini",

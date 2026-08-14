@@ -8,18 +8,57 @@ const CHART_SUBTYPES: Record<
   "bar" | "line" | "pie",
   Pick<ReportView, "type" | "library" | "component">
 > = {
-  bar: { type: "chart", library: "recharts", component: "BarChart" },
-  line: { type: "chart", library: "recharts", component: "LineChart" },
-  pie: { type: "chart", library: "recharts", component: "PieChart" },
+  // ECharts since steps 6, 7 and 8. The component strings never changed — they are the identity key
+  // the switcher matches on, now through `COMPONENT_TARGET` below rather than substring sniffing.
+  bar: { type: "chart", library: "echarts", component: "BarChart" },
+  line: { type: "chart", library: "echarts", component: "LineChart" },
+  pie: { type: "chart", library: "echarts", component: "PieChart" },
 };
+
+/**
+ * Component string → the switcher button that stands for it. Lowercase keys; both the long form the
+ * auto-viz rules emit and the short form hand-written views use.
+ *
+ * Explicit, because this was three separate ladders of `component.toLowerCase().includes("bar")` —
+ * in `findViewForTarget`, `ViewSwitcher` and `WidgetFrame` — with three **different** fallbacks:
+ * line, and bar, and bar. A component none of them recognised therefore appeared as a different
+ * pressed button depending on which one you were looking at, and `auto-viz`'s matrix rule emitted
+ * exactly such a component for as long as it existed.
+ */
+const COMPONENT_TARGET: Record<string, SwitchTarget> = {
+  barchart: "bar",
+  bar: "bar",
+  linechart: "line",
+  line: "line",
+  piechart: "pie",
+  pie: "pie",
+};
+
+/**
+ * Which switcher button a view corresponds to, or **undefined when none does**.
+ *
+ * Undefined is an answer, not a gap. A heatmap has no button, and the honest result is a switcher
+ * with nothing highlighted — the fallbacks this replaces guessed instead, and highlighted «خطی» on a
+ * chart that was not a line.
+ */
+export function targetOfView(view: ReportView | undefined): SwitchTarget | undefined {
+  if (!view) return undefined;
+  // Type first: it is the reliable half. `table` and `kpi` are types, not component strings.
+  if (view.type === "table" || view.type === "kpi") return view.type;
+  return COMPONENT_TARGET[(view.component ?? "").toLowerCase()];
+}
+
+/**
+ * A Segmented `value` that deliberately matches no option, so nothing looks pressed.
+ *
+ * Needed because antd's Segmented treats `undefined` as "the first option" — passing undefined for a
+ * view with no button lit «جدول» rather than leaving the strip blank.
+ */
+export const NO_TARGET = "__no-target__";
 
 /** Index of a view already showing this target, or -1. */
 export function findViewForTarget(views: ReportView[], target: SwitchTarget): number {
-  return views.findIndex((v) =>
-    target === "table" || target === "kpi"
-      ? v.type === target
-      : v.component.toLowerCase().includes(target),
-  );
+  return views.findIndex((v) => targetOfView(v) === target);
 }
 
 /**
