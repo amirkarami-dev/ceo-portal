@@ -22,6 +22,7 @@ Also, when a task teaches something reusable:
 
 | Date | Record | Area | Status |
 |---|---|---|---|
+| 2026-08-13 | [A save button that shows its own progress](2026-08-13-analytics-save-button.md) | analytics-web | **live** on analytic.myceo.ir |
 | 2026-08-13 | [The flaky permission test was paying for a module graph inside its own timer](2026-08-13-analytics-flaky-permission-test.md) | analytics-web | fixed, test-only |
 | 2026-08-13 | [A dashboard widget can be a bar, a line, a pie or a table](2026-08-13-analytics-widget-view-modes.md) | analytics-web | **live** on analytic.myceo.ir |
 | 2026-08-13 | [The date filter is a Persian calendar now](2026-08-13-analytics-jalali-date-filter.md) | analytics-web | **live** on analytic.myceo.ir |
