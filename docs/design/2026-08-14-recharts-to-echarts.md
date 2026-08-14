@@ -2,7 +2,8 @@
 
 **Date:** 2026-08-14
 **Area:** analytics-web
-**Status:** **plan only — nothing built.** Waiting on "start step 1".
+**Status:** **step 1 (spike) done — see the memo at the end. Nothing shipped yet.** Branch `feat/echarts-only`.
+Waiting on "start step 2".
 
 Amir asked to use ECharts only. Agreed as the goal: recharts has no RTL support, which is the whole
 reason `presentation/chart-rtl.ts` exists; ECharts has a real theme system; and dropping recharts
@@ -438,3 +439,150 @@ Then flip `auto-viz.ts:93` and `CHART_SUBTYPES.pie`.
 - **The real font timing.** It depends on cache state, network and device — step 1 must measure it, not reason about it.
 - **Canvas performance with many widgets on one dashboard.** recharts SVG and ECharts canvas scale differently; nothing in the repo measures either.
 - **Whether anyone uses legend toggling.** No telemetry visible. It arrives by ECharts default, not by decision.
+
+---
+
+## Step 1 — DONE. The spike's answers.
+
+**Run on** `feat/echarts-only`, echarts **5.6.0** / echarts-for-react **3.0.6** / zrender **5.6.1**,
+Chromium via the in-app browser, RTL page, Vazirmatn loaded. The spike was a throwaway
+`spike.html` + `spike.tsx` at the Vite root; both are deleted.
+
+**No screenshots.** The Browser pane is not displayed in this environment, so
+`computer{action:"screenshot"}` fails outright, and ECharts draws to canvas so there is no DOM to
+read. Everything below is measured instead — canvas text metrics, ink-column profiles, resolved
+option read-back and tooltip DOM. Where a question could only be answered by eye, that is said.
+
+### Q1 — RTL tooltip word order. **CONFIRMED. A custom formatter is mandatory.**
+
+The emitted tooltip HTML carries exactly the two physical properties the plan predicted:
+
+```html
+<span style="…margin-left:2px">تعداد پروژه</span>
+<span style="float:right;margin-left:20px;…">6,550</span>
+```
+
+Measured geometry in an RTL block: the name occupies x 907–967, the value x 1001–1037. **The value
+sits to the right of the name**, and right is the reading edge in RTL — so the tooltip reads
+*value, then name*, reversing recharts' «name : value». Neither `float:right` nor `margin-left`
+comes from anything reachable through `tooltip.textStyle`.
+
+→ **Step 4 must ship a custom `tooltip.formatter`.** The existing
+`EChartsRenderer.test.tsx` assertion that `textStyle.align === "right"` guards nothing.
+
+### Q2 — Font race. **CONFIRMED, and it changes layout, not just glyphs.**
+
+| | `document.fonts.check("12px Vazirmatn")` | measured width of «آذربایجان شرقی» |
+| --- | --- | --- |
+| first paint | **false** | 62.27px |
+| after `document.fonts.ready` | true | **71.97px** |
+
+A **15.6%** metric shift. Canvas text is rasterised once and `grid.containLabel` sizes the plot from
+those metrics, so a chart painted before the webfont lands keeps fallback glyphs *and* a plot box
+measured for the wrong font.
+
+→ **`document.fonts.ready.then(() => chart.resize())` belongs in the shared seam**
+(`components/charts/useEChart.ts` and the renderer), not per chart. Not reproduced from a genuinely
+cold HTTP cache — the font was already cached in this session — but the metric difference is the
+mechanism and it is not in doubt.
+
+### Q3 — Negatives in RTL. **CONFIRMED BROKEN, and a fix is measured.**
+
+The app's real `formatNumber` (`presentation/format.ts:16-27`) emits **`-۱٬۲۳۴`** — ASCII
+hyphen-minus, Persian digits, Persian comma «٬».
+
+The chart canvas reports **`ctx.direction === "rtl"`** (it inherits the CSS direction; zrender never
+sets it), so the bidi algorithm runs RTL. Rendering that string at 20px and reading ink-column
+heights — a hyphen is ~2px tall, a digit ~7–10px:
+
+| `ctx.direction` | leading glyph | trailing glyph | where the minus lands |
+| --- | --- | --- | --- |
+| `ltr` | **2px** | 7px | left — correct |
+| `rtl` | 10px | **2px** | **right — «۱٬۲۳۴-»** |
+
+recharts defended this with `tick={{ style: { direction: "ltr" } }}`. **That has no canvas
+counterpart** — `ctx.direction` is not exposed by any echarts option.
+
+Remedies tested on the RTL canvas:
+
+| candidate | result |
+| --- | --- |
+| as-is | RIGHT (wrong) |
+| **`U+2066` LRI … `U+2069` PDI** | **LEFT (correct)** |
+| **`U+200E` LRM prefix** | **LEFT (correct)** |
+| `U+2212` MINUS SIGN instead of hyphen | RIGHT (wrong) |
+| `U+200F` RLM suffix | RIGHT (wrong) |
+
+→ **Step 4: wrap negative output in an LRI…PDI isolate** (or an LRM prefix) inside `formatNumber`.
+Note this affects the **table and export paths too**, which use the same formatter — so it is worth
+doing deliberately rather than only for charts. Swapping to U+2212 does *not* help.
+
+### Q4 — Legend click. **`selectedMode` is `true` by default; one click blanks a single-series chart.**
+
+Measured: `legend[0].selectedMode === true`; `legendUnSelect` sets `{"تعداد پروژه": false}` while the
+series still holds its 3 data points — hidden, not removed. With one series (auto-viz rules 2 and 3,
+the common case) a stray legend click empties the chart, and our own `notMerge` restores it on the
+next re-render, so it reads as a flicker rather than a toggle.
+
+→ **Step 4: set `selectedMode: false` when there is one series**, keep it for multi-series.
+
+### Q5 — Label collision under 9 categories. **CONFIRMED. `interval: 0` is wrong for narrow widgets.**
+
+Six real province names, 12px Vazirmatn, in a 360px chart with the renderer's `grid.left/right: 48`:
+
+- plot width ceiling **264px** → **44px per category**
+- label widths: 72.0, 93.6, 98.3, 93.6, 65.6, 38.5 px
+- **5 of 6 exceed their slot**; the widest is 98.3px in 44px — more than double
+
+`EChartsRenderer.tsx` forces `interval: 0` (draw every label), the opposite of recharts'
+`preserveEnd` thinning.
+
+→ **Step 4: drop the forced `interval: 0`.** Let ECharts thin (`interval: "auto"`), or rotate.
+Rotation is arithmetically sufficient here — rotated labels collide when the slot is below
+`labelHeight / sin θ` ≈ 14/0.5 ≈ 28px, and the slot is 44px — but that is arithmetic, not measured.
+
+### Q6 — Accessibility. **Better than the plan implied, still not parity. A decision for Amir.**
+
+`aria: { enabled: true }` **does** work, and my first reading of it was wrong: it puts the attributes
+on the **container div**, not on any child, which is why an inner-element query found nothing.
+Measured output:
+
+```html
+<div role="img" aria-label="This is a chart with type Bar chart named مقدار.
+     The data is as follows: the data for الف is 0, 3, the data for ب is 1, 7. ">
+```
+
+Three things follow. It is **off by default** — the other six charts in the spike had no aria
+attributes at all. The boilerplate is **hard-coded English on a Persian page**, though every template
+is overridable (`aria.label.general.*`, `.series.*`, `.data.*`). And the data phrasing emits index and
+value together — *"the data for الف is 0, 3"* — which reads as noise.
+
+What is lost against recharts either way: axis ticks and legend text stop being real DOM, so no
+selection, no find-in-page, no per-datum navigation. `role="img"` plus one summary string is a
+mitigation, not parity.
+
+→ **Amir's call.** The cheap, honest position: enable `aria` with translated templates in step 4 and
+accept summary-level access. If per-datum access matters, the alternative is a visually-hidden table
+beside each chart — real work, not a flag.
+
+### Q7 — API details on the installed build. **All confirmed.**
+
+`echarts@5.6.0` is installed and `analytics-web/package.json` pins `^5.5.0`, which guarantees
+≥ 5.5.0 — so `padAngle` (added in 5.5.0) can never resolve away. No need to tighten the range.
+
+Every option the plan's donut config depends on survived the round trip through `getOption()`:
+`padAngle: 2`, `clockwise: false`, `startAngle: 90`, `showEmptyCircle: false`,
+`emphasis.scale: false`, `radius: [68, 110]`.
+
+### What this changes in the plan
+
+- **Step 4 grows**, as its "low confidence" sizing anticipated. It now definitely carries: a custom
+  RTL tooltip formatter (Q1), a font-ready `resize()` in the shared seam (Q2), a bidi isolate for
+  negatives (Q3), `selectedMode` (Q4), and removing the forced `interval: 0` (Q5).
+- **Q3 reaches past the charts.** `formatNumber` is shared with the table and the exporters, so the
+  isolate is a formatter change with wider blast radius than "RTL chart parity".
+- **Step 8's donut config is safe to write as specified** — all six options verified on 5.6.0.
+- **Q6 is the only open decision**, and it is Amir's.
+- **Not answered by this spike**, because it needs eyes and the pane cannot be shown: whether the
+  rotated 6-label layout actually looks right, and whether the donut's ring reads correctly in RTL.
+  Both are step 4 / step 8 visual checks on a real screen.
