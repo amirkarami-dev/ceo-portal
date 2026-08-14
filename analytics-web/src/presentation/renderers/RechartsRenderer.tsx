@@ -195,7 +195,10 @@ export default function RechartsRenderer({ view, def, result, onDrill }: Rendere
                 cornerRadius={6}
                 // Largest slice at 12 o'clock, sweeping the way the language runs.
                 startAngle={sweep.startAngle}
-                endAngle={sweep.endAngle}
+                // recharts has no `clockwise`: it infers direction from whether the end angle is
+                // below or above the start. Translated here rather than in `pieSweep`, because the
+                // ring itself now belongs to ECharts and this file is deleted in step 9.
+                endAngle={sweep.clockwise ? sweep.startAngle - 360 : sweep.startAngle + 360}
                 isAnimationActive={false}
                 // No labels on the ring: they collide as soon as a category is small, and twelve
                 // project types include four under 0.1%. The share goes in the legend instead.

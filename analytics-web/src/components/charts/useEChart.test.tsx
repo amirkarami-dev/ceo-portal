@@ -218,3 +218,62 @@ describe("useEChart — follows its container, not just the window", () => {
     expect(resizes).toHaveLength(1);
   });
 });
+
+/**
+ * The defect this hook shipped with, and the reason its ref is a callback.
+ *
+ * Found in a browser, not here: switching a report to its donut view left an empty rectangle where
+ * the ring should be — no error, no warning, no failing test. The renderer draws a donut as a flex
+ * row with the chart in an inner box and every other chart as a single div, so the ref MOVES while
+ * the component stays mounted. React reused the outer node, the instance stayed bound to it, and
+ * React then filled that same node with the flex row's children.
+ *
+ * A `useRef` object cannot notice this: `ref.current` is read once inside the init effect, whose deps
+ * are the theme, whether there is an option, and the event names.
+ */
+function MovingChart({ nested }: { nested: boolean }) {
+  const ref = useEChart(option);
+  return nested ? (
+    <section data-testid="wrap">
+      <div ref={ref} data-testid="chart" />
+    </section>
+  ) : (
+    <div ref={ref} data-testid="chart" />
+  );
+}
+
+describe("useEChart — the ref moving to a different element", () => {
+  it("rebuilds on the new element instead of leaving the chart on the old one", () => {
+    const { rerender, getByTestId } = render(<MovingChart nested={false} />);
+    const first = initCalls[0][0];
+    expect(first).toBe(getByTestId("chart"));
+
+    rerender(<MovingChart nested />);
+
+    // Disposed once and re-initialised, exactly the way a theme change behaves.
+    expect(disposed.count).toBe(1);
+    expect(initCalls).toHaveLength(2);
+    const second = initCalls[1][0];
+    expect(second).not.toBe(first);
+    expect(second).toBe(getByTestId("chart"));
+  });
+
+  it("observes the element it is actually drawing on", () => {
+    const { rerender, getByTestId } = render(<MovingChart nested={false} />);
+    rerender(<MovingChart nested />);
+
+    // The ResizeObserver has to follow too, or the chart keeps measuring a box it no longer occupies.
+    expect(observed[observed.length - 1]).toBe(getByTestId("chart"));
+    expect(disconnects.count).toBe(1);
+  });
+
+  it("does not rebuild when the element stays put", () => {
+    const { rerender } = render(<MovingChart nested={false} />);
+    rerender(<MovingChart nested={false} />);
+
+    // The other half: a callback ref that is a fresh function each render would detach and reattach
+    // on every render, which is the churn the three-effect split exists to avoid.
+    expect(initCalls).toHaveLength(1);
+    expect(disposed.count).toBe(0);
+  });
+});

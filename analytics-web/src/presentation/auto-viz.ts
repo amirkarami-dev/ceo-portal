@@ -92,8 +92,11 @@ export function chooseView(
     }
 
     // RULE 4 — single dimension + measure, share intent, ≤8 slices → PieChart
+    //
+    // ECharts since step 8, the last view to move. Only the RING is the library: the total in the
+    // hole and the key beside it are markup the renderer owns, unchanged from recharts.
     if (measure && dimCount === 1 && shareIntent && categories <= PIE_MAX_SLICES) {
-      return view("chart", "recharts", "PieChart", def.name, {
+      return view("chart", "echarts", "PieChart", def.name, {
         category: groupBy[0].field, measure: measure.key,
       });
     }

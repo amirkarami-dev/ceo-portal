@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import * as echarts from "echarts";
 import type { EChartsCoreOption } from "echarts";
 import { useUiStore } from "../../store/ui-store";
@@ -33,9 +33,25 @@ export type EChartEvents = Record<string, (params: never) => void>;
  * - **setOption** keyed on the option, updating the live instance.
  * - **handlers** kept in a ref and read at dispatch time, so a new closure each render does not mean
  *   unbinding and rebinding listeners.
+ *
+ * ## Why the returned ref is a callback and not a `useRef` object
+ *
+ * A ref object is silent. `ref.current` is read once, inside the init effect, and nothing re-runs that
+ * effect when the ref later points at a **different element** — the deps above are theme, has-option
+ * and event names, none of which notice.
+ *
+ * That is not hypothetical. The report renderer draws a donut as a flex row with the chart in an inner
+ * box, and every other chart as a single div. Switching between them keeps the component mounted, so
+ * React reuses the outer DOM node and just moves the ref inwards. The instance stayed bound to the
+ * node React had repurposed as the flex row, and the chart vanished — no error, no warning, an empty
+ * rectangle where the ring should be. A callback ref makes the element a dependency like any other, so
+ * a moved ref disposes and rebuilds exactly the way a theme change does.
  */
 export function useEChart(option: EChartsCoreOption | null, events?: EChartEvents) {
-  const ref = useRef<HTMLDivElement>(null);
+  const [el, setEl] = useState<HTMLDivElement | null>(null);
+  // Stable identity, so React only calls it when the element genuinely attaches or detaches — an
+  // inline arrow would be a new function every render and would detach/reattach with it.
+  const ref = useCallback((node: HTMLDivElement | null) => setEl(node), []);
   const chart = useRef<echarts.ECharts | null>(null);
   const themeMode = useUiStore((s) => s.themeMode);
 
@@ -58,9 +74,9 @@ export function useEChart(option: EChartsCoreOption | null, events?: EChartEvent
   const eventNames = Object.keys(events ?? {}).sort().join(",");
 
   useEffect(() => {
-    if (!ref.current || !hasOption) return;
+    if (!el || !hasOption) return;
 
-    const instance = echarts.init(ref.current, echartsTheme(themeMode));
+    const instance = echarts.init(el, echartsTheme(themeMode));
     chart.current = instance;
 
     for (const name of eventNames ? eventNames.split(",") : []) {
@@ -94,7 +110,7 @@ export function useEChart(option: EChartsCoreOption | null, events?: EChartEvent
       typeof ResizeObserver !== "undefined"
         ? new ResizeObserver(() => instance.resize())
         : undefined;
-    if (ref.current) ro?.observe(ref.current);
+    ro?.observe(el);
 
     /**
      * Redraw once the webfont has landed.
@@ -119,7 +135,7 @@ export function useEChart(option: EChartsCoreOption | null, events?: EChartEvent
       instance.dispose();
       chart.current = null;
     };
-  }, [themeMode, hasOption, eventNames]);
+  }, [el, themeMode, hasOption, eventNames]);
 
   // Subsequent option changes update the live instance instead of rebuilding it. `applied` keeps this
   // from re-sending on mount the option the init effect has just set — both effects run after the same

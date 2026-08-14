@@ -59,6 +59,20 @@ export function formatNumber(
 }
 
 /**
+ * A share, with its sign: «۳۶٫۹۷٪» or "36.97%".
+ *
+ * The sign is not decoration. U+066A ARABIC PERCENT SIGN and U+0025 PERCENT SIGN are different
+ * characters, and the donut's legend and tooltip appended U+066A **unconditionally** — so an English
+ * reader saw "36.97٪". Inherited from the recharts donut and fixed here deliberately while moving
+ * that donut to ECharts, rather than carried across because it was already there.
+ */
+export function formatPercent(value: number | null | undefined, dir: Dir): string {
+  const n = formatNumber(value, dir);
+  if (n === "") return "";
+  return dir === "rtl" ? `${n}٪` : `${n}%`;
+}
+
+/**
  * Shortened number for somewhere with a fixed width: «۱۵ میلیارد», "15B".
  *
  * Only for places where the full number physically cannot fit — it trades digits for room, and a

@@ -1,14 +1,16 @@
 import type { ReportView } from "../../contracts/presentation";
 import type { ReportDefinition } from "../../contracts/report-definition";
 import type { QueryResult, ResultRow, GroupNode } from "../../contracts/dataset";
-import { formatCategory, formatNumber, type Dir } from "../format";
+import { formatCategory, formatFitted, formatNumber, formatPercent, type Dir } from "../format";
 import { useMemo } from "react";
+import { useUiStore } from "../../store/ui-store";
+import { chartColors } from "../../theme/tokens";
 import { useEChart } from "../../components/charts/useEChart";
 import { useColumnLabel } from "../labels";
 import { aggregateByCategory } from "./chart-utils";
 import { seriesKeysOf } from "../series-keys";
 import { resolveDrillTarget } from "./drill";
-import { legendPlacement } from "../chart-rtl";
+import { legendPlacement, pieSweep } from "../chart-rtl";
 
 export type RendererProps = {
   view: ReportView;
@@ -81,12 +83,13 @@ function uniq(values: (string | number | null)[]): (string | number | null)[] {
  * silent shape change for a report someone saved, on the same reasoning that keeps the legacy
  * `library: "recharts"` alias alive.
  */
-type CartesianKind = "bar" | "line" | "area";
+type ChartKind = "bar" | "line" | "area" | "pie";
 
-function cartesianKind(view: ReportView): CartesianKind {
+function chartKind(view: ReportView): ChartKind {
   const kind = view.component || view.type;
   if (kind === "LineChart" || kind === "line") return "line";
   if (kind === "AreaChart" || kind === "area") return "area";
+  if (kind === "PieChart" || kind === "pie") return "pie";
   return "bar";
 }
 
@@ -155,6 +158,11 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
   const columnLabel = useColumnLabel(def, result);
   const dir = currentDir();
   const rows = result.rows as ResultRow[];
+  // The donut draws its own key and total, so it needs the same palette and text colours the theme
+  // gives the ring.
+  const themeMode = useUiStore((s2) => s2.themeMode);
+  const colors = chartColors(themeMode);
+  const palette = colors.series;
 
   /**
    * One option, built in a memo, for both chart kinds.
@@ -165,6 +173,20 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
    * would send `setOption` on every render — not a rebuild, but pointless work on every keystroke in a
    * filter box.
    */
+  const kind = chartKind(view);
+  const pieCategory = view.mapping.category ?? view.mapping.x ?? "";
+  const pieMeasure =
+    view.mapping.measure ??
+    (Array.isArray(view.mapping.y) ? view.mapping.y[0] : view.mapping.y) ??
+    result.columns.find((c) => c.isMetric)?.key ??
+    "";
+
+  /** Aggregated slices, shared by the ring and the key beside it so they cannot disagree. */
+  const donutRows = useMemo(
+    () => (kind === "pie" ? aggregateByCategory(rows, pieCategory, pieMeasure ? [pieMeasure] : []) : []),
+    [kind, rows, pieCategory, pieMeasure],
+  );
+
   const option = useMemo(() => {
     const x = view.mapping.x ?? "";
     const seriesField = view.mapping.series;
@@ -199,6 +221,69 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
       confine: true,
       formatter: makeTooltipFormatter(valueFormatter),
     };
+
+    /**
+     * The donut.
+     *
+     * Only the RING is ECharts. The flex row, the total in the hole and the key beside it are markup
+     * this component owns, ported unchanged from the recharts implementation — they exist because of
+     * measured defects, not preference: a library-drawn side legend left ~300px of dead space, and
+     * `cx="50%"` on the pie resolved against the plot box while a raw SVG `<text x="50%">` resolved
+     * against the whole canvas, so the same percentage landed in two different places and the total
+     * could not be centred in the hole. As a flex row the ring is its own square box, the total sits
+     * dead centre by construction, and RTL needs no thought at all — the row follows the page.
+     */
+    if (kind === "pie") {
+      const sweep = pieSweep(dir);
+      return {
+        // No ECharts legend: the <ul> beside the ring is the legend, and it is there because
+        // recharts painted legend text in the series colour, which measured 2.54:1 as 12px words.
+        legend: { show: false },
+        tooltip: {
+          trigger: "item",
+          confine: true,
+          formatter: (p: TooltipParam & { percent?: number }) => {
+            const v = typeof p.value === "number" ? p.value : Number(p.value ?? 0);
+            // The two-space separator is recharts' and is kept. The percent SIGN is not: recharts
+            // appended «٪» in English too, which `formatPercent` now decides by direction. A
+            // deliberate copy change, called out in the step-8 memo rather than left to drift.
+            const pct = formatPercent(Number((p.percent ?? 0).toFixed(2)), dir);
+            return `${esc(p.name ?? "")}<br/>${esc(valueFormatter(v))}  (${esc(pct)})`;
+          },
+        },
+        series: [
+          {
+            type: "pie",
+            // The hole. 68 of 110 keeps the ring thick enough to read at a glance while leaving room
+            // for the total.
+            radius: [68, 110],
+            center: ["50%", "50%"],
+            padAngle: 2,
+            itemStyle: { borderRadius: 6, borderWidth: 0 },
+            // Largest slice at 12 o'clock, sweeping the way the language runs. `clockwise`, not an
+            // end angle — see pieSweep.
+            startAngle: sweep.startAngle,
+            clockwise: sweep.clockwise,
+            // No labels on the ring: they collide as soon as a category is small, and twelve project
+            // types include four under 0.1%. The share goes in the key instead.
+            label: { show: false },
+            labelLine: { show: false },
+            animation: false,
+            // Three ECharts defaults that would otherwise change how the ring behaves:
+            // sectors grow on hover...
+            emphasis: { scale: false },
+            // ...and an all-zero result draws a grey placeholder ring, which reads as data.
+            showEmptyCircle: false,
+            data: donutRows.map((r) => ({
+              name: formatCategory(r[pieCategory] as string | number | null, dir),
+              value: Number(r[pieMeasure] ?? 0),
+            })),
+          },
+        ],
+        rwCategories: donutRows.map((r) => r[pieCategory] as string | number | null),
+        rwKind: kind,
+      };
+    }
 
     // 2 dimensions x 1 measure -> heatmap matrix. Kept on `uniq` rather than aggregation, because a
     // matrix needs the raw (x, y) pairs and not one bucket per x.
@@ -257,8 +342,6 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
      * four rows over two months drew two bars each holding one row's value -- quietly wrong numbers,
      * which is worse than a crash. It also keeps the missing bucket, via `row[key] ?? null`.
      */
-    const kind = cartesianKind(view);
-
     /**
      * What each series looks like for this kind.
      *
@@ -371,7 +454,7 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
       rwCategories: cats,
       rwKind: kind,
     };
-  }, [view, result, rows, dir, columnLabel]);
+  }, [view, result, rows, dir, columnLabel, kind, donutRows, pieCategory, pieMeasure]);
 
   /**
    * Turn a click into the group behind the category that was clicked.
@@ -382,7 +465,7 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
    */
   const events = useMemo(() => {
     if (!onDrill) return undefined;
-    const meta = option as { rwCategories?: (string | number | null)[]; rwKind?: CartesianKind };
+    const meta = option as { rwCategories?: (string | number | null)[]; rwKind?: ChartKind };
     // Only bars drill, which is what recharts did — its onClick lived on `<BarChart>` alone. Giving a
     // line chart a drill it never had is a product change, not a migration detail.
     if (meta.rwKind && meta.rwKind !== "bar") return undefined;
@@ -398,6 +481,102 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
 
   const ref = useEChart(option, events as never);
 
+  if (kind === "pie") {
+    const total = donutRows.reduce(
+      (sum, row) => sum + (typeof row[pieMeasure] === "number" ? (row[pieMeasure] as number) : 0),
+      0,
+    );
+    const share = (v: unknown) => (total > 0 && typeof v === "number" ? (v * 100) / total : 0);
+
+    /**
+     * Ported from the recharts donut unchanged, on purpose. Every part of this layout exists because
+     * of something measured, and swapping the library does not change any of those reasons:
+     *
+     * - the flex row, because a library-drawn side legend left ~300px of dead space;
+     * - the overlay for the total, because a percentage `cx` and a percentage SVG `<text x>` resolve
+     *   against different boxes, so the number could not be centred in the hole;
+     * - the hand-written key, because the library painted legend text in the series colour, which is
+     *   picked to work as a fill and measured 2.54:1 as 12px words.
+     *
+     * Keeping it identical is also what lets the existing donut-total and donut-legend assertions
+     * carry over as they are.
+     */
+    return (
+      // Distinct keys on the two branches, so React unmounts rather than repurposes. Without them it
+      // keeps the same <div> and just rewrites its props — inheriting the inline styles ECharts wrote
+      // onto it (position, user-select) into what is now a plain flex row.
+      <div
+        key="donut"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 32,
+          flexWrap: "wrap",
+          padding: "8px 0",
+        }}
+      >
+        <div style={{ position: "relative", width: 240, height: 240, flex: "0 0 auto" }}>
+          <div ref={ref} data-testid="echarts-canvas" style={{ width: "100%", height: "100%" }} />
+
+          {/* The total, in the hole. An overlay rather than an SVG <text>, so it is centred on the
+              ring by the same box that draws the ring. */}
+          <div
+            data-testid="donut-total"
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              pointerEvents: "none",
+            }}
+          >
+            <span style={{ fontSize: 22, fontWeight: 700, color: colors.text, lineHeight: 1.2 }}>
+              {/* The hole is 136px across and the number is whatever the data says. Ten characters
+                  fit; «۱۵٬۰۴۵٬۵۰۰٬۰۰۰» is fourteen and becomes «۱۵ میلیارد». */}
+              {formatFitted(total, dir)}
+            </span>
+            <span style={{ fontSize: 12, color: colors.axis }}>{columnLabel(pieMeasure)}</span>
+          </div>
+        </div>
+
+        <ul
+          data-testid="donut-legend"
+          style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 6, minWidth: 0 }}
+        >
+          {donutRows.map((row, i) => (
+            <li key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+              <span
+                aria-hidden
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: "50%",
+                  background: palette[i % palette.length],
+                  flex: "0 0 auto",
+                }}
+              />
+              {/*
+                Two <bdi>s, because this one line mixes scripts and the reader is not always Persian.
+                In an English page the row is `تهران — 36.97%`: the name is a right-to-left run, the
+                share is a left-to-right one, and the neutral dash between them belongs to neither.
+                The bidi algorithm resolves that by reordering — the share jumped to the front of the
+                line and the percent sign came off the number. `bdi` isolates each part, so the two
+                stay in the order the markup puts them in whichever direction the page runs.
+              */}
+              <span style={{ color: colors.text }}>
+                <bdi>{formatCategory(row[pieCategory] as string | number | null, dir)}</bdi> —{" "}
+                <bdi>{formatPercent(Number(share(row[pieMeasure]).toFixed(2)), dir)}</bdi>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
   /**
    * 320, matching recharts' `<ResponsiveContainer height={320}>`. It was 360, which would have made
    * every chart in every dashboard widget 40px taller the moment views started routing here — a
@@ -407,5 +586,7 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
    * measures the value labels and reserves room for them. That is the cleanest net deletion in this
    * migration.
    */
-  return <div ref={ref} data-testid="echarts-canvas" style={{ height: 320, width: "100%" }} />;
+  return (
+    <div key="cartesian" ref={ref} data-testid="echarts-canvas" style={{ height: 320, width: "100%" }} />
+  );
 }

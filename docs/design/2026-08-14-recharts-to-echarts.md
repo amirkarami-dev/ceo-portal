@@ -2,8 +2,9 @@
 
 **Date:** 2026-08-14
 **Area:** analytics-web
-**Status:** **steps 1-7 done (2b included) — see the memos at the end.** Branch `feat/echarts-only`.
-Waiting on "start step 8". **Bar and line render with ECharts;** only the pie/donut is still recharts.
+**Status:** **steps 1-8 done (2b included) — see the memos at the end.** Branch `feat/echarts-only`.
+Waiting on "start step 9". **Every view renders with ECharts.** Nothing routes to recharts any more;
+the package and `RechartsRenderer.tsx` are still on disk, which is step 9.
 
 Amir asked to use ECharts only. Agreed as the goal: recharts has no RTL support, which is the whole
 reason `presentation/chart-rtl.ts` exists; ECharts has a real theme system; and dropping recharts
@@ -1087,3 +1088,89 @@ step 6 rather than quietly dropped.
 Only the pie. **Step 8 is the risky one** — the donut is a layout, not a chart, and `pieSweep` has to
 change shape: nothing connects it to a rendered ring, so a verbatim port is bit-identical to passing
 nothing while every test stays green and the RTL ring spins backwards.
+
+---
+
+## Step 8 — DONE. The donut is ECharts. The risky step, and it did bite.
+
+Predicted as the highest-risk step, and it earned that. Two real defects, one of them mine and one
+inherited — and **neither was caught by a test**. Both were found in a browser.
+
+### The sweep trap, caught as designed
+
+`pieSweep` now returns `{ startAngle: 90, clockwise }` instead of recharts' `endAngle`. Proven by
+reverting: with the verbatim port (`endAngle: -270 | 450`) the live instance reports
+`clockwise: true` in RTL — ECharts' default — and the new test fails with *expected true to be
+false*. That is exactly the silent bit-identical-to-nothing outcome the plan warned about, caught.
+
+### The defect the plan did not predict: **a moved ref**
+
+Switching a report to «دایره‌ای» rendered an **empty rectangle**. No error, no warning, 643 green
+tests.
+
+`useEChart` returned a `useRef` object. `ref.current` is read once, inside the init effect, whose
+deps are theme / has-option / event-names — **none of which notice the ref pointing somewhere
+else**. The donut is a flex row with the chart in an inner box; every other chart is a single div.
+Switching between them keeps the component mounted, so React reused the outer node and moved the ref
+inwards. The instance stayed bound to the node React had just repurposed as the flex row, and React
+filled that same node with the row's children. Confirmed in the DOM: `_echarts_instance_` sat on the
+flex row, and the ring was gone.
+
+**Fix:** the hook returns a **callback ref** backed by state, so the element is a dependency like any
+other and a move disposes and rebuilds the way a theme change does. Plus distinct `key`s on the two
+branches, so React unmounts instead of repurposing and no ECharts inline styles (`position`,
+`user-select`) survive onto a plain flex row.
+
+Three regression tests, bite-checked precisely: against the pre-fix `useRef` hook exactly the two
+new ones fail and the other sixteen pass. The third pins the other half — a fresh callback each
+render would detach and reattach every time, which is the churn the three-effect split exists to
+prevent.
+
+**This is a whole-hook fix, not a donut fix.** Any future chart whose markup changes shape while
+mounted was going to hit it.
+
+### The inherited defect: the legend line in English
+
+The plan flagged «٪» as a deliberate-decision point. Seen on screen it was worse than a wrong sign:
+in an LTR page the row `تهران — 36.97٪` **reordered** — the share jumped to the front of the line and
+the percent sign came off its number. A Persian name is a right-to-left run, the share is a
+left-to-right one, and the neutral dash between them belongs to neither.
+
+Fixed deliberately, and said out loud rather than carried:
+
+- one `<bdi>` per part, so the two keep the order the markup gives them in either direction;
+- new `formatPercent(value, dir)` in `format.ts` — «٪» (U+066A) in Persian, `%` in English. recharts
+  appended U+066A unconditionally, so an English reader saw `36.97٪`.
+
+The two-space separator in the tooltip **is** kept verbatim.
+
+### Seen in a browser — all four combinations
+
+| | ring | key | hole | sweep |
+| --- | --- | --- | --- | --- |
+| RTL light | right | left | «۱۵ میلیارد» | counter-clockwise |
+| RTL dark | right | left | «۱۵ میلیارد» | counter-clockwise |
+| LTR light | left | right | "15B" | clockwise |
+| LTR dark | left | right | "15B" | clockwise |
+
+`formatFitted` did its job unprompted: the real total is fourteen characters and became «۱۵ میلیارد».
+Dark-mode contrast on the panel `#0b0f14`: total and legend **16.37:1**, sub-label **7.13:1**. Round
+trip pie → bar restores an 870×320 canvas with no donut markup left behind. Zero `.recharts-surface`
+on the page.
+
+**Mobile (375px):** the flex row wraps to ring-over-key, 287×389, and `documentElement.scrollWidth`
+equals `clientWidth` — no horizontal overflow.
+
+### Verified
+
+**651 tests** across 83 files (up from 632), lint, typecheck and build clean.
+
+### Still not verified
+
+Unchanged from step 7, and still not quietly dropped: the drill hit area, label rotation above 8
+categories, the dataZoom slider above 25, and PDF chart export.
+
+### What is left
+
+Steps 9 and 10 — deleting recharts, and the sweep-up. Nothing routes to it now, so step 9 is a
+deletion, not a migration.

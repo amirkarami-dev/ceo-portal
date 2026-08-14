@@ -137,9 +137,19 @@ describe("switching survives the ECharts migration", () => {
     expect(v.component).toBe("LineChart");
   });
 
-  it("has not moved pie yet", () => {
-    // Step 8. If this starts failing without that step being done, something flipped by accident —
-    // which is exactly how this caught the deliberate line flip in step 7.
-    expect(buildViewForTarget("pie", countAndPercent).library).toBe("recharts");
+  it("builds pie as an ECharts view, still called PieChart", () => {
+    const v = buildViewForTarget("pie", countAndPercent);
+
+    expect(v.library).toBe("echarts");
+    expect(v.component).toBe("PieChart");
+  });
+
+  it("leaves no target on recharts", () => {
+    // What the three per-target assertions above were building towards. The guard that used to read
+    // "has not moved pie yet" caught both deliberate flips (line in step 7, pie in step 8) by
+    // failing on them; with nothing left to move, it becomes this — a check that nothing goes back.
+    for (const target of ["bar", "line", "pie"] as const) {
+      expect(buildViewForTarget(target, countAndPercent).library).toBe("echarts");
+    }
   });
 });

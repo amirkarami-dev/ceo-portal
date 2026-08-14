@@ -49,6 +49,13 @@ const heatmapView: ReportView = {
   mapping: { x: "province", series: "city", measure: "revenue" },
 };
 
+const pieView: ReportView = {
+  type: "chart",
+  library: "echarts",
+  component: "PieChart",
+  mapping: { category: "province", measure: "revenue" },
+};
+
 const barView: ReportView = {
   type: "chart",
   library: "echarts",
@@ -66,7 +73,16 @@ type Resolved = {
   }[];
   xAxis: { inverse?: boolean; data?: string[]; axisLabel?: Record<string, unknown> }[];
   yAxis: { position?: string; axisLabel?: { formatter?: unknown } }[];
-  series: { type: string; name?: string; data?: unknown[] }[];
+  series: {
+    type: string;
+    name?: string;
+    data?: { name?: string; value?: number }[];
+    radius?: unknown;
+    startAngle?: number;
+    clockwise?: boolean;
+    label?: { show?: boolean };
+    showEmptyCircle?: boolean;
+  }[];
   visualMap?: unknown[];
   color: string[];
 };
@@ -339,5 +355,147 @@ describe("EChartsRenderer", () => {
 
   it("mounts without a drill handler at all", () => {
     expect(() => mount(barView)).not.toThrow();
+  });
+});
+
+// ── The donut ────────────────────────────────────────────────────────────────
+/**
+ * The last view to move, and the only one where the library draws part of the picture and this
+ * component draws the rest. The first four tests here are the recharts donut's own tests, ported
+ * with their assertions intact — the total, the overlay, the ring, the key — because none of what
+ * they check is about the library. Swapping the renderer under an unchanged test is what makes them
+ * worth keeping.
+ *
+ * The rest are new, and they exist because of a specific trap: `pieSweep` used to return recharts'
+ * `endAngle`, which ECharts reads as "where a partial ring stops". Ported verbatim it is
+ * bit-identical to passing nothing, in both directions, with every unit test still green. So the
+ * sweep is asserted here, off a live instance, where a wrong answer has somewhere to show up.
+ */
+describe("EChartsRenderer — donut", () => {
+  it("puts the total in the middle of the ring", () => {
+    const { container } = mount(pieView);
+
+    // 500 + 700 + 400. A pie makes the reader add the slices up; the hole says it outright.
+    const total = container.querySelector('[data-testid="donut-total"]')?.textContent ?? "";
+    expect(total).toContain("1,600");
+    // …labelled with what the number is. This def carries no `metrics`, so there is nothing to
+    // compose from and the resolver falls back to the engine's own column label.
+    expect(total).toContain("درآمد");
+  });
+
+  it("draws the total as an overlay on the ring's own box, not inside the chart", () => {
+    const { container, el } = mount(pieView);
+
+    // Under recharts this guarded against a percentage `cx` and a percentage SVG `<text x>`
+    // resolving against different boxes. Under ECharts the reason is harder: the ring is a CANVAS,
+    // so text drawn by the library is not text at all — unselectable, unsearchable, invisible to a
+    // screen reader. The overlay is the only reason the number is real DOM.
+    const overlay = container.querySelector('[data-testid="donut-total"]') as HTMLElement;
+    expect(overlay).not.toBeNull();
+    expect(overlay.style.position).toBe("absolute");
+    expect(el.textContent).toBe("");
+  });
+
+  it("is a ring, not a filled circle", () => {
+    const { option } = mount(pieView);
+
+    // recharts asked this of the rendered sector path. A canvas has no path to ask, so the question
+    // moves to the option: two radii, inner non-zero, which is what leaves a hole for the total.
+    const radius = option.series[0].radius as [number, number];
+    expect(Array.isArray(radius)).toBe(true);
+    expect(radius).toHaveLength(2);
+    expect(radius[0]).toBeGreaterThan(0);
+    expect(radius[1]).toBeGreaterThan(radius[0]);
+  });
+
+  it("names each slice with its share, in readable text", () => {
+    const { container } = mount(pieView);
+
+    const legend = container.querySelector('[data-testid="donut-legend"]');
+    expect(legend).not.toBeNull();
+    // Tehran 1200/1600 → 75%. The share belongs beside the name: slice labels on the ring collide
+    // as soon as a category is small, which is why `label.show` is false.
+    expect(legend!.textContent).toContain("75");
+    // One row per slice — Tehran and Fars, the two rows aggregated from three.
+    expect(legend!.children.length).toBe(2);
+
+    // Both libraries paint legend text in the SERIES colour, which is picked to work as a fill —
+    // measured at 2.54:1 as 12px text on the dark panel. The dot carries the colour; the words
+    // carry the normal text colour.
+    const [dot, words] = [...legend!.querySelector("li")!.children] as HTMLElement[];
+    expect(dot.style.background).not.toBe("");
+    expect(words.style.color).not.toBe("");
+    expect(words.style.color).not.toBe(dot.style.background);
+  });
+
+  it("sweeps clockwise from 12 o'clock in ltr", () => {
+    document.documentElement.dir = "ltr";
+    const { option } = mount(pieView);
+
+    expect(option.series[0].startAngle).toBe(90);
+    expect(option.series[0].clockwise).toBe(true);
+  });
+
+  it("sweeps the other way in rtl, still from 12 o'clock", () => {
+    document.documentElement.dir = "rtl";
+    const { option } = mount(pieView);
+
+    // The whole reason `pieSweep` changed shape. Read off a live instance, so a verbatim port of
+    // recharts' `endAngle` — which ECharts silently normalises — fails here instead of passing.
+    expect(option.series[0].startAngle).toBe(90);
+    expect(option.series[0].clockwise).toBe(false);
+  });
+
+  it("keeps recharts' two-space separator in the tooltip", () => {
+    const { option } = mount(pieView);
+    const formatter = option.tooltip[0].formatter as (p: unknown) => string;
+
+    const out = formatter({ name: "Tehran", value: 1200, percent: 75 });
+    expect(out).toContain("  (");
+    expect(out).toContain("Tehran");
+  });
+
+  it("signs the share by direction, which recharts did not", () => {
+    // recharts appended «٪» (U+066A ARABIC PERCENT SIGN) unconditionally, so an English reader saw
+    // "75٪". Changed deliberately as part of this move; this test is the record of that decision.
+    document.documentElement.dir = "ltr";
+    const ltr = mount(pieView);
+    const ltrOut = (ltr.option.tooltip[0].formatter as (p: unknown) => string)({ name: "Tehran", value: 1200, percent: 75 });
+    expect(ltrOut).toContain("75%");
+    expect(ltrOut).not.toContain("٪");
+    expect(ltr.container.querySelector('[data-testid="donut-legend"]')!.textContent).toContain("%");
+
+    cleanup();
+    document.documentElement.dir = "rtl";
+    const rtl = mount(pieView);
+    const rtlOut = (rtl.option.tooltip[0].formatter as (p: unknown) => string)({ name: "تهران", value: 1200, percent: 75 });
+    expect(rtlOut).toContain("٪");
+    expect(rtlOut).not.toContain("%");
+  });
+
+  it("isolates the name and the share from each other", () => {
+    // A Persian name and a Latin number on one line: the neutral dash between them belongs to
+    // neither run, and the bidi algorithm reorders around it — the share jumped to the front of the
+    // line and the percent sign came off its number. One <bdi> per part is the fix.
+    const { container } = mount(pieView);
+
+    const row = container.querySelector('[data-testid="donut-legend"] li')!;
+    expect(row.querySelectorAll("bdi")).toHaveLength(2);
+  });
+
+  it("draws no placeholder ring when every slice is zero", () => {
+    const { option } = mount(pieView);
+
+    // ECharts' default is to paint a grey circle for an empty result, which reads as data.
+    expect(option.series[0].showEmptyCircle).toBe(false);
+    expect(option.series[0].label?.show).toBe(false);
+  });
+
+  it("aggregates duplicate categories into one slice", () => {
+    const { option } = mount(pieView);
+
+    // Three rows, two provinces. Tehran's two cities are one slice worth 1200.
+    expect(option.series[0].data).toHaveLength(2);
+    expect(option.series[0].data?.find((d) => d.name === "Tehran")?.value).toBe(1200);
   });
 });

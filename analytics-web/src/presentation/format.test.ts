@@ -7,6 +7,7 @@ import {
   formatCell,
   formatDateTime,
   formatFitted,
+  formatPercent,
 } from "./format";
 
 describe("toPersianDigits", () => {
@@ -177,5 +178,26 @@ describe("formatFitted — a number in a fixed-size hole", () => {
   it("has nothing to say about nothing", () => {
     expect(formatFitted(null, "rtl")).toBe("");
     expect(formatFitted(undefined, "ltr")).toBe("");
+  });
+});
+
+describe("formatPercent", () => {
+  it("uses the Arabic percent sign with Persian digits in rtl", () => {
+    // The decimal point stays ASCII, because `formatNumber` transliterates the digits and the
+    // thousands separator and not the point. Pre-existing and left alone — this function only owns
+    // the sign.
+    expect(formatPercent(36.97, "rtl")).toBe("۳۶.۹۷٪");
+  });
+
+  it("uses the ASCII percent sign in ltr", () => {
+    // The bug this function exists for: the donut appended «٪» (U+066A) in both directions, so an
+    // English reader saw "36.97٪".
+    expect(formatPercent(36.97, "ltr")).toBe("36.97%");
+    expect(formatPercent(36.97, "ltr")).not.toContain("٪");
+  });
+
+  it("gives back nothing for nothing, rather than a bare sign", () => {
+    expect(formatPercent(null, "rtl")).toBe("");
+    expect(formatPercent(undefined, "ltr")).toBe("");
   });
 });
