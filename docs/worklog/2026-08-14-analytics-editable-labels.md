@@ -3,7 +3,7 @@
 **Date:** 2026-08-14
 **Area:** analytics-web + api
 **Branch / commits:** `main` — `2f76810`, `4b7b6da`, `9a1d8fb`, `9276c44`, `655d556`, `2b22dd2`, and this one
-**Status:** **built and verified locally; NOT deployed.** The api half is live but nothing calls it yet.
+**Status:** **live** on analytic.myceo.ir — front end `index-pZSG2Vu7.js`, api deployed earlier the same day.
 
 ## Goal
 
@@ -111,6 +111,14 @@ failure as a build that looks green and ships nothing.
   «فروش خالص استانی», `metrics[0].label` untouched). Switching to English gave the automatic
   "Sum Revenue", not the Persian.
 - Pencil hit area measured **44×44** at 375px, no horizontal scroll.
+- **Deployed and checked against the LIVE bundle**, not the local one. Front end moved
+  `index-B-yZSKoG.js` → `index-pZSG2Vu7.js` (css `index-CnvYlgox.css` → `index-wPsB23kU.css`).
+  Downloading what the origin actually serves: `titleOverrides`, `labelOverrides`, `ReportDesigner`,
+  `seriesLabels`, `renameSeries`, `editLabel`, `saveFailed` all present, and the Persian «برچسب‌ها»
+  string is in the bundled locale. The 44×44 rule is in the served CSS, expanded by the build into
+  `top/left/transform/width/height`. Container healthy, origin 200, public CDN 200 on the new hash.
+  15 `ceo-portal-*` and 37 neighbour containers all Up. The api needed no redeploy — no backend file
+  changed after step 1 — and `PUT /api/Reports/1` still answers 401.
 
 **Not verified — read before relying on it:**
 
@@ -128,8 +136,10 @@ failure as a build that looks green and ships nothing.
 
 ## Follow-ups
 
-- **Deploy `analytics-web`,** then on production: rename a title and a series, reload, check the
-  library list reflects the title, and **press Enter** rather than clicking away.
+- **Two things to try on production**, because they are the gaps tests cannot close:
+  **press Enter** rather than clicking away (the click-away path is proven, Enter is not), and check
+  the **library list** picks up a renamed title. Both need an admin session, which is why they are
+  yours rather than mine.
 - The mock user defaults to `["PowerUser"]`, so **the pencil is invisible in local dev** until the mock
   role is switched to `ReportDesigner`. Worth knowing before someone reports it as broken.
 - **The library's «ویرایش» is a dead link.** It navigates to `/ask?from=<id>` and nothing reads
