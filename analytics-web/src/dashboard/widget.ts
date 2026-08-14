@@ -1,13 +1,22 @@
 // Dashboard widget and grid layout types.
 // Defined here (per Task 10 binding decisions); Task 16 will import from @/dashboard/widget.
 
+/**
+ * How one widget is drawn, overriding the report's own default.
+ *
+ * `"chart"` is the original value and still appears in dashboards saved before the split; it is read
+ * as `"bar"`, which is what it always drew. Nothing migrates the stored JSON — the backend keeps the
+ * widget array as an opaque blob, so an old dashboard must keep opening.
+ */
+export type WidgetViewMode = "bar" | "line" | "pie" | "table" | "chart";
+
 export interface DashboardWidget {
   i: string;
   reportId: string;
   viewIndex?: number;
   title?: string;
-  /** Per-widget display override: "chart" | "table"; undefined = report default. */
-  viewMode?: "chart" | "table";
+  /** Per-widget display override; undefined = the report's default view. */
+  viewMode?: WidgetViewMode;
 }
 
 export interface GridLayoutItem {

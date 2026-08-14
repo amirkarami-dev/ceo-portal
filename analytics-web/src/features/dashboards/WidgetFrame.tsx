@@ -4,17 +4,25 @@ import {
   FileExcelOutlined,
   FilePdfOutlined,
   FileTextOutlined,
+  LineChartOutlined,
   MoreOutlined,
+  PieChartOutlined,
   TableOutlined,
 } from "@ant-design/icons";
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import type { DashboardWidget } from "@/dashboard/widget";
-import type { QueryResult, ReportView } from "@/contracts";
+import type { DashboardWidget, WidgetViewMode } from "@/dashboard/widget";
+import type { ReportView } from "@/contracts";
 import { useReport } from "@/api/queries";
 import { executeReport } from "@/api/executeApi";
 import { chooseView } from "@/presentation/auto-viz";
+import {
+  buildViewForTarget,
+  canRenderTarget,
+  findViewForTarget,
+  type SwitchTarget,
+} from "@/presentation/view-switching";
 import { getModelForDataset } from "@/semantic/registry";
 import { ReportViewRenderer } from "@/presentation/ReportView";
 import { exportCsv, exportPdf, exportXlsx } from "@/features/export";
@@ -28,25 +36,20 @@ interface Props {
   onChange?: (next: DashboardWidget) => void;
 }
 
-const TABLE_VIEW: ReportView = {
-  type: "table",
-  library: "antd",
-  component: "Table",
-  mapping: {},
+/** The picture a widget can be set to. "chart" is the legacy value and means bar. */
+const MODES = ["bar", "line", "pie", "table"] as const;
+
+const MODE_ICON: Record<(typeof MODES)[number], ReactNode> = {
+  bar: <BarChartOutlined />,
+  line: <LineChartOutlined />,
+  pie: <PieChartOutlined />,
+  table: <TableOutlined />,
 };
 
-/** Prefer an existing chart view; else derive a bar view from the result columns. */
-function chartViewOf(views: ReportView[], result: QueryResult): ReportView {
-  const existing = views.find((v) => v.type === "chart");
-  if (existing) return existing;
-  const dim = result.columns.find((c) => !c.isMetric)?.key;
-  const meas = result.columns.find((c) => c.isMetric)?.key;
-  return {
-    type: "chart",
-    library: "recharts",
-    component: "BarChart",
-    mapping: { x: dim, y: meas },
-  };
+/** What a stored mode resolves to. Dashboards saved before the split hold "chart". */
+function targetOf(mode: WidgetViewMode | undefined): SwitchTarget | undefined {
+  if (!mode) return undefined;
+  return mode === "chart" ? "bar" : mode;
 }
 
 export function WidgetFrame({ widget, editing, onRemove, onChange }: Props) {
@@ -81,18 +84,26 @@ export function WidgetFrame({ widget, editing, onRemove, onChange }: Props) {
   const loading = isLoading || exec.isLoading;
   const broken = isError || exec.isError || (!!data && !loading && views.length === 0);
 
-  // View resolution: widget override wins; otherwise the report's default view.
+  // View resolution: the widget's own choice wins; otherwise the report's default view.
+  // Built with the SAME helper the report page uses, so a bar here and a bar there are one thing.
   const defaultView = views[widget.viewIndex ?? 0] ?? views[0];
+  const target = targetOf(widget.viewMode);
   const activeView: ReportView | undefined = !result
     ? undefined
-    : widget.viewMode === "table"
-      ? TABLE_VIEW
-      : widget.viewMode === "chart"
-        ? chartViewOf(views, result)
-        : defaultView;
+    : target
+      ? (views[findViewForTarget(views, target)] ?? buildViewForTarget(target, result, defaultView))
+      : defaultView;
 
-  const mode: "chart" | "table" =
-    widget.viewMode ?? (defaultView?.type === "table" ? "table" : "chart");
+  // Which button looks pressed. With no override, it follows whatever the report chose for itself.
+  const mode: SwitchTarget =
+    target ??
+    (defaultView?.type === "table"
+      ? "table"
+      : defaultView?.component?.toLowerCase().includes("pie")
+        ? "pie"
+        : defaultView?.component?.toLowerCase().includes("line")
+          ? "line"
+          : "bar");
 
   const exportName = title.replace(/[^\p{L}\p{N}_-]+/gu, "-").replace(/^-+|-+$/g, "") || "widget";
   const iconBtn = { type: "text" as const, size: "small" as const };
@@ -103,11 +114,15 @@ export function WidgetFrame({ widget, editing, onRemove, onChange }: Props) {
         <Segmented
           size="small"
           value={mode}
-          onChange={(v) => onChange({ ...widget, viewMode: v as "chart" | "table" })}
-          options={[
-            { value: "chart", icon: <BarChartOutlined />, title: t("dash.viewChart") },
-            { value: "table", icon: <TableOutlined />, title: t("dash.viewTable") },
-          ]}
+          onChange={(v) => onChange({ ...widget, viewMode: v as WidgetViewMode })}
+          // A picture the data cannot make is offered but disabled — a pie needs something to slice
+          // by and something to size with — so the row does not change shape from widget to widget.
+          options={MODES.map((m) => ({
+            value: m,
+            icon: MODE_ICON[m],
+            title: t(`view.${m}`),
+            disabled: !!result && !canRenderTarget(m, result),
+          }))}
         />
       )}
       {result && data && (
