@@ -8,9 +8,10 @@ const CHART_SUBTYPES: Record<
   "bar" | "line" | "pie",
   Pick<ReportView, "type" | "library" | "component">
 > = {
-  // ECharts since step 6. Line and pie follow in steps 7 and 8; the component strings never change.
+  // ECharts since step 6 (bar) and step 7 (line). Pie follows in step 8; the component strings never
+  // change — they are the identity key the switcher matches on.
   bar: { type: "chart", library: "echarts", component: "BarChart" },
-  line: { type: "chart", library: "recharts", component: "LineChart" },
+  line: { type: "chart", library: "echarts", component: "LineChart" },
   pie: { type: "chart", library: "recharts", component: "PieChart" },
 };
 

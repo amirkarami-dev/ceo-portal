@@ -44,7 +44,7 @@ type Resolved = {
     stack?: string;
   }[];
   tooltip: { axisPointer?: { type?: string } }[];
-  xAxis: { splitLine?: { show?: boolean } }[];
+  xAxis: { splitLine?: { show?: boolean }; data?: string[]; inverse?: boolean }[];
   yAxis: { splitLine?: { show?: boolean } }[];
 };
 
@@ -199,5 +199,67 @@ describe("EChartsRenderer — only bars drill", () => {
     });
 
     expect(onDrill).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Dates on a line chart, in RTL.
+ *
+ * This has **no counterpart on the recharts side to inherit**: `RechartsRenderer.test.tsx` never sets
+ * `document.documentElement.dir`, so the entire recharts suite runs LTR and none of its RTL behaviour
+ * was ever covered at renderer level. A date axis silently showing `2025-05` instead of «۱۴۰۴/۰۲» is
+ * exactly the kind of thing that survives a green suite.
+ */
+describe("EChartsRenderer — a date axis in RTL", () => {
+  const dated = {
+    columns: [
+      { key: "orderDate", label: "تاریخ", type: "date", isMetric: false },
+      { key: "revenue", label: "درآمد", type: "number", isMetric: true },
+    ],
+    rows: [
+      { orderDate: "2025-05", revenue: 100 },
+      { orderDate: "2025-06", revenue: 140 },
+    ],
+    total: 2,
+  } as unknown as QueryResult;
+
+  function mountDated(component: string, dir: "rtl" | "ltr") {
+    document.documentElement.dir = dir;
+    render(
+      <EChartsRenderer
+        view={view(component, { x: "orderDate", measure: "revenue" })}
+        def={def}
+        result={dated}
+      />,
+    );
+    const el = document.querySelector<HTMLElement>("[data-testid='echarts-canvas']")!;
+    return echarts.getInstanceByDom(el)!.getOption() as unknown as Resolved & { xAxis: { data: string[] }[] };
+  }
+
+  it("shows Jalali dates on the axis in RTL, not the raw ISO month", () => {
+    const option = mountDated("line", "rtl");
+
+    expect(option.xAxis[0].data).toEqual(["۱۴۰۴/۰۲", "۱۴۰۴/۰۳"]);
+    expect(option.xAxis[0].data.join()).not.toContain("2025");
+  });
+
+  it("leaves the dates Gregorian in LTR", () => {
+    const option = mountDated("line", "ltr");
+
+    expect(option.xAxis[0].data).toEqual(["2025-05", "2025-06"]);
+  });
+
+  it("runs the date axis right-to-left in RTL, so the newest month is where reading starts", () => {
+    const option = mountDated("line", "rtl");
+
+    expect(option.xAxis[0].inverse).toBe(true);
+  });
+
+  it("keeps the curve settings on a date series too", () => {
+    const option = mountDated("line", "rtl");
+
+    expect(option.series[0].type).toBe("line");
+    expect(option.series[0].smoothMonotone).toBe("x");
+    expect(option.series[0].showSymbol).toBe(false);
   });
 });

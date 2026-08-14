@@ -130,10 +130,16 @@ describe("switching survives the ECharts migration", () => {
     expect(findViewForTarget(views, "bar")).toBe(0);
   });
 
-  it("has not moved line or pie yet", () => {
-    // Steps 7 and 8. If these start failing without those steps being done, something flipped by
-    // accident.
-    expect(buildViewForTarget("line", countAndPercent).library).toBe("recharts");
+  it("builds line as an ECharts view, still called LineChart", () => {
+    const v = buildViewForTarget("line", countAndPercent);
+
+    expect(v.library).toBe("echarts");
+    expect(v.component).toBe("LineChart");
+  });
+
+  it("has not moved pie yet", () => {
+    // Step 8. If this starts failing without that step being done, something flipped by accident —
+    // which is exactly how this caught the deliberate line flip in step 7.
     expect(buildViewForTarget("pie", countAndPercent).library).toBe("recharts");
   });
 });

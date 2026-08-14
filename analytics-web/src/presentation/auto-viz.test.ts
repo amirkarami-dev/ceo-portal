@@ -48,11 +48,11 @@ describe("chooseView (§8.6 thresholds)", () => {
     expect(views[0].type).toBe("kpi");
   });
 
-  it("rule 2 — date dimension + measure → LineChart (recharts)", () => {
+  it("rule 2 — date dimension + measure → LineChart (echarts)", () => {
     const rows: ResultRow[] = [{ orderDate: "2025-01", revenue: 100 }, { orderDate: "2025-02", revenue: 130 }];
     const r = result([col("orderDate", "date", false), col("revenue", "number", true)], rows);
     const views = chooseView(def({ groupBy: [{ field: "orderDate", dateBucket: "month" }], metrics: [{ field: "revenue", aggregation: "sum", alias: "revenue" }] }), r, semantic);
-    expect(views[0]).toMatchObject({ type: "chart", library: "recharts", component: "LineChart", mapping: { x: "orderDate", y: "revenue" } });
+    expect(views[0]).toMatchObject({ type: "chart", library: "echarts", component: "LineChart", mapping: { x: "orderDate", y: "revenue" } });
   });
 
   it("rule 3 — one dimension + measure, ≤12 categories → BarChart (echarts)", () => {

@@ -2,8 +2,8 @@
 
 **Date:** 2026-08-14
 **Area:** analytics-web
-**Status:** **steps 1-6 done (2b included) — see the memos at the end.** Branch `feat/echarts-only`.
-Waiting on "start step 7". **Bar charts now render with ECharts;** line and pie are still recharts.
+**Status:** **steps 1-7 done (2b included) — see the memos at the end.** Branch `feat/echarts-only`.
+Waiting on "start step 8". **Bar and line render with ECharts;** only the pie/donut is still recharts.
 
 Amir asked to use ECharts only. Agreed as the goal: recharts has no RTL support, which is the whole
 reason `presentation/chart-rtl.ts` exists; ECharts has a real theme system; and dropping recharts
@@ -1029,3 +1029,61 @@ removing the observer fails all three.
 
 Still one word in two files: `auto-viz.ts` rule 3 and `CHART_SUBTYPES.bar`. Worth knowing before the
 first real deploy of this branch.
+
+---
+
+## Step 7 — DONE. Line charts render with ECharts. Quiet, as predicted.
+
+Same two-word shape as step 6: `auto-viz.ts` rule 2 and `CHART_SUBTYPES.line`, component string
+`"LineChart"` untouched.
+
+**Two tests failed, and the second one is the point.** The first was the rule-2 expectation. The
+second was the guard written in step 6 — *"has not moved line or pie yet"* — firing on the deliberate
+flip. That is the guard proving it would also catch an accidental one. It now reads "has not moved pie
+yet" and still watches step 8.
+
+### The RTL gap the plan called out
+
+`RechartsRenderer.test.tsx` **never sets `document.documentElement.dir`** — verified, the grep returns
+nothing — so the whole recharts suite runs LTR and none of its RTL behaviour ever had renderer-level
+coverage. There was nothing to inherit, so it is written fresh: a date axis in RTL carries «۱۴۰۴/۰۲»
+rather than `2025-05`, stays Gregorian in LTR, runs `inverse`, and keeps the monotone curve settings.
+Bypassing the Jalali conversion fails it with
+`expected ['2025-05','2025-06'] to deeply equal ['۱۴۰۴/۰۲','۱۴۰۴/۰۳']`.
+
+### Seen in a browser
+
+Switching a report to «خطی» renders an ECharts line: one canvas, no recharts, 320px, and **15,427
+inked pixels of which only 1,547 are brand blue** — a thin stroke, where the bar chart was 95,071. The
+switcher highlight follows and no duplicate view is built.
+
+### And finally, the two admin charts
+
+They had been unreachable all session (`ai:manage` 403s the default mock user). With the role set to
+`SuperAdmin` they render for the first time:
+
+| chart | size | inked | dominant colours |
+| --- | --- | --- | --- |
+| `tokens-chart` (line) | 390×280 | 10,385 | #326BFC 1,457 · axis #6B6B66 · grid #EBEBE7 |
+| `cost-chart` (bar) | 390×280 | 27,146 | **#326BFC 21,673** · axis · grid |
+
+This closes a loop that has been open since the palette work: these are the two charts that used to
+call `echarts.init(el)` bare and render in ECharts' own palette with `#333` text at **1.31:1** on the
+dark panel. In dark mode now: axis `#8AA39A`, grid in dark tones, **no `51,51,51` anywhere**, still
+drawing. It also gives `useEChart`'s three-effect rewrite from step 2b its first browser exercise.
+
+### Verified
+
+**632 tests** across 83 files (up from 627), lint, typecheck and build clean.
+
+### Still not verified
+
+The drill hit area, label rotation above 8 categories, the dataZoom slider above 25, and PDF chart
+export — all four need richer seed data or production, and all four have been carried forward since
+step 6 rather than quietly dropped.
+
+### What is left
+
+Only the pie. **Step 8 is the risky one** — the donut is a layout, not a chart, and `pieSweep` has to
+change shape: nothing connects it to a rendered ring, so a verbatim port is bit-identical to passing
+nothing while every test stays green and the RTL ring spins backwards.

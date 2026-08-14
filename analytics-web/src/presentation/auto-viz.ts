@@ -82,8 +82,11 @@ export function chooseView(
     }
 
     // RULE 2 — one date dimension + ≥1 measure → LineChart
+    //
+    // ECharts since step 7. The component string stays "LineChart" for the same reason "BarChart"
+    // did: four places sniff it as a case-insensitive substring and nothing type-checks a rename.
     if (measure && dateDims.length >= 1 && catDims.length === 0) {
-      return view("chart", "recharts", "LineChart", def.name, {
+      return view("chart", "echarts", "LineChart", def.name, {
         x: dateDims[0].field, y: measure.key,
       });
     }
