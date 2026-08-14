@@ -27,7 +27,9 @@ export function echartsTheme(mode: ThemeMode): Record<string, unknown> {
     axisLine: { show: true, lineStyle: { color: c.axis } },
     axisTick: { show: true, lineStyle: { color: c.axis } },
     axisLabel: { show: true, color: c.axis },
-    splitLine: { show: true, lineStyle: { color: c.grid } },
+    // Dashed, matching recharts' `<CartesianGrid strokeDasharray="3 3">`. `[3, 3]` rather than
+    // `type: "dashed"`, which is a different, longer pattern.
+    splitLine: { show: true, lineStyle: { color: c.grid, type: [3, 3] } },
     splitArea: { show: false },
   };
 

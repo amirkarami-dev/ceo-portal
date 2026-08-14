@@ -66,6 +66,30 @@ function uniq(values: (string | number | null)[]): (string | number | null)[] {
   return out;
 }
 
+/**
+ * Which cartesian shape a view asks for.
+ *
+ * The aliases come from `RechartsRenderer` verbatim, including the silent bar default: a stored view
+ * whose component string nothing recognises draws a bar rather than nothing, which is the behaviour
+ * saved definitions already rely on.
+ *
+ * **Area is kept**, and that was a decision rather than an oversight. Nothing in the app emits it —
+ * `SwitchTarget` is `ViewType | "bar" | "line" | "pie"`, `CHART_SUBTYPES` has only those three, and the
+ * only other `AreaChart` reference is the branch inside RechartsRenderer itself — so it is reachable
+ * only from a hand-written or AI-authored view. Whether any *stored* definition names it cannot be
+ * answered from the code, only from the database. Six lines of insurance against an unknown beats a
+ * silent shape change for a report someone saved, on the same reasoning that keeps the legacy
+ * `library: "recharts"` alias alive.
+ */
+type CartesianKind = "bar" | "line" | "area";
+
+function cartesianKind(view: ReportView): CartesianKind {
+  const kind = view.component || view.type;
+  if (kind === "LineChart" || kind === "line") return "line";
+  if (kind === "AreaChart" || kind === "area") return "area";
+  return "bar";
+}
+
 /** Minimal HTML escaping — the tooltip formatter returns markup, and category values are data. */
 function esc(v: unknown): string {
   return String(v ?? "")
@@ -233,6 +257,27 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
      * four rows over two months drew two bars each holding one row's value -- quietly wrong numbers,
      * which is worse than a crash. It also keeps the missing bucket, via `row[key] ?? null`.
      */
+    const kind = cartesianKind(view);
+
+    /**
+     * What each series looks like for this kind.
+     *
+     * `smoothMonotone: "x"` matters: plain `smooth: true` is a different spline that overshoots
+     * between points, so a sparse series dips below zero where recharts' monotone curve did not.
+     * `showSymbol: false` matches recharts' `dot={false}`.
+     */
+    const shape: Record<string, unknown> =
+      kind === "bar"
+        ? { type: "bar" }
+        : {
+            type: "line",
+            smooth: true,
+            smoothMonotone: "x",
+            showSymbol: false,
+            // Overlaid rather than stacked, which is what recharts drew.
+            ...(kind === "area" ? { areaStyle: { opacity: 0.25 } } : {}),
+          };
+
     let series: Record<string, unknown>[];
     let cats: (string | number | null)[];
 
@@ -253,7 +298,7 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
         // Was `String(sv)`, so a chart split by month showed a Jalali date on the axis and an ISO one
         // in the legend at the same time.
         name: formatCategory(ps.sv, dir),
-        type: "bar",
+        ...shape,
         data: cats.map((c) => {
           const hit = ps.agg.find((r) => sameValue(r[x], c));
           return hit ? Number(hit[measure] ?? 0) : 0;
@@ -264,13 +309,19 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
       cats = agg.map((r) => r[x] as string | number | null);
       series = ys.map((yk) => ({
         name: columnLabel(yk),
-        type: "bar",
+        ...shape,
         data: agg.map((r) => Number(r[yk] ?? 0)),
       }));
     }
 
     return {
-      tooltip: { ...tooltip, trigger: "axis" },
+      tooltip: {
+        ...tooltip,
+        trigger: "axis",
+        // A band highlight suits bars; a crosshair line suits a curve. recharts drew the same
+        // distinction with its own cursor.
+        axisPointer: { type: kind === "bar" ? "shadow" : "line" },
+      },
       legend: {
         ...legend,
         /**
@@ -290,6 +341,9 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
         type: "category",
         data: cats.map((c) => formatCategory(c, dir)),
         inverse: dir === "rtl",
+        // recharts' CartesianGrid drew dashed lines on BOTH axes. ECharts hides the category one by
+        // default, so it has to be asked for; the dash pattern itself lives in the theme.
+        splitLine: { show: true },
         axisLabel: {
           /**
            * NOT `interval: 0`.
@@ -311,9 +365,11 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
       },
       dataZoom: cats.length > 25 ? [{ type: "slider" }] : undefined,
       series,
-      // Carried so a click can be turned back into the value the reader actually clicked. Not an
-      // ECharts option; ECharts ignores what it does not recognise.
+      // Carried so a click can be turned back into the value the reader actually clicked, and so the
+      // event wiring below knows which kind it is dealing with. Not ECharts options; ECharts ignores
+      // what it does not recognise.
       rwCategories: cats,
+      rwKind: kind,
     };
   }, [view, result, rows, dir, columnLabel]);
 
@@ -326,7 +382,11 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
    */
   const events = useMemo(() => {
     if (!onDrill) return undefined;
-    const cats = (option as { rwCategories?: (string | number | null)[] }).rwCategories;
+    const meta = option as { rwCategories?: (string | number | null)[]; rwKind?: CartesianKind };
+    // Only bars drill, which is what recharts did — its onClick lived on `<BarChart>` alone. Giving a
+    // line chart a drill it never had is a product change, not a migration detail.
+    if (meta.rwKind && meta.rwKind !== "bar") return undefined;
+    const cats = meta.rwCategories;
     return {
       click: (p: { dataIndex?: number }) => {
         if (typeof p?.dataIndex !== "number") return;
@@ -338,5 +398,14 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
 
   const ref = useEChart(option, events as never);
 
-  return <div ref={ref} data-testid="echarts-canvas" style={{ height: 360, width: "100%" }} />;
+  /**
+   * 320, matching recharts' `<ResponsiveContainer height={320}>`. It was 360, which would have made
+   * every chart in every dashboard widget 40px taller the moment views started routing here — a
+   * layout change disguised as a library change.
+   *
+   * `valueAxisWidth` from RechartsRenderer is deliberately NOT ported: `grid.containLabel` already
+   * measures the value labels and reserves room for them. That is the cleanest net deletion in this
+   * migration.
+   */
+  return <div ref={ref} data-testid="echarts-canvas" style={{ height: 320, width: "100%" }} />;
 }

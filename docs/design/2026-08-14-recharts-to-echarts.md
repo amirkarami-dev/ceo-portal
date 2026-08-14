@@ -2,8 +2,8 @@
 
 **Date:** 2026-08-14
 **Area:** analytics-web
-**Status:** **steps 1, 2, 2b, 3 and 4 done — see the memos at the end.** Branch `feat/echarts-only`.
-Waiting on "start step 5".
+**Status:** **steps 1-5 done (2b included) — see the memos at the end.** Branch `feat/echarts-only`.
+Waiting on "start step 6". Nothing is routed to ECharts yet.
 
 Amir asked to use ECharts only. Agreed as the goal: recharts has no RTL support, which is the whole
 reason `presentation/chart-rtl.ts` exists; ECharts has a real theme system; and dropping recharts
@@ -902,3 +902,67 @@ errors.
 there is nothing local to look at. It rests on the canvas ink-column measurement from step 1 and the
 unit tests. Also still unseen: the ECharts tooltip and legend in a browser, since no local report
 produces an `echarts` view. Step 6 is the first time any of this appears on screen.
+
+---
+
+## Step 5 — DONE. Line, area and bar parity. Still nothing routed.
+
+### The decision the plan left open: **area stays**
+
+Confirmed again that nothing in the app emits it — `SwitchTarget` is `ViewType | "bar" | "line" | "pie"`,
+`CHART_SUBTYPES` has only those three, and the only other `AreaChart` reference is the branch inside
+`RechartsRenderer` itself. So it is reachable only from a hand-written or AI-authored view.
+
+Kept anyway. Whether a *stored* definition names it cannot be answered from the code, only from the
+database, and the cost of being wrong is asymmetric: keeping it costs six lines, dropping it silently
+changes the shape of a report someone saved. Same reasoning that keeps the legacy `library: "recharts"`
+alias alive in step 9. If a backend query later shows no stored view names it, deleting it is trivial.
+
+### The kinds
+
+An alias table ported from `RechartsRenderer` verbatim, **including the silent bar default** — a stored
+view whose component string nothing recognises draws a bar rather than nothing, which is what saved
+definitions already rely on.
+
+- **line** — `smooth: true, smoothMonotone: "x", showSymbol: false`. The monotone part is not
+  decoration: plain `smooth: true` is a different spline that overshoots between points, so a sparse
+  series dips below zero where recharts' curve did not. `showSymbol: false` matches `dot={false}`.
+- **area** — the line shape plus `areaStyle: { opacity: 0.25 }`, **overlaid not stacked**, which is what
+  recharts drew.
+
+The shape is spread into every series, so a multi-measure or split-series chart is not half bar and
+half line.
+
+### Parity details, each of which would otherwise be a silent visual change
+
+| | |
+| --- | --- |
+| **height 320, not 360** | The renderer had 360. Routing views here would have made every dashboard widget's chart 40px taller — a layout change disguised as a library change. |
+| `axisPointer` | `shadow` for bars, `line` for curves; recharts drew the same distinction. |
+| grid lines | recharts dashed **both** axes; ECharts hides the category one by default, so it is asked for explicitly. |
+| dash pattern | `[3, 3]`, in the theme where grid appearance belongs — not `type: "dashed"`, which is a visibly longer pattern. |
+| **only bars drill** | recharts' `onClick` lived on `<BarChart>` alone, so line and area never drilled. Giving them one would be a product change wearing a migration's clothes. |
+
+`valueAxisWidth` is **not** ported. `grid.containLabel` already measures the value labels and reserves
+room. That is the cleanest net deletion in this migration.
+
+### Verified
+
+**619 tests** across 83 files (up from 599), lint, typecheck and build clean. 20 new, covering all six
+component aliases, the unrecognised-component fallback, the curve settings, area fill and non-stacking,
+and the parity table above.
+
+Guards reverted to confirm they bite:
+
+| reverted | result |
+| --- | --- |
+| height back to 360 | `expected '360px' to be '320px'` |
+| plain `smooth`, no monotone | 3 failures |
+| drill gating removed | line and area both drilled — `called 1 times` |
+
+### Not verified
+
+Nothing on a screen, still. No local report produces a `library: "echarts"` view, so line, area and the
+parity details rest on the tests. **Step 6 is the first time any of this is visible**, and it is the
+step to slow down on: it flips `auto-viz` and `CHART_SUBTYPES`, so every bar chart in the app changes
+library at once.
