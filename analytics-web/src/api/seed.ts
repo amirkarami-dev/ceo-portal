@@ -130,6 +130,17 @@ export const SEED_REPORTS: StoredReport[] = [
       ],
       groupBy: [{ field: "province" }],
       metrics: [{ field: "delayDays", aggregation: "avg", alias: "avg_delay", label: "میانگین تأخیر" }],
+      /**
+       * The other branch: no `targetDefinition`, so `buildDrilldownDefinition` falls back to the
+       * dimension after the drilled one — none here, so the child is the province's detail rows.
+       * Two seeded reports, two code paths, so neither rots unnoticed.
+       *
+       * A second `groupBy` would make the fallback richer and was tried; it also turns this report
+       * into a 2-dimension matrix, which auto-viz routes to a heatmap — and a heatmap does not
+       * drill, so the demo would have removed the very thing it was demonstrating. The seed's job is
+       * to show the report someone actually saved, not to be bent around a code path.
+       */
+      drilldown: { enabled: true, operator: "eq" },
       presentation: { views: [] },
     },
   },
@@ -150,6 +161,38 @@ export const SEED_REPORTS: StoredReport[] = [
       ],
       groupBy: [{ field: "province" }],
       metrics: [{ field: "amount", aggregation: "sum", alias: "sum_amount", label: "مجموع درآمد" }],
+      /**
+       * Drill: a province opens its own months.
+       *
+       * The seed carried no `drilldown` at all, so **nothing drilled in local mock data** — not by
+       * mouse and not from the keyboard. Both consumers build the child with
+       * `buildDrilldownDefinition`, which throws without this and is caught as a silent skip, so the
+       * whole feature looked wired up and did nothing.
+       *
+       * `targetDefinition` rather than the inline fallback: with one `groupBy`, the fallback's
+       * "next dimension after the drilled one" is undefined, so the child has no grouping and
+       * collapses to a single KPI. Naming the child explicitly gives the useful answer — the
+       * clicked province broken down by month — and exercises the branch a real report would use.
+       */
+      drilldown: {
+        enabled: true,
+        operator: "eq",
+        targetDefinition: {
+          id: "rep-revenue-months",
+          schemaVersion: "1.0",
+          name: "درآمد ماهانه",
+          dataset: "sales",
+          columns: [
+            { field: "orderDate", label: "ماه" },
+            { field: "amount", label: "درآمد" },
+          ],
+          groupBy: [{ field: "orderDate", dateBucket: "month" }],
+          metrics: [
+            { field: "amount", aggregation: "sum", alias: "sum_amount", label: "مجموع درآمد" },
+          ],
+          presentation: { views: [] },
+        },
+      },
       presentation: { views: [] },
     },
   },

@@ -20,7 +20,7 @@ const def = {
   columns: [],
   // Drill-down needs a `drilldown` config: both consumers build the child definition with
   // `buildDrilldownDefinition`, which throws without one and is caught as a silent skip.
-  drilldown: { operator: "eq" },
+  drilldown: { enabled: true, operator: "eq" },
   presentation: { views: [] },
 } as unknown as ReportDefinition;
 
@@ -441,6 +441,17 @@ describe("EChartsRenderer — drilling from the keyboard", () => {
     expect(buttons(container)).toHaveLength(0);
     // The data is still there to read; only the control is gone.
     expect(container.querySelectorAll('[data-testid="chart-a11y-table"] tbody tr')).toHaveLength(3);
+  });
+
+  it("offers nothing when the drilldown is configured but switched OFF", () => {
+    // `enabled` is in the contract and its own comment calls `{ enabled: false }` a valid no-op —
+    // but nothing read it, so turning a drill off left it fully on.
+    const off = { ...def, drilldown: { enabled: false, operator: "eq" } } as unknown as ReportDefinition;
+    const { container } = render(
+      <EChartsRenderer view={bar({ x: "month", measure: "revenue" })} def={off} result={sorted()} onDrill={vi.fn()} />,
+    );
+
+    expect(buttons(container)).toHaveLength(0);
   });
 
   it("offers nothing to activate when the report cannot drill", () => {

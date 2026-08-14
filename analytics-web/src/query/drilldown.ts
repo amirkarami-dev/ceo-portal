@@ -30,7 +30,12 @@ function nextDimension(parent: ReportDefinition, drilledField: string): GroupBy 
 
 export function buildDrilldownDefinition(parentDef: ReportDefinition, node: GroupNode): ReportDefinition {
   const dd = parentDef.drilldown;
-  if (!dd) throw new Error(`Report ${parentDef.id} has no drilldown config`);
+  /**
+   * `enabled` is part of the contract — its own comment calls `{ enabled: false }` a valid no-op
+   * drilldown literal — and nothing read it, so switching a drill *off* left it fully on. Checked
+   * here, at the one place every drill is built, rather than at each caller.
+   */
+  if (!dd?.enabled) throw new Error(`Report ${parentDef.id} has no enabled drilldown config`);
   const field = drillField(parentDef);
   const value = node.value;
   const filter = pinnedFilter(dd, field, value);

@@ -710,12 +710,12 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
     const meta = option as { rwCategories?: (string | number | null)[]; rwKind?: ChartKind };
     /**
      * `def.drilldown` is checked here even though it belongs to the query layer, because **both**
-     * consumers go through `buildDrilldownDefinition`, which throws without it, and both catch that
+     * consumers go through `buildDrilldownDefinition`, which throws without an ENABLED one, and both catch that
      * and *silently skip*. On the mouse path that is invisible — a click on a bar simply does
      * nothing. A button is not invisible: it is announced as «جزئیات تهران», which promises
      * something the app will not do. Same rule as the `advancedECharts` toggle in step 10.
      */
-    if (!onDrill || !def.drilldown || meta.rwKind !== "bar" || !a11yTable) return undefined;
+    if (!onDrill || !def.drilldown?.enabled || meta.rwKind !== "bar" || !a11yTable) return undefined;
     const cats = meta.rwCategories ?? [];
     // Row order and `rwCategories` order are the same array in the option memo, so index is a safe
     // key between them — but only because they are built together. Guard the length anyway.
@@ -729,7 +729,7 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
       drillable: nodes.map(Boolean),
       drillLabel: (category: string) => t("chartA11y.drill", { category }),
     };
-  }, [onDrill, def.drilldown, option, result.groups, a11yTable, t]);
+  }, [onDrill, def.drilldown?.enabled, option, result.groups, a11yTable, t]);
 
   const ref = useEChart(option, events as never);
 
