@@ -124,6 +124,10 @@
     "line": "Line",
     "pie": "Pie"
   },
+  "customReport": {
+    "unknown": "This report type is not available: {{component}}",
+    "failed": "Could not load this report."
+  },
   "chartA11y": {
     "caption": "Chart data: {{title}}",
     "category": "Category",

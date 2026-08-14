@@ -1,6 +1,7 @@
 # Custom reports, and the first one: engineer quota by city and discipline
 
-**Status:** designed, not started. Waiting on "start step 1".
+**Status:** **step 1 done** — see the memo at the end. Branch `feat/custom-reports`.
+Waiting on "start step 2".
 **Host:** `analytics-web`. **Scope agreed:** frontend first against a mock row; the .NET endpoint is a
 separate follow-up with its contract pinned here (§ *The endpoint contract*).
 
@@ -69,8 +70,14 @@ than hand-built, so the next custom report gets its filter bar by describing it.
 The saved definition is a thin envelope:
 
 ```ts
-{ type: "chart", library: "custom", component: "EngineerQuota", mapping: { cityId: 25, reshte: 4 } }
+{ type: "chart", library: "custom", component: "EngineerQuota", options: { cityId: 25, reshte: 4 } }
 ```
+
+Parameters go in **`options`**, not `mapping`. `ViewMapping` is a fixed set of named chart bindings
+(`x`, `y`, `series`, `category`, `measure`) with no index signature; putting `cityId` there would mean
+widening it with `[key: string]: unknown` and weakening the typing of every chart in the app to
+accommodate one report. `options` is already `Record<string, unknown>` and documented as
+renderer-specific. (Corrected during step 1 — the design first said `mapping`.)
 
 `dataset`, `groupBy` and `metrics` carry nothing meaningful on a custom report. That is a real wart,
 and it is the price of reusing the shell — no worse than `library: "recharts"` on a chart ECharts
@@ -294,3 +301,60 @@ absent, table present. Worklog, and propagate to `GOTCHAS.md` / `PROJECT-MAP.md`
   the export button's behaviour on a custom report should be settled explicitly.
 - **Whether `"grid"` should be removed** from `ViewLibrary` while adding `"custom"`. It is dead today.
   Out of scope here, worth its own line in a sweep.
+
+---
+
+## Step 1 — DONE. The plumbing, and a wrong prediction worth keeping.
+
+`ViewLibrary` gains `"custom"`; `ReportView.tsx` gains one case; `presentation/custom/` holds the
+registry, the renderer, and the engineer-quota module split four ways — `contract.ts` (params, wire
+shape, the city and discipline lists), `fetch.ts` (the mock row and the real-mode call),
+`EngineerQuotaReport.tsx` (a placeholder body), `index.tsx` (registration only). Step 6 rewrites one
+of those four files and nothing else.
+
+Seeded as `rep-quota`, so it has a URL and the whole path can be walked.
+
+### The design said "one branch in `ReportViewer`". It was four.
+
+Each failed differently, and each was found only by looking at the screen:
+
+| where | what it did |
+| --- | --- |
+| the execute effect | predicted — skips `executeReport`, before the `!semantic` guard |
+| the **render** guard (`:263`) | «خطا در بارگذاری گزارش» — `!semantic` is checked *twice*, far apart |
+| `result.total === 0` | «هیچ داده‌ای با فیلترهای فعلی مطابقت ندارد» — the most misleading of the three, because it looks like working software |
+| `FilterBar` + `ViewSwitcher` | render nothing for a custom report — see below |
+
+The lesson to carry into **step 7**: `WidgetFrame` will not be one branch either. Budget for finding
+its equivalents by running it, not by reading it.
+
+### Two controls removed rather than left
+
+`FilterBar` renders `definition.filters` against a semantic model; a custom report has neither, and
+its parameters are procedure arguments with their own picker (step 2).
+
+The `ViewSwitcher` was worse. A custom report has exactly one view and an empty result, so four
+buttons rendered disabled and **«جدول» rendered enabled** — one click from replacing a working report
+with an empty table. Hidden entirely.
+
+### `any` avoided in the registry
+
+The registry is heterogeneous, so what it stores cannot be typed precisely. Rather than `any` at
+three lookups, there is one named `ErasedCustomReport` and **one cast**, inside
+`registerCustomReport`, where each entry's real types have just been checked. React props are
+contravariant, so the cast is not a formality — it states something the type system genuinely cannot.
+
+### Verified
+
+**685 tests across 85 files** (up from 677), lint, typecheck and build clean. Eight new: five on the
+renderer (dispatch, the entry's own fetch, stored params winning over defaults, undeclared keys being
+dropped, and the unknown-component empty state) and three on the viewer. Removing the execute skip
+fails all three viewer tests.
+
+In a browser: the report opens on its URL, the shell is intact around it, the stub shows
+«بیجار — مکانیک» and the mock row, and there are **zero console errors** on a clean tab.
+
+### What is left
+
+Steps 2-8. Nothing about the plumbing is expected to change again; step 6 replaces the placeholder
+body, and step 7 does for `WidgetFrame` what this step did for `ReportViewer`.

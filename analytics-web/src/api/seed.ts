@@ -196,6 +196,39 @@ export const SEED_REPORTS: StoredReport[] = [
       presentation: { views: [] },
     },
   },
+  {
+    id: "rep-quota",
+    tenantId: "tenant-acme",
+    ownerName: "آرش مدیری",
+    visibility: "tenant",
+    updatedAt: now,
+    /**
+     * A custom report: its data comes from `presentation/custom/engineer-quota`, not from the query
+     * engine. `dataset`, `columns` and `groupBy` are the envelope the report shell expects and carry
+     * nothing — the wart named in the design doc, paid once so the page, toolbar, breadcrumb, roles
+     * and dashboards all keep working unchanged.
+     */
+    definition: {
+      id: "rep-quota",
+      schemaVersion: "1.0",
+      name: "وضعیت سهمیه ثبت شده مهندسان به تفکیک شهر و رشته",
+      dataset: "oz_info",
+      columns: [],
+      presentation: {
+        views: [
+          {
+            type: "chart",
+            library: "custom",
+            component: "EngineerQuota",
+            // Parameters live in `options`, not `mapping`: ViewMapping is a fixed set of named chart
+            // bindings with no index signature, and widening it would weaken every chart's typing.
+            options: { cityId: 25, reshte: 4 },
+            mapping: {},
+          },
+        ],
+      },
+    },
+  },
 ];
 
 export const SEED_DASHBOARDS: DashboardRecord[] = [

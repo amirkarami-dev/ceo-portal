@@ -5,6 +5,10 @@ import type { QueryResult, GroupNode } from "../contracts/dataset";
 import TableRenderer from "./renderers/TableRenderer";
 import KpiRenderer from "./renderers/KpiRenderer";
 import EChartsRenderer from "./renderers/EChartsRenderer";
+import CustomRenderer from "./custom/CustomRenderer";
+// Registration is a module side effect, so every custom report has to be imported somewhere that
+// always loads. Here, beside the dispatcher that looks them up.
+import "./custom/engineer-quota";
 
 /** Canonical renderer props (R5). The single source other features import. */
 export type RendererProps = {
@@ -37,6 +41,13 @@ export function ReportViewRenderer(props: RendererProps): React.JSX.Element {
     case "recharts":
     case "echarts":
       return <EChartsRenderer {...props} />;
+    /**
+     * Not a renderer but a registry lookup: `view.component` names a module that owns its own data
+     * and its own presentation. `props.result` is empty for these — nothing executed — so only
+     * `view` is passed on, which keeps the emptiness from looking like data.
+     */
+    case "custom":
+      return <CustomRenderer view={view} />;
     case "antd":
     default:
       // antd library: KPI Card vs Table by view type.

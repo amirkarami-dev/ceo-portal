@@ -124,6 +124,10 @@
     "line": "خطی",
     "pie": "دایره‌ای"
   },
+  "customReport": {
+    "unknown": "این نوع گزارش در دسترس نیست: {{component}}",
+    "failed": "بارگذاری این گزارش ممکن نشد."
+  },
   "chartA11y": {
     "caption": "داده‌های نمودار: {{title}}",
     "category": "دسته",
