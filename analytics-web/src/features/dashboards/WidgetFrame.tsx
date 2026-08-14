@@ -21,6 +21,8 @@ import {
   buildViewForTarget,
   canRenderTarget,
   findViewForTarget,
+  targetOfView,
+  NO_TARGET,
   type SwitchTarget,
 } from "@/presentation/view-switching";
 import { getModelForDataset } from "@/semantic/registry";
@@ -96,16 +98,11 @@ export function WidgetFrame({ widget, editing, onRemove, onChange }: Props) {
       ? (views[findViewForTarget(views, target)] ?? buildViewForTarget(target, result, defaultView))
       : defaultView;
 
-  // Which button looks pressed. With no override, it follows whatever the report chose for itself.
-  const mode: SwitchTarget =
-    target ??
-    (defaultView?.type === "table"
-      ? "table"
-      : defaultView?.component?.toLowerCase().includes("pie")
-        ? "pie"
-        : defaultView?.component?.toLowerCase().includes("line")
-          ? "line"
-          : "bar");
+  // Which button looks pressed. With no override, it follows whatever the report chose for itself —
+  // and shows nothing pressed when that is a view with no button, rather than guessing "bar".
+  // `NO_TARGET` rather than undefined: antd's Segmented reads undefined as the first option, so a
+  // widget showing a view with no button of its own would light «جدول».
+  const mode = target ?? targetOfView(defaultView) ?? NO_TARGET;
 
   const exportName = title.replace(/[^\p{L}\p{N}_-]+/gu, "-").replace(/^-+|-+$/g, "") || "widget";
   const iconBtn = { type: "text" as const, size: "small" as const };

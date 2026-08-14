@@ -79,11 +79,28 @@ describe("chooseView (§8.6 thresholds)", () => {
     expect(chooseView(def({ tags: ["share"], groupBy: [{ field: "province" }], metrics: [{ field: "revenue", aggregation: "sum", alias: "revenue" }] }), r, semantic)[0].component).toBe("BarChart");
   });
 
-  it("rule 5a — 2 dimensions × 1 measure → ECharts", () => {
+  it("rule 5a — 2 dimensions × 1 measure → a heatmap the renderer can actually draw", () => {
     const r = result([col("orderDate", "date", false), col("province", "string", false), col("revenue", "number", true)],
       [{ orderDate: "2025-01", province: "تهران", revenue: 100 }]);
     const views = chooseView(def({ groupBy: [{ field: "orderDate", dateBucket: "month" }, { field: "province" }], metrics: [{ field: "revenue", aggregation: "sum", alias: "revenue" }] }), r, semantic);
-    expect(views[0]).toMatchObject({ type: "chart", library: "echarts", component: "EChart" });
+    // Was `component: "EChart"` with the second dimension in `mapping.y`. The renderer's heatmap
+    // branch needs `series` AND this exact component string, so it drew a bar of NaNs instead.
+    expect(views[0]).toMatchObject({
+      type: "chart", library: "echarts", component: "heatmap",
+      mapping: { x: "orderDate", series: "province", measure: "revenue" },
+    });
+    // The measure must not end up in `y`: `seriesKeysOf` prefers `y`, which is how a dimension came
+    // to be plotted as a value.
+    expect(views[0].mapping.y).toBeUndefined();
+  });
+
+  it("rule 5a — never names the same field as both axes", () => {
+    // Two CATEGORICAL dimensions. The old code took `catDims[0]` for the second axis, which is the
+    // same field it had already taken for the first.
+    const r = result([col("province", "string", false), col("category", "string", false), col("revenue", "number", true)],
+      [{ province: "تهران", category: "a", revenue: 100 }]);
+    const v = chooseView(def({ groupBy: [{ field: "province" }, { field: "category" }], metrics: [{ field: "revenue", aggregation: "sum", alias: "revenue" }] }), r, semantic)[0];
+    expect(v.mapping.series).not.toBe(v.mapping.x);
   });
 
   it("rule 5b — >25 categories → ECharts", () => {

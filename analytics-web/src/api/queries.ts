@@ -370,7 +370,7 @@ const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
   defaultLocale: "fa-IR",
   defaultTheme: "light",
   dateSystem: "jalali",
-  flags: { advancedECharts: true, dashboardSharing: false, exportFormats: true },
+  flags: { dashboardSharing: false, exportFormats: true },
   ai: { defaultProvider: "openai", defaultModel: "gpt-4o-mini", globalTokenBudget: 10_000_000, defaultCacheTtl: 86400, promptVersionPin: "report-gen@3" },
   security: { sessionPolicy: "8h", allowedExportFormats: ["pdf", "csv"], piiRedaction: true },
   integrations: { oidcIssuer: "https://auth.myceo.ir" },

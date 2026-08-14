@@ -231,6 +231,18 @@ src/theme/      design tokens, light/dark
 - `mabhas19-web/` and `kurdnezam-web/` are Next.js and follow their own (documented) structure. `portal-web/` is a public Vite service directory with no API or OIDC calls.
 - Analytics opens on `/dashboards`: All/Mine/Recent dashboard library, read-only detail at
   `/dashboards/:id`, role-gated editing at `/dashboards/:id/edit`, and Ask AI at `/ask`.
+- **Charts in `analytics-web` are ECharts, and only ECharts** (recharts was removed 2026-08-14 —
+  see [`../worklog/2026-08-14-recharts-to-echarts.md`](../worklog/2026-08-14-recharts-to-echarts.md)).
+  The chain is: `presentation/auto-viz.ts` picks a view → `presentation/ReportView.tsx` dispatches on
+  `view.library` → `presentation/renderers/EChartsRenderer.tsx` draws bar, line, area, pie and
+  heatmap → `components/charts/useEChart.ts` owns every `echarts.init` in the app, so that no chart
+  can be created without the theme. Three things that look like details and are not:
+  - `library: "recharts"` is a **permanent alias** in the dispatcher. Stored definitions still carry
+    it and nothing migrates them; without the alias they fall through to `TableRenderer` silently.
+  - the component strings (`"BarChart"`, `"LineChart"`, `"PieChart"`, `"heatmap"`) are the identity
+    key the view switcher matches on, via `targetOfView` in `presentation/view-switching.ts`.
+  - charts are a **canvas**, so nothing in them is readable from the DOM — read the instance instead
+    (`echarts.getInstanceByDom(el).getOption()`). Tests rely on a canvas stub in `vitest.setup.ts`.
 
 ## Documentation layout
 

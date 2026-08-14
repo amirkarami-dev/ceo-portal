@@ -4,6 +4,8 @@ import {
   buildViewForTarget,
   canRenderTarget,
   findViewForTarget,
+  targetOfView,
+  NO_TARGET,
 } from "./view-switching";
 
 const col = (key: string, isMetric: boolean) => ({
@@ -98,8 +100,8 @@ describe("findViewForTarget", () => {
 
 /**
  * The migration guard. `library` moves per step; the **component string must not**, because it is the
- * identity key that four separate places sniff as a case-insensitive substring — `findViewForTarget`
- * here, `ViewSwitcher`, `WidgetFrame`, and AskAiBuilder's `motion.div` key. Renaming "BarChart" to
+ * identity key three places resolve through `targetOfView` — `findViewForTarget` here, `ViewSwitcher`
+ * and `WidgetFrame` — plus AskAiBuilder's `motion.div` key, which still reads it raw. Renaming "BarChart" to
  * "bar" would break the view switcher with nothing to type-check the break, and the switcher failing
  * silently looks like a chart that will not change rather than a bug.
  */
@@ -151,5 +153,58 @@ describe("switching survives the ECharts migration", () => {
     for (const target of ["bar", "line", "pie"] as const) {
       expect(buildViewForTarget(target, countAndPercent).library).toBe("echarts");
     }
+  });
+});
+
+/**
+ * `targetOfView` replaced three separate `component.toLowerCase().includes("bar")` ladders — in
+ * `findViewForTarget`, `ViewSwitcher` and `WidgetFrame` — that ended in three DIFFERENT fallbacks:
+ * line, bar, and bar. The same view therefore appeared as a different pressed button depending on
+ * which screen you were looking at.
+ */
+describe("targetOfView", () => {
+  const chart = (component: string) =>
+    ({ type: "chart", library: "echarts", component, mapping: {} }) as Parameters<typeof targetOfView>[0];
+
+  it.each([
+    ["BarChart", "bar"],
+    ["bar", "bar"],
+    ["LineChart", "line"],
+    ["line", "line"],
+    ["PieChart", "pie"],
+    ["pie", "pie"],
+  ] as const)("maps %s to %s", (component, expected) => {
+    expect(targetOfView(chart(component))).toBe(expected);
+  });
+
+  it("answers with the TYPE for table and kpi, not the component string", () => {
+    // A KPI's component is "Card", which no substring rule would ever have matched.
+    expect(targetOfView({ type: "table", library: "antd", component: "Table", mapping: {} } as never)).toBe("table");
+    expect(targetOfView({ type: "kpi", library: "antd", component: "Card", mapping: {} } as never)).toBe("kpi");
+  });
+
+  it("says undefined for a view with no button, instead of guessing", () => {
+    // The heatmap is the live case: `auto-viz`'s matrix rule emits it and the switcher offers no
+    // heatmap button. Guessing lit «خطی» on a chart that was not a line.
+    expect(targetOfView(chart("heatmap"))).toBeUndefined();
+    // And for the component string the matrix rule used to emit, which matched nothing either.
+    expect(targetOfView(chart("EChart"))).toBeUndefined();
+    expect(targetOfView(undefined)).toBeUndefined();
+  });
+
+  it("offers a Segmented value that matches no option", () => {
+    // antd's Segmented reads `undefined` as "the first option", so undefined alone lit «جدول».
+    // Measured on the page, which is why this constant exists at all.
+    expect(NO_TARGET).not.toBe("table");
+    expect(["table", "kpi", "bar", "line", "pie"]).not.toContain(NO_TARGET);
+  });
+
+  it("does not find a heatmap under any chart target", () => {
+    const views = [chart("heatmap"), { type: "table", library: "antd", component: "Table", mapping: {} }] as never;
+    for (const target of ["bar", "line", "pie"] as const) {
+      expect(findViewForTarget(views, target)).toBe(-1);
+    }
+    // …but the Table companion is still selectable, so the strip is not inert.
+    expect(findViewForTarget(views, "table")).toBe(1);
   });
 });

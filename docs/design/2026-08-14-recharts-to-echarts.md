@@ -2,8 +2,8 @@
 
 **Date:** 2026-08-14
 **Area:** analytics-web
-**Status:** **steps 1-9 done (2b included) — see the memos at the end.** Branch `feat/echarts-only`.
-Waiting on "start step 10". **recharts is uninstalled and deleted.** One chart library in the app.
+**Status:** **DONE — all ten steps (2b included), see the memos at the end.** Branch
+`feat/echarts-only`, not yet merged or deployed. One chart library in the app.
 
 Amir asked to use ECharts only. Agreed as the goal: recharts has no RTL support, which is the whole
 reason `presentation/chart-rtl.ts` exists; ECharts has a real theme system; and dropping recharts
@@ -1264,3 +1264,90 @@ worth doing.
 ### What is left
 
 Step 10 only.
+
+---
+
+## Step 10 — DONE. The sweep, and one live bug hiding in it.
+
+Five of the six items were tidy-up. The auto-viz one was not.
+
+### Rule 5 was drawing all-zero charts
+
+The plan called this "the heatmap is unreachable from auto-viz — every matrix report renders as a
+single-series bar with a dimension dropped". Probed against a live instance, it was worse:
+
+```
+VIEW    {component: "EChart", mapping: {x: "orderDate", y: "province", measure: "revenue"}}
+SERIES  [{type: "bar", name: "Province", data: [0, 0]}]
+XAXIS   ["2025-01", "2025-02"]
+FIND    bar/line/pie -> [-1, -1, -1]
+```
+
+Not "a dimension dropped" — **the measure dropped**. `seriesKeysOf` prefers `mapping.y` over
+`mapping.measure`, so the chart plotted the province column; `Number("Tehran")` is NaN and ECharts
+draws NaN as zero. Every two-dimension report in the product rendered an all-zero bar chart with a
+legend naming a dimension. Rule 5b was the same bug in miniature: with one dimension, `y` resolved to
+the *same field as `x`*.
+
+Split into the two questions it was conflating:
+
+- **5a matrix** → a real heatmap: `component: "heatmap"` with `mapping: { x, series, measure }`, which
+  is what the renderer's heatmap branch actually requires. The second dimension is picked by identity
+  (`.find(f => f !== x)`), not by position — `catDims[0]` returned the same field as `x` whenever both
+  dimensions were categorical.
+- **5b/5c** → still a chart, but one that plots the measure: `{ x, y: measure.key }`. A tag cannot
+  conjure a second dimension, and above 25 categories the renderer already adds a dataZoom slider,
+  which is the real answer to label crowding.
+
+Four end-to-end tests in `auto-viz.matrix.test.tsx` go rule → renderer → live instance and assert the
+**rendered** option, because that is exactly the gap the bug lived in. Three of the four fail against
+the old rule. Seen in a browser: months across the x-axis, four provinces down the y-axis, a colour
+scale, real values.
+
+### The switcher lied twice, in two different ways
+
+Three separate `component.toLowerCase().includes("bar")` ladders — `findViewForTarget`, `ViewSwitcher`
+and `WidgetFrame` — ending in three **different** fallbacks: line, bar, and bar. One `targetOfView`
+now answers for all three, and returns **undefined** when a view has no button.
+
+Undefined turned out not to be enough. **antd's Segmented reads `undefined` as "the first option"**,
+so a heatmap lit «جدول» instead of «خطی» — a different wrong answer, caught only by looking at the
+page after the "fix". Hence `NO_TARGET`, a value that matches no option and leaves the strip blank.
+
+### `advancedECharts` deleted
+
+Six sites. Nothing read it, and after "every chart is ECharts" its label promised control over a
+distinction that no longer exists — a toggle that does nothing invites someone to flip it and
+conclude the product is broken.
+
+The plan's risk note — *"confirm the backend tolerates its absence"* — resolves to: **there is no
+backend.** System settings are `localStorage` (`report.db.systemSettings`). Tested by planting a
+legacy object that still carries the flag: the page renders two switches, saving works, and the stale
+property rides along ignored.
+
+`dashboardSharing` and `exportFormats` are read by nothing either. Left alone deliberately — their
+labels do not lie about what they would do. Noted in the worklog as a decision for someone else.
+
+### Documentation
+
+`GOTCHAS.md`'s recharts entry replaced rather than deleted, as the plan insisted: how to inspect a
+canvas chart in a non-displayed pane (`getInstanceByDom(el).getOption()`, `getDataURL()`), plus a new
+entry for the jsdom canvas stub. Two more added from bugs found during the migration — the index-vs-
+value drill trap and `mapping.y` beating `mapping.measure`. `PROJECT-MAP.md` gained a chart section,
+which it had never had.
+
+### Verified
+
+**658 tests across 84 files** (606 at the start of the migration), lint, typecheck and build clean.
+
+### Not verified
+
+The four carried since step 6, unchanged: drill hit area, label rotation above 8 categories, the
+dataZoom slider above 25, and PDF chart export. And **nothing here has been deployed** — it is all
+localhost against mock data.
+
+### The migration is finished
+
+Worklog: `docs/worklog/2026-08-14-recharts-to-echarts.md`. The open decision left for the user is
+canvas accessibility — ECharts' `aria` with translated templates, or a visually-hidden table per
+chart.

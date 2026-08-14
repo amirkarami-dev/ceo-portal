@@ -439,7 +439,6 @@
       "confirmBody": "Changing system settings affects all tenants. Proceed?",
       "saved": "System settings saved",
       "flag": {
-        "advancedECharts": "Advanced ECharts",
         "dashboardSharing": "Dashboard Sharing",
         "exportFormats": "Export Formats"
       }

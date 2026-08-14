@@ -9,7 +9,7 @@ import {
 } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 import type { QueryResult, ReportView } from "@/contracts";
-import { canRenderTarget, type SwitchTarget } from "@/presentation/view-switching";
+import { canRenderTarget, targetOfView, NO_TARGET, type SwitchTarget } from "@/presentation/view-switching";
 
 export type { SwitchTarget };
 
@@ -37,15 +37,16 @@ export function ViewSwitcher({ active, result, onSwitch }: Props) {
     ] as { label: string; value: SwitchTarget; icon: React.ReactNode }[]
   ).map((o) => ({ ...o, disabled: !canRenderTarget(o.value, result) }));
 
-  const current: SwitchTarget = !active
-    ? "table"
-    : active.type === "table" || active.type === "kpi"
-      ? active.type
-      : active.component.toLowerCase().includes("bar")
-        ? "bar"
-        : active.component.toLowerCase().includes("pie")
-          ? "pie"
-          : "line";
+  /**
+   * `targetOfView` is undefined when the active view has no button of its own — a heatmap, say. The
+   * ladder this replaces ended in `: "line"`, so a matrix chart lit «خطی» while drawing something
+   * else entirely.
+   *
+   * Undefined is not enough on its own: **antd's Segmented falls back to the first option** when
+   * `value` is undefined, which lit «جدول» instead — a different wrong answer, measured on the page.
+   * A value matching no option is what actually leaves every button unpressed.
+   */
+  const current = targetOfView(active) ?? NO_TARGET;
 
   return (
     <div data-testid="view-switcher">
