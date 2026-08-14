@@ -24,8 +24,10 @@ import type { GroupNode } from "../../contracts/dataset";
  * Every bar opened the wrong report, silently. Aggregation and dropped nulls make it worse by
  * shortening the chart relative to `groups`, but they are not the cause.
  *
- * Shared by both renderers on purpose: the defect was never ECharts-specific, and leaving the recharts
- * path broken until it is deleted would mean shipping a known wrong-report bug in the meantime.
+ * Extracted rather than fixed in place because the defect was never ECharts-specific — the recharts
+ * renderer carried the identical lookup, and leaving that path broken until it was deleted would have
+ * meant shipping a known wrong-report bug in the meantime. That renderer is now gone; this stays a
+ * separate function because a positional-vs-value lookup is worth naming and testing on its own.
  */
 export function resolveDrillTarget(
   groups: GroupNode[] | undefined,

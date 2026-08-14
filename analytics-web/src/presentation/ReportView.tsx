@@ -4,7 +4,6 @@ import type { ReportDefinition } from "../contracts/report-definition";
 import type { QueryResult, GroupNode } from "../contracts/dataset";
 import TableRenderer from "./renderers/TableRenderer";
 import KpiRenderer from "./renderers/KpiRenderer";
-import RechartsRenderer from "./renderers/RechartsRenderer";
 import EChartsRenderer from "./renderers/EChartsRenderer";
 
 /** Canonical renderer props (R5). The single source other features import. */
@@ -13,7 +12,7 @@ export type RendererProps = {
   def: ReportDefinition;
   result: QueryResult;
   /** Optional drill callback: fired with the clicked group node. Drill-capable
-   *  renderers (Recharts/ECharts/Table) wire it; others ignore it. */
+   *  renderers (ECharts/Table) wire it; others ignore it. */
   onDrill?: (node: GroupNode) => void;
 };
 
@@ -25,8 +24,17 @@ export type RendererProps = {
 export function ReportViewRenderer(props: RendererProps): React.JSX.Element {
   const { view } = props;
   switch (view.library) {
+    /**
+     * `recharts` is a **legacy alias**, not a live library. It stays because saved data still says
+     * it: `SaveReportModal` persists a definition by spreading it verbatim, both `ReportViewer` and
+     * `useAskAi` prefer a stored `presentation.views` over `chooseView`, and dashboard widget JSON is
+     * an opaque backend blob with no migration behind it.
+     *
+     * Delete this case and every chart saved before the migration falls through `default` to
+     * `TableRenderer` — a chart silently becoming a table, with no error and no warning. Same reason
+     * `WidgetViewMode: "chart"` is still alive.
+     */
     case "recharts":
-      return <RechartsRenderer {...props} />;
     case "echarts":
       return <EChartsRenderer {...props} />;
     case "antd":

@@ -2,9 +2,8 @@
 
 **Date:** 2026-08-14
 **Area:** analytics-web
-**Status:** **steps 1-8 done (2b included) — see the memos at the end.** Branch `feat/echarts-only`.
-Waiting on "start step 9". **Every view renders with ECharts.** Nothing routes to recharts any more;
-the package and `RechartsRenderer.tsx` are still on disk, which is step 9.
+**Status:** **steps 1-9 done (2b included) — see the memos at the end.** Branch `feat/echarts-only`.
+Waiting on "start step 10". **recharts is uninstalled and deleted.** One chart library in the app.
 
 Amir asked to use ECharts only. Agreed as the goal: recharts has no RTL support, which is the whole
 reason `presentation/chart-rtl.ts` exists; ECharts has a real theme system; and dropping recharts
@@ -1174,3 +1173,94 @@ categories, the dataZoom slider above 25, and PDF chart export.
 
 Steps 9 and 10 — deleting recharts, and the sweep-up. Nothing routes to it now, so step 9 is a
 deletion, not a migration.
+
+---
+
+## Step 9 — DONE. recharts is gone.
+
+A deletion, as predicted, and the quietest step since 6 — but the two checks that mattered both
+needed a browser, and the first version of both was **worthless**.
+
+### What went
+
+`RechartsRenderer.tsx` and `RechartsRenderer.test.tsx`, the `vi.mock` in `ReportView.test.tsx`, the
+package (`npm uninstall recharts --workspace=analytics-web`, −329 lines of lockfile). `pdf.ts` now
+falls back to a plain `svg` rather than `svg.recharts-surface` — a dead class selector would have
+made a later switch to ECharts' SVG renderer look like it silently broke PDF export.
+
+**Bundle: 3,613.10 kB → 3,171.31 kB** (gzip 1,127.80 → 1,009.83). That is the proof it left the
+bundle and not merely `package.json`.
+
+The three `aggregateByCategory` tests moved to a new `chart-utils.test.ts` **before** the delete.
+Nothing in them was ever about a library; left in place they would have gone as collateral and the
+loss would have been silent.
+
+### Two tests deliberately not ported, said out loud
+
+- *"bar chart with duplicate x-values renders without React duplicate-key warning"* — recharts built
+  one React child per datum. ECharts has no React children. Not portable, and nothing to replace it.
+- *"one bar per DISTINCT x value (not per raw row)"* — already covered by *"sums rows that share a
+  category instead of keeping only the first"* in `EChartsRenderer.data.test.tsx`.
+
+### The legacy alias, proven both ways — after two false readings
+
+`case "recharts":` now falls through to `EChartsRenderer`. The plan's whole argument for keeping it
+is that deleting it turns every pre-migration saved chart into a **table**, silently.
+
+The first two attempts to see that in a browser proved nothing, and it is worth writing down why:
+
+1. Seeding a stored `library: "recharts"` view into `seed.ts` changed nothing, because the seed is
+   persisted to **`localStorage['report.db.reports']`** and the browser was reading its own older
+   copy. The chart that rendered was the auto-chosen ECharts one.
+2. So removing the alias also changed nothing — and *that* looked like the alias not mattering.
+   Reading "still renders" as "the alias is unnecessary" would have deleted it.
+
+Patching `localStorage` directly and reloading gave the real answer, both directions:
+
+| dispatcher | what a stored `library: "recharts"` chart renders |
+| --- | --- |
+| alias removed | **a 4-row antd table** — no error, no warning |
+| alias present | an 870×320 ECharts bar chart |
+
+Two unit tests now hold that, one of which asserts the *failure mode* (`queryByTestId("r-table")` is
+absent) rather than only the success.
+
+### Stale comments, which in this repo are part of the code
+
+A comment naming a deleted file is a trap. Fixed, not left: `ui-store.ts` listed `RechartsRenderer`
+as a theme consumer; `can-edit.ts` blamed jsdom sizing for why drill is untestable (the real reason
+is canvas hit-testing); `SeriesLabelBar.tsx` argued in the present tense about a legend that no
+longer exists; `ReportViewer.test.tsx` pointed at `RechartsRenderer.test.tsx`; `drill.ts` said
+"shared by both renderers"; two theme tests were named after the palette recharts drew with.
+
+`EChartsRenderer`'s reachability note on `AreaChart` was re-checked rather than reworded: with the
+recharts branch gone there is now **no other `AreaChart` reference in `src` outside a test**. Area
+still stays — that argument was never about recharts.
+
+### Seen in a browser
+
+Saved report, Ask AI, dashboard. Ask AI's «فروش به تفکیک دسته» draws a seven-slice donut that wraps
+the six-colour palette correctly. All five switcher targets cycled on one page. **Zero console
+errors** — and that too needed a second look: the console buffer survives navigation *and* a dev
+server restart, so it was still full of HMR debris from this session's own bite checks (including a
+hook-order dump that was literally the `useRef`-vs-callback-ref experiment). A **fresh tab** gave the
+clean read: one pre-existing antd `rowKey` deprecation warning, nothing else.
+
+The dashboard widget still renders 133×40 — byte-identical to `main`, the pre-existing sizing bug,
+untouched by this step.
+
+### Verified
+
+**643 tests** across 83 files (651 − 12 deleted + 4 added), lint, typecheck and build clean.
+`grep -rn recharts src` returns only the `ViewLibrary` union, the alias case, and test names
+describing inherited behaviour. No live import and no live selector.
+
+### Still not verified
+
+Unchanged and still not dropped: the drill hit area, label rotation above 8 categories, the dataZoom
+slider above 25, and PDF chart export — the last of which this step touched, so it is now the most
+worth doing.
+
+### What is left
+
+Step 10 only.

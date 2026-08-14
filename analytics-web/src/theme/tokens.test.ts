@@ -98,9 +98,10 @@ describe("theme tokens", () => {
     expect(chartColors("light").series).toHaveLength(chartColors("dark").series.length);
   });
 
-  // ECharts draws the heatmap and the grouped bars; recharts draws everything else. They have to
-  // agree, or one dashboard shows two palettes.
-  it.each(["light", "dark"] as const)("the %s echarts theme carries the palette recharts uses", (mode) => {
+  // Two sources of colour survive the migration: `chartColors` for the markup the renderers own (the
+  // donut's key, the series swatches) and the ECharts theme for everything the library draws. They
+  // have to agree, or one chart shows two palettes.
+  it.each(["light", "dark"] as const)("the %s echarts theme carries the same palette as the tokens", (mode) => {
     const t = echartsTheme(mode);
     expect(t.color).toEqual(chartColors(mode).series);
   });

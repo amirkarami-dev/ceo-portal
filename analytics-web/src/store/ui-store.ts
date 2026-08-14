@@ -6,7 +6,8 @@ interface UiState {
   /** Single source of truth for dark/light mode. Toggled by toggleTheme().
    *  Persisted to localStorage key `analytics-theme`.
    *  Consumed by: providers.tsx → ThemeProvider (antd + CSS vars),
-   *  EChartsRenderer, RechartsRenderer (chart colours), AppLayout Sider. */
+   *  useEChart (which fixes the theme at init), EChartsRenderer (the donut's own
+   *  markup), AppLayout Sider. */
   themeMode: "light" | "dark";
   locale: AppLocale;
   dir: "rtl" | "ltr";

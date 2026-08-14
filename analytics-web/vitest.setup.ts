@@ -16,8 +16,8 @@ Object.defineProperty(window, "matchMedia", {
   }),
 });
 
-// Recharts ResponsiveContainer, ECharts' size-sensor and antd all use ResizeObserver,
-// which jsdom does not implement. Provide a minimal stub globally.
+// `useEChart` watches its container with a ResizeObserver, and antd uses one in several places.
+// jsdom does not implement it. Provide a minimal stub globally.
 if (typeof globalThis.ResizeObserver === "undefined") {
   globalThis.ResizeObserver = class ResizeObserver {
     observe() {}

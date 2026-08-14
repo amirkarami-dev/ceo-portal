@@ -71,17 +71,17 @@ function uniq(values: (string | number | null)[]): (string | number | null)[] {
 /**
  * Which cartesian shape a view asks for.
  *
- * The aliases come from `RechartsRenderer` verbatim, including the silent bar default: a stored view
- * whose component string nothing recognises draws a bar rather than nothing, which is the behaviour
- * saved definitions already rely on.
+ * The aliases were carried over from the deleted recharts renderer verbatim, including the silent bar
+ * default: a stored view whose component string nothing recognises draws a bar rather than nothing,
+ * which is the behaviour saved definitions already rely on.
  *
  * **Area is kept**, and that was a decision rather than an oversight. Nothing in the app emits it —
- * `SwitchTarget` is `ViewType | "bar" | "line" | "pie"`, `CHART_SUBTYPES` has only those three, and the
- * only other `AreaChart` reference is the branch inside RechartsRenderer itself — so it is reachable
- * only from a hand-written or AI-authored view. Whether any *stored* definition names it cannot be
- * answered from the code, only from the database. Six lines of insurance against an unknown beats a
- * silent shape change for a report someone saved, on the same reasoning that keeps the legacy
- * `library: "recharts"` alias alive.
+ * `SwitchTarget` is `ViewType | "bar" | "line" | "pie"`, `CHART_SUBTYPES` has only those three, and
+ * since the recharts renderer was deleted there is **no other `AreaChart` reference in `src` at all**
+ * outside a test. So it is reachable only from a hand-written or AI-authored view. Whether any
+ * *stored* definition names it cannot be answered from the code, only from the database. Six lines of
+ * insurance against an unknown beats a silent shape change for a report someone saved — the same
+ * reasoning that keeps the legacy `library: "recharts"` alias alive in the dispatcher.
  */
 type ChartKind = "bar" | "line" | "area" | "pie";
 
@@ -192,7 +192,7 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
     const seriesField = view.mapping.series;
     // Every y key the view asks for, not just the first. `mapping.y` is `string | string[]`, and this
     // used to collapse to one measure, so a two-measure view silently drew half its data. Shared with
-    // RechartsRenderer so the two cannot disagree about what a view plots.
+    // the deleted recharts renderer, so the two could not disagree about what a view plots.
     const ys = seriesKeysOf(view, result);
     const measure = ys[0] ?? "";
     const valueFormatter = (v: number | string) =>
