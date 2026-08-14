@@ -123,6 +123,24 @@ body {
     min-width: 44px;
   }
 
+  /* The inline-edit pencil (EditableLabel / antd Typography `editable`). It is a bare
+     `<button class="ant-typography-edit">`, NOT an `.ant-btn`, so the rules above never reach it —
+     it stays a ~16px icon, well under the 44px a finger needs.
+
+     Expanded with ::after rather than padding or min-height. The pencil sits inline beside the label
+     it edits, so growing the box itself would shove the heading sideways on every phone; an absolutely
+     positioned overlay grows only the hit area and leaves the type exactly where it was. */
+  main .ant-typography-edit {
+    position: relative;
+  }
+
+  main .ant-typography-edit::after {
+    content: "";
+    position: absolute;
+    /* 16px icon + 14px each side = 44 */
+    inset: -14px;
+  }
+
   /* The segmented control centres its own label, so the height goes on the item and
      the label stretches to fill it rather than sitting in the middle of dead space. */
   main .ant-segmented-item {

@@ -998,6 +998,58 @@ constants — `primary`, `primaryInk`/`primaryInkDark`, `primarySolid` (and `--r
 `--rw-primary-ink`, `--rw-primary-solid` in `global.css`) — because a future brand may again need a
 different value for text than for a fill.
 
+### antd Typography `editable` fires `onChange` TWICE for one edit, and saves on blur
+All measured against antd 5.29.3, not read off the docs.
+
+**`onChange` is a "commit attempt", not a change event.** It fires on Enter, on blur, AND on
+click-away — and **Enter followed by a blur fires it twice**: `onChange → onEnd → onChange`. Wire a
+network save straight to it and one rename becomes two requests. Proven: removing the guard in
+`EditableLabel` turns its test into *"expected 1 times, but got 2 times"*. Keep an `inFlight` **ref**
+(not state — both attempts can arrive before React re-renders).
+
+**Escape does not disarm the save.** It fires `onCancel` only, never `onChange`, and it does **not**
+revert antd's internal draft — so if the editor is left mounted, the blur that follows commits the
+text the user just abandoned. `onCancel` must close the editor immediately.
+
+**Controlled `editing` does hold the editor open** across an async save (the prop wins inside
+`useMergedState`), which is the only way to survive a save that can fail. But **closing is
+destructive**: `editing: false` unmounts `Editable`, whose draft re-seeds from the `text` prop on the
+next mount. Never close on failure or the user's typing is silently gone while the old label sits
+there looking saved.
+
+**While editing, the pencil trigger is not rendered at all** — antd replaces the whole element. So a
+spinner passed as `editable.icon` is invisible during exactly the moment it describes, and the trigger
+remounts when editing closes, which makes a later icon change look frozen. Put progress state in your
+own markup beside the label. (`editable.enterIcon` does accept a node and renders inside the editor,
+if you want it there instead.)
+
+**Other measured limits:** there is no supported way to disable or make the textarea read-only during
+a save — not `disabled` on the Title, not a `<fieldset disabled>` wrapper, not setting `node.readOnly`
+(which sticks but still saves). `onStart` is only called from antd's own trigger. `onEnd` fires on
+Enter **only**, never on blur, so it is not an "editing finished" hook. antd already trims and strips
+newlines before `onChange`. Modified Enter (shift/ctrl/alt/meta) is ignored.
+
+**The element changes tag in edit mode:** an `<h3>` becomes a `<div>`, so `getByRole("heading")`
+silently stops matching mid-test. Assert on text, not role, for anything editable.
+
+### `userEvent.keyboard("{Enter}")` has keyCode 0, so antd never sees it
+antd's `Editable` confirms on **keyUp**, gated on `keyCode === KeyCode.ENTER` and on the preceding
+keyDown having recorded the same code (`antd/es/typography/Editable.js:57-85`). Measured: user-event
+delivers `{"key":"Enter","keyCode":0,"which":0}`. Real browsers send 13, so **the component works and
+only the test is broken** — the symptom is a save that never fires and an editor that never closes,
+which reads exactly like a broken component.
+**Fix:** drive the events directly — `fireEvent.keyDown(el, { keyCode: 13 })` then
+`fireEvent.keyUp(el, { keyCode: 13 })`. Escape needs `keyCode: 27`. Or test the **blur** path, which
+needs no keyCode and is a real user path anyway.
+**Applies to any rc-* component that gates on `keyCode`**, not just Typography.
+
+### A CSS shorthand you grep for may not be the shorthand that ships
+`inset: -14px` in the source comes out of the Vite build as
+`top:-14px;right:-14px;bottom:-14px;left:-14px`, so `grep "inset:-14px" dist/…css` returns **0** on a
+perfectly good build. Grep the built asset for the **selector** and read what follows it, rather than
+searching for the declaration you wrote. Same lesson as the bundle-hash check: verify the artifact,
+and know what the artifact actually looks like.
+
 ### `echarts.init(el)` with no theme silently ships ECharts' palette, not yours
 recharts and ECharts are not the same kind of library and the difference decides where colour lives:
 

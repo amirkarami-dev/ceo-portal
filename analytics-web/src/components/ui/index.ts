@@ -9,3 +9,4 @@ export * from "./Toolbar";
 export * from "./DataTable";
 export * from "./FormDrawer";
 export * from "./ConfirmModal";
+export * from "./EditableLabel";

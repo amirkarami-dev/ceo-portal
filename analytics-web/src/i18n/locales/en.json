@@ -21,7 +21,9 @@
       "dark": "Dark"
     },
     "saving": "Saving…",
-    "saved": "Saved"
+    "saved": "Saved",
+    "saveFailed": "Could not save. Try again.",
+    "editLabel": "Edit label"
   },
   "service": {
     "name": "Analytics",
