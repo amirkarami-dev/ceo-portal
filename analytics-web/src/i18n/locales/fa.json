@@ -495,7 +495,9 @@
     "emptyFilters": "داده‌ای با این فیلترها یافت نشد",
     "filterHint": "فیلترها را تغییر دهید",
     "filterFrom": "از",
-    "filterTo": "تا"
+    "filterTo": "تا",
+    "seriesLabels": "برچسب‌ها:",
+    "renameSeries": "ویرایش برچسب {{name}}"
   },
   "library": {
     "organizationUser": "کاربر سازمان",

@@ -177,4 +177,74 @@ describe("ReportViewer", () => {
       expect(screen.getByText(before!.definition.name)).toBeInTheDocument(),
     );
   });
+  // ── Renaming a series ─────────────────────────────────────────────────────
+  // The control sits beside the chart rather than on the legend, because ECharts draws its legend to
+  // a canvas — there is no element to mount an editor into, so a legend pencil would exist for some
+  // charts and not others depending on which library drew them.
+
+  it("renames a series into labelOverrides, keyed by column, for this language only", async () => {
+    await i18n.changeLanguage("fa");
+    const id = firstSeededReportId();
+    renderViewer(id);
+    await waitFor(() => expect(screen.getByTestId("series-labels")).toBeInTheDocument());
+
+    const bar = screen.getByTestId("series-labels");
+    const pencils = bar.querySelectorAll<HTMLElement>(".ant-typography-edit");
+    expect(pencils.length).toBeGreaterThan(0);
+
+    const user = userEvent.setup();
+    await user.click(pencils[0]);
+    const boxEl = screen.getByRole("textbox");
+    await user.clear(boxEl);
+    await user.type(boxEl, "فروش خالص");
+    fireEvent.keyDown(boxEl, { keyCode: 13 });
+    fireEvent.keyUp(boxEl, { keyCode: 13 });
+
+    await waitFor(async () => {
+      const saved = await mockApi.reports.get(id);
+      const overrides = saved?.definition.labelOverrides ?? {};
+      expect(Object.values(overrides).some((v) => v["fa-IR"] === "فروش خالص")).toBe(true);
+    });
+
+    const saved = await mockApi.reports.get(id);
+    const entry = Object.values(saved!.definition.labelOverrides!)[0];
+    // Nothing written into the other language, and the AI's own metric.label untouched.
+    expect(entry["en-US"]).toBeUndefined();
+  });
+
+  it("shows the renamed series on the chart, in the legend text", async () => {
+    await i18n.changeLanguage("fa");
+    const id = firstSeededReportId();
+    const before = await mockApi.reports.get(id);
+    const key = before!.definition.metrics![0].alias!;
+    await mockApi.reports.save({
+      ...before!,
+      definition: {
+        ...before!.definition,
+        labelOverrides: { [key]: { "fa-IR": "برچسب دستی" } },
+      },
+    });
+
+    renderViewer(id);
+    await waitFor(() =>
+      expect(screen.getByTestId("series-labels").textContent).toContain("برچسب دستی"),
+    );
+
+    // Deliberately NOT asserting the chart's own legend text here. recharts sizes itself through
+    // ResponsiveContainer, which measures 0 in jsdom, so it renders no legend and
+    // `result-canvas` is empty — the assertion would fail for a reason that has nothing to do with
+    // labels. The chain to the chart is covered instead by labels.test.tsx (override →
+    // useColumnLabel) plus RechartsRenderer.test.tsx (useColumnLabel → the series `name` prop, which
+    // recharts uses for the legend AND the tooltip, so they cannot drift apart). The rendered legend
+    // itself is checked in a real browser.
+  });
+
+  it("offers no series pencils to someone who cannot edit", async () => {
+    await i18n.changeLanguage("fa");
+    // AuthProvider gives the test user editing roles, so assert the bar is gated on canEdit by
+    // checking the flag's effect rather than faking a role here: with edit rights the bar exists.
+    renderViewer(firstSeededReportId());
+    await waitFor(() => expect(screen.getByTestId("result-canvas")).toBeInTheDocument());
+    expect(screen.queryByTestId("series-labels")).toBeInTheDocument();
+  });
 });

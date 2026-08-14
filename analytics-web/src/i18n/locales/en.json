@@ -495,7 +495,9 @@
     "emptyFilters": "No data matches the current filters",
     "filterHint": "Adjust filters",
     "filterFrom": "From",
-    "filterTo": "To"
+    "filterTo": "To",
+    "seriesLabels": "Labels:",
+    "renameSeries": "Rename {{name}}"
   },
   "library": {
     "organizationUser": "Organization user",

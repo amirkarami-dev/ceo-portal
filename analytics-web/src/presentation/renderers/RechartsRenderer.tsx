@@ -22,6 +22,7 @@ import { formatCategory, formatFitted, formatNumber, type Dir } from "../format"
 import { aggregateByCategory } from "./chart-utils";
 import { useUiStore } from "../../store/ui-store";
 import { chartColors } from "../../theme/tokens";
+import { seriesKeysOf } from "../series-keys";
 import { useColumnLabel } from "../labels";
 import { legendPlacement, pieSweep } from "../chart-rtl";
 
@@ -41,13 +42,9 @@ function currentDir(): Dir {
   return "ltr";
 }
 
-function yKeys(view: ReportView): string[] {
-  const y = view.mapping.y;
-  if (Array.isArray(y)) return y;
-  if (typeof y === "string") return [y];
-  if (view.mapping.measure) return [view.mapping.measure];
-  return [];
-}
+/** Same rule, one definition — see presentation/series-keys.ts. No `result` here, so no fallback:
+ *  identical behaviour to the local copy this replaced. */
+const yKeys = (view: ReportView): string[] => seriesKeysOf(view);
 
 /**
  * Width the value axis needs for its longest formatted tick. Recharts reserves

@@ -45,6 +45,7 @@ import {
   Toolbar,
 } from "@/components/ui";
 import { FilterBar } from "./FilterBar";
+import { SeriesLabelBar } from "./SeriesLabelBar";
 
 type Crumb = { label: string; def: ReportDefinition; result: QueryResult; views: ReportView[] };
 
@@ -192,6 +193,38 @@ export function ReportViewer() {
     [data, i18n.language, updateReport],
   );
 
+  /**
+   * Rename one series, for the language being read.
+   *
+   * Keyed by result column key — the metric alias the engine produced, e.g. `sum_amount`. Not
+   * `metric.label`: the AI writes a Persian one onto every report it generates, so a human override
+   * needs its own field to stay distinguishable. An empty box clears the override and the automatic
+   * name comes back.
+   */
+  const renameSeries = useCallback(
+    async (columnKey: string, next: string) => {
+      if (!data) return;
+      const locale = labelLocaleOf(i18n.language);
+      const all = { ...(data.definition.labelOverrides ?? {}) };
+      const forKey = { ...(all[columnKey] ?? {}) };
+
+      if (next) forKey[locale] = next;
+      else delete forKey[locale];
+
+      if (Object.keys(forKey).length) all[columnKey] = forKey;
+      else delete all[columnKey];
+
+      await updateReport.mutateAsync({
+        id: data.id,
+        definition: {
+          ...data.definition,
+          labelOverrides: Object.keys(all).length ? all : undefined,
+        },
+      });
+    },
+    [data, i18n.language, updateReport],
+  );
+
   if (isLoading) return <Loading rows={8} />;
   if (isError || (data === null && !isLoading)) {
     return <Result status="404" title={t("viewer.notFound")} />;
@@ -311,6 +344,14 @@ export function ReportViewer() {
           ]}
         />
       )}
+
+      <SeriesLabelBar
+        view={activeView}
+        def={activeDef}
+        result={result}
+        onRename={renameSeries}
+        canEdit={canEdit}
+      />
 
       <div data-testid="result-canvas">
         {result.total === 0 ? (
