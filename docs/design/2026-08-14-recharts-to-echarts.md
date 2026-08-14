@@ -2,8 +2,8 @@
 
 **Date:** 2026-08-14
 **Area:** analytics-web
-**Status:** **step 1 (spike) done — see the memo at the end. Nothing shipped yet.** Branch `feat/echarts-only`.
-Waiting on "start step 2".
+**Status:** **steps 1–2 done — see the memos at the end.** Branch `feat/echarts-only`.
+Waiting on "start step 3".
 
 Amir asked to use ECharts only. Agreed as the goal: recharts has no RTL support, which is the whole
 reason `presentation/chart-rtl.ts` exists; ECharts has a real theme system; and dropping recharts
@@ -586,3 +586,85 @@ Every option the plan's donut config depends on survived the round trip through 
 - **Not answered by this spike**, because it needs eyes and the pane cannot be shown: whether the
   rotated 6-label layout actually looks right, and whether the donut's ring reads correctly in RTL.
   Both are step 4 / step 8 visual checks on a real screen.
+
+---
+
+## Step 2 — DONE. ECharts mounts for real in jsdom, but not through the wrapper.
+
+**What shipped:** two stubs in `analytics-web/vitest.setup.ts`, and one real-mount test at
+`src/components/charts/useEChart.mount.test.tsx`. Nothing in `src/` that ships changed.
+
+### The stubs, and proof each one is load-bearing
+
+**1. A 2D canvas context.** jsdom returns `null` from `getContext("2d")`. A Proxy rather than a
+hand-listed object, because zrender reaches for a long tail of context members and a missing one is a
+TypeError deep inside a render; unknown members answer with a no-op. `measureText` estimates 6px per
+character rather than the plan's `{ width: 0 }` — zero-width text quietly collapses
+`grid.containLabel` maths. It is not real font metrics and the comment says so.
+
+**2. `clientWidth` / `clientHeight` on `HTMLElement.prototype`.** Inline px wins where given, else
+800×600. Verdict 1 called this and it was right: the canvas stub alone is not enough.
+
+Removing each one, measured:
+
+| removed | what happens |
+| --- | --- |
+| canvas stub | `Cannot set properties of null (setting 'dpr')` — the exact error the plan named |
+| size stub | one `console.warn` "[ECharts] Can't get DOM width or height", and `clientWidth` reads 0 instead of 400 |
+
+The improvement over the status quo is not only that it mounts: it now **fails in the right file**. The
+old failure was an unhandled rejection that Vitest attributes at run level, so it landed on whichever
+file ran next.
+
+### Verdict 9 addressed
+
+The plan's acceptance criterion — "zero unhandled rejections across the run" — is not a thing a test
+can assert, and a half-working stub satisfies it intermittently depending on file order. Replaced with
+a file-local, deterministic equivalent: spy on `console.error`/`console.warn` and assert both are empty
+for one mount. Same question, asked somewhere it can be answered.
+
+### The finding that changes the plan: **`echarts-for-react` cannot complete an init in jsdom**
+
+Its `initEchartsInstance` (`node_modules/echarts-for-react/lib/core.js:68-89`) is two-phase: create a
+temporary instance, wait for **that instance's `finished` event**, `dispose` it, then re-init using the
+container's measured `clientWidth`/`clientHeight`.
+
+Measured, with both stubs in place: the container ends up carrying `_echarts_instance_`, a `<canvas>`
+sits inside it, `clientWidth`/`clientHeight` report 400/300, **zero errors are logged** — and
+`getInstanceByDom` returns undefined, because the last thing to happen to the element was the dispose.
+Neither pumping 80 animation frames nor passing explicit `opts={{width,height}}` rescues it. A separate
+probe confirmed `finished` *does* fire for a directly-created instance, so the event is not the whole
+story.
+
+**A direct `echarts.init` works perfectly** — instance registered, option readable, palette applied,
+disposes cleanly. That is what `components/charts/useEChart.ts` already does, and what the two admin
+charts already use.
+
+So the smoke test the plan asked for exists, but against `useEChart` rather than `EChartsRenderer`.
+`EChartsRenderer` keeps its `vi.mock("echarts-for-react")` option-shape tests for now.
+
+### The decision this raises — for Amir
+
+**Move `EChartsRenderer` off `echarts-for-react` and onto `useEChart`.** It is not required by any
+later step, but it buys a lot:
+
+- **Real-mount tests for the renderer**, which is verdict 8's whole point — option-shape assertions
+  against a mock cannot catch an option ECharts rejects or normalises away.
+- **One init path** for every chart in the app instead of two.
+- **One less dependency**, and the end of the dispose-and-re-init churn that also causes the
+  `notMerge` tooltip/dataZoom loss described in verdict 5.
+
+Cost: `EChartsRenderer` currently leans on the wrapper's prop diffing (`fast-deep-equal`) and its
+`onEvents` plumbing; both would move into the hook. Roughly half a day, and it belongs before step 5
+rather than after, since step 5 adds three more chart kinds to whichever path is chosen.
+
+If the answer is no, later steps still work — they just keep testing options rather than charts.
+
+### Verified
+
+546 front-end tests across 80 files (up from 538/79), lint, typecheck and build clean. Both stubs were
+removed one at a time to confirm the failure they prevent. The eight new tests read a live instance
+rather than a mock: series survived, `xAxis.data` carries «تهران»/«فارس», the palette resolved to
+`#326BFC` rather than ECharts' own `#5470c6`, and unmount leaves no instance on the node.
+
+Incidental: on echarts 5.6.0 `isDisposed()` returns `undefined` for a live chart, not `false`.
