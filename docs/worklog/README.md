@@ -22,6 +22,7 @@ Also, when a task teaches something reusable:
 
 | Date | Record | Area | Status |
 |---|---|---|---|
+| 2026-08-13 | [A dashboard widget can be a bar, a line, a pie or a table](2026-08-13-analytics-widget-view-modes.md) | analytics-web | **live** on analytic.myceo.ir |
 | 2026-08-13 | [The date filter is a Persian calendar now](2026-08-13-analytics-jalali-date-filter.md) | analytics-web | **live** on analytic.myceo.ir |
 | 2026-08-13 | [Typing in a filter gave «خطا در بارگذاری گزارش»](2026-08-13-analytics-range-filter.md) | analytics-web | **live** on analytic.myceo.ir |
 | 2026-08-13 | [The charts in RTL — and what «left» actually means](2026-08-13-analytics-charts-rtl.md) | analytics-web | **live** on analytic.myceo.ir |
