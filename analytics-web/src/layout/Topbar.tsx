@@ -8,8 +8,6 @@ import {
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/useAuth";
 import { useUiStore } from "../store/ui-store";
-import { useTenantStore } from "../store/tenant-store";
-import { useTenants } from "../api/queries";
 import { applyLocale } from "../i18n";
 import type { AppRole } from "../contracts/rbac";
 import { AppSwitcher } from "./AppSwitcher";
@@ -31,8 +29,6 @@ export function Topbar({ isMobile = false, onMenuClick }: { isMobile?: boolean; 
   const { user, roles, logout, setMockRole } = useAuth();
   const { locale, setLocale, themeMode, toggleTheme, dir, sidebarCollapsed, toggleSidebar } =
     useUiStore();
-  const { currentTenantId, setCurrentTenant } = useTenantStore();
-  const { data: tenants = [] } = useTenants();
 
   const toggleLocale = () => {
     const next = locale === "fa" ? "en" : "fa";
@@ -79,22 +75,15 @@ export function Topbar({ isMobile = false, onMenuClick }: { isMobile?: boolean; 
           />
         </Tooltip>
       )}
-      {/* Only when there is something to switch BETWEEN.
-          The choice is part of the react-query cache key and scopes the mock API and the admin user
-          list, but in real mode nothing sends it to the server — the API scopes by the tenant claim
-          in the token. With one tenant the control therefore looked like it changed organisation and
-          did not, which is worse than not offering it. The moment a second tenant exists it comes
-          back on its own; nothing here needs revisiting. */}
-      {!isMobile && tenants.length > 1 && (
-        <Select
-          aria-label={t("tenant.switcher")}
-          value={currentTenantId ?? undefined}
-          placeholder={t("tenant.switcher")}
-          style={{ minWidth: 180 }}
-          onChange={(v) => setCurrentTenant(v)}
-          options={tenants.map((tn) => ({ value: tn.id, label: tn.displayName }))}
-        />
-      )}
+      {/* The organisation switcher is deliberately NOT here.
+          In real mode the choice was never sent to the server — reportsHttpApi.list() takes no
+          tenant and there is no tenant header, so the API scopes by the tenant claim in the token.
+          The control therefore looked like it changed organisation and did not. Hiding it only when
+          a single tenant existed was not enough: production returns more than one, so it kept
+          showing while still changing nothing.
+          The plumbing is untouched — useTenantStore still keys the react-query cache, filters the
+          mock API and scopes the admin user list — so putting this back is re-adding the Select,
+          once the API actually honours a chosen tenant. */}
       <div style={{ flex: 1 }} />
       <AppSwitcher currentKey="analytics" locale={locale} />
       {useMock && !isMobile && (
