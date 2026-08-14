@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import type { ReportView } from "../../contracts/presentation";
 import { EmptyState } from "../../components/ui";
 import { getCustomReport, type Params } from "./registry";
+import { CustomReportParams } from "./CustomReportParams";
 
 /**
  * Renders a report the dimensional engine cannot describe. See `registry.ts` for why these exist.
@@ -37,12 +38,9 @@ export default function CustomRenderer({ view }: { view: ReportView }) {
     return picked;
   }, [entry, view.options]);
 
-  const [params, setParams] = useState<Params | undefined>(undefined);
-  // The picker bar arrives in step 2; until then `setParams` keeps the state honest rather than
-  // pretending the value is constant.
-  void setParams;
-
-  const active = params ?? initial;
+  /** What the reader has applied, if anything. Until then the stored/default parameters stand. */
+  const [applied, setApplied] = useState<Params | undefined>(undefined);
+  const active = applied ?? initial;
 
   const query = useQuery({
     queryKey: ["custom-report", view.component, active],
@@ -64,11 +62,25 @@ export default function CustomRenderer({ view }: { view: ReportView }) {
     return <EmptyState description={t("customReport.unknown", { component: view.component })} />;
   }
 
-  if (query.isLoading) return <Skeleton active paragraph={{ rows: 6 }} />;
-  if (query.isError || query.data === undefined) {
-    return <EmptyState description={t("customReport.failed")} />;
-  }
-
   const Body = entry.Component;
-  return <Body data={query.data} params={active} />;
+
+  /**
+   * The picker bar renders around every state, not only the happy one.
+   *
+   * Put below the loading and error branches it would vanish exactly when it is most needed: a failed
+   * call would leave an empty state with no way to pick a different city and try again, and the
+   * controls would jump on and off screen on each apply.
+   */
+  return (
+    <>
+      <CustomReportParams spec={entry.params} value={active} onApply={setApplied} />
+      {query.isLoading ? (
+        <Skeleton active paragraph={{ rows: 6 }} />
+      ) : query.isError || query.data === undefined ? (
+        <EmptyState description={t("customReport.failed")} />
+      ) : (
+        <Body data={query.data} params={active} />
+      )}
+    </>
+  );
 }

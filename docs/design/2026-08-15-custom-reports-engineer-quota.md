@@ -1,7 +1,7 @@
 # Custom reports, and the first one: engineer quota by city and discipline
 
-**Status:** **step 1 done** — see the memo at the end. Branch `feat/custom-reports`.
-Waiting on "start step 2".
+**Status:** **steps 1-2 done** — see the memos at the end. Branch `feat/custom-reports`.
+Waiting on "start step 3".
 **Host:** `analytics-web`. **Scope agreed:** frontend first against a mock row; the .NET endpoint is a
 separate follow-up with its contract pinned here (§ *The endpoint contract*).
 
@@ -358,3 +358,44 @@ In a browser: the report opens on its URL, the shell is intact around it, the st
 
 Steps 2-8. Nothing about the plumbing is expected to change again; step 6 replaces the placeholder
 body, and step 7 does for `WidgetFrame` what this step did for `ReportViewer`.
+
+---
+
+## Step 2 — DONE. The picker bar.
+
+Generic, driven by the entry's `ParamSpec[]`, so the next custom report gets its filters by declaring
+them. Rendered as a `Toolbar` flex row like `FilterBar`, and placed **above** the loading and error
+branches rather than below them — under the error branch a failed call would leave an empty state
+with no way to pick a different city and retry, and the controls would jump on and off screen on
+every apply.
+
+### A draft, promoted by «نمایش»
+
+Each apply is a stored-procedure call. Live selects would fire one query per dropdown touched and
+throw away every result but the last, so the selects edit a local draft and only the button promotes
+it. The reference UI has the same button for the same reason.
+
+Seen on the page: switching منطقه to «سنندج (مرکزی)» left the report reading «بیجار — مکانیک»; pressing
+«نمایش» changed it. Reverting to live selects fails *does NOT refetch while a selection is being
+made*.
+
+The button stays **enabled** when nothing has changed. It is a submit control doing what it says —
+re-run with what is selected — and unlike the `advancedECharts` toggle removed in the ECharts work,
+it does not promise a capability that is missing. Disabling it on first load, when the draft
+necessarily equals the defaults, would read as broken.
+
+### The accessible name had to be added by hand
+
+antd's `Select` carries no accessible name of its own, so the visible «رشته:» / «منطقه:» text is
+tied to it with `aria-labelledby`. Removing that line fails *names each select for a screen reader* —
+the
+guard exists because nothing about the component looks wrong without it.
+
+### Verified
+
+**690 tests across 85 files** (up from 685), lint, typecheck and build clean. Five new; two
+bite-checked by reverting.
+
+In a browser: RTL order matches the reference (رشته, then منطقه, then the button), all nine cities in
+the declared order, no console errors beyond the pre-existing antd/React-19 warning. At 375px the bar
+wraps to two rows with no horizontal overflow and a 44px-tall button.

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, cleanup, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReportViewRenderer } from "../ReportView";
 import { registerCustomReport } from "./registry";
@@ -20,7 +21,7 @@ const fetchSpy = vi.fn();
 registerCustomReport({
   id: "TestReport",
   title: { "fa-IR": "آزمایشی", "en-US": "Test" },
-  params: [{ key: "cityId", label: { "en-US": "City" }, options: [{ value: 1, label: "A" }] }],
+  params: [{ key: "cityId", label: { "en-US": "City" }, options: [{ value: 1, label: "A" }, { value: 2, label: "B" }] }],
   defaults: { cityId: 1 },
   fetch: async (p) => {
     fetchSpy(p);
@@ -80,5 +81,67 @@ describe("CustomRenderer", () => {
     expect(container.querySelector("canvas")).toBeNull();
     expect(container.querySelector(".ant-empty")).not.toBeNull();
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+// ── The picker bar ───────────────────────────────────────────────────────────
+/**
+ * Each apply is a stored-procedure call, so the selects edit a draft and only «نمایش» promotes it.
+ * Live selects would fire a query per dropdown touched, and throw away every result but the last.
+ */
+describe("CustomReportParams", () => {
+  const openAndPick = async (label: string) => {
+    const user = userEvent.setup();
+    // antd renders its options into a portal only once the select is opened.
+    await user.click(screen.getByRole("combobox"));
+    await user.click(await screen.findByTitle(label));
+  };
+
+  it("renders one control per declared param, and a submit", async () => {
+    mount(view({}));
+    await screen.findByTestId("test-body");
+
+    expect(screen.getByTestId("custom-report-params")).toBeInTheDocument();
+    expect(screen.getAllByRole("combobox")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: /نمایش|Show/ })).toBeInTheDocument();
+  });
+
+  it("does NOT refetch while a selection is being made", async () => {
+    mount(view({}));
+    await screen.findByTestId("test-body");
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    await openAndPick("B");
+
+    // The draft moved; the query did not.
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("refetches with the new arguments once «نمایش» is pressed", async () => {
+    const user = userEvent.setup();
+    mount(view({}));
+    await screen.findByTestId("test-body");
+
+    await openAndPick("B");
+    await user.click(screen.getByRole("button", { name: /نمایش|Show/ }));
+
+    await waitFor(() => expect(fetchSpy).toHaveBeenLastCalledWith({ cityId: 2 }));
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the bar on screen while the report is loading", async () => {
+    // Put below the loading branch it would vanish exactly when it is most needed — and the controls
+    // would jump on and off screen on every apply.
+    mount(view({}));
+    expect(screen.getByTestId("custom-report-params")).toBeInTheDocument();
+    await screen.findByTestId("test-body");
+  });
+
+  it("names each select for a screen reader", async () => {
+    mount(view({}));
+    await screen.findByTestId("test-body");
+
+    // antd's Select carries no accessible name of its own; the visible label has to be tied to it.
+    expect(screen.getByRole("combobox", { name: "City:" })).toBeInTheDocument();
   });
 });

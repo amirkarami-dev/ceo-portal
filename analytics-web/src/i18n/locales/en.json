@@ -126,6 +126,7 @@
   },
   "customReport": {
     "unknown": "This report type is not available: {{component}}",
+    "apply": "Show",
     "failed": "Could not load this report."
   },
   "chartA11y": {

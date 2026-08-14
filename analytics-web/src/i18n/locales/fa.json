@@ -126,6 +126,7 @@
   },
   "customReport": {
     "unknown": "این نوع گزارش در دسترس نیست: {{component}}",
+    "apply": "نمایش",
     "failed": "بارگذاری این گزارش ممکن نشد."
   },
   "chartA11y": {
