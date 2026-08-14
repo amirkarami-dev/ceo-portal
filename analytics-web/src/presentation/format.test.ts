@@ -30,6 +30,44 @@ describe("formatNumber", () => {
     expect(formatNumber(null, "rtl")).toBe("");
     expect(formatNumber(undefined, "ltr")).toBe("");
   });
+
+  // ── Negatives in RTL ─────────────────────────────────────────────────────
+  // U+002D HYPHEN-MINUS is bidi-neutral, so inside an RTL run it reorders to the END of the number:
+  // «۱٬۲۳۴-» rather than «-۱٬۲۳۴». Measured on a canvas by ink-column height, with only
+  // ctx.direction differing, and the chart canvas reports rtl. An isolate is the only fix that works
+  // on canvas — recharts' `direction: "ltr"` trick has no canvas counterpart.
+
+  const LRI = "⁦";
+  const PDI = "⁩";
+
+  it("wraps a negative in a directional isolate in RTL", () => {
+    expect(formatNumber(-1234, "rtl")).toBe(`${LRI}-۱٬۲۳۴${PDI}`);
+  });
+
+  it("leaves positives untouched, so nothing gains invisible characters for no reason", () => {
+    const out = formatNumber(1234, "rtl");
+    expect(out).toBe("۱٬۲۳۴");
+    expect(out).not.toContain(LRI);
+    expect(out).not.toContain(PDI);
+  });
+
+  it("does not isolate in LTR, where the minus is already on the correct side", () => {
+    expect(formatNumber(-1234, "ltr")).toBe("-1,234");
+  });
+
+  // Found by this test, and it predates the isolate: Intl formats -0 as "-0", so an axis tick or a
+  // delta that rounded down to zero read as «-۰». Zero is not negative.
+  it("shows negative zero as zero, in both directions", () => {
+    expect(formatNumber(0, "rtl")).toBe("۰");
+    expect(formatNumber(-0, "rtl")).toBe("۰");
+    expect(formatNumber(-0, "ltr")).toBe("0");
+  });
+
+  it("still reads as the same number once the controls are stripped", () => {
+    // Whatever a reader's software does with the isolate, the digits must be unchanged.
+    const stripped = formatNumber(-98765, "rtl").replaceAll(LRI, "").replaceAll(PDI, "");
+    expect(stripped).toBe("-۹۸٬۷۶۵");
+  });
 });
 
 describe("formatDate", () => {

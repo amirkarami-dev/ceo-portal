@@ -77,7 +77,25 @@ export function useEChart(option: EChartsCoreOption | null, events?: EChartEvent
 
     const onResize = () => instance.resize();
     window.addEventListener("resize", onResize);
+
+    /**
+     * Redraw once the webfont has landed.
+     *
+     * Vazirmatn is loaded asynchronously (`theme/global.css`), canvas text is rasterised once, and
+     * neither ECharts nor zrender listens for font loading. Measured: «آذربایجان شرقی» is 62.27px wide
+     * in the fallback face and 71.97px in Vazirmatn — a 15.6% shift, and `grid.containLabel` sizes the
+     * plot box from exactly those metrics. So a chart drawn before the font arrives keeps both the
+     * wrong glyphs and a plot measured for the wrong font, permanently.
+     *
+     * Here rather than per chart, because every chart in the app now comes through this hook.
+     */
+    let alive = true;
+    void document.fonts?.ready.then(() => {
+      if (alive && !instance.isDisposed()) instance.resize();
+    });
+
     return () => {
+      alive = false;
       window.removeEventListener("resize", onResize);
       instance.dispose();
       chart.current = null;

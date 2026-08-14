@@ -2,8 +2,8 @@
 
 **Date:** 2026-08-14
 **Area:** analytics-web
-**Status:** **steps 1, 2, 2b and 3 done — see the memos at the end.** Branch `feat/echarts-only`.
-Waiting on "start step 4".
+**Status:** **steps 1, 2, 2b, 3 and 4 done — see the memos at the end.** Branch `feat/echarts-only`.
+Waiting on "start step 5".
 
 Amir asked to use ECharts only. Agreed as the goal: recharts has no RTL support, which is the whole
 reason `presentation/chart-rtl.ts` exists; ECharts has a real theme system; and dropping recharts
@@ -809,3 +809,96 @@ first time these code paths appear on a screen.
 The drill change is **user-visible on the recharts path today**: clicking a bar on a sorted report now
 opens a different report than it did yesterday. That is the fix, not a regression, but it is worth
 knowing before someone reports it as a change in behaviour.
+
+---
+
+## Step 4 — DONE. RTL and interaction parity, on everything step 1 loaded onto it.
+
+### The tooltip is hand-built now, because ECharts' own is physically laid out
+
+Step 1 measured it: ECharts emits `float:right` on the value and `margin-left:2px` on the name, and in
+an RTL block `float:right` puts the value at the *reading* edge — so the tooltip read **value then
+name**, reversing recharts' «name : value». Neither property is reachable through
+`tooltip.textStyle`, which is why the old `align === "right"` assertion guarded nothing and has been
+deleted rather than ported.
+
+The replacement uses logical properties only (`margin-inline-start`, `margin-block-end`), so one
+formatter serves both directions, escapes category values (they are data, and they reach markup), and
+reads a heatmap datum's `[x, y, value]` triple as well as a plain value. `confine: true` is set too —
+widget bodies scroll, and an unconfined tooltip is positioned against the viewport, so near an edge it
+spilled outside the widget.
+
+### Negatives in RTL — fixed in `formatNumber`, which reaches further than the charts
+
+The measurement from step 1: `-۱٬۲۳۴` renders with the minus on the **wrong side** because
+U+002D is bidi-neutral and the chart canvas reports `ctx.direction === "rtl"`. recharts defended this
+with `tick={{ style: { direction: "ltr" } }}`, a CSS property with **no canvas counterpart**.
+
+`formatNumber` now wraps a negative in `U+2066 … U+2069` (LRI…PDI). Of five candidates tested on the
+RTL canvas, that and an LRM prefix work; U+2212 MINUS SIGN and a trailing RLM do not.
+
+Placed there rather than in each chart formatter deliberately: **the on-screen table and the PDF go
+through `formatCell` → `formatNumber`, so they are fixed too, while CSV and Excel take raw row values
+and get no control characters in a spreadsheet cell.** Only negatives are wrapped, so every positive
+number stays byte-identical — verified on the live page, zero stray isolates.
+
+**A pre-existing bug fell out of writing that test.** `Intl.NumberFormat` formats `-0` as `"-0"`, so an
+axis tick or a delta that rounded down to zero read as «-۰». Zero is not negative; normalised.
+
+### Legend
+
+`legendPlacement(dir).inline` instead of a second inline copy of the same decision, plus `bottom: 0` —
+ECharts defaults a legend to top-centre while recharts put it underneath, so without it the legend
+landed on the plot. `grid.bottom` clears it.
+
+`selectedMode` is now `series.length > 1`. Step 1 measured the default as `true`, and with a single
+series — the common shape auto-viz produces — one click empties the chart while our `notMerge` puts it
+back on the next re-render. A toggle that blanks everything and then undoes itself reads as a glitch,
+not a control. With several series it is genuinely useful, so it stays.
+
+### Axis labels
+
+The forced `interval: 0` is gone, replaced by `hideOverlap: true`. Step 1's arithmetic: at 360px with
+six real province names the plot gives **44px per category** against label widths of 72.0, 93.6, 98.3,
+93.6, 65.6 and 38.5px — five of six overflow, the widest by more than double. recharts thinned with
+`preserveEnd`; ECharts hides what will not fit rather than overlapping it.
+
+### The heatmap's colour scale
+
+`visualMap.formatter` wired to the same value formatter. Its min/max labels fell back to `toFixed` —
+ASCII digits with no grouping, the one number on the chart not going through our formatter.
+
+### The font race
+
+`document.fonts.ready.then(() => instance.resize())`, in `useEChart` rather than per chart, since every
+chart now comes through it. Step 1 measured «آذربایجان شرقی» at 62.27px in the fallback face and
+71.97px in Vazirmatn — a 15.6% shift that `grid.containLabel` sizes the plot box from, so a chart drawn
+before the font lands keeps both the wrong glyphs and a plot measured for the wrong font.
+
+### One bullet became moot rather than done
+
+The plan asked for `valueFormatter`, `axisLabel.formatter` and `onEvents` to be memoized, because
+`echarts-for-react` gated updates on `fast-deep-equal` and fresh closures forced a destructive
+`notMerge` rebuild every render. **Step 2b deleted that wrapper.** The option is built inside a
+`useMemo` and handlers are held in a ref, so there is no per-render rebuild left to prevent. Recorded
+rather than silently skipped.
+
+### Verified
+
+**599 tests** across 82 files (up from 582), lint, typecheck and build clean. Four guards were reverted
+to confirm they bite:
+
+| reverted | result |
+| --- | --- |
+| value before name, with `float:right` | 2 failures, including the name/value ordering |
+| `interval: 0` restored | `expected +0 not to be +0` |
+| `selectedMode` removed | `expected true to be false` |
+| — negatives and −0 — | covered by 6 new `formatNumber` tests |
+
+On the live page: axis ticks unchanged («۱٬۵۰۰٬۰۰۰٬۰۰۰»), **zero stray isolate characters**, no console
+errors.
+
+**Not verified:** the negative-number fix on a real screen — no seeded report contains a negative, so
+there is nothing local to look at. It rests on the canvas ink-column measurement from step 1 and the
+unit tests. Also still unseen: the ECharts tooltip and legend in a browser, since no local report
+produces an `echarts` view. Step 6 is the first time any of this appears on screen.

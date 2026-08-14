@@ -57,8 +57,13 @@ const barView: ReportView = {
 };
 
 type Resolved = {
-  tooltip: { trigger?: string; textStyle?: { align?: string } }[];
-  legend: { left?: number | string; right?: number | string }[];
+  tooltip: { trigger?: string; confine?: boolean; formatter?: unknown }[];
+  legend: {
+    left?: number | string;
+    right?: number | string;
+    bottom?: number | string;
+    selectedMode?: boolean | string;
+  }[];
   xAxis: { inverse?: boolean; data?: string[]; axisLabel?: Record<string, unknown> }[];
   yAxis: { position?: string; axisLabel?: { formatter?: unknown } }[];
   series: { type: string; name?: string; data?: unknown[] }[];
@@ -136,11 +141,143 @@ describe("EChartsRenderer", () => {
     expect(option.yAxis[0].position).toBe("right");
   });
 
-  it("aligns the tooltip text to the reading edge", () => {
+  // ── The tooltip ──────────────────────────────────────────────────────────
+  // This used to assert `tooltip.textStyle.align === "right"`, which guarded nothing. ECharts' own
+  // markup carries `float:right` on the value and `margin-left:2px` on the name — physical properties
+  // that `align` cannot reach — so in RTL the value floats to the reading edge and the tooltip reads
+  // value-then-name, reversing recharts. Measured in the step 1 spike. Hence a custom formatter.
+
+  it("builds its own tooltip markup rather than trusting ECharts' layout", () => {
+    const { option } = mount(barView);
+
+    expect(typeof option.tooltip[0].formatter).toBe("function");
+  });
+
+  it("puts the series name before the value, in reading order", () => {
+    document.documentElement.dir = "rtl";
+    const { option } = mount(barView);
+    const html = (option.tooltip[0].formatter as (p: unknown) => string)([
+      { marker: "<span></span>", seriesName: "تعداد پروژه", axisValueLabel: "عادی", value: 6550 },
+    ]);
+
+    expect(html).toContain("تعداد پروژه");
+    // Name first, value second — the order recharts had and ECharts reverses.
+    expect(html.indexOf("تعداد پروژه")).toBeLessThan(html.indexOf("۶٬۵۵۰"));
+  });
+
+  it("uses logical CSS, so one formatter serves both directions", () => {
+    const { option } = mount(barView);
+    const html = (option.tooltip[0].formatter as (p: unknown) => string)([
+      { seriesName: "s", axisValueLabel: "c", value: 1 },
+    ]);
+
+    expect(html).toContain("margin-inline-start");
+    // The two properties that caused the problem must not reappear.
+    expect(html).not.toContain("float:right");
+    expect(html).not.toContain("margin-left");
+  });
+
+  it("formats the value through the app's number formatter", () => {
+    document.documentElement.dir = "rtl";
+    const { option } = mount(barView);
+    const html = (option.tooltip[0].formatter as (p: unknown) => string)([
+      { seriesName: "s", axisValueLabel: "c", value: 1234 },
+    ]);
+
+    // Persian digits and the Persian thousands separator, not "1,234".
+    expect(html).toContain("۱٬۲۳۴");
+    expect(html).not.toContain("1,234");
+  });
+
+  it("reads the value out of a heatmap datum, which is a triple", () => {
+    const { option } = mount(heatmapView);
+    const html = (option.tooltip[0].formatter as (p: unknown) => string)({
+      seriesName: "s",
+      name: "c",
+      value: [0, 1, 4200],
+    });
+
+    expect(html).toContain("4,200");
+  });
+
+  it("escapes category values, which are data", () => {
+    const { option } = mount(barView);
+    const html = (option.tooltip[0].formatter as (p: unknown) => string)([
+      { seriesName: "<img src=x>", axisValueLabel: "a&b", value: 1 },
+    ]);
+
+    expect(html).not.toContain("<img");
+    expect(html).toContain("&lt;img");
+    expect(html).toContain("a&amp;b");
+  });
+
+  it("confines the tooltip, so it cannot spill out of a scrolling widget body", () => {
+    const { option } = mount(barView);
+
+    expect(option.tooltip[0].confine).toBe(true);
+  });
+
+  // ── The legend ───────────────────────────────────────────────────────────
+
+  it("puts the legend underneath, starting from the reading edge", () => {
     document.documentElement.dir = "rtl";
     const { option } = mount(barView);
 
-    expect(option.tooltip[0].textStyle?.align).toBe("right");
+    // ECharts defaults a legend to top-centre; recharts put it underneath.
+    expect(option.legend[0].bottom).toBe(0);
+    expect(option.legend[0].right).toBe(8);
+  });
+
+  it("mirrors the legend in ltr", () => {
+    document.documentElement.dir = "ltr";
+    const { option } = mount(barView);
+
+    expect(option.legend[0].left).toBe(8);
+  });
+
+  /**
+   * ECharts defaults `selectedMode` to true, so one click on the only legend entry empties the chart —
+   * and because we setOption with notMerge, the next re-render puts it back. That reads as a glitch.
+   */
+  it("does not let a single-series legend blank the chart", () => {
+    const single: ReportView = {
+      type: "chart",
+      library: "echarts",
+      component: "bar",
+      mapping: { x: "province", measure: "revenue" },
+    };
+    const { option } = mount(single);
+
+    expect(option.series).toHaveLength(1);
+    expect(option.legend[0].selectedMode).toBe(false);
+  });
+
+  it("keeps legend toggling where there is more than one series", () => {
+    const { option } = mount(barView);
+
+    expect(option.series.length).toBeGreaterThan(1);
+    expect(option.legend[0].selectedMode).toBe(true);
+  });
+
+  // ── Axis labels ──────────────────────────────────────────────────────────
+
+  /**
+   * `interval: 0` forced every label and drew them on top of each other: measured at 360px with six
+   * real province names, the plot gives 44px per category against label widths up to 98.3px.
+   */
+  it("no longer forces every axis label to be drawn", () => {
+    const { option } = mount(barView);
+
+    expect(option.xAxis[0].axisLabel?.interval).not.toBe(0);
+    expect(option.xAxis[0].axisLabel?.hideOverlap).toBe(true);
+  });
+
+  it("gives the heatmap's colour scale our number formatter", () => {
+    const { option } = mount(heatmapView);
+    const vm = (option as unknown as { visualMap: { formatter?: unknown }[] }).visualMap;
+
+    // Its min/max labels fall back to toFixed — ASCII digits, no grouping, on a Persian page.
+    expect(typeof vm[0].formatter).toBe("function");
   });
 
   // ── Theming ──────────────────────────────────────────────────────────────

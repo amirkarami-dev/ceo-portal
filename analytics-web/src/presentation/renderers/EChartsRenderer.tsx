@@ -8,6 +8,7 @@ import { useColumnLabel } from "../labels";
 import { aggregateByCategory } from "./chart-utils";
 import { seriesKeysOf } from "../series-keys";
 import { resolveDrillTarget } from "./drill";
+import { legendPlacement } from "../chart-rtl";
 
 export type RendererProps = {
   view: ReportView;
@@ -65,6 +66,66 @@ function uniq(values: (string | number | null)[]): (string | number | null)[] {
   return out;
 }
 
+/** Minimal HTML escaping — the tooltip formatter returns markup, and category values are data. */
+function esc(v: unknown): string {
+  return String(v ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+type TooltipParam = {
+  marker?: string;
+  seriesName?: string;
+  name?: string;
+  axisValueLabel?: string;
+  value?: unknown;
+  data?: unknown;
+};
+
+/**
+ * The tooltip has to be hand-built, because ECharts' own markup is physically laid out.
+ *
+ * Measured: it emits `float:right` on the value and `margin-left:2px` on the name
+ * (`echarts/lib/component/tooltip/tooltipMarkup.js`). In an RTL block `float:right` puts the value at
+ * the *reading* edge, so the tooltip reads **value then name** — the reverse of recharts' «name : value».
+ * Geometry from the spike: the name occupied x 907-967 and the value x 1001-1037. Neither property is
+ * reachable through `tooltip.textStyle`, so `align` cannot fix it and the old
+ * `textStyle.align === "right"` assertion was guarding nothing.
+ *
+ * Logical properties only here, so one formatter serves both directions.
+ */
+function makeTooltipFormatter(valueFormatter: (v: number | string) => string) {
+  return (raw: TooltipParam | TooltipParam[]): string => {
+    const list = Array.isArray(raw) ? raw : [raw];
+    if (list.length === 0) return "";
+
+    const header = list[0].axisValueLabel ?? list[0].name ?? "";
+    const rows = list
+      .map((p) => {
+        // A heatmap datum is [xIndex, yIndex, value]; everything else carries a plain value.
+        const v = Array.isArray(p.value) ? p.value[2] : p.value;
+        if (v === null || v === undefined) return "";
+        const name = p.seriesName ?? p.name ?? "";
+        return (
+          '<div style="display:flex;align-items:center;gap:6px">' +
+          (p.marker ?? "") +
+          `<span>${esc(name)}</span>` +
+          `<span style="margin-inline-start:auto;font-weight:700">${esc(
+            valueFormatter(v as number | string),
+          )}</span>` +
+          "</div>"
+        );
+      })
+      .join("");
+
+    return header
+      ? `<div style="margin-block-end:4px;font-weight:600">${esc(header)}</div>${rows}`
+      : rows;
+  };
+}
+
 export default function EChartsRenderer({ view, def, result, onDrill }: RendererProps) {
   // Series carry the engine's column alias; a legend showing "sum_amount" is the key, not a name.
   const columnLabel = useColumnLabel(def, result);
@@ -91,13 +152,28 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
     const valueFormatter = (v: number | string) =>
       formatNumber(typeof v === "number" ? v : Number(v), dir);
 
-    const legend: Record<string, unknown> = dir === "rtl" ? { right: 8 } : { left: 8 };
-    // The tooltip's surface and text colour come from the theme. `align` cannot: it follows the
-    // reading direction, and a theme has no idea which way the page runs.
+    /**
+     * The legend sits UNDER the chart and starts from the reading edge. `legendPlacement(dir).inline`
+     * is the shared answer to that question — the inline/side pair exists because one `align` value
+     * once served both and put the donut's legend on the wrong side in *both* directions.
+     *
+     * `bottom: 0` because ECharts defaults a legend to top-centre while recharts put it underneath;
+     * without it the legend lands on top of the plot. `grid.bottom` below reserves the room.
+     */
+    const legendSide = legendPlacement(dir).inline;
+    const legend: Record<string, unknown> = {
+      bottom: 0,
+      [legendSide]: 8,
+    };
+
+    // Surface and text colour come from the theme. The formatter cannot: ECharts' own markup is
+    // physically laid out and reverses in RTL. See makeTooltipFormatter.
     const tooltip: Record<string, unknown> = {
       trigger: "item",
-      textStyle: { align: dir === "rtl" ? "right" : "left" },
-      valueFormatter,
+      // Widget bodies scroll (`overflow: auto`), and an unconfined tooltip is positioned against the
+      // viewport — so near an edge it spilled outside the widget and was clipped.
+      confine: true,
+      formatter: makeTooltipFormatter(valueFormatter),
     };
 
     // 2 dimensions x 1 measure -> heatmap matrix. Kept on `uniq` rather than aggregation, because a
@@ -138,6 +214,9 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
           orient: "horizontal",
           left: dir === "rtl" ? "right" : "left",
           bottom: 0,
+          // Its min/max labels fall back to `toFixed`, i.e. ASCII digits and no grouping on a Persian
+          // page — the one number on the chart that was not going through our formatter.
+          formatter: (v: number) => valueFormatter(v),
         },
         series: [{ name: columnLabel(measure), type: "heatmap", data, label: { show: false } }],
         rwCategories: xCats,
@@ -192,15 +271,38 @@ export default function EChartsRenderer({ view, def, result, onDrill }: Renderer
 
     return {
       tooltip: { ...tooltip, trigger: "axis" },
-      legend,
-      // containLabel keeps billion-scale value labels inside the canvas instead
-      // of clipping them at the fixed margins.
+      legend: {
+        ...legend,
+        /**
+         * Off for a single series, which is the common shape auto-viz produces.
+         *
+         * ECharts defaults `selectedMode` to true, so one click on the only legend entry empties the
+         * chart — and because we `setOption` with `notMerge`, the next re-render silently puts it back.
+         * A toggle that blanks the whole chart and then undoes itself reads as a glitch, not a control.
+         * With several series it is genuinely useful, so it stays.
+         */
+        selectedMode: series.length > 1,
+      },
+      // containLabel keeps billion-scale value labels inside the canvas instead of clipping them at
+      // the fixed margins. `bottom` also has to clear the legend, which now sits underneath.
       grid: { left: 48, right: 48, bottom: 64, top: 32, containLabel: true },
       xAxis: {
         type: "category",
         data: cats.map((c) => formatCategory(c, dir)),
         inverse: dir === "rtl",
-        axisLabel: { interval: 0, rotate: cats.length > 8 ? 30 : 0 },
+        axisLabel: {
+          /**
+           * NOT `interval: 0`.
+           *
+           * Forcing every label drew them on top of each other. Measured at 360px with six real
+           * province names: the plot gives 44px per category while the labels are 72.0, 93.6, 98.3,
+           * 93.6, 65.6 and 38.5px wide — five of six overflow, the widest by more than double.
+           * recharts thinned with `preserveEnd`; ECharts' default `"auto"` does the same job, hiding
+           * what will not fit rather than overlapping it.
+           */
+          rotate: cats.length > 8 ? 30 : 0,
+          hideOverlap: true,
+        },
       },
       yAxis: {
         type: "value",
