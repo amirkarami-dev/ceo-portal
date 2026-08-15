@@ -28,6 +28,7 @@ import {
 import { getModelForDataset } from "@/semantic/registry";
 import { ReportViewRenderer } from "@/presentation/ReportView";
 import { EMPTY_RESULT, isCustomDefinition } from "@/presentation/custom/registry";
+import { labelLocaleOf, resolveReportTitle } from "@/presentation/labels";
 import { exportCsv, exportPdf, exportXlsx, useExportResult } from "@/features/export";
 import { KpiTile, SectionCard } from "@/components/ui";
 
@@ -56,7 +57,7 @@ function targetOf(mode: WidgetViewMode | undefined): SwitchTarget | undefined {
 }
 
 export function WidgetFrame({ widget, editing, onRemove, onChange }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { data, isLoading, isError } = useReport(widget.reportId);
   const bodyRef = useRef<HTMLDivElement>(null);
 
@@ -92,7 +93,12 @@ export function WidgetFrame({ widget, editing, onRemove, onChange }: Props) {
     }
   }, [data, exec.data, isCustom]);
 
-  const title = widget.title ?? data?.definition.name ?? t("dash.widget");
+  // A widget with no title of its own follows the report — including a rename, which
+  // `definition.name` deliberately never carries.
+  const title =
+    widget.title ??
+    (data ? resolveReportTitle(data.definition, labelLocaleOf(i18n.language)) : undefined) ??
+    t("dash.widget");
   // An empty result, honestly empty — enough for the render guards below, and it carries no rows for
   // anything to mistake for data.
   const result = isCustom ? EMPTY_RESULT : exec.data;

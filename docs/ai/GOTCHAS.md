@@ -1243,6 +1243,19 @@ server's graph, so both of those still get the old module.
 **Why it matters:** the instinct is to trust a fresh tab. Twice this session a genuine "it is only HMR
 debris" turned out to be right, so the third case looked like the same thing and was not.
 
+### A renamed report shows its new name only where somebody remembered to resolve it
+**Symptom:** rename a report on its own page, and `/reports` still lists the old name. It looks like
+the rename did not save. It did.
+**Cause:** renaming writes `titleOverrides[locale]` and deliberately leaves `definition.name` alone —
+`name` is the neutral original the server keeps in its own column, and the fallback for a reader in a
+language nobody renamed it into. Every screen that shows a report name has to ask
+`resolveReportTitle(def, locale)` for it. Anything reading `definition.name` shows the old one.
+**Where this bit:** the library table, its **search** (typing the title you can see returned nothing),
+its sort, the **phone card list**, the drill breadcrumb — which sat directly under a heading already
+showing the new name — the add-widget picker, and any widget without a title of its own.
+**Rule:** `definition.name` is storage, not display. If it reaches the screen, it is a bug.
+**Where:** `presentation/labels.ts` has both `resolveReportTitle` (plain) and `useReportTitle` (hook).
+
 ### Saving a report DROPS every field the DTO does not declare
 **Symptom:** a property you put on a report definition in the browser is simply not there when the
 report is read back. No error, no warning — and it works perfectly in mock mode, because the mock

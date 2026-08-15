@@ -405,7 +405,9 @@ export function ReportViewer() {
         <Breadcrumb
           style={{ marginBottom: 12 }}
           items={[
-            { title: <a onClick={() => drillUp(true)}>{data.definition.name}</a> },
+            // The resolved title, not `definition.name` — the heading directly above already
+            // shows the rename, so the breadcrumb was contradicting it on the same screen.
+            { title: <a onClick={() => drillUp(true)}>{title}</a> },
             ...drillPath.map((c) => ({ title: c.label })),
           ]}
         />

@@ -6,6 +6,7 @@ import { MemoryRouter } from "react-router-dom";
 import { AuthProvider } from "@/auth/AuthProvider";
 import { i18n } from "@/i18n";
 import { resetMockDb, seedReports } from "@/api/seed";
+import { mockApi } from "@/api/mockApi";
 import { ReportLibrary } from "./ReportLibrary";
 
 function renderLib() {
@@ -88,6 +89,72 @@ describe("ReportLibrary", () => {
     await waitFor(() =>
       expect(screen.getAllByTestId("report-row").length).toBeGreaterThanOrEqual(1),
     );
+  });
+
+
+  // ── A renamed report ───────────────────────────────────────────────────────
+  /**
+   * Renaming a report on its own page writes `titleOverrides[locale]` and deliberately leaves
+   * `definition.name` alone: `name` is the neutral original the server keeps in its own column, and
+   * overwriting it would push one language's wording onto every reader.
+   *
+   * This list read `name` directly, so a report renamed on its page kept its old title here — the
+   * rename looked like it had not saved, when in fact it had.
+   */
+  describe("a report renamed on its own page", () => {
+    const RENAMED = "مجموع متراژهای ثبت شده در ظرفیت";
+
+    /**
+     * Pinned to Persian, because an override is stored per language and the fallback to `name` is
+     * correct for a reader in another one. Without this the suite runs in English, the `fa-IR`
+     * override is rightly ignored, and these tests fail for a reason that is not the bug.
+     */
+    beforeEach(async () => {
+      await i18n.changeLanguage("fa");
+    });
+    afterEach(async () => {
+      await i18n.changeLanguage("en");
+    });
+
+    async function renameFirstSeededReport() {
+      const all = await mockApi.reports.list();
+      const target = all[0];
+      // `save` upserts: an entity that already has an id is updated in place.
+      await mockApi.reports.save({
+        ...target,
+        definition: { ...target.definition, titleOverrides: { "fa-IR": RENAMED } },
+      });
+      return target;
+    }
+
+    it("shows the new title, not the stored name", async () => {
+      const target = await renameFirstSeededReport();
+      renderLib();
+
+      expect(await screen.findByText(RENAMED)).toBeInTheDocument();
+      expect(screen.queryByText(target.definition.name)).not.toBeInTheDocument();
+    });
+
+    it("can be found by searching for the new title", async () => {
+      // Filtering on `name` while displaying the override meant typing the title you could see
+      // returned nothing at all.
+      await renameFirstSeededReport();
+      renderLib();
+      await screen.findByText(RENAMED);
+
+      await userEvent.type(screen.getByRole("searchbox"), "متراژهای ثبت شده");
+
+      await waitFor(() => expect(screen.getByText(RENAMED)).toBeInTheDocument());
+    });
+
+    it("leaves reports nobody renamed alone", async () => {
+      const all = await mockApi.reports.list();
+      const untouched = all[1];
+      await renameFirstSeededReport();
+      renderLib();
+
+      expect(await screen.findByText(untouched.definition.name)).toBeInTheDocument();
+    });
   });
 
   describe("on a phone", () => {

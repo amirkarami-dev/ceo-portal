@@ -3,9 +3,10 @@ import { Button, Dropdown, Grid, Input, Pagination, Select, Tag } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import type { MenuProps } from "antd";
 import { MoreOutlined, PlusOutlined } from "@ant-design/icons";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { formatDateTime } from "@/presentation/format";
+import { labelLocaleOf, resolveReportTitle } from "@/presentation/labels";
 import { Link, useNavigate } from "react-router-dom";
 import type { SavedReport } from "@/api/queries";
 import { useDeleteReport, useReports } from "@/api/queries";
@@ -43,18 +44,35 @@ export function ReportLibrary() {
     roles.includes("TenantAdmin") ||
     roles.includes("SuperAdmin");
 
+  /**
+   * The title a reader sees, which is not always `definition.name`.
+   *
+   * Renaming a report in the viewer writes `titleOverrides[locale]` and deliberately leaves `name`
+   * alone — `name` is the neutral original the server keeps in its own column, and overwriting it
+   * would push one language's wording onto every reader. The consequence nobody noticed: this list
+   * read `name` directly, so a report renamed on its own page kept its old title here.
+   */
+  const locale = labelLocaleOf(i18n.language);
+  const titleOf = useCallback(
+    (r: SavedReport) => resolveReportTitle(r.definition, locale),
+    [locale],
+  );
+
   const rows = useMemo(() => {
     const all = data ?? [];
     const needle = q.trim().toLowerCase();
     return all.filter((r) => {
       const d = r.definition;
-      if (needle && !d.name.toLowerCase().includes(needle) && !(d.description ?? "").toLowerCase().includes(needle))
+      // Searching matches what is on screen. Filtering on `name` while showing the override meant
+      // typing the title you could see returned nothing.
+      const shown = resolveReportTitle(d, locale).toLowerCase();
+      if (needle && !shown.includes(needle) && !(d.description ?? "").toLowerCase().includes(needle))
         return false;
       if (model && d.dataset !== model) return false;
       if (tag && !(d.tags ?? []).includes(tag)) return false;
       return true;
     });
-  }, [data, q, model, tag]);
+  }, [data, q, model, tag, locale]);
 
   const allModels = useMemo(
     () => Array.from(new Set((data ?? []).map((r) => r.definition.dataset))),
@@ -92,8 +110,9 @@ export function ReportLibrary() {
     {
       title: t("library.colName"),
       dataIndex: ["definition", "name"],
-      sorter: (a, b) => a.definition.name.localeCompare(b.definition.name),
-      render: (_v, r) => <Link to={`/reports/${r.id}`}>{r.definition.name}</Link>,
+      // Sorted by what is displayed, so the order matches the column a reader is looking at.
+      sorter: (a, b) => titleOf(a).localeCompare(titleOf(b)),
+      render: (_v, r) => <Link to={`/reports/${r.id}`}>{titleOf(r)}</Link>,
     },
     {
       title: t("library.colOwner"),
@@ -214,7 +233,7 @@ export function ReportLibrary() {
               <li key={r.id} className="report-card" data-testid="report-row" data-id={r.id}>
                 <span className="report-card__accent" aria-hidden />
                 <Link to={`/reports/${r.id}`} className="report-card__open">
-                  <span className="report-card__name">{r.definition.name}</span>
+                  <span className="report-card__name">{titleOf(r)}</span>
                   <span className="report-card__meta">
                     {reportOwnerLabel(r.ownerName, user, t("library.organizationUser"))}
                     {" · "}
