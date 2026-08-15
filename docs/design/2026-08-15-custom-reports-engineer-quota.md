@@ -1,7 +1,7 @@
 # Custom reports, and the first one: engineer quota by city and discipline
 
-**Status:** **steps 1-6 done** — see the memos at the end. Branch `feat/custom-reports`.
-Waiting on "start step 7" (the dashboard widget). Step 4's real-mode switch shipped inside step 1.
+**Status:** **steps 1-7 done** — see the memos at the end. Branch `feat/custom-reports`.
+Waiting on "start step 8" (worklog and propagation). Step 4's real-mode switch shipped inside step 1.
 **Host:** `analytics-web`. **Scope agreed:** frontend first against a mock row; the .NET endpoint is a
 separate follow-up with its contract pinned here (§ *The endpoint contract*).
 
@@ -533,3 +533,52 @@ They sit beside city and discipline names that are Persian-only data, so they ar
 their row; but every header around them translates. Rendering "Senior level" / "Level 1" would be
 guessing at terminology for the Iranian engineering order's grading system, which is a translation
 decision rather than a coding one. Left as-is and raised rather than invented.
+
+---
+
+## Step 7 — DONE. The dashboard widget, and the prediction held.
+
+Step 1's memo said: *"`WidgetFrame` will not be one branch either. Budget for finding its equivalents
+by running it, not by reading it."* Reading it found **five**, which is the good outcome — the warning
+made me map the file before touching it instead of patching the first failure and re-running:
+
+| where | why |
+| --- | --- |
+| the `exec` query | nothing to execute; left enabled it runs against a dataset that cannot answer |
+| the `views` memo | gated on `exec.data`, so the stored view never arrived |
+| `loading` | a **disabled** react-query reports `isLoading` forever, so the card would spin for good |
+| the `Segmented` | one view by construction, and «جدول» would sit enabled over a working report |
+| CSV / Excel / PDF | all three serialise a `QueryResult`; they would hand over an empty file that looks like a successful export |
+
+`loading` is the one reading would have missed on a first pass and running would have shown as a
+permanent spinner — worth naming, because "disabled queries are stuck in `isLoading`" is not obvious
+from the call site.
+
+### The duplicated detection is gone
+
+Step 1 left `def.presentation?.views?.[0]?.library === "custom"` written inline. With a second file
+asking the same question in several places, it is now `isCustomDefinition` in the registry, and
+`EMPTY_RESULT` moved there too — both exist *because* custom reports exist, so that is where they
+live.
+
+### Verified
+
+**717 tests across 87 files** (up from 711), lint, typecheck and build clean. Six new. Both
+exemptions bite: leaving the query enabled fails *never asks the engine to execute it*, and removing
+the `views` line fails all five custom-widget tests.
+
+A seeded widget was added beside the ordinary one, so the dashboard exercises both paths. In a
+browser, measured on the widget itself: the custom widget contains the report — **4 table rows, 4
+donuts, no error alert, and no export buttons** — while the ordinary widget beside it still has CSV,
+Excel and PDF.
+
+### What is NOT verified, and it is not this step's fault
+
+**The widget cannot actually be looked at.** Both widgets render **159×40** on the dashboard —
+including the ordinary one, which has nothing to do with this work. That is the pre-existing sizing
+bug recorded in `2026-08-14-recharts-to-echarts.md` (a widget laid out `w:6 h:4` rendering 133×40 on
+`main`, before any of this). So the widget's *contents* are confirmed by measuring the DOM, and its
+*appearance* is not confirmed at all.
+
+Fixing it is a separate task with its own cause, and doing it here would have hidden inside a
+custom-reports change. It is now blocking something real, though, which raises its priority.

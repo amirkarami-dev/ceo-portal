@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "@/auth/AuthProvider";
 import { setMockUser } from "@/auth/mock-user";
 import { i18n } from "@/i18n";
-import { firstSeededDashboardId, resetMockDb } from "@/api/seed";
+import { SEED_DASHBOARDS, firstSeededDashboardId, resetMockDb } from "@/api/seed";
 import { DashboardViewer } from "./DashboardViewer";
 
 function renderViewer() {
@@ -37,7 +37,10 @@ describe("DashboardViewer", () => {
     renderViewer();
 
     await waitFor(() => expect(screen.getByTestId("dashboard-canvas")).toBeInTheDocument());
-    expect(screen.getAllByTestId("dashboard-widget")).toHaveLength(1);
+    // Both seeded widgets — the ordinary report and the custom one. The count follows the seed
+    // rather than being pinned at one: this test is about the absence of mutation controls below,
+    // and hardcoding it made adding a second widget to the seed look like a regression.
+    expect(screen.getAllByTestId("dashboard-widget")).toHaveLength(SEED_DASHBOARDS[0].widgets.length);
     expect(screen.queryByRole("button", { name: /edit|ویرایش/i })).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/widget menu|منوی ویجت/i)).not.toBeInTheDocument();
   });

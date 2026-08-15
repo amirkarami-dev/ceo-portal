@@ -239,8 +239,16 @@ export const SEED_DASHBOARDS: DashboardRecord[] = [
     ownerName: "آرش مدیری",
     createdAt: now,
     updatedAt: now,
-    widgets: [{ i: "w1", reportId: "rep-revenue", viewIndex: 0, title: "درآمد ماهانه" }],
-    layout: [{ i: "w1", x: 0, y: 0, w: 6, h: 4 }],
+    // A custom report pinned beside an ordinary one, so the dashboard exercises both paths. The
+    // quota widget is taller: it carries a four-row table and four rings, not a single chart.
+    widgets: [
+      { i: "w1", reportId: "rep-revenue", viewIndex: 0, title: "درآمد ماهانه" },
+      { i: "w2", reportId: "rep-quota", viewIndex: 0, title: "سهمیه مهندسان" },
+    ],
+    layout: [
+      { i: "w1", x: 0, y: 0, w: 6, h: 4 },
+      { i: "w2", x: 0, y: 4, w: 12, h: 10 },
+    ],
   },
 ];
 

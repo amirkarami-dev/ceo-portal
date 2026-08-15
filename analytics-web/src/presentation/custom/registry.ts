@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
-import type { LocalizedLabel } from "../../contracts/report-definition";
+import type { LocalizedLabel, ReportDefinition } from "../../contracts/report-definition";
+import type { QueryResult } from "../../contracts/dataset";
 
 /**
  * Custom reports — the escape hatch for reports the dimensional engine cannot describe.
@@ -86,3 +87,26 @@ export function getCustomReport(id: string | undefined): ErasedCustomReport | un
 export function customReportIds(): string[] {
   return Object.keys(REGISTRY);
 }
+
+/**
+ * Does this definition render through the custom-report path?
+ *
+ * Shared rather than written out at each call site. `ReportViewer` and `WidgetFrame` both have to ask
+ * — and both have to ask in several places each — so the answer lives in one function. The first
+ * view decides: a custom report has exactly one, by construction.
+ */
+export function isCustomDefinition(def: ReportDefinition | undefined): boolean {
+  return def?.presentation?.views?.[0]?.library === "custom";
+}
+
+/**
+ * What a custom report has instead of a query result.
+ *
+ * Frozen and shared: it is held in state in one caller and compared by identity in effects, so a
+ * fresh object per render would retrigger everything keyed on it.
+ */
+export const EMPTY_RESULT: QueryResult = Object.freeze({
+  columns: [],
+  rows: [],
+  total: 0,
+}) as QueryResult;

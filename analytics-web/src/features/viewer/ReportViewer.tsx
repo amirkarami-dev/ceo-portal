@@ -27,6 +27,7 @@ import { labelLocaleOf, useReportTitle } from "@/presentation/labels";
 import { getModelForDataset } from "@/semantic/registry";
 import { executeReport } from "@/api/executeApi";
 import { ReportViewRenderer } from "@/presentation/ReportView";
+import { EMPTY_RESULT, isCustomDefinition } from "@/presentation/custom/registry";
 import { buildExportMenuItems, useExportResult } from "@/features/export";
 import { ViewSwitcher } from "@/features/ask-ai/ViewSwitcher";
 import {
@@ -49,12 +50,6 @@ import { SeriesLabelBar } from "./SeriesLabelBar";
 import { canEditReports, canRenameSeries } from "./can-edit";
 
 type Crumb = { label: string; def: ReportDefinition; result: QueryResult; views: ReportView[] };
-
-/**
- * What a custom report has instead of a query result. Frozen and shared rather than built per render:
- * `computed` is state, and a fresh object each time would retrigger every effect keyed on it.
- */
-const EMPTY_RESULT: QueryResult = Object.freeze({ columns: [], rows: [], total: 0 }) as QueryResult;
 
 /** Nothing worth filtering on: empty, or a range with no bounds filled in. */
 function isBlankFilterValue(v: FilterValue | undefined): boolean {
@@ -121,7 +116,7 @@ export function ReportViewer() {
    * custom report has no real dataset — so a branch placed after that guard would bail out and
    * render a blank page with no error and nothing in the console.
    */
-  const isCustom = liveDef?.presentation?.views?.[0]?.library === "custom";
+  const isCustom = isCustomDefinition(liveDef);
 
   // Execute asynchronously via the gated executeReport (real or mock).
   useEffect(() => {
