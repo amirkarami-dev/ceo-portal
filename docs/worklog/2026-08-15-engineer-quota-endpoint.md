@@ -1,9 +1,9 @@
-# The engineer-quota endpoint, and the reason the report still cannot be used
+# The engineer-quota endpoint, and the DTO that was silently dropping half a report
 
 - **Date:** 2026-08-15
 - **Area:** analytics / api
 - **Branch / commits:** `main`
-- **Status:** **live** on api.myceo.ir — and the report that consumes it is still unreachable, see below
+- **Status:** **live** on api.myceo.ir, and the report renders on production against real data
 
 ## Goal
 
@@ -22,7 +22,10 @@ shipped against a mock row with the contract written down, and this is the other
 - `Infrastructure/Analytics/AnalyticsServiceCollectionExtensions.cs` — registered on the same
   config gate as the query engine.
 - `Web/Endpoints/Analytics/Reports.cs` — `POST /api/Reports/custom/engineer-quota`.
-- `tests/Application.UnitTests/Analytics/AnalyticsValidatorTests.cs` — three validator tests.
+- `Application/Analytics/Reports/ReportDefinitionDto.cs` — `presentation` now round-trips, keeping
+  custom views only. Without this the endpoint had nothing that could call it; see below.
+- `tests/Application.UnitTests/Analytics/AnalyticsValidatorTests.cs` — eight tests: three on the
+  validator, five on the round trip.
 
 ## Decisions
 
@@ -65,28 +68,57 @@ All four engineer counts match exactly and two design figures match to the cent;
 which is what a later reading of the same city and discipline looks like. That corroborates the field
 mapping against an independent reference rather than against my own mock.
 
-**Not verified:** the report rendering against real data, for the reason below.
+The report itself now renders on production — see *Unblocking it* below.
 
-## The blocker this uncovered
+## The blocker this uncovered, and how it was unblocked
 
-**`ReportDefinitionDto` has no `presentation` property**, and `SaveReportCommandHandler` stores
-`JsonSerializer.Serialize(request.Definition)` — the *typed* DTO. So `presentation` is dropped on the
-way in and never comes back out. Confirmed against live data: none of the five production reports has
-a `presentation` key.
+**`ReportDefinitionDto` had no `presentation` property**, and both write paths store
+`JsonSerializer.Serialize(request.Definition)` — the *typed* DTO. So `presentation` was dropped on the
+way in and never came back. Confirmed against live data before changing anything: none of the five
+production reports had a `presentation` key.
 
-A custom report **is** a definition whose `presentation.views[0]` carries
-`library: "custom"`. With `presentation` dropped, such a report cannot exist in production, so the
-quota report stays unreachable no matter how well this endpoint works.
+A custom report **is** a definition whose `presentation.views[0]` carries `library: "custom"`, so with
+`presentation` dropped one could not exist in production, however well the endpoint worked.
 
-That is not a small addition, which is why it stopped here rather than being folded in: `ReportViewer`
-**prefers** `presentation.views` when non-empty, so the moment saving starts persisting views, every
-re-saved report freezes the view auto-viz happened to pick instead of re-deriving it. That is a
-product behaviour change, not plumbing.
+### Only custom views are kept
+
+The obvious fix — round-trip `presentation` wholesale — has a consequence worth refusing.
+`ReportViewer` *prefers* a non-empty `presentation.views` over `chooseView`, so persisting views would
+freeze whatever auto-viz picked for **every report anyone re-saves**: a bar chart chosen from one
+day's data, kept forever. Custom views are different in kind — nothing derives them, so there is
+nothing to freeze.
+
+So `PresentationDto.Views` keeps only views whose library is `custom` and drops the rest.
+
+**The filter lives in the property's `init` accessor, not in the handlers.** There are two write paths
+today and both simply serialise the DTO; a rule kept in handlers is a rule the third one forgets. In
+the accessor it is impossible to bypass, and it applies on read as well, which is also correct.
+
+### Proven on production, both halves
+
+Saved a custom report through the API (id 6) and read it straight back: the view survives with its
+`options` — `{ cityId: 25, reshte: 4 }` — intact, while reports 1-5 still return `presentation: null`.
+Ordinary reports are untouched.
+
+Then opened it. It renders: the table with «۱٬۸۷۳.۶۴ / ۰ / ۱ / ۱۸٬۱۲۶.۳۶ / ۲۰٬۰۰۰» for پایه ارشد —
+the remainder is the procedure's number subtracted from the client constant — and four rings below.
+
+Both parameters reach the procedure and change the answer:
+
+| city / discipline | engineers per base |
+| --- | --- |
+| بیجار / مکانیک | 1, 10, 6, 6 |
+| سنندج / مکانیک | 23, 93, 79, 52 |
+| بیجار / عمران | 10, 42, 20, 30 |
+
+**453 unit tests pass** on the server — the DTO is on every report path, so the whole suite ran, not
+only the five new round-trip tests.
 
 ## Follow-ups
 
-- **Decide how a custom report reaches production.** Either round-trip `presentation` through
-  `ReportDefinitionDto` (and accept the frozen-views consequence, or store only `views` whose library
-  is `custom`), or give custom reports their own registration path that does not travel inside a
-  report definition.
-- Nothing else blocks the report: the endpoint, the contract and the whole frontend are in place.
+- **A report now exists on production as id 6**, created through the API to prove the round trip.
+  It is the real report, not a test fixture — but it was created by hand rather than through any UI,
+  because nothing in the product creates custom reports yet. Deciding how they get created (a seed, an
+  admin screen, or by hand as here) is still open.
+- **Nothing in the UI offers a custom report.** It has to be known about and navigated to.
+- **Export is still absent on custom reports**, deliberately — see the custom-reports worklog.

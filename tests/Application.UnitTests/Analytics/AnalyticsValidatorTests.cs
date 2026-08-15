@@ -1,6 +1,8 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using Mabhas19.Application.Analytics.AiProviders.Commands.UpsertAiProvider;
 using Mabhas19.Application.Analytics.Dashboards.Commands.SaveDashboard;
+using Mabhas19.Application.Analytics.Reports;
 using Mabhas19.Application.Analytics.Reports.Commands.SaveReport;
 using Mabhas19.Application.Analytics.Reports.Queries.GetEngineerQuota;
 using NUnit.Framework;
@@ -177,5 +179,106 @@ public class AnalyticsValidatorTests
         var validator = new GetEngineerQuotaQueryValidator();
 
         validator.Validate(new GetEngineerQuotaQuery(999, 99)).IsValid.ShouldBeTrue();
+    }
+
+    // -----------------------------------------------------------------------
+    // ReportDefinitionDto.Presentation — custom views round-trip, others do not
+    // -----------------------------------------------------------------------
+
+    private static ReportDefinitionDto RoundTrip(string json)
+    {
+        // Exactly what the API does: bind the request, then store
+        // JsonSerializer.Serialize(definition) and read it back.
+        var bound = JsonSerializer.Deserialize<ReportDefinitionDto>(json)!;
+        return JsonSerializer.Deserialize<ReportDefinitionDto>(JsonSerializer.Serialize(bound))!;
+    }
+
+    [Test]
+    public void Presentation_CustomView_SurvivesTheRoundTrip()
+    {
+        // Without this a custom report cannot exist in production at all: presentation was not on the
+        // DTO, so it was dropped on save and the report came back as an ordinary one.
+        const string json = """
+        {
+          "name": "quota",
+          "dataset": "oz_info",
+          "presentation": { "views": [ {
+              "type": "chart", "library": "custom", "component": "EngineerQuota",
+              "options": { "cityId": 25, "reshte": 4 }
+          } ] }
+        }
+        """;
+
+        var result = RoundTrip(json);
+
+        result.Presentation.ShouldNotBeNull();
+        result.Presentation!.Views.Count.ShouldBe(1);
+        result.Presentation.Views[0].Component.ShouldBe("EngineerQuota");
+    }
+
+    [Test]
+    public void Presentation_CarriesTheCustomReportsParameters()
+    {
+        // The whole point of keeping presentation: without the view's "options" the report loads
+        // with no city and no discipline.
+        const string json = """
+        {
+          "name": "quota", "dataset": "oz_info",
+          "presentation": { "views": [ {
+              "type": "chart", "library": "custom", "component": "EngineerQuota",
+              "options": { "cityId": 25, "reshte": 4 }
+          } ] }
+        }
+        """;
+
+        var options = RoundTrip(json).Presentation!.Views[0].Options;
+
+        options.ShouldNotBeNull();
+        options!.Value.GetProperty("cityId").GetInt32().ShouldBe(25);
+        options.Value.GetProperty("reshte").GetInt32().ShouldBe(4);
+    }
+
+    [Test]
+    public void Presentation_DropsViewsThatAreNotCustom()
+    {
+        // ReportViewer PREFERS a non-empty presentation.views over chooseView, so persisting the view
+        // auto-viz happened to pick would freeze it for every report anyone re-saves.
+        const string json = """
+        {
+          "name": "revenue", "dataset": "sales",
+          "presentation": { "views": [
+            { "type": "chart", "library": "echarts", "component": "BarChart" },
+            { "type": "table", "library": "antd", "component": "Table" }
+          ] }
+        }
+        """;
+
+        RoundTrip(json).Presentation!.Views.ShouldBeEmpty();
+    }
+
+    [Test]
+    public void Presentation_KeepsOnlyTheCustomViewFromAMixedList()
+    {
+        const string json = """
+        {
+          "name": "mixed", "dataset": "oz_info",
+          "presentation": { "views": [
+            { "type": "table", "library": "antd", "component": "Table" },
+            { "type": "chart", "library": "custom", "component": "EngineerQuota" }
+          ] }
+        }
+        """;
+
+        var views = RoundTrip(json).Presentation!.Views;
+
+        views.Count.ShouldBe(1);
+        views[0].Library.ShouldBe("custom");
+    }
+
+    [Test]
+    public void Presentation_AbsentStaysAbsent()
+    {
+        // Every ordinary report. Null presentation means the frontend derives its views, unchanged.
+        RoundTrip("""{ "name": "plain", "dataset": "sales" }""").Presentation.ShouldBeNull();
     }
 }

@@ -22,7 +22,7 @@ Also, when a task teaches something reusable:
 
 | Date | Record | Area | Status |
 |---|---|---|---|
-| 2026-08-15 | [The engineer-quota endpoint, and the reason the report still cannot be used](2026-08-15-engineer-quota-endpoint.md) | analytics / api | **live** on api.myceo.ir; report still blocked |
+| 2026-08-15 | [The engineer-quota endpoint, and the DTO that was silently dropping half a report](2026-08-15-engineer-quota-endpoint.md) | analytics / api | **live** on api.myceo.ir; the report renders on production |
 | 2026-08-15 | [Custom reports, and the first one: engineer quota by city and discipline](2026-08-15-custom-reports-engineer-quota.md) | analytics | merged to `feat/custom-reports`, **not deployed** |
 | 2026-08-15 | [Every dashboard widget rendered 159x40, and the saved layout was correct the whole time](2026-08-15-dashboard-widget-sizing.md) | analytics | fixed, **not deployed** |
 | 2026-08-15 | [Drill-down reachable from the keyboard](2026-08-15-keyboard-drill-down.md) | analytics | merged, **not deployed** |

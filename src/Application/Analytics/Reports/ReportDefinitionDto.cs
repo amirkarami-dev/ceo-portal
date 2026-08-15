@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace Mabhas19.Application.Analytics.Reports;
@@ -192,6 +193,14 @@ public class ReportDefinitionDto
     /// </summary>
     [JsonPropertyName("labelOverrides")]
     public IReadOnlyDictionary<string, LocalizedLabelDto>? LabelOverrides { get; init; }
+
+    /// <summary>
+    /// Saved views. Only <c>custom</c> ones are kept — see <see cref="PresentationDto"/> for why.
+    /// Null, or a presentation whose views all filtered out, leaves the frontend to derive views with
+    /// <c>chooseView</c>, which is what every ordinary report does.
+    /// </summary>
+    [JsonPropertyName("presentation")]
+    public PresentationDto? Presentation { get; init; }
 }
 
 /// <summary>
@@ -209,4 +218,73 @@ public class LocalizedLabelDto
 
     [JsonPropertyName("en-US")]
     public string? EnUS { get; init; }
+}
+
+// ---------------------------------------------------------------------------
+// Presentation — carried only for custom reports
+// ---------------------------------------------------------------------------
+
+/// <summary>
+/// One saved view. Free-form on purpose: <see cref="Mapping"/> and <see cref="Options"/> are the
+/// renderer's own business and are passed through untouched rather than mirrored as a schema the
+/// backend would then have to keep in step with the frontend.
+/// </summary>
+public class ReportViewDto
+{
+    [JsonPropertyName("type")]
+    public string Type { get; init; } = string.Empty;
+
+    /// <summary>antd | echarts | custom | recharts (legacy) | grid.</summary>
+    [JsonPropertyName("library")]
+    public string Library { get; init; } = string.Empty;
+
+    /// <summary>The concrete renderer, or — for <c>custom</c> — the registry id.</summary>
+    [JsonPropertyName("component")]
+    public string Component { get; init; } = string.Empty;
+
+    [JsonPropertyName("title")]
+    public string? Title { get; init; }
+
+    [JsonPropertyName("mapping")]
+    public JsonElement? Mapping { get; init; }
+
+    /// <summary>Renderer-specific options. A custom report's parameters live here.</summary>
+    [JsonPropertyName("options")]
+    public JsonElement? Options { get; init; }
+}
+
+/// <summary>
+/// The views a definition carries — <b>custom ones only</b>.
+/// </summary>
+/// <remarks>
+/// <para>
+/// A custom report is a definition whose first view names <c>library: "custom"</c>, so
+/// <c>presentation</c> has to survive the round trip or such a report cannot exist at all. It did not:
+/// the handlers store <c>JsonSerializer.Serialize(definition)</c> of the typed DTO, so anything the
+/// DTO did not declare was dropped silently.
+/// </para>
+/// <para>
+/// <b>Only custom views are kept, and that is the point.</b> `ReportViewer` *prefers* a non-empty
+/// `presentation.views` over `chooseView`, so persisting the views auto-viz happened to pick would
+/// freeze them for every report anyone re-saves — a bar chart chosen from one day's data, kept
+/// forever. Custom views are different in kind: nothing derives them, so there is nothing to freeze.
+/// </para>
+/// </remarks>
+public class PresentationDto
+{
+    public const string CustomLibrary = "custom";
+
+    private readonly IReadOnlyList<ReportViewDto> _views = [];
+
+    /// <summary>
+    /// The filter lives in the accessor rather than in the save handlers on purpose: there are two
+    /// write paths today (save and update) and both simply serialise the DTO, so a rule kept in the
+    /// handlers is a rule the third one will forget.
+    /// </summary>
+    [JsonPropertyName("views")]
+    public IReadOnlyList<ReportViewDto> Views
+    {
+        get => _views;
+        init => _views = (value ?? []).Where(v => v.Library == CustomLibrary).ToList();
+    }
 }
