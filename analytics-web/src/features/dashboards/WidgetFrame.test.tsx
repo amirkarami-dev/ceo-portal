@@ -29,10 +29,19 @@ const definition = {
   name: "درآمد",
 };
 
+/**
+ * Which definition the widget is showing. A mutable holder rather than a fixed constant, so the
+ * custom-report tests below can render a different one through the same harness instead of standing
+ * up a second copy of it.
+ */
+let activeDefinition: unknown = definition;
+
+const executeSpy = vi.fn(() => Promise.resolve(result));
+
 vi.mock("@/api/queries", () => ({
-  useReport: () => ({ data: { id: "r1", definition }, isLoading: false, isError: false }),
+  useReport: () => ({ data: { id: "r1", definition: activeDefinition }, isLoading: false, isError: false }),
 }));
-vi.mock("@/api/executeApi", () => ({ executeReport: () => Promise.resolve(result) }));
+vi.mock("@/api/executeApi", () => ({ executeReport: () => executeSpy() }));
 
 function renderWidget(widget: DashboardWidget, onChange = vi.fn()) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -51,6 +60,8 @@ const widget: DashboardWidget = { i: "w1", reportId: "r1", title: "درآمد" }
 // whichever test file ran last.
 beforeEach(async () => {
   await i18n.changeLanguage("fa");
+  activeDefinition = definition;
+  executeSpy.mockClear();
 });
 
 describe("WidgetFrame — picking how a widget is drawn", () => {
@@ -94,5 +105,91 @@ describe("WidgetFrame — picking how a widget is drawn", () => {
     // in full. The disabled path is the same `canRenderTarget` the report page uses.
     const pie = screen.getByTitle("دایره‌ای").closest("label");
     expect(pie?.className).not.toContain("ant-segmented-item-disabled");
+  });
+});
+
+// ── Custom reports on a dashboard ────────────────────────────────────────────
+/**
+ * A custom report has no query to run and no `QueryResult` to serialise. `WidgetFrame` needed the
+ * same exemptions `ReportViewer` did, and — as predicted in the design doc — it was not one branch:
+ * the query, the view list, the switcher and the export buttons each assume a result exists.
+ */
+describe("WidgetFrame — a custom report", () => {
+  const customDefinition = {
+    id: "rep-quota",
+    dataset: "oz_info",
+    columns: [],
+    name: "سهمیه",
+    presentation: {
+      views: [
+        {
+          type: "chart",
+          library: "custom",
+          component: "EngineerQuota",
+          options: { cityId: 25, reshte: 4 },
+          mapping: {},
+        },
+      ],
+    },
+  };
+
+  const renderCustom = () => {
+    activeDefinition = customDefinition;
+    return renderWidget({ i: "w2", reportId: "rep-quota", title: "سهمیه" });
+  };
+
+  it("renders the report inside the widget frame", async () => {
+    renderCustom();
+    expect(await screen.findByTestId("engineer-quota")).toBeInTheDocument();
+  });
+
+  it("never asks the engine to execute it", async () => {
+    renderCustom();
+    await screen.findByTestId("engineer-quota");
+
+    // There is no SQL to build. Left enabled, the query runs against a dataset that does not answer
+    // and the widget shows its error alert instead of the report.
+    expect(executeSpy).not.toHaveBeenCalled();
+  });
+
+  it("offers no view switcher", async () => {
+    renderCustom();
+    await screen.findByTestId("engineer-quota");
+
+    // One view by construction, and an empty result would leave «جدول» enabled — one click from
+    // replacing the report with an empty table.
+    expect(document.querySelector(".ant-segmented")).toBeNull();
+  });
+
+  it("offers no exports", async () => {
+    renderCustom();
+    await screen.findByTestId("engineer-quota");
+
+    // CSV, Excel and PDF all serialise a QueryResult. A custom report has none, so all three would
+    // hand over an empty file that looks like a successful export.
+    for (const label of ["CSV", "Excel", "PDF"]) {
+      expect(screen.queryByLabelText(label)).not.toBeInTheDocument();
+    }
+  });
+
+  it("shows the report rather than the widget's error state", async () => {
+    renderCustom();
+    await screen.findByTestId("engineer-quota");
+
+    // `broken` is true when the view list is empty, and the view list was empty for a custom report
+    // until the memo learned to return its stored view without waiting on a result.
+    expect(document.querySelector(".ant-alert-error")).toBeNull();
+  });
+});
+
+describe("WidgetFrame — ordinary widgets are unaffected", () => {
+  it("still executes, still exports, still switches", async () => {
+    renderWidget(widget);
+
+    // Waiting on the button, not on the spy: the export controls appear only once the result has
+    // resolved AND rendered, so asserting right after the call is a race.
+    expect(await screen.findByLabelText("CSV")).toBeInTheDocument();
+    expect(executeSpy).toHaveBeenCalled();
+    expect(document.querySelector(".ant-segmented")).not.toBeNull();
   });
 });

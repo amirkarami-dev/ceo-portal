@@ -27,6 +27,7 @@ import { labelLocaleOf, useReportTitle } from "@/presentation/labels";
 import { getModelForDataset } from "@/semantic/registry";
 import { executeReport } from "@/api/executeApi";
 import { ReportViewRenderer } from "@/presentation/ReportView";
+import { EMPTY_RESULT, isCustomDefinition } from "@/presentation/custom/registry";
 import { buildExportMenuItems, useExportResult } from "@/features/export";
 import { ViewSwitcher } from "@/features/ask-ai/ViewSwitcher";
 import {
@@ -106,8 +107,25 @@ export function ReportViewer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, uiFilters, refreshKey]);
 
+  /**
+   * A custom report has nothing to execute: its data comes from its own registry entry, not from a
+   * query the engine can build. See `presentation/custom/registry.ts`.
+   *
+   * This has to be checked BEFORE `!semantic` below. `semantic` is
+   * `getModelForDataset(definition.dataset)` wrapped in a try/catch that returns `undefined`, and a
+   * custom report has no real dataset — so a branch placed after that guard would bail out and
+   * render a blank page with no error and nothing in the console.
+   */
+  const isCustom = isCustomDefinition(liveDef);
+
   // Execute asynchronously via the gated executeReport (real or mock).
   useEffect(() => {
+    if (isCustom && liveDef) {
+      // An empty result, honestly empty. The views are the stored ones; `chooseView` is not
+      // consulted, because there are no columns for it to reason about.
+      setComputed({ result: EMPTY_RESULT, views: liveDef.presentation.views });
+      return;
+    }
     if (!liveDef || !semantic) {
       setComputed(undefined);
       return;
@@ -130,7 +148,7 @@ export function ReportViewer() {
         }
       });
     return () => { cancelled = true; };
-  }, [liveDef, semantic]);
+  }, [liveDef, semantic, isCustom]);
 
   // A built view names columns from the result it was built against. Refresh, a filter change or a
   // drill can change those columns, so drop the built ones and go back to what auto-viz chose
@@ -237,7 +255,16 @@ export function ReportViewer() {
   if (!data) return <Loading rows={8} />;
   // While waiting for executeReport to resolve (liveDef loaded but computed not yet ready)
   if (!computed && !execError) return <Loading rows={8} />;
-  if (execError || !liveDef || !semantic || !activeResult || !activeDef) {
+  /**
+   * `!semantic` is exempted for a custom report, and that exemption is the **second** place this had
+   * to be made — the execute effect above is the first.
+   *
+   * Missing it cost a debugging round: the effect skipped execution correctly, the report loaded, and
+   * the page still showed «خطا در بارگذاری گزارش», because a custom report has no dataset and so no
+   * semantic model, and this guard demanded one. Two checks of the same condition, far apart, and
+   * only one of them obvious from the design.
+   */
+  if (execError || !liveDef || (!isCustom && !semantic) || !activeResult || !activeDef) {
     return <ErrorState title={t("viewer.invalid")} />;
   }
 
@@ -347,16 +374,32 @@ export function ReportViewer() {
         ]}
       />
 
-      <FilterBar
-        // Every filter the report defines, not only the ones currently narrowing the query.
-        filters={uiFilters}
-        semantic={semantic}
-        onChange={(i, v) => setFilterValues((s) => ({ ...s, [i]: v }))}
-      />
+      {/*
+        Not for a custom report: `FilterBar` renders `definition.filters` against a semantic model,
+        and a custom report has neither. Its parameters are procedure arguments, and they get their
+        own picker inside the report. This is also what keeps `semantic` — now legitimately
+        `undefined` for these — out of a prop that requires it.
+      */}
+      {!isCustom && semantic && (
+        <FilterBar
+          // Every filter the report defines, not only the ones currently narrowing the query.
+          filters={uiFilters}
+          semantic={semantic}
+          onChange={(i, v) => setFilterValues((s) => ({ ...s, [i]: v }))}
+        />
+      )}
 
-      <Toolbar>
-        <ViewSwitcher views={views} active={activeView} result={result} onSwitch={switchView} />
-      </Toolbar>
+      {/*
+        No view switcher on a custom report. It has exactly one view by construction, and its result
+        is empty, so four of the five buttons rendered disabled and «جدول» rendered *enabled* — one
+        click from an empty table over a report that had perfectly good data on screen. Five controls
+        that between them could only mislead.
+      */}
+      {!isCustom && (
+        <Toolbar>
+          <ViewSwitcher views={views} active={activeView} result={result} onSwitch={switchView} />
+        </Toolbar>
+      )}
 
       {drillPath.length > 0 && (
         <Breadcrumb
@@ -377,7 +420,16 @@ export function ReportViewer() {
       />
 
       <div data-testid="result-canvas">
-        {result.total === 0 ? (
+        {/*
+          The THIRD place a custom report has to be exempted, after the execute effect and the
+          `!semantic` render guard. A custom report's result is deliberately empty — it never ran a
+          query — so `total === 0` is its normal state, not "your filters matched nothing".
+
+          Worth stating plainly, because the design predicted one branch and there were three, each
+          failing differently: a blank page, «خطا در بارگذاری گزارش», and this one, which looked the
+          most like working software and was the most misleading.
+        */}
+        {!isCustom && result.total === 0 ? (
           <Empty description={t("viewer.emptyFilters")} />
         ) : (
           <ReportViewRenderer view={activeView} def={activeDef} result={result} onDrill={drill} />

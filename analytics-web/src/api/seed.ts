@@ -196,6 +196,39 @@ export const SEED_REPORTS: StoredReport[] = [
       presentation: { views: [] },
     },
   },
+  {
+    id: "rep-quota",
+    tenantId: "tenant-acme",
+    ownerName: "آرش مدیری",
+    visibility: "tenant",
+    updatedAt: now,
+    /**
+     * A custom report: its data comes from `presentation/custom/engineer-quota`, not from the query
+     * engine. `dataset`, `columns` and `groupBy` are the envelope the report shell expects and carry
+     * nothing — the wart named in the design doc, paid once so the page, toolbar, breadcrumb, roles
+     * and dashboards all keep working unchanged.
+     */
+    definition: {
+      id: "rep-quota",
+      schemaVersion: "1.0",
+      name: "وضعیت سهمیه ثبت شده مهندسان به تفکیک شهر و رشته",
+      dataset: "oz_info",
+      columns: [],
+      presentation: {
+        views: [
+          {
+            type: "chart",
+            library: "custom",
+            component: "EngineerQuota",
+            // Parameters live in `options`, not `mapping`: ViewMapping is a fixed set of named chart
+            // bindings with no index signature, and widening it would weaken every chart's typing.
+            options: { cityId: 25, reshte: 4 },
+            mapping: {},
+          },
+        ],
+      },
+    },
+  },
 ];
 
 export const SEED_DASHBOARDS: DashboardRecord[] = [
@@ -206,8 +239,18 @@ export const SEED_DASHBOARDS: DashboardRecord[] = [
     ownerName: "آرش مدیری",
     createdAt: now,
     updatedAt: now,
-    widgets: [{ i: "w1", reportId: "rep-revenue", viewIndex: 0, title: "درآمد ماهانه" }],
-    layout: [{ i: "w1", x: 0, y: 0, w: 6, h: 4 }],
+    // A custom report pinned beside an ordinary one, so the dashboard exercises both paths. The
+    // quota widget is taller: it carries a four-row table and four rings, not a single chart.
+    widgets: [
+      { i: "w1", reportId: "rep-revenue", viewIndex: 0, title: "درآمد ماهانه" },
+      { i: "w2", reportId: "rep-quota", viewIndex: 0, title: "سهمیه مهندسان" },
+    ],
+    layout: [
+      { i: "w1", x: 0, y: 0, w: 6, h: 4 },
+      // h:16 -> 16*40 + 15*10 = 790px. The report is a note, a six-column table AND four rings; at
+      // h:10 the rings sat below the card's scroll line, so the widget demonstrated half of itself.
+      { i: "w2", x: 0, y: 4, w: 12, h: 16 },
+    ],
   },
 ];
 

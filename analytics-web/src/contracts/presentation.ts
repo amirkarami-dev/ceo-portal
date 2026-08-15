@@ -10,7 +10,7 @@ export interface Presentation {
 export interface ReportView {
   id?: string;
   type: ViewType; // Table | KPI | Chart | DashboardWidget
-  library: ViewLibrary; // antd | recharts | echarts | grid
+  library: ViewLibrary; // antd | recharts | echarts | custom | grid
   component: string; // concrete renderer, e.g. "LineChart"
   title?: string;
   mapping: ViewMapping; // how columns/metrics bind to the view
@@ -21,7 +21,15 @@ export type ViewType = "table" | "kpi" | "chart" | "dashboardWidget";
 
 /** STRICT RULE encoded in types: charts NEVER use antd; dashboard layout
  *  NEVER uses antd; tables/KPI/forms use antd. */
-export type ViewLibrary = "antd" | "recharts" | "echarts" | "grid";
+/**
+ * `"custom"` is the escape hatch for reports the dimensional engine cannot describe — see
+ * `presentation/custom/registry.ts`. It dispatches to a registered component rather than to a
+ * renderer, and its saved definition carries no meaningful `dataset`, `groupBy` or `metrics`.
+ *
+ * `"grid"` is declared and implemented nowhere. Left alone here rather than removed as a drive-by;
+ * it is also the precedent that this union was built to be extended.
+ */
+export type ViewLibrary = "antd" | "recharts" | "echarts" | "custom" | "grid";
 
 export interface ViewMapping {
   /** Table: which columns to show (defaults to all visible columns). */

@@ -22,6 +22,8 @@ Also, when a task teaches something reusable:
 
 | Date | Record | Area | Status |
 |---|---|---|---|
+| 2026-08-15 | [Custom reports, and the first one: engineer quota by city and discipline](2026-08-15-custom-reports-engineer-quota.md) | analytics | merged to `feat/custom-reports`, **not deployed** |
+| 2026-08-15 | [Every dashboard widget rendered 159x40, and the saved layout was correct the whole time](2026-08-15-dashboard-widget-sizing.md) | analytics | fixed, **not deployed** |
 | 2026-08-15 | [Drill-down reachable from the keyboard](2026-08-15-keyboard-drill-down.md) | analytics | merged, **not deployed** |
 | 2026-08-15 | [Charts were invisible to a screen reader; each one now carries its data as a table](2026-08-15-chart-canvas-accessibility.md) | analytics | merged, **not deployed** |
 | 2026-08-14 | [Every chart moved from recharts to ECharts](2026-08-14-recharts-to-echarts.md) | analytics | merged to `feat/echarts-only`, **not deployed** |

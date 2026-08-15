@@ -231,6 +231,14 @@ src/theme/      design tokens, light/dark
 - `mabhas19-web/` and `kurdnezam-web/` are Next.js and follow their own (documented) structure. `portal-web/` is a public Vite service directory with no API or OIDC calls.
 - Analytics opens on `/dashboards`: All/Mine/Recent dashboard library, read-only detail at
   `/dashboards/:id`, role-gated editing at `/dashboards/:id/edit`, and Ask AI at `/ask`.
+- **Reports the query engine cannot express go through `presentation/custom/`.** A registered entry
+  owns its parameters, its own data fetch and its own component; the saved definition is an envelope
+  with `library: "custom"` and `component: "<id>"`, dispatched by `ReportView.tsx` like any other
+  view, so the page shell, roles, breadcrumb and dashboards keep working. The first one is the
+  engineer-quota report, driven by a KurdNezam stored procedure — see
+  [`../design/2026-08-15-custom-reports-engineer-quota.md`](../design/2026-08-15-custom-reports-engineer-quota.md).
+  Such a report has **no `QueryResult`**, so `ReportViewer` and `WidgetFrame` each carry several
+  exemptions; `isCustomDefinition` in the registry is the one place that answers "is this one".
 - **Charts in `analytics-web` are ECharts, and only ECharts** (recharts was removed 2026-08-14 —
   see [`../worklog/2026-08-14-recharts-to-echarts.md`](../worklog/2026-08-14-recharts-to-echarts.md)).
   The chain is: `presentation/auto-viz.ts` picks a view → `presentation/ReportView.tsx` dispatches on

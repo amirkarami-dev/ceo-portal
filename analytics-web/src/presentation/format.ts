@@ -2,6 +2,20 @@ import type { FieldType } from "../contracts/common";
 
 export type Dir = "rtl" | "ltr";
 
+/**
+ * The direction the page is running in.
+ *
+ * Lived privately inside `EChartsRenderer` until a second chart needed it. It belongs here, beside
+ * `Dir` and the formatters that take one: two copies reading `document.documentElement.dir` is two
+ * places to fix when the source of that answer ever changes.
+ */
+export function currentDir(): Dir {
+  if (typeof document !== "undefined" && document.documentElement.dir === "rtl") {
+    return "rtl";
+  }
+  return "ltr";
+}
+
 const PERSIAN_DIGITS = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"];
 
 /** Map ASCII 0-9 to Persian digits; all other characters pass through. */

@@ -283,3 +283,47 @@ describe("ReportViewer", () => {
     expect(screen.queryByRole("button", { name: "ویرایش عنوان" })).not.toBeInTheDocument();
   });
 });
+
+// ── Custom reports ───────────────────────────────────────────────────────────
+/**
+ * A custom report has nothing for the query engine to run: its data comes from its own registry
+ * entry. See `docs/design/2026-08-15-custom-reports-engineer-quota.md`.
+ *
+ * The branch that skips execution has to sit BEFORE the `!semantic` guard. `semantic` is
+ * `getModelForDataset(definition.dataset)` inside a try/catch that returns `undefined`, so a custom
+ * report placed after that guard renders a blank page with no error and nothing in the console —
+ * which is exactly the kind of failure a test has to hold, because nobody would notice it.
+ */
+describe("ReportViewer — custom reports", () => {
+  beforeEach(() => {
+    resetMockDb();
+    seedReports();
+  });
+
+  it("renders the custom report body instead of running a query", async () => {
+    renderViewer("rep-quota");
+
+    expect(await screen.findByTestId("engineer-quota", undefined, { timeout: 3000 })).toBeInTheDocument();
+  });
+
+  it("does not fall through the semantic guard to a blank page", async () => {
+    renderViewer("rep-quota");
+
+    // The report's own name renders, so the shell — page header, toolbar, breadcrumb — is alive
+    // around it rather than the viewer having bailed out.
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { name: /سهمیه/ })).toBeInTheDocument(),
+    );
+    expect(screen.queryByText(/خطا در بارگذاری گزارش/)).not.toBeInTheDocument();
+  });
+
+  it("passes the stored parameters through to the report", async () => {
+    renderViewer("rep-quota");
+
+    // Seeded as Bijar (25) / mechanical (4) — the reference screenshot's combination. The report puts
+    // them in its column headers, so the check is that they reached the body at all.
+    const body = await screen.findByTestId("engineer-quota", undefined, { timeout: 3000 });
+    expect(body.textContent).toContain("بیجار");
+    expect(body.textContent).toContain("مکانیک");
+  });
+});

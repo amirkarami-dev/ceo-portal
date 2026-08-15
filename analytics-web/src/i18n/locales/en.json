@@ -124,6 +124,22 @@
     "line": "Line",
     "pie": "Pie"
   },
+  "quota": {
+    "used": "Used capacity",
+    "remaining": "Remaining capacity",
+    "engineers": "engineers",
+    "base": "Engineer level in {{city}}",
+    "design": "Registered in design — {{reshte}}",
+    "supervision": "Registered in supervision — {{reshte}}",
+    "count": "Engineers in {{city}}",
+    "total": "Total capacity",
+    "note": "Important: \"level\" means the highest active level the engineer holds in that city, which is what the calculation uses."
+  },
+  "customReport": {
+    "unknown": "This report type is not available: {{component}}",
+    "apply": "Show",
+    "failed": "Could not load this report."
+  },
   "chartA11y": {
     "caption": "Chart data: {{title}}",
     "category": "Category",

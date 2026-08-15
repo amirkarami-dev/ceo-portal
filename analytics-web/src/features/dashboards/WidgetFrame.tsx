@@ -27,6 +27,7 @@ import {
 } from "@/presentation/view-switching";
 import { getModelForDataset } from "@/semantic/registry";
 import { ReportViewRenderer } from "@/presentation/ReportView";
+import { EMPTY_RESULT, isCustomDefinition } from "@/presentation/custom/registry";
 import { exportCsv, exportPdf, exportXlsx, useExportResult } from "@/features/export";
 import { KpiTile, SectionCard } from "@/components/ui";
 
@@ -59,18 +60,28 @@ export function WidgetFrame({ widget, editing, onRemove, onChange }: Props) {
   const { data, isLoading, isError } = useReport(widget.reportId);
   const bodyRef = useRef<HTMLDivElement>(null);
 
+  /**
+   * A custom report has nothing for the engine to run — its data comes from its own registry entry.
+   * The same exemption `ReportViewer` needs, and like there it is not one branch: the query, the view
+   * list, the switcher and the export buttons all assume a `QueryResult` exists.
+   */
+  const isCustom = isCustomDefinition(data?.definition);
+
   // Execute through the gated executeReport so widgets work in BOTH modes
   // (server-side SQL in real mode, in-browser engine in mock) — the old
   // direct runQuery call broke every widget on the real backend.
   const exec = useQuery({
     queryKey: ["widget-exec", widget.reportId],
     queryFn: () => executeReport(data!.definition),
-    enabled: !!data,
+    enabled: !!data && !isCustom,
     staleTime: 60_000,
   });
 
   const views = useMemo(() => {
-    if (!data || !exec.data) return [];
+    if (!data) return [];
+    // Its stored view is the whole answer; there are no columns for `chooseView` to reason about.
+    if (isCustom) return data.definition.presentation?.views ?? [];
+    if (!exec.data) return [];
     try {
       const pinned = data.definition.presentation?.views;
       if (pinned && pinned.length > 0) return pinned;
@@ -79,13 +90,16 @@ export function WidgetFrame({ widget, editing, onRemove, onChange }: Props) {
     } catch {
       return [];
     }
-  }, [data, exec.data]);
+  }, [data, exec.data, isCustom]);
 
   const title = widget.title ?? data?.definition.name ?? t("dash.widget");
-  const result = exec.data;
+  // An empty result, honestly empty — enough for the render guards below, and it carries no rows for
+  // anything to mistake for data.
+  const result = isCustom ? EMPTY_RESULT : exec.data;
   // Exports read columns[].label from the engine, which knows nothing about human overrides.
   const exportResult = useExportResult(data?.definition, result);
-  const loading = isLoading || exec.isLoading;
+  // `exec` is disabled for a custom report, and a disabled query reports `isLoading` forever.
+  const loading = isLoading || (!isCustom && exec.isLoading);
   const broken = isError || exec.isError || (!!data && !loading && views.length === 0);
 
   // View resolution: the widget's own choice wins; otherwise the report's default view.
@@ -109,7 +123,12 @@ export function WidgetFrame({ widget, editing, onRemove, onChange }: Props) {
 
   const toolbar = (
     <div className="widget-toolbar" onMouseDown={(e) => e.stopPropagation()}>
-      {onChange && (
+      {/*
+        No view switcher on a custom report: it has exactly one view, and an empty result would leave
+        «جدول» enabled and one click from replacing the report with an empty table — the same trap
+        removed from the report page in step 1.
+      */}
+      {onChange && !isCustom && (
         <Segmented
           size="small"
           value={mode}
@@ -124,7 +143,13 @@ export function WidgetFrame({ widget, editing, onRemove, onChange }: Props) {
           }))}
         />
       )}
-      {result && data && (
+      {/*
+        And no exports. CSV, Excel and PDF all serialise a `QueryResult`; a custom report has none, so
+        all three would hand over an empty file that looks like a successful export. Settling this
+        properly — giving custom reports a way to describe their own export — is the open question in
+        the design doc, not something to fake here.
+      */}
+      {result && data && !isCustom && (
         <>
           <Tooltip title="CSV">
             <Button
