@@ -1227,6 +1227,25 @@ was **0**: the tab had never been laid out. `resize_window` to a real size gave 
 **Read `window.innerWidth` before believing any layout measurement**, and treat "every variant is
 identical" as a symptom, not a result.
 
+### react-grid-layout invents a layout, then hands it back for you to save
+**Symptom:** every widget on every dashboard renders tiny — 159x40 — while the layout stored in the
+database is perfectly correct. Which is what makes it read as a rendering bug, and it is not.
+**Cause:** RGL assigns `w:1, h:1` to any child it has **no layout entry for**, and reports that
+through `onLayoutChange` like any real change. The page starts at `useState([])` and fills the layout
+when its query resolves; in that gap every child is an unknown child, so RGL's invention is written
+back into state *before the real layout is ever applied*.
+**Fix:** `if (layout.length === 0) return;` in `onLayoutChange` — never save a layout you did not
+receive. `dashboard/DashboardCanvas.tsx`.
+**Why the existing guard missed it:** the `colsRef` check beside it defends a *different* squeeze — a
+narrow screen reporting its derived layout — and fires on `onBreakpointChange`. On first paint there
+has been no breakpoint change, so `12 === 12` and the invention passes.
+**How to tell quickly:** log the `layout` prop and `onLayoutChange` together. Three plausible theories
+(stale `WidthProvider` width, column clamping, a missing per-breakpoint `layouts` entry) all survive
+reasoning and all die in one console line.
+**Also worth knowing:** `WidthProvider` measures the **container**, not the viewport. With a sidebar,
+a 1038px window gives a ~678px grid, which is the `xs` breakpoint — so a normal laptop renders the
+4-column derived layout, not the 12-column design.
+
 ### A canvas chart is not in the accessibility tree at ALL — not even as an image
 **Symptom:** none, on screen. `read_page` on a report showed the tree ending at the last toolbar
 button with **no node for the chart**. Not an unlabelled image, which a screen reader announces as

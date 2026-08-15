@@ -44,6 +44,20 @@ export function DashboardCanvas({ layout, editing, onLayoutChange, children }: P
         }}
         onLayoutChange={(l) => {
           if (colsRef.current !== DESIGN_COLS) return;
+          /**
+           * Never write back a layout react-grid-layout **invented**.
+           *
+           * RGL assigns `w:1, h:1` to any child it has no layout entry for. While `layout` is still
+           * empty — the dashboard's data has not arrived yet, and the page starts at `useState([])`
+           * — every child is such a child, so RGL reports a grid of 1x1 stubs and this handler
+           * saved it over the real design before that design was ever applied. Every widget on
+           * every dashboard rendered 159x40, and the saved layout in storage stayed correct the
+           * whole time, which is what made it look like a rendering bug.
+           *
+           * The `colsRef` guard above does not catch this: it fires on a breakpoint change, and on
+           * first paint there has not been one, so `12 === 12` lets the invention through.
+           */
+          if (layout.length === 0) return;
           onLayoutChange(l.map((it) => ({ i: it.i, x: it.x, y: it.y, w: it.w, h: it.h })));
         }}
         draggableHandle=".ant-card-head"
