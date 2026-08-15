@@ -50,12 +50,20 @@ internal static class AnalyticsServiceCollectionExtensions
             ]));
 
             services.AddScoped<IQueryEngine, SqlQueryEngine>();
+
+            // The quota report calls a stored procedure, so it is registered on the same gate as the
+            // engine: without the warehouse there is nothing for it to call.
+            services.AddScoped<IEngineerQuotaReader, EngineerQuotaReader>();
         }
         else
         {
             // Default: in-memory pipeline (ported from analytics-web TypeScript engine)
             services.AddScoped<ISemanticModelStore, SemanticModelStore>();
             services.AddScoped<IQueryEngine, QueryEngine>();
+
+            // There is no in-memory stand-in for a stored procedure. Registered anyway, so the
+            // failure says what is wrong rather than "no service for IEngineerQuotaReader".
+            services.AddScoped<IEngineerQuotaReader, UnconfiguredEngineerQuotaReader>();
         }
 
         // Real AI service. Registered WITHOUT AddHttpClient so it bypasses Aspire's standard

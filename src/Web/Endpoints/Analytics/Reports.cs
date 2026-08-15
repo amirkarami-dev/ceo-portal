@@ -2,6 +2,7 @@ using Mabhas19.Application.Analytics.Reports;
 using Mabhas19.Application.Analytics.Reports.Commands.SaveReport;
 using Mabhas19.Application.Analytics.Reports.Commands.UpdateReport;
 using Mabhas19.Application.Analytics.Reports.Queries.ExecuteReport;
+using Mabhas19.Application.Analytics.Reports.Queries.GetEngineerQuota;
 using Mabhas19.Application.Analytics.Reports.Queries.GenerateReport;
 using Mabhas19.Application.Analytics.Reports.Queries.GetReports;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -19,6 +20,7 @@ public class Reports : Mabhas19.Web.Infrastructure.IEndpointGroup
         groupBuilder.RequireAuthorization();
 
         groupBuilder.MapPost(ExecuteReport, "execute");
+        groupBuilder.MapPost(GetEngineerQuota, "custom/engineer-quota");
         groupBuilder.MapPost(GenerateReportFromPrompt, "generate");
         groupBuilder.MapGet(GetReports, string.Empty);
         groupBuilder.MapPost(SaveReport, string.Empty);
@@ -27,6 +29,21 @@ public class Reports : Mabhas19.Web.Infrastructure.IEndpointGroup
 
     public static async Task<Ok<ReportResultDto>> ExecuteReport(ISender sender, ReportDefinitionDto definition)
         => TypedResults.Ok(await sender.Send(new ExecuteReportQuery(definition)));
+
+    /// <summary>
+    /// «وضعیت سهمیه ثبت شده مهندسان به تفکیک شهر و رشته» — one wide row from a stored procedure.
+    /// </summary>
+    /// <remarks>
+    /// Under <c>custom/</c> because it is not a report definition the engine can execute: its data is
+    /// a procedure, its dimension is in the column names, and its parameters are procedure arguments.
+    /// The route is the contract <c>analytics-web</c>'s custom-report registry already calls — see
+    /// <c>docs/design/2026-08-15-custom-reports-engineer-quota.md</c>.
+    ///
+    /// POST rather than GET despite being a read: it keeps the two ids in a typed body next to the
+    /// other analytics endpoints, all of which post.
+    /// </remarks>
+    public static async Task<Ok<EngineerQuotaDto>> GetEngineerQuota(ISender sender, EngineerQuotaRequest request)
+        => TypedResults.Ok(await sender.Send(new GetEngineerQuotaQuery(request.CityId, request.Reshte)));
 
     public static async Task<Ok<ReportDefinitionDto>> GenerateReportFromPrompt(ISender sender, GenerateReportRequest request)
         => TypedResults.Ok(await sender.Send(new GenerateReportQuery(request.Prompt, request.SemanticModelId)));
@@ -47,6 +64,9 @@ public class Reports : Mabhas19.Web.Infrastructure.IEndpointGroup
         return TypedResults.NoContent();
     }
 }
+
+/// <summary>Request body for POST /api/Reports/custom/engineer-quota.</summary>
+public sealed record EngineerQuotaRequest(int CityId, int Reshte);
 
 /// <summary>Request body for POST /api/Reports/generate.</summary>
 public sealed record GenerateReportRequest(string Prompt, string SemanticModelId);

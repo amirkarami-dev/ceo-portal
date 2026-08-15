@@ -1243,6 +1243,22 @@ server's graph, so both of those still get the old module.
 **Why it matters:** the instinct is to trust a fresh tab. Twice this session a genuine "it is only HMR
 debris" turned out to be right, so the third case looked like the same thing and was not.
 
+### Saving a report DROPS every field the DTO does not declare
+**Symptom:** a property you put on a report definition in the browser is simply not there when the
+report is read back. No error, no warning — and it works perfectly in mock mode, because the mock
+stores the object you handed it.
+**Cause:** `SaveReportCommandHandler` stores `JsonSerializer.Serialize(request.Definition)` — the
+**typed** `ReportDefinitionDto`. The incoming JSON binds to that DTO, unknown members are ignored,
+and the re-serialised copy contains only what the DTO declares.
+**Notably missing:** `presentation`. So `presentation.views` never survives the API, which is why
+every production report re-derives its views through `chooseView`, and why a custom report — which
+IS a definition with `views[0].library === "custom"` — cannot be created in production at all.
+**How to check:** `GET /api/Reports` and look at `Object.keys(definition)`. Anything absent there is
+being dropped on save, not on read.
+**Before adding a field to that DTO:** `ReportViewer` *prefers* `presentation.views` when non-empty,
+so persisting views changes behaviour for every report that is ever re-saved — it freezes whatever
+auto-viz picked instead of re-deriving it.
+
 ### A custom report is the escape hatch for anything the query engine cannot express
 **When you need it:** the data is a stored procedure, or the result is one wide row whose dimension
 lives in its column names, or the parameters are procedure arguments rather than column filters.
