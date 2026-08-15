@@ -247,7 +247,9 @@ export const SEED_DASHBOARDS: DashboardRecord[] = [
     ],
     layout: [
       { i: "w1", x: 0, y: 0, w: 6, h: 4 },
-      { i: "w2", x: 0, y: 4, w: 12, h: 10 },
+      // h:16 -> 16*40 + 15*10 = 790px. The report is a note, a six-column table AND four rings; at
+      // h:10 the rings sat below the card's scroll line, so the widget demonstrated half of itself.
+      { i: "w2", x: 0, y: 4, w: 12, h: 16 },
     ],
   },
 ];

@@ -1227,6 +1227,38 @@ was **0**: the tab had never been laid out. `resize_window` to a real size gave 
 **Read `window.innerWidth` before believing any layout measurement**, and treat "every variant is
 identical" as a symptom, not a result.
 
+### The dev server can serve a STALE transform, and it looks exactly like a real bug
+**Symptom:** a runtime `ReferenceError: X is not defined` for a symbol that is plainly imported in the
+source. `npm run build`, `tsc` and the whole test suite are green. A fresh browser tab still fails, so
+it does not look like HMR debris either.
+**Cause:** Vite's module graph missed a file rewrite. Editing files with an external tool — a Python
+script rewriting the whole file rather than an editor patching it — can slip past the watcher, and the
+server keeps serving the transform it cached earlier. The served module is a genuinely older version
+of the file.
+**How to confirm in one step:** fetch the module and read what the server is actually sending —
+`fetch('/src/path/File.tsx?t='+Date.now()).then(r=>r.text())`. If the import line is missing there but
+present on disk, it is the server, not the code.
+**Fix:** restart the dev server. Not a hard reload, not a new tab — the stale copy lives in the
+server's graph, so both of those still get the old module.
+**Why it matters:** the instinct is to trust a fresh tab. Twice this session a genuine "it is only HMR
+debris" turned out to be right, so the third case looked like the same thing and was not.
+
+### A custom report is the escape hatch for anything the query engine cannot express
+**When you need it:** the data is a stored procedure, or the result is one wide row whose dimension
+lives in its column names, or the parameters are procedure arguments rather than column filters.
+`SqlQueryEngine` builds `SELECT … FROM [table] … GROUP BY …` and does none of those — and neither can
+Ask AI, which emits `ReportDefinition`s for that same engine.
+**How:** register an entry in `presentation/custom/registry.ts` and save a definition with
+`library: "custom"`, `component: "<id>"`. Parameters go in **`view.options`**, not `view.mapping` —
+`ViewMapping` is a fixed set of chart bindings with no index signature.
+**The part that bites:** a custom report has **no `QueryResult`**, and far more code assumes one
+exists than you will find by reading. `ReportViewer` needed four exemptions (the execute effect, a
+*second* `!semantic` check in the render guard, `result.total === 0`, and `FilterBar`) and
+`WidgetFrame` five (the query, the views memo, `loading`, the switcher, the three export buttons).
+**`loading` is the sneaky one:** a **disabled** react-query reports `isLoading` forever, so a widget
+spins permanently rather than erroring.
+**Where:** `docs/design/2026-08-15-custom-reports-engineer-quota.md` has the full reasoning.
+
 ### react-grid-layout invents a layout, then hands it back for you to save
 **Symptom:** every widget on every dashboard renders tiny — 159x40 — while the layout stored in the
 database is perfectly correct. Which is what makes it read as a rendering bug, and it is not.

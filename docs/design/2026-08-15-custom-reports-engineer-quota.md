@@ -1,7 +1,7 @@
 # Custom reports, and the first one: engineer quota by city and discipline
 
-**Status:** **steps 1-7 done** — see the memos at the end. Branch `feat/custom-reports`.
-Waiting on "start step 8" (worklog and propagation). Step 4's real-mode switch shipped inside step 1.
+**Status:** **DONE — all eight steps.** Branch `feat/custom-reports`, not merged, **not deployed**
+(the endpoint does not exist yet). Worklog: `docs/worklog/2026-08-15-custom-reports-engineer-quota.md`. Step 4's real-mode switch shipped inside step 1.
 **Host:** `analytics-web`. **Scope agreed:** frontend first against a mock row; the .NET endpoint is a
 separate follow-up with its contract pinned here (§ *The endpoint contract*).
 
