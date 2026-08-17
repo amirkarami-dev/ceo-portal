@@ -10,7 +10,8 @@
         "src/Auth"
       ],
       "port": 5100,
-      "autoPort": false
+      "autoPort": false,
+      "url": "http://auth.localhost:5100"
     },
     {
       "name": "api",
@@ -36,7 +37,8 @@
         "3000"
       ],
       "port": 3000,
-      "autoPort": false
+      "autoPort": false,
+      "url": "http://mabhas19.localhost:3000"
     },
     {
       "name": "kurdnezam-web",

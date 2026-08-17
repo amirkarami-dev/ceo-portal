@@ -2,7 +2,12 @@
 
 import { useMemo, useState, type FormEvent } from "react"
 import { useTranslations } from "next-intl"
-import { M19_CITY_CLIMATE, M19_CLIMATE_DEFINITIONS, getCityClimate } from "@/features/assessment/data/climate"
+import {
+  M19_CITY_CLIMATE,
+  M19_CLIMATE_DEFINITIONS,
+  getCityAppendix2Class,
+  getCityClimate,
+} from "@/features/assessment/data/climate"
 import { calcBuildingGroup } from "@/features/assessment/data/utils"
 import type { CreateProjectInput } from "@/lib/types"
 import {
@@ -29,6 +34,17 @@ function toNum(v: string): number | undefined {
   return Number.isFinite(n) ? n : undefined
 }
 
+/**
+ * The cities on offer, and the one a new project starts on.
+ *
+ * Kurdistan only for now — the province this is being used in. **This is a UI gate and nothing
+ * else:** `M19_CITY_CLIMATE` still carries all 31 cities and every climate lookup still answers for
+ * them, so opening the list back up means listing more names here (or dropping the filter below) and
+ * nothing more. No data was removed to make this happen.
+ */
+const ALLOWED_CITIES = ["سنندج"]
+const DEFAULT_CITY = "سنندج"
+
 export function ProjectForm({ initial, submitting, onSubmit, onCancel }: ProjectFormProps) {
   const t = useTranslations("projects")
   const tCommon = useTranslations("common")
@@ -36,8 +52,16 @@ export function ProjectForm({ initial, submitting, onSubmit, onCancel }: Project
   const [title, setTitle] = useState(initial?.title ?? "")
   const [client, setClient] = useState(initial?.client ?? "")
   const [address, setAddress] = useState(initial?.address ?? "")
-  const [city, setCity] = useState(initial?.city ?? "")
-  const [climateCode, setClimateCode] = useState(initial?.climateCode ?? "")
+  /**
+   * A new project opens on the default city; an existing one keeps exactly what it has, including
+   * nothing. Defaulting in edit mode too would let opening a city-less project and pressing save
+   * assign it a city nobody chose.
+   */
+  const initialCity = initial ? (initial.city ?? "") : DEFAULT_CITY
+  const [city, setCity] = useState(initialCity)
+  const [climateCode, setClimateCode] = useState(
+    initial?.climateCode ?? (initialCity ? getCityClimate(initialCity) : "")
+  )
   const [totalArea, setTotalArea] = useState(
     initial?.totalArea != null ? String(initial.totalArea) : ""
   )
@@ -54,6 +78,19 @@ export function ProjectForm({ initial, submitting, onSubmit, onCancel }: Project
     setClimateCode(next ? getCityClimate(next) : "")
   }
 
+  /**
+   * The allowed cities, plus the project's own city when it is not among them. A project created
+   * before this gate — or imported from the other system — must still show its real city: dropping it
+   * from the list would leave the select with a value it has no option for, which renders blank and
+   * looks like the city was lost.
+   */
+  const cityOptions = useMemo(() => {
+    const allowed = M19_CITY_CLIMATE.filter((c) => ALLOWED_CITIES.includes(c.city))
+    if (!initialCity || allowed.some((c) => c.city === initialCity)) return allowed
+    const own = M19_CITY_CLIMATE.find((c) => c.city === initialCity)
+    return own ? [own, ...allowed] : allowed
+  }, [initialCity])
+
   const group = useMemo(
     () =>
       calcBuildingGroup({
@@ -67,6 +104,11 @@ export function ProjectForm({ initial, submitting, onSubmit, onCancel }: Project
   const climateLabel = climateCode
     ? M19_CLIMATE_DEFINITIONS[climateCode] ?? climateCode
     : ""
+
+  // «رده اقلیمی» as published in پیوست ۲ of the 5th edition, shown next to the code the assessment
+  // actually uses — the two come from different zoning systems and routinely disagree, so both are
+  // named rather than one being silently presented as the other.
+  const appendix2Class = city ? getCityAppendix2Class(city) : undefined
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
@@ -109,8 +151,12 @@ export function ProjectForm({ initial, submitting, onSubmit, onCancel }: Project
       <div className="grid gap-x-4 sm:grid-cols-2">
         <Field label={t("city")}>
           <Select value={city} onChange={(e) => handleCity(e.target.value)}>
-            <option value="">{t("selectCity")}</option>
-            {M19_CITY_CLIMATE.map((c) => (
+            {/* The "choose a city" placeholder only where it is a real choice: with one city already
+                selected it would exist purely to let someone clear the field. */}
+            {cityOptions.length > 1 || !city ? (
+              <option value="">{t("selectCity")}</option>
+            ) : null}
+            {cityOptions.map((c) => (
               <option key={c.city} value={c.city}>
                 {c.city} ({c.province})
               </option>
@@ -124,6 +170,19 @@ export function ProjectForm({ initial, submitting, onSubmit, onCancel }: Project
             readOnly
             disabled
           />
+          {city ? (
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              {t("climateAppendix2")}:{" "}
+              {appendix2Class ? (
+                // The class is Latin inside RTL copy; its own dir keeps «5C» from being reordered.
+                <span dir="ltr" className="font-semibold">
+                  {appendix2Class}
+                </span>
+              ) : (
+                t("climateAppendix2Missing")
+              )}
+            </p>
+          ) : null}
         </Field>
       </div>
 

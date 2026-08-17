@@ -22,7 +22,9 @@ Also, when a task teaches something reusable:
 
 | Date | Record | Area | Status |
 |---|---|---|---|
-| 2026-08-15 | [A renamed report kept its old name everywhere except its own page](2026-08-15-renamed-report-title.md) | analytics | fixed, **not deployed** |
+| 2026-08-17 | [The project form offers سنندج only, and starts on it](2026-08-17-city-filter-sanandaj.md) | mabhas19 | built and checked locally, **not deployed** |
+| 2026-08-17 | [The published climate class (پیوست ۲) now shows beside «کد اقلیم»](2026-08-17-climate-appendix2.md) | mabhas19 | built and checked locally, **not deployed** |
+| 2026-08-15 | [A renamed report kept its old name everywhere except its own page](2026-08-15-renamed-report-title.md) | analytics | **live** on analytic.myceo.ir |
 | 2026-08-15 | [The engineer-quota endpoint, and the DTO that was silently dropping half a report](2026-08-15-engineer-quota-endpoint.md) | analytics / api | **live** on api.myceo.ir; the report renders on production |
 | 2026-08-15 | [Custom reports, and the first one: engineer quota by city and discipline](2026-08-15-custom-reports-engineer-quota.md) | analytics | merged to `feat/custom-reports`, **not deployed** |
 | 2026-08-15 | [Every dashboard widget rendered 159x40, and the saved layout was correct the whole time](2026-08-15-dashboard-widget-sizing.md) | analytics | fixed, **not deployed** |

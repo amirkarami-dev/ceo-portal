@@ -87,6 +87,8 @@
     "address": "Address",
     "city": "City",
     "climateCode": "Climate code",
+    "climateAppendix2": "Climate class (Appendix 2, 5th ed.)",
+    "climateAppendix2Missing": "Not listed in Appendix 2",
     "totalArea": "Total area (m²)",
     "floorCount": "Floors",
     "unitCount": "Units",

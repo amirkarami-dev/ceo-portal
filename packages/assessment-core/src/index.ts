@@ -4,6 +4,9 @@
 
 // Climate + building-group data and helpers
 export * from "./data/climate"
+// The 5th edition's published city→climate-class table. Reference only, displayed beside the
+// climate code — the scoring keys off ./data/climate, which uses a different zoning.
+export * from "./data/climate-appendix2"
 export * from "./data/utils"
 
 // Assessment section/tool catalog + shared result types

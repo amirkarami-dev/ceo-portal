@@ -87,6 +87,8 @@
     "address": "آدرس",
     "city": "شهر",
     "climateCode": "کد اقلیم",
+    "climateAppendix2": "رده اقلیمی (پیوست ۲ ویرایش پنجم)",
+    "climateAppendix2Missing": "در پیوست ۲ نیامده است",
     "totalArea": "متراژ کل (m²)",
     "floorCount": "تعداد طبقات",
     "unitCount": "تعداد واحد",

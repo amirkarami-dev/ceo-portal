@@ -12,7 +12,7 @@ import {
   useUpdateProject,
 } from "@/lib/queries"
 import type { CreateProjectInput } from "@/lib/types"
-import { M19_CLIMATE_DEFINITIONS } from "@/features/assessment/data/climate"
+import { M19_CLIMATE_DEFINITIONS, getCityAppendix2Class } from "@/features/assessment/data/climate"
 import { ASSESSMENT_SECTIONS, type ToolKey } from "@/features/assessment/data/sections"
 import type { ProjectDto } from "@/components/projects/project-types"
 import { ProjectForm } from "@/components/projects/project-form"
@@ -217,6 +217,11 @@ export default function ProjectDetailClient() {
     ? M19_CLIMATE_DEFINITIONS[project.climateCode] ?? project.climateCode
     : t("noClimate")
 
+  // The published «رده اقلیمی» (پیوست ۲, 5th ed.) gets its own row rather than being folded into the
+  // one above: it comes from a different zoning system, disagrees for most cities, and only the code
+  // above drives the assessment. Merging them would read as one classification agreeing with itself.
+  const appendix2Class = project.city ? getCityAppendix2Class(project.city) : undefined
+
   const num = (n: number | string | null | undefined) =>
     fmt(locale, n == null ? n : Number(n))
 
@@ -237,6 +242,13 @@ export default function ProjectDetailClient() {
         { label: t("city"), value: project.city || "-", icon: "city" },
         { label: t("address"), value: project.address || "-", icon: "address" },
         { label: t("climateCode"), value: climateLabel, icon: "climate" },
+        {
+          label: t("climateAppendix2"),
+          value: project.city
+            ? (appendix2Class ?? t("climateAppendix2Missing"))
+            : t("noClimate"),
+          icon: "climate",
+        },
       ],
     },
   ]

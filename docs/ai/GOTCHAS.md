@@ -285,6 +285,57 @@ Keep the masked PAN too — it is useful even on an unverified row.
 
 ## Front end
 
+### Every mabhas19 project edit returns 400, because the id is only in the route
+**Symptom:** «ویرایش» on a project, change anything, save — the dialog stays put and the value does not
+change. `PUT /api/Projects/{id}` → **400** with an empty body, so there is nothing to read in the
+network tab and nothing in the API log.
+**Cause:** `Projects.UpdateProject` opens with `if (id != command.Id) return TypedResults.BadRequest();`
+while `projectsApi.update` sends `Partial<CreateProjectInput>` — no `id` — so `command.Id` binds to `0`
+and the guard can never pass. It fails for every project and every field; it is not data-dependent.
+**Fix:** send the id in the body (`body: { ...input, id: Number(id) }`) or drop the route/body guard.
+Pick one deliberately — the guard is worth keeping if the body carries an id at all.
+**Where:** `src/Web/Endpoints/Projects.cs:54`, `mabhas19-web/src/lib/endpoints.ts:32`.
+**How it surfaced:** while verifying something else. A 400 with an empty body reads like a bad payload;
+the only way to see it was capturing the request the app itself sends, token and all.
+
+### A single-option `<select>` that filters out the row's own value renders BLANK
+**Symptom:** a project's city looks lost after a list of cities is narrowed — the select shows nothing
+even though the record still holds `شیراز`.
+**Cause:** a `<select>` whose `value` matches no `<option>` displays empty. Filtering the option list
+without keeping the current value in it produces exactly that, and it is indistinguishable on screen
+from missing data.
+**Rule:** when gating a list, the options are *allowed ∪ the record's own value*. And default only in
+create mode — defaulting in edit mode means opening a record and pressing save silently writes a value
+nobody chose.
+**Where:** `mabhas19-web/src/components/projects/project-form.tsx` (`ALLOWED_CITIES`, `cityOptions`).
+
+### mabhas19 carries TWO climate zonings, and the codes overlap without meaning the same thing
+**Symptom:** «کد اقلیم» says تبریز is `5` «خیلی سرد»; پیوست ۲ of the fifth edition says `4B`. Neither
+is a typo, and five cities *do* agree, which makes the whole thing look like a partial data error.
+**Cause:** two systems. The scoring uses the legacy six — `1, 2, 3A, 3B, 4, 5` with Persian names,
+inherited from `climate.js` — and the fifth edition's appendix publishes ANSI/ASHRAE 169-2020 classes
+(`0B … 5C`) for 76 stations. Over the 31 cities the form offers: 25 differ, 5 collide in notation, 1
+(زاهدان) is absent from the document. `3B` means «چهارفصل و کم باران» in one and warm-dry in the other.
+**The trap:** feeding an appendix class into the scoring is silent. `OPAQUE_BASE_R_BY_CLIMATE` has no
+`4B` key, so `getOpaqueTargetR` falls back to the `3B` base and grades the building against the wrong
+requirement with no error anywhere. A test in `climateAppendix2.test.ts` asserts the eight foreign
+classes stay unknown to the scoring tables, so wiring them together fails loudly.
+**Rule:** the appendix class is reference data, displayed beside the code. Only `climate.ts` /
+`ClimateData.cs` keys drive a calculation. Switching the assessment to the fifth edition needs that
+edition's own R/U/SHGC tables, which the appendix does not contain.
+**Where:** `packages/assessment-core/src/data/climate-appendix2.ts` (the table, and the reasoning),
+`docs/worklog/2026-08-17-climate-appendix2.md`.
+
+### That appendix PDF cannot be read by extracting its text
+**Symptom:** `extract_text()` on `docs/mabhas19/پیوست2-….pdf` returns row numbers and Latin codes
+only — every Persian city name comes back empty, so a table looks like a list of loose numbers.
+**Cause:** the embedded Persian font has no ToUnicode map. The digits and Latin letters map fine,
+which is what makes the output look partially successful instead of broken.
+**Fix:** render the pages and read them as images (`pymupdf` → PNG at ~170 dpi), then cross-check the
+Latin codes against the text layer — the two together verify a transcription without needing a second
+reader. `pdftoppm` is not installed on this machine; `pip install pymupdf` works.
+**Where:** the same worklog records the exact approach.
+
 ### A report summary without its definition renders several unrelated blanks
 **Symptom:** report names/models/tags and Add Widget rows were blank, while the owner column
 showed a GUID.

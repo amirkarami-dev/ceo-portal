@@ -3,7 +3,7 @@
 - **Date:** 2026-08-15
 - **Area:** analytics
 - **Branch / commits:** `main`
-- **Status:** fixed, not deployed
+- **Status:** **live** on analytic.myceo.ir (bundle `index-I_9gtmhV.js`)
 
 ## Goal
 
@@ -66,4 +66,7 @@ that exact state instead. Renaming by hand and watching the list is worth one ch
 
 ## Follow-ups
 
-- Deploy — this is on `main` and not yet released.
+- **Deployed** on 2026-08-17: `analytics-web` rebuilt and that container alone recreated, healthy,
+  serving `index-I_9gtmhV.js` with `titleOverrides` present in the asset. The authenticated check —
+  seeing report 5's new name in the production list — was left to the user, because the browser pane
+  lost its session during the deploy and signing in on their behalf is out of bounds.
