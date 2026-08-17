@@ -244,11 +244,11 @@ PUT  /api/Room/{roomId}/board     ← { scene }
 | trap | reference | what we do |
 |---|---|---|
 | A library that positions children with `transform` and never writes `left` breaks under `dir="rtl"`, and the error **doubles** on drag | `GOTCHAS.md:1027` | Run the documented check on Excalidraw **before** writing code: `getComputedStyle(item).left` must be `0px` and the offset must equal the transform X. If it fails, the canvas container becomes `dir="ltr"` — a drawing surface has no reading direction, and Persian text inside it still shapes correctly |
-| `process is not defined` killed a drag library here, with a clean console | `GOTCHAS.md:525` | `globalThis.process ??= { env: {} }` at the entry **plus** a Vite `define`, before Excalidraw is imported. room-web has no shim today |
+| `process is not defined` killed a drag library here, with a clean console | `GOTCHAS.md:525` | **Do not add the shim preemptively — measured, it is not needed and the reflex is mildly dangerous.** Excalidraw 0.18.1's production bundle contains **no `process.env.X` reads** at all; its eleven `process` references are Emscripten's Node-vs-browser detection (`typeof process`, `process.versions`, `process.argv`) inside its WASM font-subsetting code. Defining a global `process` is exactly what that code sniffs for. It happens to stay safe with `{ env: {} }` — the check also requires `process.versions` to be an object — but a fuller shim would send it down the Node branch and into `process.argv[1]`. So: exercise drag, image paste and the text tool in step 1; **only if something actually breaks**, add `define: { "process.env": {} }` (the `analytics-web` precedent, `analytics-web/vite.config.ts:13-15`) and never a `process.versions` |
 | The blanket `prefers-reduced-motion` rule crushes every transition, and parks an antd Drawer off-screen | `GOTCHAS.md:507`, `global.css:83` | The board is on the stage, not in a Drawer, so the parked-drawer bug does not apply. No CSS transition may be load-bearing for showing it — conditional rendering only |
 | A canvas theme binds at init; ours has a live light/dark toggle | `GOTCHAS.md:1163` | Pass the mode to Excalidraw, read the background from `token.colorBgContainer` (the old code hard-codes `#1e1e1e`), and check the canvas repaints on flip |
 | `/assets/` is immutable with a hard 404; a miss **outside** it silently returns `index.html` with a 200 | `room-web/deploy/nginx.conf` | Confirm Excalidraw's fonts and locale chunks are emitted under `/assets/`, and fetch one real URL in production |
-| The image installs with `--legacy-peer-deps`, which also skips *installing* peers — it builds locally and dies in Docker | `GOTCHAS.md:775` | Declare every peer the code imports explicitly in `room-web/package.json` |
+| The image installs with `--legacy-peer-deps`, which also skips *installing* peers — it builds locally and dies in Docker | `GOTCHAS.md:775` | Checked against the registry: Excalidraw 0.18.1's **only** peers are `react` and `react-dom`, both already direct dependencies of `room-web`. Nothing new to declare. Re-check if the version moves |
 | jsdom has no canvas context and reports every element 0×0 | `GOTCHAS.md:494` | Tests never import Excalidraw; they exercise the sync logic against a fake channel |
 | A dynamic `import()` inside a test charges that test for the whole module graph | `GOTCHAS.md:764` | Same answer: no Excalidraw in tests |
 | `antd-jalali` breaks under Vitest and cannot be fixed by aliasing | `GOTCHAS.md:787` | Stub it in `vitest.setup.ts` when standing vitest up in this app |
@@ -294,7 +294,7 @@ Each step ends in something checkable on its own.
 
 | # | Step | Done when |
 |---|---|---|
-| 1 | Prerequisites: the `process` shim, the RTL check on Excalidraw, declared deps | the board renders at all, dragging does not double its offset |
+| 1 | Install Excalidraw 0.18.1, render a bare board, run the RTL check | the board renders, dragging does not double its offset, image paste and the text tool work |
 | 2 | `RoomBoards` table, the two routes, backend tests | the five backend cases pass on the server |
 | 3 | Vitest in `room-web` + `useWhiteboardSync` with its tests | deltas, chunking and the filter are proven without a browser |
 | 4 | `WhiteboardStage` with lazy Excalidraw, read-only when `canDraw` is false | a board draws locally; an audience member has no tools |
