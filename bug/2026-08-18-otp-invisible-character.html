@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="fa" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>گزارش خطا — کد ورود پیامکی پذیرفته نمی‌شد</title>
+<title>One engineer could never log in with the SMS code — Bug Report</title>
 <style>
   :root {
     --blue:#326BFC; --orange:#FE8113; --yellow:#FCBB21;
@@ -18,255 +18,207 @@
   body {
     background:
       radial-gradient(1100px 520px at 88% -8%, rgba(50,107,252,.16), transparent 60%),
-      radial-gradient(760px 420px at 8% 4%, rgba(253,65,30,.09), transparent 62%),
+      radial-gradient(760px 420px at 6% 4%, rgba(253,65,30,.09), transparent 62%),
       var(--bg);
     color:var(--text);
-    font-family:"Vazirmatn","Segoe UI",Tahoma,system-ui,sans-serif;
-    font-size:16px; line-height:1.85;
+    font-family:"Segoe UI",system-ui,-apple-system,sans-serif;
+    font-size:16px; line-height:1.8;
     -webkit-font-smoothing:antialiased;
   }
-  .wrap { max-width:1000px; margin:0 auto; padding:40px 20px 72px; }
+  a { color:#8fb0ff; }
+  .wrap { max-width:940px; margin:0 auto; padding:28px 20px 72px; }
 
-  /* ── header ─────────────────────────────────────────────── */
-  header { margin-bottom:34px; }
-  .eyebrow {
-    display:flex; flex-wrap:wrap; align-items:center; gap:8px;
-    font-size:13px; color:var(--muted); margin-bottom:14px;
-  }
-  .chip {
-    display:inline-flex; align-items:center; gap:6px;
-    padding:5px 12px; border-radius:999px;
-    border:1px solid var(--line); background:var(--surface);
-    font-size:12.5px; color:var(--muted); white-space:nowrap;
-  }
-  .chip.service { border-color:rgba(50,107,252,.5); color:#a9c2ff; background:rgba(50,107,252,.11); }
-  .chip.fixed   { border-color:rgba(36,175,126,.5); color:#7ee0b8; background:rgba(36,175,126,.11); }
-  .chip.sev     { border-color:rgba(254,129,19,.5); color:#ffc290; background:rgba(254,129,19,.11); }
-  h1 { font-size:clamp(25px,4.4vw,38px); line-height:1.35; margin:0 0 12px; font-weight:800; letter-spacing:-.4px; }
-  .lede { font-size:18px; color:var(--muted); max-width:66ch; margin:0; }
+  .back { display:inline-flex; align-items:center; gap:7px; font-size:13.5px; color:var(--muted); text-decoration:none; margin-bottom:22px; }
+  .back:hover { color:var(--text); }
 
-  /* ── layout ─────────────────────────────────────────────── */
-  section { margin-top:40px; }
-  h2 {
-    font-size:12.5px; text-transform:uppercase; letter-spacing:1.6px;
-    color:var(--faint); font-weight:700; margin:0 0 16px;
-    display:flex; align-items:center; gap:10px;
-  }
+  .tags { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
+  .tag { font-size:12px; padding:4px 11px; border-radius:999px; white-space:nowrap; border:1px solid var(--line); background:var(--surface); color:var(--muted); }
+  .tag.service { border-color:rgba(50,107,252,.5); color:#a9c2ff; background:rgba(50,107,252,.12); }
+  .tag.fixed   { border-color:rgba(36,175,126,.5); color:#7ee0b8; background:rgba(36,175,126,.12); }
+  .tag.high    { border-color:rgba(253,65,30,.5);  color:#ff9d86; background:rgba(253,65,30,.12); }
+
+  h1 { font-size:clamp(25px,4.4vw,36px); line-height:1.35; margin:0 0 10px; font-weight:800; letter-spacing:-.4px; }
+  .when { color:var(--faint); font-size:13.5px; font-variant-numeric:tabular-nums; margin:0 0 14px; }
+  .lede { font-size:18px; color:var(--muted); max-width:68ch; margin:0; }
+
+  section { margin-top:38px; }
+  h2 { font-size:12.5px; text-transform:uppercase; letter-spacing:1.6px; color:var(--faint); font-weight:700; margin:0 0 14px; display:flex; align-items:center; gap:10px; }
   h2::after { content:""; height:1px; flex:1; background:var(--line); }
-  h3 { font-size:17px; margin:26px 0 8px; font-weight:700; }
 
-  .card {
-    background:var(--surface); border:1px solid var(--line);
-    border-radius:var(--radius); padding:22px 24px;
-  }
-  .card + .card { margin-top:14px; }
-  .grid { display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:22px 24px; }
+  .card p:first-child { margin-top:0; }
+  .card p:last-child { margin-bottom:0; }
 
-  .fact { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:18px 20px; }
-  .fact .k { font-size:12px; color:var(--faint); letter-spacing:.4px; }
-  .fact .v { font-size:19px; font-weight:700; margin-top:6px; }
-  .fact.bad  .v { color:#ff9d86; }
-  .fact.good .v { color:#7ee0b8; }
-
-  /* ── the one-line explanation ───────────────────────────── */
-  .headline {
-    border:1px solid rgba(253,65,30,.42);
-    background:linear-gradient(180deg, rgba(253,65,30,.13), rgba(253,65,30,.05));
-    border-radius:var(--radius); padding:26px;
-  }
-  .headline p { margin:0; font-size:19px; line-height:1.8; }
+  .headline { border:1px solid rgba(253,65,30,.42); background:linear-gradient(180deg, rgba(253,65,30,.13), rgba(253,65,30,.05)); border-radius:var(--radius); padding:24px; }
+  .headline p { margin:0; font-size:18.5px; line-height:1.75; }
   .headline strong { color:#ffb4a1; }
 
-  /* ── code ───────────────────────────────────────────────── */
-  code, pre, .mono {
-    font-family:"JetBrains Mono","Cascadia Code",Consolas,monospace;
-    direction:ltr; unicode-bidi:embed; text-align:left;
-  }
+  .grid { display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(215px,1fr)); margin-top:14px; }
+  .fact { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:16px 18px; }
+  .fact .k { font-size:12px; color:var(--faint); }
+  .fact .v { font-size:18px; font-weight:700; margin-top:5px; }
+  .fact.bad .v { color:#ff9d86; }
+  .fact.good .v { color:#7ee0b8; }
+
+  code, pre, .mono { font-family:"JetBrains Mono","Cascadia Code",Consolas,monospace; }
   code { background:var(--surface-2); border:1px solid var(--line); padding:1.5px 7px; border-radius:6px; font-size:13.5px; }
-  pre {
-    background:#0a1122; border:1px solid var(--line); border-radius:12px;
-    padding:16px 18px; overflow-x:auto; font-size:13.5px; line-height:1.75; margin:12px 0 0;
-  }
+  pre { background:#0a1122; border:1px solid var(--line); border-radius:12px; padding:16px 18px; overflow-x:auto; font-size:13.5px; line-height:1.7; margin:12px 0 0; }
   pre .c { color:var(--faint); }
   pre .r { color:#ff9d86; }
   pre .g { color:#7ee0b8; }
 
-  /* ── timeline ───────────────────────────────────────────── */
   .tl { list-style:none; margin:0; padding:0; position:relative; }
-  .tl::before { content:""; position:absolute; inset-inline-start:7px; top:8px; bottom:8px; width:2px; background:var(--line); }
-  .tl li { position:relative; padding-inline-start:32px; padding-bottom:20px; }
-  .tl li::before {
-    content:""; position:absolute; inset-inline-start:0; top:9px;
-    width:16px; height:16px; border-radius:50%;
-    background:var(--surface); border:2px solid var(--line);
-  }
-  .tl li.hit::before { border-color:var(--green); background:rgba(36,175,126,.25); }
-  .tl li.miss::before { border-color:var(--faint); }
-  .tl .t { font-size:12.5px; color:var(--faint); }
-  .tl .d { margin-top:2px; }
+  .tl::before { content:""; position:absolute; left:7px; top:8px; bottom:8px; width:2px; background:var(--line); }
+  .tl li { position:relative; padding-left:32px; padding-bottom:18px; }
+  .tl li:last-child { padding-bottom:0; }
+  .tl li::before { content:""; position:absolute; left:0; top:9px; width:16px; height:16px; border-radius:50%; background:var(--surface); border:2px solid var(--faint); }
+  .tl li.hit::before { border-color:var(--green); background:rgba(36,175,126,.28); }
+  .no { color:#ff9d86; font-weight:700; }
+  .yes { color:#7ee0b8; font-weight:700; }
 
-  /* ── ruled-out table ────────────────────────────────────── */
-  .tbl { width:100%; border-collapse:collapse; font-size:15px; }
-  .tbl th, .tbl td { text-align:right; padding:11px 6px; border-bottom:1px solid var(--line); vertical-align:top; }
-  .tbl th { color:var(--faint); font-size:12px; text-transform:uppercase; letter-spacing:1px; font-weight:700; }
-  .tbl td:last-child { color:var(--muted); }
-  .no  { color:#ff9d86; font-weight:700; white-space:nowrap; }
-  .yes { color:#7ee0b8; font-weight:700; white-space:nowrap; }
-
-  ul.plain { margin:0; padding-inline-start:20px; }
-  ul.plain li { margin:7px 0; }
+  ul.plain { margin:0; padding-left:20px; }
+  ul.plain li { margin:8px 0; }
   .muted { color:var(--muted); }
 
-  footer { margin-top:52px; padding-top:20px; border-top:1px solid var(--line); color:var(--faint); font-size:13px; }
+  footer { margin-top:48px; padding-top:18px; border-top:1px solid var(--line); color:var(--faint); font-size:13px; }
   footer .mono { font-size:12.5px; }
 
   @media (max-width:560px) {
-    .wrap { padding:26px 15px 52px; }
-    .headline p { font-size:17px; }
+    .wrap { padding:20px 15px 52px; }
     body { font-size:15.5px; }
+    .headline p { font-size:17px; }
   }
 </style>
 </head>
 <body>
 <div class="wrap">
 
-<header>
-  <div class="eyebrow">
-    <span class="chip service">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 2 3 7v6c0 5 3.8 8.4 9 9 5.2-.6 9-4 9-9V7l-9-5Z"/></svg>
-      سامانه رفاهی مهندسین · refahi.kurdnezam.ir
-    </span>
-    <span class="chip">سرویس احراز هویت · auth.myceo.ir</span>
-    <span class="chip sev">اثر: یک مهندس، کاملاً بی‌راه‌حل</span>
-    <span class="chip fixed">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="m20 6-11 11-5-5"/></svg>
-      برطرف و منتشر شد
-    </span>
+  <a class="back" href="index.html">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M19 12H5m7-7-7 7 7 7"/></svg>
+    All bug reports
+  </a>
+
+  <div class="tags">
+    <span class="tag service">Login (auth.myceo.ir)</span>
+    <span class="tag service">Welfare (refahi.kurdnezam.ir)</span>
+    <span class="tag high">High — one user, no way around it</span>
+    <span class="tag fixed">Fixed and deployed</span>
   </div>
 
-  <h1>کد ورود درست بود، اما هرگز پذیرفته نمی‌شد</h1>
+  <h1>One engineer could never log in with the SMS code</h1>
+  <p class="when">Found 2026-08-18, 13:45 Tehran time · Fixed the same day, 14:05 · Engineer 2850159816</p>
   <p class="lede">
-    یک مهندس با کد ملی معتبر و شمارهٔ موبایل درست، پیامک کد ورود را دریافت می‌کرد و همان کد را وارد
-    می‌کرد؛ سامانه همیشه پاسخ می‌داد «کد وارد شده اشتباه یا منقضی شده است». برای بقیهٔ مهندسان
-    ورود بدون مشکل کار می‌کرد.
+    The code in the SMS was right. He put it in. The site still said the code was wrong or too old.
+    It happened every single time, and only to him. Every other engineer could log in with no trouble.
   </p>
-</header>
 
-<section>
-  <h2>در یک جمله</h2>
-  <div class="headline">
-    <p>
-      وقتی کد را از برنامهٔ پیامک <strong>کپی</strong> می‌کنید، یک نویسهٔ <strong>نامرئی</strong>
-      (علامت راست‌به‌چپ، <code>U+200F</code>) همراه آن کپی می‌شود. روی صفحه هیچ فرقی دیده نمی‌شود،
-      اما برای سرور کد شما یک نویسه بلندتر است — و مقایسه، پیش از آنکه حتی یک رقم را بررسی کند،
-      به‌خاطر اختلاف طول رد می‌کند.
-    </p>
-  </div>
-
-  <div class="grid" style="margin-top:14px">
-    <div class="fact bad">
-      <div class="k">آنچه کاربر می‌بیند</div>
-      <div class="v mono">44655</div>
+  <section>
+    <h2>What was wrong</h2>
+    <div class="headline">
+      <p>
+        When you <strong>copy</strong> a code from an SMS app, a <strong>hidden character</strong>
+        comes with it. You cannot see it. It takes no space on the screen. But it makes the code one
+        character longer — and the server checks the length first, so it says no before it even
+        looks at the numbers.
+      </p>
     </div>
-    <div class="fact bad">
-      <div class="k">آنچه سرور دریافت می‌کرد</div>
-      <div class="v mono">44655‏ <span style="font-size:13px;color:var(--faint)">(۶ نویسه)</span></div>
-    </div>
-    <div class="fact good">
-      <div class="k">آنچه سرور ذخیره کرده بود</div>
-      <div class="v mono">44655 <span style="font-size:13px;color:var(--faint)">(۵ نویسه)</span></div>
-    </div>
-  </div>
-</section>
 
-<section>
-  <h2>چرا فقط یک نفر</h2>
-  <div class="card">
-    <p style="margin:0">
-      بقیهٔ مهندسان کد را <strong>با دست تایپ می‌کنند</strong>؛ این مهندس آن را <strong>کپی</strong>
-      می‌کرد. تفاوت دقیقاً همین بود. به همین دلیل هم دادهٔ کاربر، شمارهٔ موبایل، وضعیت عضویت و
-      پیامک — همه سالم بودند و هیچ‌کدام سرنخی نمی‌دادند.
-    </p>
-  </div>
-</section>
+    <div class="grid">
+      <div class="fact good"><div class="k">Code the server made</div><div class="v mono">44655 <span style="font-size:12.5px;color:var(--faint)">· 5 long</span></div></div>
+      <div class="fact good"><div class="k">Code in the SMS</div><div class="v mono">44655 <span style="font-size:12.5px;color:var(--faint)">· the same</span></div></div>
+      <div class="fact bad"><div class="k">Code the server received</div><div class="v mono">44655‏ <span style="font-size:12.5px;color:var(--faint)">· 6 long</span></div></div>
+    </div>
+  </section>
 
-<section>
-  <h2>ریشهٔ فنی</h2>
-  <div class="card">
-    <p style="margin:0 0 4px">
-      تابع نرمال‌سازی، ارقام فارسی و عربی را به لاتین تبدیل می‌کرد، اما هر نویسهٔ دیگری را
-      دست‌نخورده عبور می‌داد. <code>Trim()</code> هم فاصله را حذف می‌کند، نه نویسهٔ نامرئی را.
-    </p>
-    <pre><span class="c">// مقایسه — پیش از بررسی محتوا، طول را می‌سنجد</span>
+  <section>
+    <h2>Why only one person</h2>
+    <div class="card">
+      <p>
+        Other engineers <strong>type</strong> the code with their fingers. This one <strong>copied</strong>
+        it. That was the whole difference.
+      </p>
+      <p class="muted">
+        It also made the bug hard to find. His account, his phone number, his membership and the SMS
+        were all fine — because none of them were the problem.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <h2>The technical reason</h2>
+    <div class="card">
+      <p>
+        The code that cleans user input changed Persian numbers into English numbers, but let every
+        other character through. <code>Trim()</code> removes spaces, but a hidden mark is not a space.
+      </p>
+      <pre><span class="c">// This check compares LENGTH before it compares content.</span>
 CryptographicOperations.FixedTimeEquals(
-    Encoding.UTF8.GetBytes(stored),      <span class="g">// "44655"  → 5 بایت</span>
-    Encoding.UTF8.GetBytes(code.Trim())  <span class="r">// "44655‏" → 8 بایت</span>
-);                                       <span class="r">// ⇒ false، بدون هیچ پیامی</span></pre>
-    <p class="muted" style="margin-top:14px">
-      همین تله روی فیلد «کد ملی» هم وجود داشت و آنجا به شکل «کد ملی باید ۱۰ رقم باشد» دیده می‌شد.
-    </p>
-  </div>
-</section>
+    Encoding.UTF8.GetBytes(stored),      <span class="g">// "44655"  → 5 bytes</span>
+    Encoding.UTF8.GetBytes(code.Trim())  <span class="r">// "44655‏" → 8 bytes</span>
+);                                       <span class="r">// ⇒ false, and nothing is written down</span></pre>
+      <p class="muted" style="margin-top:14px">
+        The national code box had the same problem. There it showed a different message:
+        “the national code must be 10 digits”.
+      </p>
+    </div>
+  </section>
 
-<section>
-  <h2>مسیر تشخیص</h2>
-  <div class="card">
-    <ul class="tl">
-      <li class="miss"><div class="t">فرضیهٔ ۱</div><div class="d">رکورد مهندس در سامانهٔ نظام مهندسی ایراد دارد — <span class="no">رد شد:</span> وضعیت «فعال»، پروانه معتبر تا ۱۴۰۶/۱۱/۱۵.</div></li>
-      <li class="miss"><div class="t">فرضیهٔ ۲</div><div class="d">شمارهٔ موبایل قدیمی یا ناهماهنگ — <span class="no">رد شد:</span> هر دو پایگاه داده «۰۹۱۸۳۷۳۴۲۷۳» را داشتند.</div></li>
-      <li class="miss"><div class="t">فرضیهٔ ۳</div><div class="d">محدودیت ارسال یا قفل حساب — <span class="no">رد شد:</span> هیچ هشداری در لاگ نبود و حساب قفل نبود.</div></li>
-      <li class="miss"><div class="t">فرضیهٔ ۴</div><div class="d">پیامک نمی‌رسد یا سامانهٔ پیامک کد خودش را می‌فرستد — <span class="no">رد شد:</span> پیامک می‌رسید، ۵ رقمی و با همان متن.</div></li>
-      <li class="miss"><div class="t">فرضیهٔ ۵</div><div class="d">انقضای ۱۲۰ ثانیه‌ای — <span class="no">رد شد:</span> با ارسال یکبار و ورود سریع هم شکست خورد.</div></li>
-      <li class="hit"><div class="t">آزمایش قطعی</div><div class="d"><span class="yes">یافت شد:</span> همان کد، وقتی <strong>کپی</strong> شد رد شد و وقتی <strong>با دست تایپ</strong> شد پذیرفته شد.</div></li>
-    </ul>
-  </div>
-</section>
+  <section>
+    <h2>How it was found</h2>
+    <div class="card">
+      <ul class="tl">
+        <li><strong>Is his record turned off in the engineering system?</strong> <span class="no">No.</span> Active, licence valid until 1406/11/15.</li>
+        <li><strong>Is his phone number old or different?</strong> <span class="no">No.</span> Both databases hold 0918•••4273.</li>
+        <li><strong>Is he blocked by a send limit?</strong> <span class="no">No.</span> The server wrote no warning of any kind.</li>
+        <li><strong>Does the SMS arrive, and is it our code?</strong> <span class="no">Yes, it arrives.</span> Five digits, our wording, and it matched what the server stored.</li>
+        <li><strong>Did the code run out of time?</strong> <span class="no">No.</span> It failed even when sent once and used straight away.</li>
+        <li class="hit"><strong>Copy versus type.</strong> <span class="yes">Found it.</span> The same code failed when copied and worked when typed by hand.</li>
+      </ul>
+    </div>
+  </section>
 
-<section>
-  <h2>اصلاح</h2>
-  <div class="card">
-    <ul class="plain">
-      <li><strong>ورودی فقط به ارقام تبدیل می‌شود.</strong> هر نویسهٔ دیگری — از جمله نامرئی‌ها — حذف می‌شود. هر دو فیلد «کد ملی» و «کد تأیید» را پوشش می‌دهد.</li>
-      <li><strong>دلیل ردشدن ثبت می‌شود.</strong> پیش‌تر «منقضی»، «اشتباه» و «اصلاً ارسال نشده» هر سه یک جملهٔ یکسان بودند و در لاگ هیچ اثری نداشتند. حالا طولِ دو مقدار ثبت می‌شود (نه خودِ کد).</li>
-      <li><strong>پاسخ سرویس پیامک خوانده می‌شود.</strong> پیش‌تر فقط وضعیت HTTP بررسی می‌شد و رد شدن یک شماره کاملاً نامرئی بود.</li>
-      <li><strong>عمر کد از ۱۲۰ به ۳۰۰ ثانیه.</strong> پیامک این مهندس بیش از یک دقیقه در راه بود؛ عملاً حدود ۴۵ ثانیه فرصت می‌ماند.</li>
-    </ul>
-  </div>
-</section>
+  <section>
+    <h2>What was changed</h2>
+    <div class="card">
+      <ul class="plain">
+        <li><strong>Only numbers are kept.</strong> Anything else, including hidden marks, is thrown away. This covers both the code box and the national code box.</li>
+        <li><strong>The server now writes down why a code was refused.</strong> Before, “too old”, “wrong” and “never sent” all looked the same and left no trace.</li>
+        <li><strong>The SMS service's answer is now read.</strong> It replies “200 OK” and puts the real result inside the message body, which was being thrown away.</li>
+        <li><strong>A code now lives 5 minutes instead of 2.</strong> His SMS took over a minute to arrive, so he had about 45 seconds to use it.</li>
+      </ul>
+    </div>
+  </section>
 
-<section>
-  <h2>تأیید پس از انتشار</h2>
-  <div class="card">
-    <p style="margin:0 0 4px" class="muted">با یک کد عمداً نادرست به‌همراه همان نویسهٔ نامرئی، روی سرور واقعی:</p>
-    <pre>msgway accepted the send for 0918••••273:
-  {"status":"success","error":null,"referenceID":"1787048913621852686"}
+  <section>
+    <h2>Proof after the fix</h2>
+    <div class="card">
+      <p class="muted">A wrong code was sent on purpose, with the hidden mark attached, on the live server:</p>
+      <pre>msgway accepted the send: {"status":"success","error":null,"referenceID":"1787048913621852686"}
 
-OTP verify ... failed: code did not match
-  (stored <span class="g">5</span> chars, supplied <span class="g">5</span>).  <span class="c">← مرورگر ۶ نویسه فرستاد، سرور ۵ دریافت کرد</span></pre>
-    <p style="margin-top:14px">
-      و «کد ملی» با نویسهٔ نامرئی این بار پذیرفته شد و به مرحلهٔ کد رسید.
-    </p>
-  </div>
-</section>
+OTP verify failed: code did not match
+  (stored <span class="g">5</span> chars, supplied <span class="g">5</span>)   <span class="c">← the browser sent 6, the server got 5</span></pre>
+      <p style="margin-top:14px">The hidden mark is now removed. A national code with a hidden mark is also accepted.</p>
+    </div>
+  </section>
 
-<section>
-  <h2>درس قابل انتقال</h2>
-  <div class="card">
-    <p style="margin:0">
-      مقایسهٔ زمان‌ثابت، اختلاف طول را پیش از محتوا رد می‌کند. پس هر ورودی‌ای که کاربر ممکن است
-      «کپی» کند باید تا حدِ الفبای مورد انتظار خودش پاک شود — نه فقط <code>Trim</code>. و هر مسیری
-      که می‌تواند بی‌صدا شکست بخورد، باید <em>دلیل</em> شکست را جایی بنویسد؛ وگرنه تشخیصش از بیرون
-      به چند ساعت و چند آزمایش زنده نیاز پیدا می‌کند.
-    </p>
-  </div>
-</section>
+  <section>
+    <h2>What to remember</h2>
+    <div class="card">
+      <p>
+        If a check compares length first, then anything a person might <em>copy</em> must be cleaned
+        down to what you expect — not just trimmed. And any step that can fail quietly must write
+        down <em>why</em>. Without that line, this took database queries and four live logins to find.
+        With it, one minute.
+      </p>
+    </div>
+  </section>
 
-<footer>
-  <div>گزارش خطا — ۲۸ مرداد ۱۴۰۵ · <span class="mono">2026-08-18</span></div>
-  <div class="mono" style="margin-top:6px">
-    fix: ccb5b86 · auth image f5a31e84 · files: EngineerLogin.cshtml.cs, OtpService.cs, SmsDirectSender.cs, appsettings.json
-  </div>
-</footer>
+  <footer>
+    <div>Bug report · 2026-08-18</div>
+    <div class="mono" style="margin-top:6px">
+      fix ccb5b86 · auth image f5a31e84 · EngineerLogin.cshtml.cs, OtpService.cs, SmsDirectSender.cs, appsettings.json
+    </div>
+  </footer>
 
 </div>
 </body>

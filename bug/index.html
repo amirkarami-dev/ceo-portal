@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bug Reports — CEO Portal</title>
+<style>
+  :root {
+    --blue:#326BFC; --orange:#FE8113; --yellow:#FCBB21;
+    --red:#FD411E; --green:#24AF7E; --cyan:#06B5F8;
+
+    --bg:#0a0f1c; --surface:#111a2e; --surface-2:#16203a;
+    --line:#22304f; --text:#eef2fb; --muted:#93a2c4; --faint:#64749a;
+    --radius:14px;
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; padding:0; }
+  body {
+    background:
+      radial-gradient(1100px 520px at 85% -10%, rgba(50,107,252,.15), transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font-family:"Segoe UI",system-ui,-apple-system,sans-serif;
+    font-size:16px; line-height:1.7;
+    -webkit-font-smoothing:antialiased;
+  }
+  a { color:inherit; text-decoration:none; }
+  .wrap { max-width:1080px; margin:0 auto; padding:36px 20px 72px; }
+
+  /* ── header ─────────────────────────────────────────────── */
+  .top { display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:28px; }
+  h1 { font-size:clamp(26px,4vw,36px); margin:0 0 6px; font-weight:800; letter-spacing:-.5px; }
+  .sub { color:var(--muted); margin:0; font-size:16px; }
+  .count { color:var(--faint); font-size:13px; white-space:nowrap; }
+
+  /* ── service menu ───────────────────────────────────────── */
+  nav { margin-bottom:24px; }
+  .menu-label { font-size:11.5px; letter-spacing:1.4px; text-transform:uppercase; color:var(--faint); font-weight:700; margin-bottom:10px; }
+  .menu { display:flex; flex-wrap:wrap; gap:8px; }
+  .tab {
+    display:inline-flex; align-items:center; gap:7px;
+    padding:7px 14px; border-radius:999px; cursor:pointer;
+    border:1px solid var(--line); background:var(--surface);
+    color:var(--muted); font-size:13.5px; font-family:inherit;
+    transition:border-color .15s, color .15s, background .15s;
+  }
+  .tab:hover { border-color:#3a4d78; color:var(--text); }
+  .tab[aria-pressed="true"] { border-color:var(--blue); color:#fff; background:rgba(50,107,252,.18); }
+  .tab .n {
+    font-size:11.5px; padding:1px 7px; border-radius:999px;
+    background:var(--surface-2); color:var(--faint);
+  }
+  .tab[aria-pressed="true"] .n { background:rgba(255,255,255,.16); color:#fff; }
+  .tab:focus-visible { outline:2px solid var(--blue); outline-offset:2px; }
+
+  /* ── bug cards ──────────────────────────────────────────── */
+  .list { display:flex; flex-direction:column; gap:14px; }
+  .bug {
+    display:block; background:var(--surface); border:1px solid var(--line);
+    border-radius:var(--radius); padding:20px 22px;
+    transition:border-color .15s, transform .15s;
+  }
+  .bug:hover { border-color:#3a4d78; transform:translateY(-1px); }
+  .bug:focus-visible { outline:2px solid var(--blue); outline-offset:2px; }
+  .bug-top { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:10px; }
+  .when { font-size:12.5px; color:var(--faint); font-variant-numeric:tabular-nums; margin-inline-end:auto; }
+  .bug h2 { font-size:19px; margin:0 0 8px; font-weight:700; line-height:1.4; }
+  .bug p { margin:0; color:var(--muted); font-size:15px; max-width:75ch; }
+  .more { display:inline-block; margin-top:12px; font-size:13.5px; color:#8fb0ff; }
+
+  .tag {
+    font-size:11.5px; padding:3px 10px; border-radius:999px; white-space:nowrap;
+    border:1px solid var(--line); background:var(--surface-2); color:var(--muted);
+  }
+  .tag.service { border-color:rgba(50,107,252,.5); color:#a9c2ff; background:rgba(50,107,252,.12); }
+  .tag.fixed   { border-color:rgba(36,175,126,.5); color:#7ee0b8; background:rgba(36,175,126,.12); }
+  .tag.open    { border-color:rgba(252,187,33,.5); color:#ffd97a; background:rgba(252,187,33,.12); }
+  .tag.high    { border-color:rgba(253,65,30,.5);  color:#ff9d86; background:rgba(253,65,30,.12); }
+  .tag.medium  { border-color:rgba(254,129,19,.5); color:#ffc290; background:rgba(254,129,19,.12); }
+
+  .empty { color:var(--faint); padding:34px 4px; text-align:center; display:none; }
+  .empty.show { display:block; }
+
+  footer { margin-top:44px; padding-top:18px; border-top:1px solid var(--line); color:var(--faint); font-size:13px; }
+
+  @media (max-width:560px) {
+    .wrap { padding:24px 15px 52px; }
+    body { font-size:15.5px; }
+    .bug h2 { font-size:17.5px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <div>
+      <h1>Bug Reports</h1>
+      <p class="sub">Problems found in the live systems, and what was done about them.</p>
+    </div>
+    <div class="count" id="count"></div>
+  </div>
+
+  <nav>
+    <div class="menu-label">Service</div>
+    <div class="menu" id="menu" role="group" aria-label="Filter bugs by service">
+      <button class="tab" data-service="all" aria-pressed="true">All <span class="n" data-count="all"></span></button>
+      <button class="tab" data-service="auth" aria-pressed="false">Login (auth) <span class="n" data-count="auth"></span></button>
+      <button class="tab" data-service="walfare" aria-pressed="false">Welfare (refahi) <span class="n" data-count="walfare"></span></button>
+      <button class="tab" data-service="room" aria-pressed="false">Meetings (room) <span class="n" data-count="room"></span></button>
+      <button class="tab" data-service="analytics" aria-pressed="false">Analytics <span class="n" data-count="analytics"></span></button>
+      <button class="tab" data-service="mabhas19" aria-pressed="false">Mabhas19 <span class="n" data-count="mabhas19"></span></button>
+      <button class="tab" data-service="election" aria-pressed="false">Elections <span class="n" data-count="election"></span></button>
+      <button class="tab" data-service="vms" aria-pressed="false">Cameras (VMS) <span class="n" data-count="vms"></span></button>
+      <button class="tab" data-service="api" aria-pressed="false">API <span class="n" data-count="api"></span></button>
+    </div>
+  </nav>
+
+  <div class="list" id="list">
+
+    <!-- ── 2026-08-18 · auth + walfare ───────────────────────────────────── -->
+    <a class="bug" href="2026-08-18-otp-invisible-character.html"
+       data-service="auth walfare">
+      <div class="bug-top">
+        <span class="when">2026-08-18 · 13:45 (Tehran)</span>
+        <span class="tag service">Login (auth)</span>
+        <span class="tag service">Welfare (refahi)</span>
+        <span class="tag high">High for one user</span>
+        <span class="tag fixed">Fixed</span>
+      </div>
+      <h2>One engineer could never log in with the SMS code</h2>
+      <p>
+        The code in the SMS was right. The engineer typed it in. The site still said the code was
+        wrong or too old. This happened every time, only for him. Everyone else could log in.
+        The cause was a hidden character that comes along when you copy a code from an SMS app.
+      </p>
+      <span class="more">Read the full report →</span>
+    </a>
+
+  </div>
+
+  <div class="empty" id="empty">No bug reports for this service yet.</div>
+
+  <footer>
+    One file per bug. Add a new one to <code>bug/</code> and give the link a
+    <code>data-service</code> so it shows under the right menu item.
+  </footer>
+
+</div>
+
+<script>
+  // Filtering is plain and local: no build step, no library, works by opening the file.
+  const bugs = [...document.querySelectorAll('.bug')];
+  const tabs = [...document.querySelectorAll('.tab')];
+  const empty = document.getElementById('empty');
+  const count = document.getElementById('count');
+
+  const servicesOf = (el) => (el.dataset.service || '').split(/\s+/).filter(Boolean);
+
+  // Fill each menu item with how many bugs it holds, so an empty service is obvious before clicking.
+  for (const badge of document.querySelectorAll('[data-count]')) {
+    const key = badge.dataset.count;
+    badge.textContent = key === 'all'
+      ? bugs.length
+      : bugs.filter(b => servicesOf(b).includes(key)).length;
+  }
+  count.textContent = bugs.length + (bugs.length === 1 ? ' report' : ' reports');
+
+  function show(service) {
+    let visible = 0;
+    for (const bug of bugs) {
+      const match = service === 'all' || servicesOf(bug).includes(service);
+      bug.style.display = match ? '' : 'none';
+      if (match) visible++;
+    }
+    empty.classList.toggle('show', visible === 0);
+    for (const tab of tabs) tab.setAttribute('aria-pressed', String(tab.dataset.service === service));
+  }
+
+  for (const tab of tabs) tab.addEventListener('click', () => show(tab.dataset.service));
+  show('all');
+</script>
+</body>
+</html>
