@@ -12,6 +12,11 @@ export * from "./data/utils"
 // Assessment section/tool catalog + shared result types
 export * from "./data/sections"
 
+// جدول ۱۹-۲-۱ — which parts of the 5th edition apply, by building group and enforcement year
+export * from "./data/schedule19"
+export * from "./data/jalali"
+export * from "./schedule/requirements"
+
 // Reference databases (materials, glazing, mechanical/electrical/monitoring rows)
 export * from "./data/envOpaqueDb"
 export * from "./data/envTransDb"
