@@ -25,9 +25,20 @@ export class BoardBoundary extends Component<{ children: ReactNode }, { hasError
     console.error("[room] whiteboard failed to load:", error, info.componentStack);
   }
 
-  // A plain re-render is enough: it drops the fallback and mounts `<Suspense>` again, which
-  // retries the dynamic import.
-  private retry = () => this.setState({ hasError: false });
+  /**
+   * A reload, not a re-render.
+   *
+   * `React.lazy` latches its payload to Rejected on failure and only ever calls the loader again
+   * from Uninitialized — verified in react/cjs/react.development.js `lazyInitializer`. So clearing
+   * `hasError` would mount `<Suspense>`, read the same rejected payload and throw straight back to
+   * this boundary: a button that looks like recovery and is not.
+   *
+   * A reload also fixes the case this boundary exists for. A stale client after a redeploy is asking
+   * for asset names that no longer exist; `index.html` is served `no-store`, so fetching the page
+   * again is what gets the new ones. It costs a rejoin, which is the same trade the connection-failure
+   * button on this screen already makes.
+   */
+  private retry = () => window.location.reload();
 
   render() {
     if (this.state.hasError) {
@@ -65,10 +76,11 @@ export function BoardErrorFallback({ onRetry }: { onRetry: () => void }) {
         <ExclamationCircleOutlined style={{ fontSize: 22, color: token.colorWarning }} />
         <Typography.Text strong>تخته بارگذاری نشد</Typography.Text>
         <Typography.Text type="secondary" style={{ fontSize: 13 }}>
-          جلسه شما تحت تأثیر قرار نگرفته؛ می‌توانید همچنان در جلسه بمانید یا دوباره تلاش کنید.
+          جلسه شما تحت تأثیر قرار نگرفته و می‌توانید در جلسه بمانید. برای باز کردن تخته، صفحه باید
+          دوباره بارگذاری شود و شما دوباره وارد جلسه می‌شوید.
         </Typography.Text>
         <Button icon={<ReloadOutlined />} onClick={onRetry} style={{ marginTop: 4 }}>
-          تلاش دوباره
+          بارگذاری دوباره صفحه
         </Button>
       </div>
     </div>
