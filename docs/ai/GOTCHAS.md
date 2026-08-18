@@ -309,6 +309,19 @@ create mode — defaulting in edit mode means opening a record and pressing save
 nobody chose.
 **Where:** `mabhas19-web/src/components/projects/project-form.tsx` (`ALLOWED_CITIES`, `cityOptions`).
 
+### `useMutation`'s return value is a NEW object every render — never a dependency
+**Symptom:** an effect written as unmount-only cleanup runs constantly, and a mutation fires in a
+loop. Types, lint and unit tests are all green.
+**Cause:** `useMutation` returns `{ ...result, mutate, mutateAsync }` — a fresh literal per render.
+`useEffect(() => cleanup, [save])` therefore re-runs its cleanup after every commit. Pair that with a
+timer ref that is never nulled after firing and each run re-triggers the next.
+**Fix:** depend on `save.mutate` (that one IS memoised) or hold it in a ref and use an empty
+dependency list. Null a timer ref inside the callback that fires it.
+**Related trap in the same file:** Excalidraw calls `onChange` on **programmatic** `updateScene` too,
+so "the user changed something" cannot be inferred from `onChange`. Decide it from whether your own
+diff actually produced anything to send.
+**Where:** `room-web/src/features/whiteboard/WhiteboardStage.tsx`, fixed in `310ef28`.
+
 ### React cannot retry a failed `lazy()` — a retry button that clears error state is theatre
 **Symptom:** a lazily-loaded chunk fails to fetch, your error boundary shows a friendly «try again»,
 the person presses it, and the same error comes straight back. Forever.

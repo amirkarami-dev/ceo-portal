@@ -82,6 +82,33 @@ Two agents' processes died mid-flight. The Task 4 implementer had already commit
 Task 5 before dying and never reported; the ledger at `.superpowers/sdd/progress.md` is what made that
 recoverable, and everything it left was re-verified from scratch rather than trusted.
 
+## The bug review caught after deploy
+
+The task review ran late (its first attempt died mid-response) and found a **Critical** defect in the
+browser half, already on production. It is worth recording in full, because nothing in the automated
+gates could have caught it.
+
+`useMutation` returns a **new object on every render**. The "save once on close" cleanup depended on
+that object, so it ran after every render rather than at unmount — and `saveTimer.current` was never
+cleared after firing, so the cleanup always believed a save was pending. Each save re-rendered the
+component, which re-ran the stale cleanup, which saved again: a request loop against the endpoint,
+straight into the shared 120-per-minute limit and the 429 the plan warned about by name.
+
+Worse in a meeting: Excalidraw fires `onChange` for **programmatic** scene updates too, so applying a
+peer's edit or loading the stored board armed a save on a client that had drawn nothing — and in a
+meeting everyone may draw, so that was everyone.
+
+Fixed in `310ef28` (room-web image `9b1b370a`): the flush uses the stable `save.mutate` through a ref
+with an empty dependency list, the timer is nulled when it fires, and the save is now armed from the
+**result** of `broadcastChanged`, which is true only when this client had local changes — an element
+applied from a peer is recorded in `lastVersions` before it reaches the canvas, so it cannot look like
+one of ours.
+
+**The lesson worth keeping:** typecheck, lint and 19 passing unit tests were all green through this.
+It is effect timing, and the only things that would have caught it are a review that reads the code
+or a browser that runs it. The unit tests cover pure functions by design — that decision bought
+speed and simplicity, and this is its bill.
+
 ## Follow-ups
 
 - **Hold a real meeting on it.** Everything above is owed.
