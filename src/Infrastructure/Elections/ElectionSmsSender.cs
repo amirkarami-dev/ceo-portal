@@ -66,7 +66,7 @@ public sealed class ElectionSmsOptions
 internal sealed partial class ElectionSmsSender(
     HttpClient http,
     IOptions<ElectionSmsOptions> options,
-    ILogger<ElectionSmsSender> logger) : IElectionSmsSender
+    ILogger<ElectionSmsSender> logger) : IElectionSmsSender, Mabhas19.Application.Common.Interfaces.ISmsSender
 {
     private const string SoapAction = "\"http://www.mihansmscenter.com/webservice/#send\"";
     private const string MihanNs = "http://www.mihansmscenter.com/webservice/";

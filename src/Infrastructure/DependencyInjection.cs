@@ -208,6 +208,12 @@ public static class DependencyInjection
         services.AddHttpClient<IElectionSmsSender, ElectionSmsSender>()
             .RemoveAllLoggers();
 
+        // One implementation, two names. The election module keeps its own interface; everything
+        // else asks for ISmsSender. Resolving through the typed client reuses that single
+        // HttpClient and its policies rather than constructing a second one.
+        services.AddScoped<Mabhas19.Application.Common.Interfaces.ISmsSender>(
+            sp => (ElectionSmsSender)sp.GetRequiredService<IElectionSmsSender>());
+
         // The vote OTP store needs IMemoryCache and nothing else in this host registers it.
         services.AddMemoryCache();
         services.AddSingleton<IVoteOtpStore, VoteOtpStore>();
