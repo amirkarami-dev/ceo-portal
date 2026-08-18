@@ -68,12 +68,22 @@ export function useWhiteboardSync({
     [send],
   );
 
-  const broadcastChanged = useCallback(() => {
-    if (!canDraw) return;
+  /**
+   * Returns whether anything of ours actually went out.
+   *
+   * The caller needs that answer to decide whether to save. Excalidraw fires `onChange` for
+   * **programmatic** scene updates too — applying somebody else's edit looks exactly like drawing —
+   * so "did I have local changes" cannot be judged from `onChange` alone. Here it can: an element
+   * applied from a peer was recorded in `lastVersions` before it reached the canvas, so
+   * `selectChanged` returns nothing for it and this returns false.
+   */
+  const broadcastChanged = useCallback((): boolean => {
+    if (!canDraw) return false;
     const changed = selectChanged(handlers.current.getScene(), lastVersions);
-    if (changed.length === 0) return;
+    if (changed.length === 0) return false;
     rememberVersions(changed, lastVersions);
     publish(changed);
+    return true;
   }, [canDraw, lastVersions, publish]);
 
   const broadcastFull = useCallback(() => {

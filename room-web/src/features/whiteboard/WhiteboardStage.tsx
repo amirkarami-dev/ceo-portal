@@ -80,32 +80,52 @@ export function WhiteboardStage({ roomId, canDraw }: { roomId: number; canDraw: 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  /**
+   * `save.mutate` is stable; the object `useMutation` returns is **not** — it is a fresh literal on
+   * every render. Anything that takes the whole object as a dependency re-runs constantly, which is
+   * how the flush below once became a request loop: its "cleanup" ran after every render, saw a
+   * `saveTimer` that was never cleared after firing, and saved again — each save re-rendering and
+   * re-triggering the next.
+   */
+  const mutateRef = useRef(save.mutate);
+  mutateRef.current = save.mutate;
+
+  const flushSave = useCallback(() => {
+    saveTimer.current = null; // fired; nothing is pending any more
+    const elements = apiRef.current?.getSceneElementsIncludingDeleted() ?? [];
+    if (elements.length > 0) mutateRef.current(JSON.stringify({ type: "excalidraw", elements }));
+  }, []);
+
+  const flushRef = useRef(flushSave);
+  flushRef.current = flushSave;
+
   const onChange = useCallback(() => {
     if (!canDraw) return;
 
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(broadcastChanged, CHANGE_DEBOUNCE_MS);
+    timer.current = setTimeout(() => {
+      // The save is armed from the RESULT of the broadcast, not from `onChange` itself. Excalidraw
+      // fires `onChange` for programmatic updates too, so applying a peer's edit or loading the
+      // saved board would otherwise arm a save on a client that has drawn nothing — and in a meeting
+      // everybody may draw, so that is everybody.
+      if (!broadcastChanged()) return;
 
-    // Only somebody who actually drew saves, and only once they have stopped. Ten people watching
-    // cost nothing; three people sketching cost about eighteen requests a minute between them.
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => {
-      const elements = apiRef.current?.getSceneElementsIncludingDeleted() ?? [];
-      save.mutate(JSON.stringify({ type: "excalidraw", elements }));
-    }, SAVE_DEBOUNCE_MS);
-  }, [canDraw, broadcastChanged, save]);
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(() => flushRef.current(), SAVE_DEBOUNCE_MS);
+    }, CHANGE_DEBOUNCE_MS);
+  }, [canDraw, broadcastChanged]);
 
+  // Unmount only — an empty dependency list, deliberately. Closing the board must not throw away the
+  // last few seconds of drawing, and must not do anything else.
   useEffect(
     () => () => {
       if (timer.current) clearTimeout(timer.current);
       if (saveTimer.current) {
         clearTimeout(saveTimer.current);
-        // Closing the board must not throw away the last few seconds of drawing.
-        const elements = apiRef.current?.getSceneElementsIncludingDeleted() ?? [];
-        if (elements.length > 0) save.mutate(JSON.stringify({ type: "excalidraw", elements }));
+        flushRef.current();
       }
     },
-    [save],
+    [],
   );
 
   return (
