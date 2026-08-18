@@ -310,7 +310,7 @@ transforms, which is the shape that breaks under dir=rtl and doubles on drag."
 Deliverable: `npx vitest run` passes in `room-web` against a pure module that decides what to send, how to split it, what to accept, and from whom.
 
 **Files:**
-- Modify: `room-web/package.json` (2 scripts, 1 dev dependency)
+- Modify: `room-web/package.json` (2 scripts, 1 dev dependency — `vitest@^3.2.7`)
 - Modify: `room-web/vite.config.ts` (import from `vitest/config`, add a `test` block)
 - Create: `room-web/src/features/whiteboard/wire.ts`
 - Create: `room-web/src/features/whiteboard/wire.test.ts`
@@ -335,8 +335,15 @@ Deliverable: `npx vitest run` passes in `room-web` against a pure module that de
 - [ ] **Step 1: Add vitest**
 
 ```bash
-npm --prefix /c/Projects/ceo-portal/room-web install --legacy-peer-deps -D vitest@^2.1.0
+npm --prefix /c/Projects/ceo-portal/room-web install --legacy-peer-deps -D vitest@^3.2.7
 ```
+
+**Version 3, not the 2.1.0 the other apps pin.** `vitest@2` depends on `vite ^5.0.0` and `room-web`
+is on `vite ^6`, so installing 2 puts a second Vite in the tree and `tsc` then type-checks
+`vite.config.ts` against the wrong one. `vitest@3` declares `vite ^6 || ^7 || ^8`. `analytics-web`
+pins 2 alongside vite 6 and carries a `react() as AnyPlugin` cast in its config with a comment about
+the resulting "dual-instance mismatch" — that is the workaround for this same collision, and there is
+no reason to inherit it here. `room-web` is not a workspace member, so its dependency tree is its own.
 
 Then in `room-web/package.json`, add two scripts after `"lint"`:
 
@@ -431,7 +438,13 @@ describe("chunkByBytes", () => {
    * the wire, over LiveKit's reliable ceiling, and dropped with no error anywhere.
    */
   it("splits Persian text by bytes, not characters", () => {
-    const persian = "سلام".repeat(1500); // 6,000 chars ⇒ ~12,000 bytes each
+    // Sized so the two elements only exceed the cap when counted as BYTES. Each is 6,051 bytes
+    // (3,051 chars): one fits comfortably, two do not — 12,139 > 12,000. Count characters instead
+    // and the pair measures 6,139, which fits, so the buggy version produces a single chunk and
+    // this test fails on `chunks.length`. That is what makes it a discriminator rather than a
+    // decoration. Do not "round it up" — at 1,500 repeats a single element already exceeds the cap
+    // and both implementations split, proving nothing.
+    const persian = "سلام".repeat(750); // 3,000 chars ⇒ 6,000 bytes of text
     const chunks = chunkByBytes([el("a", 1, { text: persian }), el("b", 1, { text: persian })]);
 
     expect(chunks.length).toBeGreaterThan(1);
