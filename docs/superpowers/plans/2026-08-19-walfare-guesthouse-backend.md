@@ -6,7 +6,7 @@
 
 **Architecture:** A new `WelfareServiceType.Guesthouse` joins the existing welfare model. `WelfareGuesthouse` hangs off a `WelfareService` exactly as `WelfarePool` does; `GuesthouseRequest` holds one stay with its companions. Payment reuses `PaymentTransaction` with a new `TargetType`, reached either by a signed-in member or by an opaque token sent over SMS.
 
-**Tech Stack:** .NET 10, EF Core, MediatR, FluentValidation, Ardalis.GuardClauses, NUnit + FluentAssertions.
+**Tech Stack:** .NET 10, EF Core, MediatR, FluentValidation, Ardalis.GuardClauses, NUnit + Shouldly.
 
 **Spec:** [`docs/superpowers/specs/2026-08-19-walfare-guesthouse-design.md`](../specs/2026-08-19-walfare-guesthouse-design.md)
 
@@ -23,6 +23,9 @@
   role check compares `role == x` and never trims, so naming `Administrator` alone makes a SuperUser
   behave like an ordinary user — `src/Domain/Constants/Roles.cs` documents this. Every existing
   walfare and analytics handler uses `AdminOrSuper`.
+- **Tests use NUnit + Shouldly.** `FluentAssertions` is NOT referenced anywhere in this repo — not in
+  `Directory.Packages.props`, not in any test csproj. Write `x.ShouldBe(y)`, `x.ShouldBeTrue()`,
+  `Should.Throw<T>(() => ...)`. Never add a new assertion library.
 - **Never commit secrets.** SMS credentials come from the existing `Sms` configuration section.
 - **Endpoint handler method names are globally unique** and carry the `Walfare` prefix — they become operationIds.
 
@@ -48,7 +51,7 @@
 Create `tests/Domain.UnitTests/Walfare/GuesthouseRequestTests.cs`:
 
 ```csharp
-using FluentAssertions;
+using Shouldly;
 using Mabhas19.Domain.Walfare;
 using NUnit.Framework;
 
@@ -65,7 +68,7 @@ public class GuesthouseRequestTests
             CheckOutDate = new DateOnly(2026, 8, 21)
         };
 
-        request.Nights.Should().Be(3);
+        request.Nights.ShouldBe(3);
     }
 
     [Test]
@@ -77,7 +80,7 @@ public class GuesthouseRequestTests
             CheckOutDate = new DateOnly(2026, 8, 18)
         };
 
-        request.Nights.Should().Be(0);
+        request.Nights.ShouldBe(0);
     }
 
     [Test]
@@ -91,7 +94,7 @@ public class GuesthouseRequestTests
             CheckOutDate = new DateOnly(2026, 8, 19)
         };
 
-        request.Nights.Should().Be(0);
+        request.Nights.ShouldBe(0);
     }
 
     [Test]
@@ -102,7 +105,7 @@ public class GuesthouseRequestTests
         request.Companions.Add(new GuesthouseCompanion { FullName = "ب", IsInfant = false });
         request.Companions.Add(new GuesthouseCompanion { FullName = "ج", IsInfant = true });
 
-        request.GuestCount.Should().Be(3);
+        request.GuestCount.ShouldBe(3);
     }
 }
 ```
@@ -792,7 +795,7 @@ git commit -m "feat(walfare): guesthouse CRUD for admins, active list for member
 Create `tests/Application.UnitTests/Walfare/GuesthouseRequestValidatorTests.cs`:
 
 ```csharp
-using FluentAssertions;
+using Shouldly;
 using Mabhas19.Application.Walfare.Guesthouses;
 using NUnit.Framework;
 
@@ -814,19 +817,19 @@ public class GuesthouseRequestValidatorTests
 
     [Test]
     public void Accepts_a_well_formed_request()
-        => _validator.Validate(Valid()).IsValid.Should().BeTrue();
+        => _validator.Validate(Valid()).IsValid.ShouldBeTrue();
 
     [Test]
     public void Refuses_a_checkout_before_the_checkin()
     {
         var input = Valid() with { CheckInDate = "1405/05/29", CheckOutDate = "1405/05/27" };
 
-        _validator.Validate(input).IsValid.Should().BeFalse();
+        _validator.Validate(input).IsValid.ShouldBeFalse();
     }
 
     [Test]
     public void Refuses_a_stay_of_zero_nights()
-        => _validator.Validate(Valid() with { CheckOutDate = "1405/05/27" }).IsValid.Should().BeFalse();
+        => _validator.Validate(Valid() with { CheckOutDate = "1405/05/27" }).IsValid.ShouldBeFalse();
 
     [Test]
     public void Refuses_more_than_five_companions()
@@ -835,7 +838,7 @@ public class GuesthouseRequestValidatorTests
             .Select(i => new CompanionInput($"همراه {i}", CompanionRelationInput.Child, false))
             .ToArray();
 
-        _validator.Validate(Valid(six)).IsValid.Should().BeFalse();
+        _validator.Validate(Valid(six)).IsValid.ShouldBeFalse();
     }
 
     [Test]
@@ -845,7 +848,7 @@ public class GuesthouseRequestValidatorTests
             .Select(i => new CompanionInput($"کودک {i}", null, true))
             .ToArray();
 
-        _validator.Validate(Valid(three)).IsValid.Should().BeFalse();
+        _validator.Validate(Valid(three)).IsValid.ShouldBeFalse();
     }
 
     [Test]
@@ -856,16 +859,16 @@ public class GuesthouseRequestValidatorTests
             .Concat(Enumerable.Range(0, 2).Select(i => new CompanionInput($"کودک {i}", null, true)))
             .ToArray();
 
-        _validator.Validate(Valid(people)).IsValid.Should().BeTrue();
+        _validator.Validate(Valid(people)).IsValid.ShouldBeTrue();
     }
 
     [Test]
     public void Refuses_a_national_code_that_is_not_ten_digits()
-        => _validator.Validate(Valid() with { NationalCode = "12345" }).IsValid.Should().BeFalse();
+        => _validator.Validate(Valid() with { NationalCode = "12345" }).IsValid.ShouldBeFalse();
 
     [Test]
     public void Refuses_an_unparseable_jalali_date()
-        => _validator.Validate(Valid() with { CheckInDate = "1405/13/40" }).IsValid.Should().BeFalse();
+        => _validator.Validate(Valid() with { CheckInDate = "1405/13/40" }).IsValid.ShouldBeFalse();
 
     /// <summary>
     /// The bug that locked an engineer out of the welfare service: a code pasted from a message
@@ -874,11 +877,11 @@ public class GuesthouseRequestValidatorTests
     /// </summary>
     [Test]
     public void Accepts_a_national_code_pasted_with_an_invisible_mark()
-        => _validator.Validate(Valid() with { NationalCode = "1234567890‏" }).IsValid.Should().BeTrue();
+        => _validator.Validate(Valid() with { NationalCode = "1234567890‏" }).IsValid.ShouldBeTrue();
 
     [Test]
     public void Accepts_persian_digits_in_the_national_code()
-        => _validator.Validate(Valid() with { NationalCode = "۱۲۳۴۵۶۷۸۹۰" }).IsValid.Should().BeTrue();
+        => _validator.Validate(Valid() with { NationalCode = "۱۲۳۴۵۶۷۸۹۰" }).IsValid.ShouldBeTrue();
 }
 ```
 
@@ -1276,7 +1279,7 @@ git commit -m "feat(walfare): submit a guesthouse request, as a member or on the
 Create `tests/Application.UnitTests/Walfare/GuesthouseTransitionTests.cs`:
 
 ```csharp
-using FluentAssertions;
+using Shouldly;
 using Mabhas19.Application.Walfare.Guesthouses;
 using Mabhas19.Domain.Walfare;
 using NUnit.Framework;
@@ -1291,29 +1294,29 @@ public class GuesthouseTransitionTests
     [TestCase(GuesthouseRequestStatus.Rejected, false)]
     [TestCase(GuesthouseRequestStatus.Cancelled, false)]
     public void CanPrice_only_before_money_has_moved(GuesthouseRequestStatus status, bool expected)
-        => GuesthouseTransitions.CanPrice(status).Should().Be(expected);
+        => GuesthouseTransitions.CanPrice(status).ShouldBe(expected);
 
     [TestCase(GuesthouseRequestStatus.Submitted, true)]
     [TestCase(GuesthouseRequestStatus.Priced, true)]
     [TestCase(GuesthouseRequestStatus.Paid, false)]
     [TestCase(GuesthouseRequestStatus.Rejected, false)]
     public void CanReject_never_after_payment(GuesthouseRequestStatus status, bool expected)
-        => GuesthouseTransitions.CanReject(status).Should().Be(expected);
+        => GuesthouseTransitions.CanReject(status).ShouldBe(expected);
 
     [TestCase(GuesthouseRequestStatus.Priced, true)]
     [TestCase(GuesthouseRequestStatus.Submitted, false)]   // nothing to pay yet
     [TestCase(GuesthouseRequestStatus.Paid, false)]        // already paid
     [TestCase(GuesthouseRequestStatus.Cancelled, false)]
     public void CanPay_only_from_priced(GuesthouseRequestStatus status, bool expected)
-        => GuesthouseTransitions.CanPay(status).Should().Be(expected);
+        => GuesthouseTransitions.CanPay(status).ShouldBe(expected);
 
     [Test]
     public void Mint_produces_a_url_safe_token_of_a_useful_length()
     {
         var token = GuesthouseTokens.Mint();
 
-        token.Should().HaveLength(43);                       // 32 bytes, base64url, unpadded
-        token.Should().MatchRegex("^[A-Za-z0-9_-]+$");
+        token.Length.ShouldBe(43);                       // 32 bytes, base64url, unpadded
+        token.ShouldMatch("^[A-Za-z0-9_-]+$");
     }
 
     [Test]
@@ -1321,7 +1324,7 @@ public class GuesthouseTransitionTests
     {
         var tokens = Enumerable.Range(0, 200).Select(_ => GuesthouseTokens.Mint()).ToHashSet();
 
-        tokens.Should().HaveCount(200);
+        tokens.Count.ShouldBe(200);
     }
 }
 ```
@@ -1571,7 +1574,7 @@ Create `tests/Application.UnitTests/Walfare/GuesthousePaymentSummaryTests.cs`:
 
 ```csharp
 using System.Reflection;
-using FluentAssertions;
+using Shouldly;
 using Mabhas19.Application.Walfare.Guesthouses;
 using Mabhas19.Domain.Walfare;
 using NUnit.Framework;
@@ -1593,9 +1596,11 @@ public class GuesthousePaymentSummaryTests
             .Select(p => p.Name)
             .ToArray();
 
-        names.Should().BeEquivalentTo(
+        names.ShouldBe(new[]
+        {
             "GuesthouseName", "GuesthouseCity", "CheckInDateJalali", "CheckOutDateJalali",
-            "Nights", "GuestCount", "AmountRials", "Payable", "Reason");
+            "Nights", "GuestCount", "AmountRials", "Payable", "Reason"
+        }, ignoreOrder: true);
     }
 
     [Test]
@@ -1605,7 +1610,7 @@ public class GuesthousePaymentSummaryTests
 
         GuesthousePaymentRules
             .Evaluate(GuesthouseRequestStatus.Priced, now.AddDays(1), now)
-            .Payable.Should().BeTrue();
+            .Payable.ShouldBeTrue();
     }
 
     [Test]
@@ -1616,8 +1621,8 @@ public class GuesthousePaymentSummaryTests
         var result = GuesthousePaymentRules.Evaluate(
             GuesthouseRequestStatus.Priced, now.AddMinutes(-1), now);
 
-        result.Payable.Should().BeFalse();
-        result.Reason.Should().Contain("منقضی");
+        result.Payable.ShouldBeFalse();
+        result.Reason.ShouldContain("منقضی");
     }
 
     [Test]
@@ -1628,8 +1633,8 @@ public class GuesthousePaymentSummaryTests
         var result = GuesthousePaymentRules.Evaluate(
             GuesthouseRequestStatus.Paid, now.AddDays(1), now);
 
-        result.Payable.Should().BeFalse();
-        result.Reason.Should().Contain("پرداخت");
+        result.Payable.ShouldBeFalse();
+        result.Reason.ShouldContain("پرداخت");
     }
 
     [Test]
@@ -1639,7 +1644,7 @@ public class GuesthousePaymentSummaryTests
 
         GuesthousePaymentRules
             .Evaluate(GuesthouseRequestStatus.Submitted, null, now)
-            .Payable.Should().BeFalse();
+            .Payable.ShouldBeFalse();
     }
 }
 ```
@@ -1898,7 +1903,7 @@ git commit -m "feat(walfare): pay a guesthouse request by token, with an anonymo
 Create `tests/Application.UnitTests/Walfare/GuesthouseSmsTextTests.cs`:
 
 ```csharp
-using FluentAssertions;
+using Shouldly;
 using Mabhas19.Application.Walfare.Guesthouses;
 using NUnit.Framework;
 
@@ -1912,9 +1917,9 @@ public class GuesthouseSmsTextTests
         var text = GuesthouseSmsText.Build(
             "مهمانسرای سنندج", 2_500_000, "https://refahi.kurdnezam.ir/pay/guesthouse/abc");
 
-        text.Should().Contain("مهمانسرای سنندج");
-        text.Should().Contain("https://refahi.kurdnezam.ir/pay/guesthouse/abc");
-        text.Should().Contain("۲۵۰٬۰۰۰");   // rials rendered as tomans, grouped, Persian digits
+        text.ShouldContain("مهمانسرای سنندج");
+        text.ShouldContain("https://refahi.kurdnezam.ir/pay/guesthouse/abc");
+        text.ShouldContain("۲۵۰٬۰۰۰");   // rials rendered as tomans, grouped, Persian digits
     }
 
     [Test]
@@ -1923,7 +1928,7 @@ public class GuesthouseSmsTextTests
         var text = GuesthouseSmsText.Build("مهمانسرای سنندج", 2_500_000, "https://x.ir/p/abc");
 
         // Persian is two bytes per character in UTF-8 and long messages bill per part.
-        text.Length.Should().BeLessThan(200);
+        text.Length.ShouldBeLessThan(200);
     }
 
     [Test]
@@ -1932,8 +1937,8 @@ public class GuesthouseSmsTextTests
         var text = GuesthouseSmsText.Build("مهمانسرای سنندج", 2_500_000, "https://x.ir/p/abc");
 
         // Anyone can read an SMS over a shoulder; the page behind the link is already anonymous.
-        text.Should().NotContain("کد ملی");
-        text.Should().NotContain("عضویت");
+        text.ShouldNotContain("کد ملی");
+        text.ShouldNotContain("عضویت");
     }
 }
 ```
@@ -2087,7 +2092,7 @@ git commit -m "feat(walfare): send the guesthouse payment link by SMS"
 Create `tests/Application.UnitTests/Walfare/GuesthouseReferralTests.cs`:
 
 ```csharp
-using FluentAssertions;
+using Shouldly;
 using Mabhas19.Application.Walfare.Guesthouses;
 using Mabhas19.Domain.Walfare;
 using NUnit.Framework;
@@ -2099,8 +2104,8 @@ public class GuesthouseReferralTests
     [Test]
     public void Title_is_the_Persian_honorific_for_the_gender()
     {
-        GuesthouseReferral.Title(ApplicantGender.Male).Should().Be("جناب آقای مهندس");
-        GuesthouseReferral.Title(ApplicantGender.Female).Should().Be("سرکار خانم مهندس");
+        GuesthouseReferral.Title(ApplicantGender.Male).ShouldBe("جناب آقای مهندس");
+        GuesthouseReferral.Title(ApplicantGender.Female).ShouldBe("سرکار خانم مهندس");
     }
 
     /// <summary>
@@ -2110,9 +2115,7 @@ public class GuesthouseReferralTests
     [Test]
     public void Title_refuses_rather_than_guessing_when_gender_is_unset()
     {
-        var act = () => GuesthouseReferral.Title(null);
-
-        act.Should().Throw<InvalidOperationException>();
+        Should.Throw<InvalidOperationException>(() => GuesthouseReferral.Title(null));
     }
 }
 ```
