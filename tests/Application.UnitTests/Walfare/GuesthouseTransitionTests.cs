@@ -45,4 +45,8 @@ public class GuesthouseTransitionTests
 
         tokens.Count.ShouldBe(200);
     }
+
+    [Test]
+    public void MaxAmountRials_is_a_typo_guard_not_a_business_rule()
+        => GuesthouseTransitions.MaxAmountRials.ShouldBe(5_000_000_000L);
 }

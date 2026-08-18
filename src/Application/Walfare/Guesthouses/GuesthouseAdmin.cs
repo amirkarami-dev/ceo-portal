@@ -31,6 +31,13 @@ public static class GuesthouseTransitions
         s is GuesthouseRequestStatus.Submitted or GuesthouseRequestStatus.Priced;
 
     public static bool CanPay(GuesthouseRequestStatus s) => s is GuesthouseRequestStatus.Priced;
+
+    /// <summary>
+    /// A typo guard, not a business rule — deliberately generous. 5 billion rials = 500 million
+    /// tomans. Nothing legitimate should ever hit this; it exists so an extra zero or two doesn't
+    /// mint a live payment link for the wrong price.
+    /// </summary>
+    public const long MaxAmountRials = 5_000_000_000;
 }
 
 public static class GuesthouseTokens
@@ -80,6 +87,11 @@ public class PriceGuesthouseRequestCommandHandler(IApplicationDbContext context,
         if (request.AmountRials <= 0)
             throw Fail.With(nameof(request.AmountRials), "مبلغ باید بیشتر از صفر باشد.");
 
+        // A ceiling, because this is money and the only other check is "> 0". A stay priced at
+        // ten billion rials is a typo, not a booking, and the payer sees only the number.
+        if (request.AmountRials > GuesthouseTransitions.MaxAmountRials)
+            throw Fail.With(nameof(request.AmountRials), "مبلغ واردشده بیش از حد مجاز است.");
+
         entity.AmountRials = request.AmountRials;
         entity.AdminNote = request.AdminNote?.Trim() ?? string.Empty;
         if (request.Gender is not null) entity.Gender = request.Gender;
@@ -127,15 +139,20 @@ public class RejectGuesthouseRequestCommandHandler(IApplicationDbContext context
 
 [Authorize(Roles = Roles.AdminOrSuper)]
 public record GetGuesthouseRequestsAdminQuery(
-    GuesthouseRequestStatus? Status,
-    int? GuesthouseId) : IRequest<IReadOnlyList<GuesthouseRequestDto>>;
+    GuesthouseRequestStatus? Status = null,
+    int? GuesthouseId = null,
+    int Page = 1,
+    int PageSize = 20) : IRequest<WalfarePagedResult<GuesthouseRequestDto>>;
 
 public class GetGuesthouseRequestsAdminQueryHandler(IApplicationDbContext context)
-    : IRequestHandler<GetGuesthouseRequestsAdminQuery, IReadOnlyList<GuesthouseRequestDto>>
+    : IRequestHandler<GetGuesthouseRequestsAdminQuery, WalfarePagedResult<GuesthouseRequestDto>>
 {
-    public async Task<IReadOnlyList<GuesthouseRequestDto>> Handle(
+    public async Task<WalfarePagedResult<GuesthouseRequestDto>> Handle(
         GetGuesthouseRequestsAdminQuery request, CancellationToken cancellationToken)
     {
+        var page = Math.Max(1, request.Page);
+        var pageSize = Math.Clamp(request.PageSize, 1, 100);
+
         var query = context.GuesthouseRequests
             .AsNoTracking()
             .Include(r => r.Guesthouse)
@@ -145,11 +162,16 @@ public class GetGuesthouseRequestsAdminQueryHandler(IApplicationDbContext contex
         if (request.Status is not null) query = query.Where(r => r.Status == request.Status);
         if (request.GuesthouseId is not null) query = query.Where(r => r.GuesthouseId == request.GuesthouseId);
 
+        var total = await query.CountAsync(cancellationToken);
         var rows = await query
             .OrderByDescending(r => r.CheckInDate)
-            .Take(500)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        return rows.Select(GuesthouseProjection.ToDto).ToList();
+        return new WalfarePagedResult<GuesthouseRequestDto>
+        {
+            Items = rows.Select(GuesthouseProjection.ToDto).ToList(), Total = total, Page = page, PageSize = pageSize
+        };
     }
 }

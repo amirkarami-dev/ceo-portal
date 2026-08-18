@@ -268,9 +268,10 @@ public class WalfareGuesthouseRequests : Mabhas19.Web.Infrastructure.IEndpointGr
 
     public record RejectGuesthouseBody(string Reason);
 
-    public static async Task<Ok<IReadOnlyList<GuesthouseRequestDto>>> GetWalfareGuesthouseRequestsAdmin(
-        ISender sender, GuesthouseRequestStatus? status, int? guesthouseId)
-        => TypedResults.Ok(await sender.Send(new GetGuesthouseRequestsAdminQuery(status, guesthouseId)));
+    public static async Task<Ok<WalfarePagedResult<GuesthouseRequestDto>>> GetWalfareGuesthouseRequestsAdmin(
+        ISender sender, GuesthouseRequestStatus? status = null, int? guesthouseId = null,
+        int page = 1, int pageSize = 20)
+        => TypedResults.Ok(await sender.Send(new GetGuesthouseRequestsAdminQuery(status, guesthouseId, page, pageSize)));
 
     public static async Task<NoContent> PriceWalfareGuesthouseRequest(
         ISender sender, int id, PriceGuesthouseBody body)
