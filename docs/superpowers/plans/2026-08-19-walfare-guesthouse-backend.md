@@ -357,6 +357,7 @@ public class WelfareGuesthouseConfiguration : IEntityTypeConfiguration<WelfareGu
 {
     public void Configure(EntityTypeBuilder<WelfareGuesthouse> b)
     {
+        b.ToTable("WelfareGuesthouses");
         b.Property(x => x.Name).HasMaxLength(200).IsRequired();
         b.Property(x => x.City).HasMaxLength(100).IsRequired();
         b.Property(x => x.ManagerName).HasMaxLength(200);
@@ -373,12 +374,20 @@ public class GuesthouseRequestConfiguration : IEntityTypeConfiguration<Guesthous
 {
     public void Configure(EntityTypeBuilder<GuesthouseRequest> b)
     {
+        b.ToTable("GuesthouseRequests");
         b.Property(x => x.FullName).HasMaxLength(200).IsRequired();
-        b.Property(x => x.NationalCode).HasMaxLength(10).IsRequired();
+        // 20, not 10/11: the exact digit count is the validator's job. A column narrow
+        // enough to truncate turns an admin's typo into SqlException 8152 at SaveChanges
+        // — a 500 with no field-level message, in the admin-entry flow this feature adds.
+        b.Property(x => x.NationalCode).HasMaxLength(20).IsRequired();
         b.Property(x => x.MembershipNumber).HasMaxLength(50);
-        b.Property(x => x.Mobile).HasMaxLength(11).IsRequired();
-        b.Property(x => x.CheckInDateJalali).HasMaxLength(10).IsRequired();
-        b.Property(x => x.CheckOutDateJalali).HasMaxLength(10).IsRequired();
+        b.Property(x => x.Mobile).HasMaxLength(20).IsRequired();
+        // 30, matching every sibling Jalali column: these can carry a trailing space or an RTL mark.
+        b.Property(x => x.CheckInDateJalali).HasMaxLength(30).IsRequired();
+        b.Property(x => x.CheckOutDateJalali).HasMaxLength(30).IsRequired();
+        // nvarchar(max) cannot be an index key, and "my requests" filters on this.
+        b.Property(x => x.UserId).HasMaxLength(100);
+        b.HasIndex(x => x.UserId);
         b.Property(x => x.AdminNote).HasMaxLength(1000);
         b.Property(x => x.ReceiptNumber).HasMaxLength(50);
         b.Property(x => x.PaymentToken).HasMaxLength(64);
@@ -412,6 +421,9 @@ public class GuesthouseCompanionConfiguration : IEntityTypeConfiguration<Guestho
 {
     public void Configure(EntityTypeBuilder<GuesthouseCompanion> b)
     {
+        // No DbSet, so without this EF names the table after the bare class and breaks
+        // the plural convention every sibling table follows.
+        b.ToTable("GuesthouseCompanions");
         b.Property(x => x.FullName).HasMaxLength(200).IsRequired();
     }
 }
