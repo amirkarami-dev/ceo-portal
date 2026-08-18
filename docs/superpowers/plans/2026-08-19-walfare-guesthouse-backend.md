@@ -26,6 +26,13 @@
 - **Tests use NUnit + Shouldly.** `FluentAssertions` is NOT referenced anywhere in this repo — not in
   `Directory.Packages.props`, not in any test csproj. Write `x.ShouldBe(y)`, `x.ShouldBeTrue()`,
   `Should.Throw<T>(() => ...)`. Never add a new assertion library.
+- **A FluentValidation `AbstractValidator<SomeInput>` NEVER RUNS on its own.** `ValidationBehaviour`
+  resolves `IValidator<TRequest>` where `TRequest` is the *command*, so an input validator must be
+  bridged by a command validator: `public class XCommandValidator : AbstractValidator<XCommand> {
+  public XCommandValidator() => RuleFor(x => x.Input).SetValidator(new XInputValidator()); }`.
+  `WelfarePools.cs` does exactly this with `CreateWelfarePoolCommandValidator` /
+  `UpdateWelfarePoolCommandValidator`. Miss it and the rules are dead code that unit tests still
+  pass, because the tests construct the validator directly.
 - **Never commit secrets.** SMS credentials come from the existing `Sms` configuration section.
 - **Endpoint handler method names are globally unique** and carry the `Walfare` prefix — they become operationIds.
 
@@ -1018,7 +1025,33 @@ public class GuesthouseRequestInputValidator : AbstractValidator<GuesthouseReque
         return sb.ToString();
     }
 }
+
+/// <summary>
+/// Bridges the input validator onto the command.
+/// </summary>
+/// <remarks>
+/// Without this the rules above are DEAD CODE. `ValidationBehaviour` resolves
+/// `IValidator&lt;TRequest&gt;` where TRequest is the command, so an `AbstractValidator&lt;SomeInput&gt;`
+/// is never found and never runs — while unit tests that construct it directly still pass.
+/// `WelfarePools.cs` bridges the same way.
+/// </remarks>
+public class CreateGuesthouseRequestCommandValidator : AbstractValidator<CreateGuesthouseRequestCommand>
+{
+    public CreateGuesthouseRequestCommandValidator()
+        => RuleFor(x => x.Input).SetValidator(new GuesthouseRequestInputValidator());
+}
+
+public class CreateGuesthouseRequestAdminCommandValidator
+    : AbstractValidator<CreateGuesthouseRequestAdminCommand>
+{
+    public CreateGuesthouseRequestAdminCommandValidator()
+        => RuleFor(x => x.Input).SetValidator(new GuesthouseRequestInputValidator());
+}
 ```
+
+**Note:** the two command validators above reference `CreateGuesthouseRequestCommand` and
+`CreateGuesthouseRequestAdminCommand`, which step 5 declares. Add them in step 5, after those
+records exist, rather than in step 3 — the file will not compile until both halves are present.
 
 - [ ] **Step 4: Run the validator tests and watch them pass**
 
