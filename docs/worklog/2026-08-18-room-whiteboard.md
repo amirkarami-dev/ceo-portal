@@ -109,6 +109,29 @@ It is effect timing, and the only things that would have caught it are a review 
 or a browser that runs it. The unit tests cover pure functions by design — that decision bought
 speed and simplicity, and this is its bill.
 
+## The first-save race, fixed after review
+
+Two clients could both read "this meeting has no board yet" and both insert. The unique index on
+`RoomBoards.RoomId` caught the second one — as a `DbUpdateException`, i.e. a 500.
+
+The loser now detaches its failed insert, re-reads the row that won, and updates it. That is an
+ordinary save rather than a conflict: last write wins is already this feature's rule, because every
+client holds the same merged scene, so either save is a complete board. A missing winner is rethrown,
+since that means the insert failed for another reason and swallowing it would hide a real fault.
+
+Note `DbSet.Remove` on an entity still in the `Added` state **detaches** it rather than marking it
+deleted — that is what keeps the failed insert out of the retry, and it is reachable through
+`IApplicationDbContext`, which exposes the sets but not `Entry()`.
+
+A test now asserts the database really refuses a second board for one meeting. That index is what the
+retry depends on, and an in-memory provider would ignore it — the same reason this repo already
+insists CHECK constraints are tested against real SQL Server. **The catch path itself is not covered**:
+making the row appear between the handler's read and its insert needs a hook the code does not have,
+and a test that cannot fail is worse than an honest gap. 9/9 pass.
+
+The review's other finding — an unused `using` in the test file — **was wrong**. `EngineerInfo` comes
+from that namespace, and removing it broke the build immediately.
+
 ## Follow-ups
 
 - **Hold a real meeting on it.** Everything above is owed.
