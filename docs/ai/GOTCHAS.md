@@ -309,6 +309,34 @@ create mode — defaulting in edit mode means opening a record and pressing save
 nobody chose.
 **Where:** `mabhas19-web/src/components/projects/project-form.tsx` (`ALLOWED_CITIES`, `cityOptions`).
 
+### React cannot retry a failed `lazy()` — a retry button that clears error state is theatre
+**Symptom:** a lazily-loaded chunk fails to fetch, your error boundary shows a friendly «try again»,
+the person presses it, and the same error comes straight back. Forever.
+**Cause:** `lazy()` latches its payload. On rejection `_status` becomes `2` and only `-1`
+(Uninitialised) ever calls the loader again — read it in `react/cjs/react.development.js`,
+`lazyInitializer`. Clearing the boundary's state re-mounts `<Suspense>`, which re-reads the *same*
+rejected payload and throws before any network call happens.
+**Fix:** reload the page. That is also the only thing that fixes the real cause here — a stale client
+after a redeploy is asking for asset filenames that no longer exist, `/assets/` is `try_files =404`,
+and `index.html` is `no-store`, so re-fetching the page is what gets the new names.
+**Where:** `room-web/src/features/whiteboard/BoardBoundary.tsx`. And note **any** lazy boundary needs
+an error boundary at all: without one, React unmounts the whole tree — on a meeting screen that means
+losing the video call because a side panel failed to load.
+
+### Vitest in the node environment skips four separate traps — if the code under test stays pure
+**Symptom:** standing up vitest in one of these SPAs drags in a canvas-context stub, a
+`clientWidth/clientHeight` stub, an `antd-jalali` mock and a slow module graph, before a single
+assertion runs.
+**Cause:** all four are consequences of `environment: "jsdom"`, not of testing.
+**Fix:** keep the rules in a module that imports no React, no LiveKit and no widget library, and test
+*that* under the default node environment. `room-web` has 19 tests and none of the four stubs;
+`analytics-web` needs all of them because it mounts real components.
+**Also:** `vitest@2` depends on **vite 5**. These apps are on **vite 6**, so pinning 2 puts a second
+Vite in the tree and `tsc` type-checks `vite.config.ts` against the wrong one — which is what
+`analytics-web`'s `react() as AnyPlugin` cast and its "dual-instance mismatch" comment are working
+around. `vitest@3` declares vite 6; use it in any app that does not already carry the workaround.
+**Where:** `room-web/vite.config.ts`, `room-web/src/features/whiteboard/wire.test.ts`.
+
 ### mabhas19 carries TWO climate zonings, and the codes overlap without meaning the same thing
 **Symptom:** «کد اقلیم» says تبریز is `5` «خیلی سرد»; پیوست ۲ of the fifth edition says `4B`. Neither
 is a typo, and five cities *do* agree, which makes the whole thing look like a partial data error.
