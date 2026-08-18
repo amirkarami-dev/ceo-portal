@@ -105,21 +105,52 @@ public class SaveRoomBoardCommandHandler(
         var board = await context.RoomBoards
             .FirstOrDefaultAsync(x => x.RoomId == room.Id, cancellationToken);
 
-        if (board is null)
-        {
-            context.RoomBoards.Add(new RoomBoard
-            {
-                RoomId = room.Id,
-                Scene = request.Scene,
-                UpdatedBy = writer.SenderId,
-            });
-        }
-        else
+        if (board is not null)
         {
             board.Scene = request.Scene;
             board.UpdatedBy = writer.SenderId;
+            await context.SaveChangesAsync(cancellationToken);
+            return;
         }
 
-        await context.SaveChangesAsync(cancellationToken);
+        var created = new RoomBoard
+        {
+            RoomId = room.Id,
+            Scene = request.Scene,
+            UpdatedBy = writer.SenderId,
+        };
+
+        context.RoomBoards.Add(created);
+
+        try
+        {
+            await context.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            // Two people drew at the same moment on a board nobody had saved yet, so both read
+            // "no board" and both tried to create one. The unique index on RoomId is what turns
+            // that into one catchable error instead of two rows for one meeting.
+            //
+            // Losing the insert is not a conflict to resolve. Last write wins is already this
+            // feature's rule — every client holds the same merged scene, so either save is a
+            // complete and valid board — which makes the recovery an ordinary update of the row
+            // that won.
+            //
+            // Removing an entity that is still in the Added state detaches it rather than marking
+            // it deleted, so the failed insert does not follow us into the retry.
+            context.RoomBoards.Remove(created);
+
+            var winner = await context.RoomBoards
+                .FirstOrDefaultAsync(x => x.RoomId == room.Id, cancellationToken);
+
+            // No winner means the insert failed for some other reason entirely, and swallowing it
+            // would turn a real fault into a silent no-op.
+            if (winner is null) throw;
+
+            winner.Scene = request.Scene;
+            winner.UpdatedBy = writer.SenderId;
+            await context.SaveChangesAsync(cancellationToken);
+        }
     }
 }

@@ -2,6 +2,7 @@ using Mabhas19.Application.Common.Interfaces;
 using Mabhas19.Application.FunctionalTests.Infrastructure;
 using Mabhas19.Application.Rooms;
 using Mabhas19.Domain.Rooms;
+using Microsoft.EntityFrameworkCore;
 using ValidationException = Mabhas19.Application.Common.Exceptions.ValidationException;
 
 namespace Mabhas19.Application.FunctionalTests.Rooms;
@@ -165,6 +166,22 @@ public class RoomBoardTests : TestBase
         error.Errors["Scene"].ShouldContain(x => x.Contains("بسته"));
 
         (await TestApp.SendAsync(new GetRoomBoardQuery(room.Id, null)))!.Scene.ShouldBe(Scene);
+    }
+
+    [Test]
+    public async Task The_database_refuses_a_second_board_for_the_same_meeting()
+    {
+        var room = await SeedAsync();
+        await TestApp.AddAsync(new RoomBoard { RoomId = room.Id, Scene = Scene, UpdatedBy = Presenter });
+
+        // This is the guard the save handler's retry depends on. Without a unique index, two people
+        // drawing on a fresh board at the same moment would leave the meeting with two rows and no
+        // rule about which one is the board. In-memory providers ignore CHECK constraints and unique
+        // indexes, which is why this test earns its keep only against real SQL Server.
+        await Should.ThrowAsync<DbUpdateException>(
+            () => TestApp.AddAsync(new RoomBoard { RoomId = room.Id, Scene = "{}", UpdatedBy = Member }));
+
+        (await TestApp.CountAsync<RoomBoard>()).ShouldBe(1);
     }
 
     [Test]
