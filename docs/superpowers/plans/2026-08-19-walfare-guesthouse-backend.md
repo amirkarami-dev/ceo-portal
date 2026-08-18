@@ -14,11 +14,15 @@
 
 ## Global Constraints
 
-- **.NET builds and tests run ON THE SERVER.** Local `dotnet restore` is blocked — NuGet is unreachable from this machine. See `docs/ai/OPERATIONS.md`. Every "run the tests" step below means: copy the changed files up, then run there.
+- **.NET builds and tests run LOCALLY.** Verified before dispatch on this machine: `dotnet --version` → 10.0.400-preview, `dotnet build src/Domain/Domain.csproj` → 0 errors, `dotnet test tests/Domain.UnitTests` → 18/18 passed, "All projects are up-to-date for restore". `docs/ai/OPERATIONS.md` says builds run on the server; that is about restoring NEW packages, and this plan adds none. Run every command below on this machine. **Task 9 is the exception** — it needs a running API and database, not just a compiler.
 - **Enums are numbers on the wire.** The Web host registers no `JsonStringEnumConverter`, so `GuesthouseRequestStatus.Priced` serialises as `1`. Never type a wire enum as a string union.
 - **Reuse `JalaliDate.Parse`** from `src/Application/Common/JalaliDate.cs`. Do not write another Jalali converter.
 - **Every refusal carries a Persian sentence**, through the `Fail.With(property, message)` helper each walfare file already declares at its top.
 - **Person fields are snapshots.** Copy name, national code and mobile onto the row at write time, as `WelfarePoolReservation` does — the letter must keep saying who it was issued to.
+- **Admin handlers use `[Authorize(Roles = Roles.AdminOrSuper)]`, never `Roles.Administrator`.** The
+  role check compares `role == x` and never trims, so naming `Administrator` alone makes a SuperUser
+  behave like an ordinary user — `src/Domain/Constants/Roles.cs` documents this. Every existing
+  walfare and analytics handler uses `AdminOrSuper`.
 - **Never commit secrets.** SMS credentials come from the existing `Sms` configuration section.
 - **Endpoint handler method names are globally unique** and carry the `Walfare` prefix — they become operationIds.
 
@@ -613,7 +617,7 @@ public class GetActiveGuesthousesQueryHandler(IApplicationDbContext context)
 
 // ── admin CRUD ──────────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record GetGuesthousesAdminQuery : IRequest<IReadOnlyList<GuesthouseDto>>;
 
 public class GetGuesthousesAdminQueryHandler(IApplicationDbContext context)
@@ -631,7 +635,7 @@ public class GetGuesthousesAdminQueryHandler(IApplicationDbContext context)
     }
 }
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record CreateGuesthouseCommand(GuesthouseInput Input) : IRequest<int>;
 
 public class CreateGuesthouseCommandHandler(IApplicationDbContext context)
@@ -655,7 +659,7 @@ public class CreateGuesthouseCommandHandler(IApplicationDbContext context)
     }
 }
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record UpdateGuesthouseCommand(int Id, GuesthouseInput Input) : IRequest;
 
 public class UpdateGuesthouseCommandHandler(IApplicationDbContext context)
@@ -678,7 +682,7 @@ public class UpdateGuesthouseCommandHandler(IApplicationDbContext context)
     }
 }
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record DeleteGuesthouseCommand(int Id) : IRequest;
 
 public class DeleteGuesthouseCommandHandler(IApplicationDbContext context)
@@ -1161,7 +1165,7 @@ public class CreateGuesthouseRequestCommandHandler(IApplicationDbContext context
 /// for a member. UserId stays null, so the row can never appear in anybody's "my requests" list —
 /// the SMS link is that person's only door.
 /// </remarks>
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record CreateGuesthouseRequestAdminCommand(GuesthouseRequestInput Input) : IRequest<int>;
 
 public class CreateGuesthouseRequestAdminCommandHandler(IApplicationDbContext context)
@@ -1395,7 +1399,7 @@ public static class GuesthouseTokens
 /// link for a price nobody has set. Re-pricing keeps the same token and only extends its life —
 /// a second live link for one request is how somebody pays twice.
 /// </remarks>
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record PriceGuesthouseRequestCommand(
     int Id,
     long AmountRials,
@@ -1431,7 +1435,7 @@ public class PriceGuesthouseRequestCommandHandler(IApplicationDbContext context,
 
 // ── admin: refuse ───────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record RejectGuesthouseRequestCommand(int Id, string Reason) : IRequest;
 
 public class RejectGuesthouseRequestCommandHandler(IApplicationDbContext context)
@@ -1462,7 +1466,7 @@ public class RejectGuesthouseRequestCommandHandler(IApplicationDbContext context
 
 // ── admin: the list ─────────────────────────────────────────────────────────
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record GetGuesthouseRequestsAdminQuery(
     GuesthouseRequestStatus? Status,
     int? GuesthouseId) : IRequest<IReadOnlyList<GuesthouseRequestDto>>;
@@ -1983,7 +1987,7 @@ public static class GuesthouseSmsText
 /// Re-sending re-uses the same token and only extends its life. A second live link for one request
 /// is how somebody pays twice.
 /// </remarks>
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record SendGuesthousePaymentSmsCommand(int Id) : IRequest;
 
 public class SendGuesthousePaymentSmsCommandHandler(
@@ -2161,7 +2165,7 @@ public sealed record GuesthouseReferralDto
     public CompanionDto[] Companions { get; init; } = [];
 }
 
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record GetGuesthouseReferralQuery(int Id) : IRequest<GuesthouseReferralDto>;
 
 public class GetGuesthouseReferralQueryHandler(IApplicationDbContext context)
@@ -2211,7 +2215,7 @@ public class GetGuesthouseReferralQueryHandler(IApplicationDbContext context)
 /// Overrides شماره فیش by hand — for a payment that arrived as a bank transfer rather than through
 /// the gateway.
 /// </summary>
-[Authorize(Roles = Roles.Administrator)]
+[Authorize(Roles = Roles.AdminOrSuper)]
 public record UpdateGuesthouseReceiptCommand(int Id, string ReceiptNumber) : IRequest;
 
 public class UpdateGuesthouseReceiptCommandHandler(IApplicationDbContext context)
