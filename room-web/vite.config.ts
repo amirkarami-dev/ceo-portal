@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath, URL } from "node:url";
 
@@ -15,5 +15,12 @@ export default defineConfig({
     // would fail at the login redirect with an error that says nothing about ports.
     port: 5277,
     strictPort: true,
+  },
+  test: {
+    globals: true,
+    // Node, not jsdom: the only tests here exercise pure functions over JSON and TextEncoder. A
+    // jsdom environment would drag in the canvas-context and antd-jalali stubs that analytics-web
+    // needs, for no gain — see the plan's Task 2 note.
+    environment: "node",
   },
 });
