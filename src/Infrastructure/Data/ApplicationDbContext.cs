@@ -77,6 +77,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<RoomMessage> RoomMessages => Set<RoomMessage>();
 
+    public DbSet<RoomBoard> RoomBoards => Set<RoomBoard>();
+
     public DbSet<VmsCity> VmsCities => Set<VmsCity>();
 
     public DbSet<Camera> VmsCameras => Set<Camera>();
