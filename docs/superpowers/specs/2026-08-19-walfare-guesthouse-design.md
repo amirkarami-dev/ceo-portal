@@ -48,7 +48,11 @@ GuesthouseRequest : BaseAuditableEntity
   // applicant — a SNAPSHOT, same reasoning as WelfarePoolReservation:
   // the letter must keep saying who it was issued to even if the org record changes later
   FullName, NationalCode, MembershipNumber, Mobile
-  Gender                      drives «جناب آقای» / «سرکار خانم» on the letter
+  Gender?                     nullable — drives «جناب آقای» / «سرکار خانم» on the letter.
+                              That select is on the OFFICE's half of the paper form, so a member
+                              submitting a request never fills it in. Optional at submit, and the
+                              admin sets it on the referral screen before printing. The letter
+                              refuses to print until it is set, rather than guessing from a name.
 
   // the stay — Jalali string as displayed, Gregorian shadow for querying,
   // the convention WelfareService already uses
@@ -123,10 +127,12 @@ which deliberately carries no identifiers at all.
 
 Two doors, one page:
 
-| Door | Route | Auth |
+| Door | Front-end route | Auth |
 |---|---|---|
-| SMS link | `GET /pay/guesthouse/:token` | **anonymous** — the payer may have no account |
-| Member's own list | the same URL; a member's own request returns its token to its owner | authenticated |
+| SMS link | `/pay/guesthouse/:token` | **anonymous** — the payer may have no account |
+| Member's own list | the same route; a member's own request returns its token to its owner | authenticated |
+
+Both call the same two API endpoints listed below.
 
 The anonymous endpoints join the same allow-list as the room join routes, and inherit the shared rate
 limiter. **Flagged:** that limiter is 120/min for everyone behind one NAT — already a known concern
