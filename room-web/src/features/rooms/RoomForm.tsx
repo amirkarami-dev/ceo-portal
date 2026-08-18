@@ -347,7 +347,7 @@ export function RoomForm() {
           />
         )}
 
-        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+        <div className="room-form-actions">
           <Button
             type="primary"
             size="large"

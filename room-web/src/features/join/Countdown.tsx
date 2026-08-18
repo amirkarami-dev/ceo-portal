@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Typography, theme } from "antd";
-import { motion } from "framer-motion";
+import { Typography } from "antd";
+import { motion, useReducedMotion } from "framer-motion";
+import { MOTION } from "../../theme/motion";
 
 const two = (n: number) =>
   n.toLocaleString("fa-IR", { minimumIntegerDigits: 2, useGrouping: false });
@@ -15,24 +16,29 @@ function parts(msLeft: number) {
   };
 }
 
+/**
+ * The wait in words, for a screen reader.
+ *
+ * The tiles tick once a second and are hidden from assistive technology: a live
+ * region firing every second is unusable, and a silent one is a wall of digits.
+ * This says the same thing once, and is read when the reader reaches it.
+ */
+function spoken({ days, hours, minutes }: ReturnType<typeof parts>): string {
+  const said = [
+    days > 0 ? `${days.toLocaleString("fa-IR")} روز` : null,
+    hours > 0 ? `${hours.toLocaleString("fa-IR")} ساعت` : null,
+    `${minutes.toLocaleString("fa-IR")} دقیقه`,
+  ].filter(Boolean);
+  return `تا شروع جلسه ${said.join(" و ")} باقی مانده است`;
+}
+
 /** One unit of the countdown. The number animates; the label does not. */
 function Unit({ value, label, flip }: { value: string; label: string; flip: boolean }) {
-  const { token } = theme.useToken();
+  const reduced = useReducedMotion() === true;
 
   return (
-    <div style={{ textAlign: "center", minWidth: 72 }}>
-      <div
-        style={{
-          position: "relative",
-          height: 76,
-          borderRadius: 16,
-          background: token.colorFillQuaternary,
-          border: `1px solid ${token.colorBorderSecondary}`,
-          display: "grid",
-          placeItems: "center",
-          overflow: "hidden",
-        }}
-      >
+    <div className="room-cd-unit">
+      <div className="room-cd-tile">
         {/*
           Enter-only, and deliberately NOT wrapped in <AnimatePresence>.
 
@@ -47,26 +53,17 @@ function Unit({ value, label, flip }: { value: string; label: string; flip: bool
         */}
         <motion.span
           key={value}
+          className="room-cd-value"
           // Only the seconds move. Animating hours and minutes on every tick would make a page that
           // sits open for twenty minutes twitch constantly in the corner of somebody's eye.
-          initial={flip ? { y: 18, opacity: 0 } : false}
+          initial={flip && !reduced ? { y: 18, opacity: 0 } : false}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.22, ease: "easeOut" }}
-          style={{
-            position: "absolute",
-            fontSize: 38,
-            fontWeight: 600,
-            lineHeight: 1,
-            fontVariantNumeric: "tabular-nums",
-            color: token.colorText,
-          }}
+          transition={{ duration: MOTION.base, ease: MOTION.ease }}
         >
           {value}
         </motion.span>
       </div>
-      <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginTop: 8 }}>
-        {label}
-      </Typography.Text>
+      <span className="room-cd-label">{label}</span>
     </div>
   );
 }
@@ -95,8 +92,6 @@ export function Countdown({
   serverNow: string;
   onElapsed?: () => void;
 }) {
-  const { token } = theme.useToken();
-
   // Computed once per (to, serverNow) pair — i.e. once per response from the server.
   const deadline = useMemo(() => {
     const target = new Date(to).getTime();
@@ -126,7 +121,7 @@ export function Countdown({
 
   if (!Number.isFinite(deadline)) return null;
 
-  const { days, hours, minutes, seconds } = parts(deadline - now);
+  const left = parts(deadline - now);
 
   return (
     <div style={{ textAlign: "center" }}>
@@ -134,35 +129,18 @@ export function Countdown({
         تا شروع جلسه
       </Typography.Text>
 
+      <p className="sr-only">{spoken(left)}</p>
+
       {/* dir="ltr" so the units read روز · ساعت · دقیقه · ثانیه left to right, the way a clock is
           read everywhere including in Persian — an RTL flow would put the seconds first. */}
-      <div
-        dir="ltr"
-        style={{
-          display: "flex",
-          gap: 10,
-          justifyContent: "center",
-          marginTop: 12,
-          unicodeBidi: "isolate",
-        }}
-      >
-        {days > 0 && <Unit value={days.toLocaleString("fa-IR")} label="روز" flip={false} />}
-        <Unit value={two(hours)} label="ساعت" flip={false} />
-        <Unit value={two(minutes)} label="دقیقه" flip={false} />
-        <Unit value={two(seconds)} label="ثانیه" flip />
+      <div className="room-cd" dir="ltr" style={{ unicodeBidi: "isolate" }} aria-hidden="true">
+        {left.days > 0 && (
+          <Unit value={left.days.toLocaleString("fa-IR")} label="روز" flip={false} />
+        )}
+        <Unit value={two(left.hours)} label="ساعت" flip={false} />
+        <Unit value={two(left.minutes)} label="دقیقه" flip={false} />
+        <Unit value={two(left.seconds)} label="ثانیه" flip />
       </div>
-
-      <div
-        aria-hidden
-        style={{
-          height: 3,
-          width: 64,
-          margin: "18px auto 0",
-          borderRadius: 3,
-          background: token.colorPrimary,
-          opacity: 0.5,
-        }}
-      />
     </div>
   );
 }

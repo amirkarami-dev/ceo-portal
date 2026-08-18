@@ -1,8 +1,80 @@
+/* ---------------------------------------------------------------------------
+   Design tokens.
+
+   One place for colour, elevation, radius and motion. AntD reads the palette
+   through buildTheme() in tokens.ts; everything hand-written reads it from here,
+   so the two never drift apart.
+   --------------------------------------------------------------------------- */
+
 :root {
   color-scheme: light;
+
+  /* Estate brand colours. `onair` is "live", `danger` is "failed" — see tokens.ts. */
+  --brand: #326bfc;
+  --brand-ink: #2c5fe0; /* the brand as readable text on a light ground */
+  --brand-soft: rgba(50, 107, 252, 0.09);
+  --onair: #fd411e;
+  --soon: #fcbb21;
+  --ok: #24af7e;
+  --danger: #e5484d;
+
+  --ground: #f5f7fb;
+  --surface: #ffffff;
+  --surface-2: #eef1f8;
+  --line: rgba(15, 23, 42, 0.09);
+  --line-strong: rgba(15, 23, 42, 0.16);
+  --text: #0d1526;
+  --muted: #5a6684;
+  --faint: #8a94af;
+  --focus: #326bfc;
+  /* The sticky header sits on this and blurs what scrolls under it. */
+  --glass: rgba(255, 255, 255, 0.72);
+
+  /* Elevation. Three steps, no more: resting, raised, floating. */
+  --shadow-1: 0 1px 2px rgba(13, 21, 38, 0.06), 0 1px 1px rgba(13, 21, 38, 0.04);
+  --shadow-2: 0 6px 20px -6px rgba(13, 21, 38, 0.16), 0 2px 6px rgba(13, 21, 38, 0.05);
+  --shadow-3: 0 18px 48px -12px rgba(13, 21, 38, 0.26);
+
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 22px;
+
+  /* Motion. One rhythm for the whole app; mirrored in theme/motion.ts for
+     framer-motion, so CSS and JS animate at the same speed. */
+  --m-fast: 160ms;
+  --m-base: 240ms;
+  --m-enter: 320ms;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
 }
-html[data-theme="dark"] {
+
+/* `.room-meeting` shares the dark values rather than copying them.
+   A meeting is always dark, in either app theme: LiveKit's own tile styles are
+   dark, so light chrome wrapped white bars around a dark video grid — and a
+   bright panel beside a video feed washes the picture out for the whole call.
+   This block sits after `:root`, so the class wins there on source order. */
+html[data-theme="dark"],
+.room-meeting {
   color-scheme: dark;
+
+  --brand-ink: #7ca5ff;
+  --brand-soft: rgba(50, 107, 252, 0.16);
+
+  --ground: #070b14;
+  --surface: #0f1626;
+  --surface-2: #16203a;
+  --line: rgba(148, 163, 184, 0.14);
+  --line-strong: rgba(148, 163, 184, 0.26);
+  --text: #e9eefb;
+  --muted: #9aa8c8;
+  --faint: #6d7b9c;
+  --focus: #7ca5ff;
+  --glass: rgba(15, 22, 38, 0.72);
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-2: 0 8px 24px -8px rgba(0, 0, 0, 0.65), 0 2px 6px rgba(0, 0, 0, 0.4);
+  --shadow-3: 0 24px 56px -16px rgba(0, 0, 0, 0.75);
 }
 
 html,
@@ -14,11 +86,31 @@ body,
 
 body {
   font-family: "Vazirmatn", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background: #f4f6fb;
-  transition: background-color 0.3s ease;
+  /* This app is made of times, counts and durations. Lining figures everywhere
+     means a ticking countdown or a live participant count never reflows the row
+     around it. Vazirmatn ships the tnum feature, so Persian digits line up too. */
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  /* A single wash behind everything, anchored top-start. In RTL that is the
+     right edge, where the sider and the brand mark live. AntD's Layout body is
+     transparent (see tokens.ts) so this shows through the app shell. */
+  background:
+    radial-gradient(1200px 620px at 100% -10%, var(--brand-soft), transparent 62%),
+    var(--ground);
+  transition: background-color var(--m-base) var(--ease);
 }
-html[data-theme="dark"] body {
-  background: #0b1220;
+
+/* One focus ring for the whole app, in the brand colour, on every theme.
+
+   `!important` on purpose, and only here. AntD sets its own ring on
+   `.ant-btn:focus-visible` in `colorPrimaryBorder`, which its dark algorithm
+   derives as #1D2E5A — a navy that is all but invisible on the dark ground. That
+   selector outranks an unqualified one, so matching its specificity would mean
+   chasing every component AntD ships. A visible focus ring is an accessibility
+   floor rather than a preference, so it is the one rule allowed to overrule. */
+*:focus-visible {
+  outline: 2px solid var(--focus) !important;
+  outline-offset: 2px !important;
 }
 
 /* LTR, tabular monospace for codes / IDs inside an RTL layout (Peygiri, ثبت). */
@@ -36,32 +128,317 @@ html[data-theme="dark"] body {
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.4);
-  border-radius: 8px;
+  background: var(--line-strong);
+  border-radius: var(--r-sm);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.65);
+  background: var(--faint);
 }
 
-/* Live pulse for the "in progress" indicator */
-@keyframes mun-pulse {
+/* The "this meeting is running" marker. Red because it means on air, and it is
+   always next to the word «در حال برگزاری» — never the only signal. */
+@keyframes room-pulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.5);
+    box-shadow: 0 0 0 0 rgba(253, 65, 30, 0.55);
   }
   70% {
-    box-shadow: 0 0 0 8px rgba(37, 99, 235, 0);
+    box-shadow: 0 0 0 8px rgba(253, 65, 30, 0);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+    box-shadow: 0 0 0 0 rgba(253, 65, 30, 0);
   }
 }
-.mun-live-dot {
+.room-live-dot {
   display: inline-block;
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #2563eb;
-  animation: mun-pulse 1.6s ease-out infinite;
+  background: var(--onair);
+  animation: room-pulse 2s var(--ease) infinite;
+}
+
+/* ── The sider's navigation ────────────────────────────────────────────────
+   Hand-built rather than an AntD Menu, because the active marker is one element
+   that slides between rows (see NavItem in AppLayout). A Menu draws its own
+   per-item highlight, which cannot be shared across items. */
+.room-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+}
+.room-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px; /* a real touch target, phone or not */
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: start;
+  cursor: pointer;
+  transition:
+    color var(--m-fast) var(--ease),
+    background-color var(--m-fast) var(--ease);
+}
+.room-nav-item:hover:not([aria-current="page"]) {
+  color: var(--text);
+  background: var(--surface-2);
+}
+.room-nav-item[aria-current="page"] {
+  color: var(--brand-ink);
+  font-weight: 700;
+}
+/* Above the pill, which is painted behind them. */
+.room-nav-icon,
+.room-nav-label {
+  position: relative;
+  z-index: 1;
+}
+.room-nav-icon {
+  display: inline-flex;
+  font-size: 17px;
+}
+.room-nav-label {
+  white-space: nowrap;
+}
+
+/* The one moving object in the shell. */
+.room-nav-pill {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: var(--r-md);
+  background: var(--brand-soft);
+  box-shadow: inset 0 0 0 1px rgba(50, 107, 252, 0.22);
+}
+.room-nav-pill::after {
+  content: "";
+  position: absolute;
+  inset-inline-start: 4px;
+  top: 50%;
+  width: 3px;
+  height: 18px;
+  margin-top: -9px;
+  border-radius: 999px;
+  background: var(--brand);
+}
+
+/* ── The time rail ─────────────────────────────────────────────────────────
+   A line down a card's leading edge: empty a week out, filling as the meeting
+   approaches, full once it is on. See components/TimeRail.tsx. */
+.room-rail {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: 3px;
+  background: var(--line);
+}
+.room-rail-fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: bottom; /* it fills upward, like a level rising */
+}
+
+/* Phase chip: the colour and the word travel together, never the colour alone. */
+.room-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.9;
+  white-space: nowrap;
+}
+/* Inside a chip the dot belongs to the chip's phase, not to a fixed red. */
+.room-chip .room-live-dot {
+  background: currentColor;
+}
+
+.room-meeting-card {
+  transition:
+    transform var(--m-fast) var(--ease),
+    box-shadow var(--m-fast) var(--ease),
+    border-color var(--m-fast) var(--ease);
+}
+.room-meeting-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-2);
+}
+
+/* A 44px hit area on a control that is drawn smaller.
+   AntD's icon-only text button is 32px, which is fine to look at in a header and
+   too small to hit on a phone. The pseudo-element is invisible, sits inside the
+   button, and clicks on it reach the button — so the target grows and the design
+   does not. */
+.room-tap {
+  position: relative;
+}
+.room-tap::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+}
+
+/* The save row on an admin form. */
+.room-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+@media (max-width: 560px) {
+  /* On a phone the primary action takes the width rather than hugging one corner,
+     where it is both harder to reach and easy to miss below a long form. */
+  .room-form-actions,
+  .room-form-actions > .ant-btn {
+    width: 100%;
+  }
+}
+
+/* Read by a screen reader, never drawn. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── The countdown ─────────────────────────────────────────────────────────
+   The one moment in this app that is allowed to be big. A stranger holding a
+   link sees this before anything else of the organisation. */
+.room-cd {
+  display: flex;
+  gap: clamp(6px, 2vw, 12px);
+  justify-content: center;
+  margin-top: 14px;
+}
+.room-cd-unit {
+  text-align: center;
+  min-width: clamp(62px, 18vw, 80px);
+}
+.room-cd-tile {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: clamp(68px, 19vw, 88px);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+  overflow: hidden;
+}
+.room-cd-value {
+  position: absolute;
+  font-size: clamp(28px, 8vw, 40px);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -1px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.room-cd-label {
+  display: block;
+  margin-top: 8px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+/* The page a stranger with a link lands on. One wash, anchored where the eye
+   starts in RTL, and nothing else competing with the countdown. */
+.room-join-shell {
+  min-height: 100vh;
+  min-height: 100dvh; /* the phone address bar must not crop the card */
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background:
+    radial-gradient(1100px 560px at 78% -12%, rgba(50, 107, 252, 0.13), transparent 62%),
+    var(--ground);
+}
+html[data-theme="dark"] .room-join-shell {
+  background:
+    radial-gradient(1100px 560px at 78% -12%, rgba(50, 107, 252, 0.26), transparent 62%),
+    radial-gradient(760px 420px at 8% 6%, rgba(6, 181, 248, 0.07), transparent 60%),
+    var(--ground);
+}
+.room-join-card {
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-3);
+}
+
+/* ── Inside a meeting ──────────────────────────────────────────────────────
+   Operate, not express. The video is what people came for; every surface here
+   is quiet enough to sit beside it for an hour. */
+.room-meeting {
+  height: 100vh;
+  height: 100dvh; /* the phone address bar must not hide the controls */
+  display: flex;
+  flex-direction: column;
+  background: var(--ground);
+  color: var(--text);
+}
+.room-meeting-title,
+.room-meeting-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--surface);
+}
+.room-meeting-title {
+  border-bottom: 1px solid var(--line);
+}
+.room-meeting-bar {
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--line);
+}
+@media (max-width: 560px) {
+  /* Six round controls and a labelled button do not fit a phone in one row.
+     Centred, they wrap into a tidy block instead of a ragged one. */
+  .room-meeting-bar {
+    justify-content: center;
+  }
+  /* The leave button keeps its icon and its aria-label, and gives up its word. */
+  .room-leave-label {
+    display: none;
+  }
+}
+.room-meeting-name {
+  margin: 0;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.room-elapsed {
+  font-size: 12.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 
 /* The meeting side panel is a column whose tab body must scroll, not grow — otherwise the chat's
@@ -87,5 +464,17 @@ html[data-theme="dark"] body {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* The pulse is ambient, not informative — the word beside it already says the
+     meeting is running — so it stops rather than freezing mid-ring. */
+  .room-live-dot {
+    animation: none;
+    box-shadow: none;
+  }
+  /* A hover lift with no duration is a jump. The shadow alone still says "this
+     one is under the pointer". */
+  .room-meeting-card:hover {
+    transform: none;
   }
 }

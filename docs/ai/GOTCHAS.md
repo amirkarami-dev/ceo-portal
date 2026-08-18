@@ -1506,3 +1506,40 @@ the `onLayoutChange` that carries a re-generated layout, while `onWidthChange` f
 you need the new column count before deciding whether to trust a layout, only `onBreakpointChange` is
 early enough. And if you store one layout per dashboard, never write back what a narrow screen
 renders — the library squeezes 12 columns into 4 and reports the squeezed copy as if you made it.
+
+
+### AntD's own secondary text FAILS contrast on a light theme
+`colorTextSecondary` is 45% black, which composites to 3.36:1 on a white card — under the 4.5:1 that
+normal text needs. On dark it is 4.50:1: passing, with nothing to spare. Every `type="secondary"`
+subtitle, card meta row and form hint inherits it, so the whole app fails together and nothing looks
+obviously wrong. Set it from your own palette in `buildTheme`. **`colorTextDescription` does not
+follow it** — that is the one a `Form.Item`'s `extra` uses, and it needs setting separately.
+
+### AntD's focus ring is nearly invisible on a dark theme, and it outranks your rule
+`.ant-btn:focus-visible` draws its outline in `colorPrimaryBorder`, which the dark algorithm derives
+as `#1D2E5A` — a navy on a near-black ground. Worse, that selector beats an unqualified
+`*:focus-visible`, so a global ring loses **silently**: the rule is in the stylesheet, it just never
+wins. A visible focus ring is an accessibility floor, so this is the one place `!important` earns its
+keep. Verify by pressing Tab for real and reading `outlineColor` — `el.focus()` from JS does not
+match `:focus-visible` and will tell you the ring is `none`.
+
+### An AntD component's own style beats your class, because AntD injects its CSS AFTER yours
+A borderless `<Card>` sets `box-shadow` from a rule with two-class specificity; `.my-card` has one
+and loses. Matching the specificity does not help either — AntD's `<style>` is inserted at runtime,
+*after* the bundled stylesheet, so a tie goes to AntD. Put the value in the `style` prop. The same
+applies to `colorBgContainer`: on dark, AntD paints every card, table and modal `#141414`, so a
+palette with a blue-biased ground shows two different dark themes on one screen until the token is
+set.
+
+### LiveKit's components are dark by their own stylesheet
+`@livekit/components-styles` ships a dark theme with no light variant. A meeting screen that follows
+the app theme therefore wraps **white chrome around a dark video grid** in light mode. Force the
+meeting dark in both themes — a nested `<ConfigProvider>` covers AntD, and a class added to the
+existing `html[data-theme="dark"]` selector list covers everything hand-written.
+
+### A room in this app never closes, so `canJoinNow` is true forever
+`Room.IsOpenAt` is `IsActive && !IsDeleted && now >= OpensAtUtc` — there is no upper bound — and
+`GetMyRoomsQuery` applies no date filter. A meeting from last month therefore arrives with
+`canJoinNow: true`, and any UI that reads that as "live" will say «در حال برگزاری» about it.
+Keep the two questions apart: `canJoinNow` answers *may I go in*, and the schedule
+(`room-web/src/lib/schedule.ts`) answers *is it now*. Both can be true at once.

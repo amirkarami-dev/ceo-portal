@@ -24,6 +24,9 @@ import {
   TeamOutlined,
 } from "@ant-design/icons";
 import { PageHeader } from "../../components/PageHeader";
+import { PhaseChip } from "../../components/PhaseChip";
+import { describeSchedule } from "../../lib/schedule";
+import { useNow } from "../../lib/useNow";
 import {
   useDeleteRoom,
   useRegenerateLink,
@@ -34,7 +37,6 @@ import {
   JOIN_MODE_COLOURS,
   JOIN_MODE_LABELS,
   RoomJoinMode,
-  RoomType,
   TYPE_LABELS,
   fa,
   fromWireTime,
@@ -124,6 +126,7 @@ export function RoomsList() {
   const navigate = useNavigate();
   const { message, modal } = AntApp.useApp();
   const { data, isLoading } = useRooms();
+  const now = useNow();
 
   const setActive = useSetRoomActive();
   const remove = useDeleteRoom();
@@ -140,9 +143,9 @@ export function RoomsList() {
         <Space direction="vertical" size={0}>
           <Space size={6}>
             <Typography.Text strong>{name}</Typography.Text>
-            <Tag color={row.type === RoomType.Presentation ? "purple" : "default"}>
-              {TYPE_LABELS[row.type]}
-            </Tag>
+            {/* Neutral. In this table the only coloured tags are the public-link
+                warning and the schedule chip — see JOIN_MODE_COLOURS. */}
+            <Tag bordered={false}>{TYPE_LABELS[row.type]}</Tag>
           </Space>
           {row.presenterName && (
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
@@ -155,15 +158,33 @@ export function RoomsList() {
     {
       title: "زمان برگزاری",
       key: "when",
-      render: (_: unknown, row: RoomListItem) => (
-        <Space direction="vertical" size={0}>
-          <span>{row.dateJalali}</span>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            ساعت {fromWireTime(row.startTime)}
-            {row.durationMinutes ? ` — ${fa(row.durationMinutes)} دقیقه` : ""}
-          </Typography.Text>
-        </Space>
-      ),
+      render: (_: unknown, row: RoomListItem) => {
+        // The admin DTO carries no `canJoinNow`, so this mirrors `Room.IsOpenAt`
+        // exactly — active, and past the opening time. Display only: every action
+        // on this row is still decided by the server.
+        const schedule = describeSchedule(
+          {
+            startsAtUtc: row.startsAtUtc,
+            opensAtUtc: row.opensAtUtc,
+            durationMinutes: row.durationMinutes,
+            canJoinNow: row.isActive && Date.parse(row.opensAtUtc) <= now,
+          },
+          now,
+        );
+
+        return (
+          <Space direction="vertical" size={4}>
+            <span>{row.dateJalali}</span>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              ساعت {fromWireTime(row.startTime)}
+              {row.durationMinutes ? ` — ${fa(row.durationMinutes)} دقیقه` : ""}
+            </Typography.Text>
+            {/* «باز/بسته» is the admin's own switch; this is where the meeting sits
+                in time. Two different questions, and both matter on this row. */}
+            <PhaseChip phase={schedule.phase} relative={schedule.relative} />
+          </Space>
+        );
+      },
     },
     {
       title: "نوع ورود",
@@ -184,7 +205,7 @@ export function RoomsList() {
       render: (n: number, row: RoomListItem) =>
         n > 0 ? (
           <Space size={6}>
-            <span className="mun-live-dot" />
+            <span className="room-live-dot" />
             <Typography.Text strong>{fa(n)}</Typography.Text>
           </Space>
         ) : (

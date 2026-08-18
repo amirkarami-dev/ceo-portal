@@ -1,7 +1,8 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { Alert, Button, Drawer, Result, Space, Tabs, Tag, Typography, theme } from "antd";
+import { Alert, Button, ConfigProvider, Drawer, Result, Space, Tabs, Tag, Typography } from "antd";
 import { ReloadOutlined } from "@ant-design/icons";
 import { LiveKitRoom, RoomAudioRenderer } from "@livekit/components-react";
+import { motion, useReducedMotion } from "framer-motion";
 import "@livekit/components-styles";
 import { ChatPanel } from "./ChatPanel";
 import { MeetingBar } from "./MeetingBar";
@@ -9,6 +10,9 @@ import { MeetingStage } from "./MeetingStage";
 import { ParticipantsPanel } from "./ParticipantsPanel";
 import { BoardBoundary } from "../whiteboard/BoardBoundary";
 import { setRoomToken } from "../../lib/api";
+import { useNow } from "../../lib/useNow";
+import { MOTION } from "../../theme/motion";
+import { buildTheme } from "../../theme/tokens";
 import { RoomType, TYPE_LABELS, type RoomJoinResult } from "../../lib/types";
 
 /** Lazy: Excalidraw and its stylesheet must not be in the chunk every guest downloads. */
@@ -17,6 +21,34 @@ const WhiteboardStage = lazy(() =>
 );
 
 type Phase = "connecting" | "connected" | "failed" | "left";
+
+const two = (n: number) =>
+  n.toLocaleString("fa-IR", { minimumIntegerDigits: 2, useGrouping: false });
+
+/**
+ * How long this connection has been up.
+ *
+ * Its own component so the per-second tick re-renders one `<span>` and not the
+ * video grid above it.
+ *
+ * It measures THIS connection, not the meeting: `RoomJoinResult` carries no start
+ * time and no duration, so there is nothing here to show progress against.
+ */
+function ElapsedClock({ since }: { since: number }) {
+  const now = useNow(1000);
+  const total = Math.max(0, Math.floor((now - since) / 1000));
+  const hours = Math.floor(total / 3600);
+  const text =
+    hours > 0
+      ? `${two(hours)}:${two(Math.floor((total % 3600) / 60))}:${two(total % 60)}`
+      : `${two(Math.floor(total / 60))}:${two(total % 60)}`;
+
+  return (
+    <span className="room-elapsed" dir="ltr" style={{ unicodeBidi: "isolate" }}>
+      {text}
+    </span>
+  );
+}
 
 /**
  * The meeting itself.
@@ -29,6 +61,11 @@ type Phase = "connecting" | "connected" | "failed" | "left";
  * Camera and microphone start **off**. Opening either the moment somebody arrives is the behaviour
  * every conferencing product has been complained about for, and in a public ارائه it would put a
  * stranger's living room on screen before they had looked at the page.
+ *
+ * <b>This screen is dark in both app themes.</b> LiveKit's tiles are dark by their own stylesheet, so
+ * following a light app theme put white chrome around a dark video grid — and a bright panel beside a
+ * video feed washes the picture out for as long as the call lasts. The nested ConfigProvider covers
+ * AntD; the `.room-meeting` class covers everything hand-written.
  */
 export function MeetingScreen({
   result,
@@ -37,8 +74,9 @@ export function MeetingScreen({
   result: RoomJoinResult;
   onLeave: () => void;
 }) {
-  const { token } = theme.useToken();
+  const reduced = useReducedMotion() === true;
   const [phase, setPhase] = useState<Phase>("connecting");
+  const [connectedAt, setConnectedAt] = useState<number | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [boardOpen, setBoardOpen] = useState(false);
 
@@ -52,7 +90,7 @@ export function MeetingScreen({
 
   if (phase === "left") {
     return (
-      <div style={{ display: "grid", placeItems: "center", minHeight: "100vh", padding: 16 }}>
+      <div style={{ display: "grid", placeItems: "center", minHeight: "100dvh", padding: 16 }}>
         <Result
           status="success"
           title="از جلسه خارج شدید"
@@ -66,145 +104,164 @@ export function MeetingScreen({
     );
   }
 
+  // What the fade is keyed on. Fade only, no rise: a video grid that slides into
+  // place reads as the picture itself slipping.
+  const stageKey = phase === "connecting" ? "connecting" : boardOpen ? "board" : "video";
+  const stageFade = reduced
+    ? { initial: false as const }
+    : {
+        initial: { opacity: 0 },
+        animate: { opacity: 1 },
+        transition: { duration: MOTION.base, ease: MOTION.ease },
+      };
+
   return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: token.colorBgLayout }}>
-      {/* Title bar. Kept outside LiveKitRoom so it still reads correctly while connecting or after a
-          failure — the person needs to know which meeting they are looking at either way. */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          padding: "12px 16px",
-          background: token.colorBgContainer,
-          borderBottom: `1px solid ${token.colorBorderSecondary}`,
-        }}
-      >
-        <Typography.Text strong style={{ fontSize: 15 }}>
-          {result.roomName}
-        </Typography.Text>
-        <Tag color={result.type === RoomType.Presentation ? "purple" : "default"}>
-          {TYPE_LABELS[result.type]}
-        </Tag>
-        {!result.canPublish && <Tag>تماشاگر</Tag>}
-        <div style={{ flex: 1 }} />
-        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-          {result.displayName}
-        </Typography.Text>
-      </div>
+    <ConfigProvider theme={buildTheme("dark", reduced)}>
+      <div className="room-meeting">
+        {/* Title bar. Kept outside LiveKitRoom so it still reads correctly while connecting or after a
+            failure — the person needs to know which meeting they are looking at either way. */}
+        <div className="room-meeting-title">
+          <h1 className="room-meeting-name">{result.roomName}</h1>
+          {/* Neutral: in here the only colour that means anything is the on-air dot. */}
+          <Tag bordered={false}>{TYPE_LABELS[result.type]}</Tag>
+          {!result.canPublish && <Tag bordered={false}>تماشاگر</Tag>}
 
-      {phase === "failed" ? (
-        <div style={{ display: "grid", placeItems: "center", flex: 1, padding: 16 }}>
-          <Result
-            status="warning"
-            title="اتصال به سرور تصویر برقرار نشد"
-            subTitle="ورود شما پذیرفته شد، اما ارتباط با سرویس ویدیو ممکن نشد."
-            extra={
-              <Space>
-                {/* A reload re-runs the whole join, which mints a fresh token — the old one may simply
-                    have expired while the page sat open. */}
-                <Button type="primary" icon={<ReloadOutlined />} onClick={() => window.location.reload()}>
-                  تلاش دوباره
-                </Button>
-                <Button onClick={onLeave}>بازگشت</Button>
-              </Space>
-            }
-          />
-        </div>
-      ) : (
-        <LiveKitRoom
-          token={result.token}
-          serverUrl={result.wsUrl}
-          connect
-          // Never auto-open a device. See the note on this component.
-          audio={false}
-          video={false}
-          onConnected={() => setPhase("connected")}
-          onDisconnected={() => setPhase((p) => (p === "failed" ? p : "left"))}
-          onError={(e) => {
-            // Console, NOT the screen. The SDK's message is English and carries infrastructure
-            // detail — a real failure printed «could not establish signal connection: invalid API
-            // key: APIlocaldev» straight to a guest at a public webinar. It is the public half of
-            // the key pair rather than a secret, but naming our media server's key to a stranger
-            // buys nothing and the sentence means nothing to them either.
-            console.error("[room] media connection failed:", e);
-            setPhase("failed");
-          }}
-          style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}
-        >
-          {/* Plays every remote audio track. Without it a meeting is silent and nothing says why. */}
-          <RoomAudioRenderer />
-
-          <div style={{ flex: 1, minHeight: 0, padding: 8 }}>
-            {phase === "connecting" ? (
-              <div style={{ display: "grid", placeItems: "center", height: "100%" }}>
-                <Typography.Text type="secondary">در حال اتصال به جلسه…</Typography.Text>
-              </div>
-            ) : boardOpen ? (
-              <BoardBoundary>
-                <Suspense
-                  fallback={
-                    <div style={{ display: "grid", placeItems: "center", height: "100%" }}>
-                      <Typography.Text type="secondary">در حال بارگذاری تخته…</Typography.Text>
-                    </div>
-                  }
-                >
-                  <WhiteboardStage roomId={result.roomId} canDraw={result.canPublish} />
-                </Suspense>
-              </BoardBoundary>
-            ) : (
-              <MeetingStage />
-            )}
-          </div>
-
-          {!result.canPublish && result.type === RoomType.Presentation && (
-            <Alert
-              type="info"
-              banner
-              message="در این ارائه فقط ارائه‌دهنده صحبت می‌کند. شما می‌بینید و می‌شنوید."
-            />
+          {connectedAt !== null && (
+            <Space size={6}>
+              <span className="room-live-dot" />
+              <ElapsedClock since={connectedAt} />
+            </Space>
           )}
 
-          <MeetingBar
-            canPublish={result.canPublish}
-            participantsOpen={panelOpen}
-            onToggleParticipants={() => setPanelOpen((o) => !o)}
-            boardOpen={boardOpen}
-            onToggleBoard={() => setBoardOpen((o) => !o)}
-            onLeave={() => setPhase("left")}
-          />
+          <div style={{ flex: 1 }} />
+          <Typography.Text type="secondary" style={{ fontSize: 12, whiteSpace: "nowrap" }}>
+            {result.displayName}
+          </Typography.Text>
+        </div>
 
-          <Drawer
-            placement="left"
-            open={panelOpen}
-            onClose={() => setPanelOpen(false)}
-            width={340}
-            styles={{ body: { display: "flex", flexDirection: "column", paddingTop: 0 } }}
-          >
-            {/* Chat first: in an ارائه the audience cannot speak, so this is the only way they have
-                of saying anything at all. */}
-            <Tabs
-              defaultActiveKey="chat"
-              style={{ flex: 1, minHeight: 0 }}
-              // The panel is a column and the chat inside it scrolls; without this the tab body
-              // grows instead and the message box slides off the bottom of the drawer.
-              className="room-dock-tabs"
-              items={[
-                {
-                  key: "chat",
-                  label: "گفتگو",
-                  children: <ChatPanel roomId={result.roomId} open={panelOpen} />,
-                },
-                {
-                  key: "people",
-                  label: "شرکت‌کنندگان",
-                  children: <ParticipantsPanel presenterName={result.presenterName} />,
-                },
-              ]}
+        {phase === "failed" ? (
+          <div style={{ display: "grid", placeItems: "center", flex: 1, padding: 16 }}>
+            <Result
+              status="warning"
+              title="اتصال به سرور تصویر برقرار نشد"
+              subTitle="ورود شما پذیرفته شد، اما ارتباط با سرویس ویدیو ممکن نشد."
+              extra={
+                <Space>
+                  {/* A reload re-runs the whole join, which mints a fresh token — the old one may simply
+                      have expired while the page sat open. */}
+                  <Button type="primary" icon={<ReloadOutlined />} onClick={() => window.location.reload()}>
+                    تلاش دوباره
+                  </Button>
+                  <Button onClick={onLeave}>بازگشت</Button>
+                </Space>
+              }
             />
-          </Drawer>
-        </LiveKitRoom>
-      )}
-    </div>
+          </div>
+        ) : (
+          <LiveKitRoom
+            token={result.token}
+            serverUrl={result.wsUrl}
+            connect
+            // Never auto-open a device. See the note on this component.
+            audio={false}
+            video={false}
+            onConnected={() => {
+              setPhase("connected");
+              // `??` so a reconnect does not restart the clock from zero.
+              setConnectedAt((t) => t ?? Date.now());
+            }}
+            onDisconnected={() => setPhase((p) => (p === "failed" ? p : "left"))}
+            onError={(e) => {
+              // Console, NOT the screen. The SDK's message is English and carries infrastructure
+              // detail — a real failure printed «could not establish signal connection: invalid API
+              // key: APIlocaldev» straight to a guest at a public webinar. It is the public half of
+              // the key pair rather than a secret, but naming our media server's key to a stranger
+              // buys nothing and the sentence means nothing to them either.
+              console.error("[room] media connection failed:", e);
+              setPhase("failed");
+            }}
+            style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}
+          >
+            {/* Plays every remote audio track. Without it a meeting is silent and nothing says why. */}
+            <RoomAudioRenderer />
+
+            {/* Keyed, and enter-only — no <AnimatePresence>. An exit animation must finish before its
+                node is removed and it runs on requestAnimationFrame, which a background tab pauses;
+                the board would then sit undismissed over the video. Same rule as Countdown.tsx. */}
+            <motion.div key={stageKey} {...stageFade} style={{ flex: 1, minHeight: 0, padding: 8 }}>
+              {phase === "connecting" ? (
+                <div style={{ display: "grid", placeItems: "center", height: "100%" }} role="status">
+                  <Typography.Text type="secondary">در حال اتصال به جلسه…</Typography.Text>
+                </div>
+              ) : boardOpen ? (
+                <BoardBoundary>
+                  <Suspense
+                    fallback={
+                      <div
+                        style={{ display: "grid", placeItems: "center", height: "100%" }}
+                        role="status"
+                      >
+                        <Typography.Text type="secondary">در حال بارگذاری تخته…</Typography.Text>
+                      </div>
+                    }
+                  >
+                    <WhiteboardStage roomId={result.roomId} canDraw={result.canPublish} />
+                  </Suspense>
+                </BoardBoundary>
+              ) : (
+                <MeetingStage />
+              )}
+            </motion.div>
+
+            {!result.canPublish && result.type === RoomType.Presentation && (
+              <Alert
+                type="info"
+                banner
+                message="در این ارائه فقط ارائه‌دهنده صحبت می‌کند. شما می‌بینید و می‌شنوید."
+              />
+            )}
+
+            <MeetingBar
+              canPublish={result.canPublish}
+              participantsOpen={panelOpen}
+              onToggleParticipants={() => setPanelOpen((o) => !o)}
+              boardOpen={boardOpen}
+              onToggleBoard={() => setBoardOpen((o) => !o)}
+              onLeave={() => setPhase("left")}
+            />
+
+            <Drawer
+              placement="left"
+              open={panelOpen}
+              onClose={() => setPanelOpen(false)}
+              width={340}
+              styles={{ body: { display: "flex", flexDirection: "column", paddingTop: 0 } }}
+            >
+              {/* Chat first: in an ارائه the audience cannot speak, so this is the only way they have
+                  of saying anything at all. */}
+              <Tabs
+                defaultActiveKey="chat"
+                style={{ flex: 1, minHeight: 0 }}
+                // The panel is a column and the chat inside it scrolls; without this the tab body
+                // grows instead and the message box slides off the bottom of the drawer.
+                className="room-dock-tabs"
+                items={[
+                  {
+                    key: "chat",
+                    label: "گفتگو",
+                    children: <ChatPanel roomId={result.roomId} open={panelOpen} />,
+                  },
+                  {
+                    key: "people",
+                    label: "شرکت‌کنندگان",
+                    children: <ParticipantsPanel presenterName={result.presenterName} />,
+                  },
+                ]}
+              />
+            </Drawer>
+          </LiveKitRoom>
+        )}
+      </div>
+    </ConfigProvider>
   );
 }

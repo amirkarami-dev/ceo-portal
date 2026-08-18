@@ -22,6 +22,7 @@ Also, when a task teaches something reusable:
 
 | Date | Record | Area | Status |
 |---|---|---|---|
+| 2026-08-18 | [room-web redesign — visual and motion language](2026-08-18-room-web-redesign.md) | room | **live** at room.myceo.ir — signed-in screens still unseen |
 | 2026-08-18 | [The meeting whiteboard](2026-08-18-room-whiteboard.md) | room | **live** at room.myceo.ir — but never opened in a browser |
 | 2026-08-18 | [An OTP copied out of an SMS could never be accepted](2026-08-18-otp-invisible-character.md) | auth / welfare | **live** on auth.myceo.ir |
 | 2026-08-17 | [The project form offers سنندج only, and starts on it](2026-08-17-city-filter-sanandaj.md) | mabhas19 | built and checked locally, **not deployed** |

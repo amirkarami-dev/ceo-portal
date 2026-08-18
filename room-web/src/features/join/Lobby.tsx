@@ -5,7 +5,27 @@ import {
   CheckCircleFilled,
   VideoCameraOutlined,
 } from "@ant-design/icons";
+import type { ReactNode } from "react";
 import { isGuest, type RoomJoinResult } from "../../lib/types";
+
+/** One labelled fact. Hairlines between them, none after the last. */
+function Fact({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 12,
+        padding: "10px 0",
+        borderBottom: "1px solid var(--line)",
+      }}
+    >
+      <span style={{ fontSize: 13, color: "var(--muted)" }}>{label}</span>
+      <span style={{ textAlign: "end" }}>{children}</span>
+    </div>
+  );
+}
 
 /**
  * The last thing before the meeting: who you are and what you may do.
@@ -28,7 +48,7 @@ export function Lobby({ result, onEnter }: { result: RoomJoinResult; onEnter: ()
         style={{
           width: 56,
           height: 56,
-          borderRadius: 16,
+          borderRadius: 18,
           background: token.colorSuccessBg,
           color: token.colorSuccess,
           display: "grid",
@@ -41,55 +61,44 @@ export function Lobby({ result, onEnter }: { result: RoomJoinResult; onEnter: ()
       </div>
 
       <Space direction="vertical" size={4} style={{ width: "100%" }}>
-        <Typography.Title level={4} style={{ margin: 0 }}>
-          به جلسه وارد شدید
+        {/* Not «به جلسه وارد شدید» — nobody has entered anything yet, and saying so
+            directly above a button that says «ورود» tells two different stories. */}
+        <Typography.Title
+          level={1}
+          style={{ margin: 0, fontSize: 22, fontWeight: 700, letterSpacing: "-0.4px" }}
+        >
+          آمادهٔ ورود هستید
         </Typography.Title>
         <Typography.Text type="secondary">{result.roomName}</Typography.Text>
       </Space>
 
-      <div
-        style={{
-          border: `1px solid ${token.colorBorderSecondary}`,
-          borderRadius: 12,
-          padding: 16,
-          textAlign: "start",
-        }}
-      >
-        <Space direction="vertical" size={10} style={{ width: "100%" }}>
-          <Space style={{ justifyContent: "space-between", width: "100%" }}>
-            <Typography.Text type="secondary" style={{ fontSize: 13 }}>
-              نام شما در جلسه
-            </Typography.Text>
-            <Space size={6}>
-              <Typography.Text strong>{result.displayName}</Typography.Text>
-              {/* Everyone who came in through a link is marked. A guest types their own name, so
-                  nothing stops them typing «مدیر سازمان» — this is what keeps that from working. */}
-              {guest && <Tag>مهمان</Tag>}
-            </Space>
+      <div style={{ textAlign: "start" }}>
+        <Fact label="نام شما در جلسه">
+          <Space size={6}>
+            <Typography.Text strong>{result.displayName}</Typography.Text>
+            {/* Everyone who came in through a link is marked. A guest types their own name, so
+                nothing stops them typing «مدیر سازمان» — this is what keeps that from working. */}
+            {guest && <Tag bordered={false}>مهمان</Tag>}
           </Space>
+        </Fact>
 
-          <Space style={{ justifyContent: "space-between", width: "100%" }}>
-            <Typography.Text type="secondary" style={{ fontSize: 13 }}>
-              اجازهٔ صحبت
-            </Typography.Text>
-            {result.canPublish ? (
-              <Tag icon={<VideoCameraOutlined />} color="green">
-                میکروفون، دوربین و اشتراک صفحه
-              </Tag>
-            ) : (
-              <Tag icon={<AudioMutedOutlined />}>فقط تماشا و گفتگوی متنی</Tag>
-            )}
-          </Space>
-
-          {result.presenterName && (
-            <Space style={{ justifyContent: "space-between", width: "100%" }}>
-              <Typography.Text type="secondary" style={{ fontSize: 13 }}>
-                ارائه‌دهنده
-              </Typography.Text>
-              <Typography.Text>{result.presenterName}</Typography.Text>
-            </Space>
+        <Fact label="اجازهٔ صحبت">
+          {result.canPublish ? (
+            <Tag bordered={false} icon={<VideoCameraOutlined />} color="green">
+              میکروفون، دوربین و اشتراک صفحه
+            </Tag>
+          ) : (
+            <Tag bordered={false} icon={<AudioMutedOutlined />}>
+              فقط تماشا و گفتگوی متنی
+            </Tag>
           )}
-        </Space>
+        </Fact>
+
+        {result.presenterName && (
+          <Fact label="ارائه‌دهنده">
+            <Typography.Text>{result.presenterName}</Typography.Text>
+          </Fact>
+        )}
       </div>
 
       <Space direction="vertical" size={6} style={{ width: "100%" }}>

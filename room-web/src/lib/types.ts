@@ -35,10 +35,16 @@ export const JOIN_MODE_LABELS: Record<RoomJoinMode, string> = {
   [RoomJoinMode.Public]: "با لینک، بدون نیاز به ورود",
 };
 
-export const JOIN_MODE_COLOURS: Record<RoomJoinMode, string> = {
-  [RoomJoinMode.InviteOnly]: "blue",
-  [RoomJoinMode.Private]: "geekblue",
-  // Amber, not green. A public link is the one setting an admin should look at twice before saving.
+/**
+ * Only one of these is coloured.
+ *
+ * Amber, not green: a public link is the one setting an admin should look at twice before saving.
+ * The other two are neutral so that it actually stands out — blue and geekblue side by side read as
+ * two shades of the same thing, and a table where every tag is coloured has no emphasis left to give.
+ */
+export const JOIN_MODE_COLOURS: Record<RoomJoinMode, string | undefined> = {
+  [RoomJoinMode.InviteOnly]: undefined,
+  [RoomJoinMode.Private]: undefined,
   [RoomJoinMode.Public]: "orange",
 };
 

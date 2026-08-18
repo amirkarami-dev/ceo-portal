@@ -32,6 +32,7 @@ import { MeetingScreen } from "../meeting/MeetingScreen";
 import { useAuth } from "../../auth/useAuth";
 import { RETURN_KEY } from "../../auth/routes";
 import { useThemeMode } from "../../theme/useThemeMode";
+import { useEnter } from "../../theme/motion";
 import { roomKeys, useJoinByLink, useRoomLanding } from "../../lib/queries";
 import { ApiError } from "../../lib/api";
 import {
@@ -56,45 +57,30 @@ const WHEN = new Intl.DateTimeFormat("fa-IR", {
  */
 function JoinShell({ children }: { children: React.ReactNode }) {
   const { mode, toggle } = useThemeMode();
-  const { token } = theme.useToken();
-
-  const bg =
-    mode === "dark"
-      ? "radial-gradient(1200px 600px at 80% -10%, rgba(79,70,229,0.30), transparent 60%), #0b1220"
-      : "radial-gradient(1200px 600px at 80% -10%, rgba(79,70,229,0.14), transparent 60%), #f4f6fb";
+  const enter = useEnter();
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        position: "relative",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 16,
-        background: bg,
-      }}
-    >
+    <div className="room-join-shell">
       <Tooltip title={mode === "dark" ? "حالت روشن" : "حالت تیره"}>
         <Button
           type="text"
           aria-label="تغییر پوسته روشن و تیره"
+          className="room-tap"
           icon={mode === "dark" ? <BulbFilled /> : <BulbOutlined />}
           onClick={toggle}
           style={{ position: "absolute", top: 20, insetInlineStart: 20 }}
         />
       </Tooltip>
 
-      <motion.div
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, ease: "easeOut" }}
-        style={{ width: "100%", maxWidth: 460 }}
-      >
+      <motion.div {...enter} style={{ width: "100%", maxWidth: 480 }}>
         <Card
+          className="room-join-card"
           variant="borderless"
-          style={{ boxShadow: token.boxShadowSecondary }}
-          styles={{ body: { padding: 32 } }}
+          // Inline, not in the class: a borderless AntD card sets its own
+          // box-shadow from a rule that outranks a single class, and AntD injects
+          // its stylesheet after ours, so a specificity tie loses too.
+          style={{ boxShadow: "var(--shadow-3)" }}
+          styles={{ body: { padding: "clamp(20px, 6vw, 32px)" } }}
         >
           {children}
         </Card>
@@ -126,12 +112,24 @@ function MeetingHeader({ landing }: { landing: RoomLanding }) {
       </div>
 
       <Space size={6} wrap style={{ justifyContent: "center" }}>
-        <Tag color={landing.type === RoomType.Presentation ? "purple" : "default"}>
-          {TYPE_LABELS[landing.type]}
-        </Tag>
+        {/* Neutral. On this page the meeting's own name is the loud thing. */}
+        <Tag bordered={false}>{TYPE_LABELS[landing.type]}</Tag>
       </Space>
 
-      <Typography.Title level={4} style={{ margin: 0 }}>
+      {/* The page's real heading, and the first line an outsider reads of the
+          organisation. Sized here rather than taken from the level — AntD's h1 is
+          built for a marketing page. */}
+      <Typography.Title
+        level={1}
+        style={{
+          margin: 0,
+          fontSize: "clamp(21px, 5.4vw, 27px)",
+          fontWeight: 700,
+          letterSpacing: "-0.5px",
+          lineHeight: 1.35,
+          textWrap: "balance",
+        }}
+      >
         {landing.name}
       </Typography.Title>
 

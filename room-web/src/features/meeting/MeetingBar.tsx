@@ -1,4 +1,4 @@
-import { Badge, Button, Space, Tooltip, Typography, theme } from "antd";
+import { Badge, Button, Space, Tooltip, Typography } from "antd";
 import {
   AudioMutedOutlined,
   AudioOutlined,
@@ -37,24 +37,12 @@ export function MeetingBar({
   onToggleBoard: () => void;
   onLeave: () => void;
 }) {
-  const { token } = theme.useToken();
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled, isScreenShareEnabled } =
     useLocalParticipant();
   const participants = useParticipants();
 
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 12,
-        padding: "10px 16px",
-        background: token.colorBgContainer,
-        borderTop: `1px solid ${token.colorBorderSecondary}`,
-        flexWrap: "wrap",
-      }}
-    >
+    <div className="room-meeting-bar">
       <Space size={8}>
         {canPublish ? (
           <>
@@ -130,8 +118,17 @@ export function MeetingBar({
           </Badge>
         </Tooltip>
 
-        <Button danger type="primary" size="large" icon={<LogoutOutlined />} onClick={onLeave}>
-          خروج
+        {/* The word drops away below 560px so seven controls still fit a phone; the
+            aria-label is what keeps the button named once it does. */}
+        <Button
+          danger
+          type="primary"
+          size="large"
+          aria-label="خروج"
+          icon={<LogoutOutlined />}
+          onClick={onLeave}
+        >
+          <span className="room-leave-label">خروج</span>
         </Button>
       </Space>
     </div>

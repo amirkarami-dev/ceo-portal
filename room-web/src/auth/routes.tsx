@@ -12,26 +12,29 @@ export function LoginScreen() {
   const { token } = theme.useToken();
   if (ready && user) return <Navigate to="/" replace />;
 
-  const bg =
-    mode === "dark"
-      ? "radial-gradient(1200px 600px at 80% -10%, rgba(37,99,235,0.28), transparent 60%), #0b1220"
-      : "radial-gradient(1200px 600px at 80% -10%, rgba(37,99,235,0.14), transparent 60%), #f4f6fb";
-
+  // Same shell as the guest landing, and for the same reason: both are one card on an
+  // empty page with no app chrome. This screen carried its own copy of the wash in the
+  // OLD brand blue over the old grounds, so it kept the pre-redesign palette after
+  // every other surface had moved on.
   return (
-    <div style={{ minHeight: "100vh", position: "relative", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, background: bg }}>
+    <div className="room-join-shell">
       <Tooltip title={mode === "dark" ? "حالت روشن" : "حالت تیره"}>
         <Button
           type="text"
           aria-label="تغییر پوسته روشن و تیره"
+          className="room-tap"
           icon={mode === "dark" ? <BulbFilled /> : <BulbOutlined />}
           onClick={toggle}
           style={{ position: "absolute", top: 20, insetInlineStart: 20 }}
         />
       </Tooltip>
       <Card
+        className="room-join-card"
         variant="borderless"
-        style={{ width: 380, boxShadow: token.boxShadowSecondary }}
-        styles={{ body: { padding: 40, textAlign: "center" } }}
+        // Inline: a borderless AntD card sets its own box-shadow from a rule that
+        // outranks a single class, and AntD injects after our stylesheet.
+        style={{ width: "100%", maxWidth: 380, boxShadow: "var(--shadow-3)" }}
+        styles={{ body: { padding: "clamp(24px, 8vw, 40px)", textAlign: "center" } }}
       >
         <div
           style={{
@@ -48,7 +51,8 @@ export function LoginScreen() {
         >
           <VideoCameraOutlined />
         </div>
-        <Typography.Title level={3} style={{ marginBottom: 6 }}>
+        {/* The page has no other heading, so this is its h1. */}
+        <Typography.Title level={1} style={{ marginBottom: 6, fontSize: 24, fontWeight: 700 }}>
           ورود به جلسات آنلاین
         </Typography.Title>
         <Typography.Text type="secondary" style={{ display: "block", marginBottom: 32 }}>
@@ -70,7 +74,7 @@ function ScreenShell({ children }: { children: React.ReactNode }) {
   return (
     <div
       style={{
-        minHeight: "100vh",
+        minHeight: "100dvh",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
