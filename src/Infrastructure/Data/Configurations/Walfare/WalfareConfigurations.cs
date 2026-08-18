@@ -97,3 +97,66 @@ public class PaymentTransactionConfiguration : IEntityTypeConfiguration<PaymentT
         b.HasIndex(x => x.UserId);
     }
 }
+
+public class WelfareGuesthouseConfiguration : IEntityTypeConfiguration<WelfareGuesthouse>
+{
+    public void Configure(EntityTypeBuilder<WelfareGuesthouse> b)
+    {
+        b.Property(x => x.Name).HasMaxLength(200).IsRequired();
+        b.Property(x => x.City).HasMaxLength(100).IsRequired();
+        b.Property(x => x.ManagerName).HasMaxLength(200);
+        b.Property(x => x.Description).HasMaxLength(1000);
+
+        b.HasOne(x => x.Service)
+            .WithMany()
+            .HasForeignKey(x => x.ServiceId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
+public class GuesthouseRequestConfiguration : IEntityTypeConfiguration<GuesthouseRequest>
+{
+    public void Configure(EntityTypeBuilder<GuesthouseRequest> b)
+    {
+        b.Property(x => x.FullName).HasMaxLength(200).IsRequired();
+        b.Property(x => x.NationalCode).HasMaxLength(10).IsRequired();
+        b.Property(x => x.MembershipNumber).HasMaxLength(50);
+        b.Property(x => x.Mobile).HasMaxLength(11).IsRequired();
+        b.Property(x => x.CheckInDateJalali).HasMaxLength(10).IsRequired();
+        b.Property(x => x.CheckOutDateJalali).HasMaxLength(10).IsRequired();
+        b.Property(x => x.AdminNote).HasMaxLength(1000);
+        b.Property(x => x.ReceiptNumber).HasMaxLength(50);
+        b.Property(x => x.PaymentToken).HasMaxLength(64);
+
+        // Derived, never stored — see the entity.
+        b.Ignore(x => x.Nights);
+        b.Ignore(x => x.GuestCount);
+
+        // The SMS link resolves a request by this and nothing else, so it must be unique and
+        // indexed. Filtered, because every unpriced request has NULL here.
+        b.HasIndex(x => x.PaymentToken)
+            .IsUnique()
+            .HasFilter("[PaymentToken] IS NOT NULL");
+
+        // The admin list filters by status and orders by check-in.
+        b.HasIndex(x => new { x.Status, x.CheckInDate });
+
+        b.HasOne(x => x.Guesthouse)
+            .WithMany(g => g.Requests)
+            .HasForeignKey(x => x.GuesthouseId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        b.HasMany(x => x.Companions)
+            .WithOne(c => c.Request!)
+            .HasForeignKey(c => c.RequestId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
+public class GuesthouseCompanionConfiguration : IEntityTypeConfiguration<GuesthouseCompanion>
+{
+    public void Configure(EntityTypeBuilder<GuesthouseCompanion> b)
+    {
+        b.Property(x => x.FullName).HasMaxLength(200).IsRequired();
+    }
+}

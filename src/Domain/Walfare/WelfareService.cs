@@ -2,10 +2,13 @@ using Mabhas19.Domain.Common;
 
 namespace Mabhas19.Domain.Walfare;
 
-/// <summary>Kinds of welfare service the org offers. Only pool tickets exist today.</summary>
+/// <summary>Kinds of welfare service the org offers.</summary>
 public enum WelfareServiceType
 {
-    PoolTicket = 1
+    PoolTicket = 1,
+
+    /// <summary>مهمانسرا — a referral to stay, priced by the welfare office.</summary>
+    Guesthouse = 2
 }
 
 /// <summary>
