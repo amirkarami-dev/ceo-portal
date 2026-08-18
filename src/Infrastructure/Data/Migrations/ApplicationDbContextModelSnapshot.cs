@@ -2277,7 +2277,7 @@ namespace Mabhas19.Infrastructure.Data.Migrations
 
                     b.HasIndex("RequestId");
 
-                    b.ToTable("GuesthouseCompanion");
+                    b.ToTable("GuesthouseCompanions", (string)null);
                 });
 
             modelBuilder.Entity("Mabhas19.Domain.Walfare.GuesthouseRequest", b =>

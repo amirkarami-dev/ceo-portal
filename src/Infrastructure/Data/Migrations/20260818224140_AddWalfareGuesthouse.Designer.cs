@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Mabhas19.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260818223553_AddWalfareGuesthouse")]
+    [Migration("20260818224140_AddWalfareGuesthouse")]
     partial class AddWalfareGuesthouse
     {
         /// <inheritdoc />
@@ -2280,7 +2280,7 @@ namespace Mabhas19.Infrastructure.Data.Migrations
 
                     b.HasIndex("RequestId");
 
-                    b.ToTable("GuesthouseCompanion");
+                    b.ToTable("GuesthouseCompanions", (string)null);
                 });
 
             modelBuilder.Entity("Mabhas19.Domain.Walfare.GuesthouseRequest", b =>

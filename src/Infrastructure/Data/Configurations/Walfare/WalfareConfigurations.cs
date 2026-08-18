@@ -157,6 +157,11 @@ public class GuesthouseCompanionConfiguration : IEntityTypeConfiguration<Guestho
 {
     public void Configure(EntityTypeBuilder<GuesthouseCompanion> b)
     {
+        // No top-level DbSet for this owned child, so EF would otherwise name the table
+        // after the bare class ("GuesthouseCompanion"), breaking the plural convention
+        // every sibling table in this module follows.
+        b.ToTable("GuesthouseCompanions");
+
         b.Property(x => x.FullName).HasMaxLength(200).IsRequired();
     }
 }

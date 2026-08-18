@@ -83,7 +83,7 @@ namespace Mabhas19.Infrastructure.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "GuesthouseCompanion",
+                name: "GuesthouseCompanions",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
@@ -95,9 +95,9 @@ namespace Mabhas19.Infrastructure.Data.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_GuesthouseCompanion", x => x.Id);
+                    table.PrimaryKey("PK_GuesthouseCompanions", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_GuesthouseCompanion_GuesthouseRequests_RequestId",
+                        name: "FK_GuesthouseCompanions_GuesthouseRequests_RequestId",
                         column: x => x.RequestId,
                         principalTable: "GuesthouseRequests",
                         principalColumn: "Id",
@@ -105,8 +105,8 @@ namespace Mabhas19.Infrastructure.Data.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_GuesthouseCompanion_RequestId",
-                table: "GuesthouseCompanion",
+                name: "IX_GuesthouseCompanions_RequestId",
+                table: "GuesthouseCompanions",
                 column: "RequestId");
 
             migrationBuilder.CreateIndex(
@@ -136,7 +136,7 @@ namespace Mabhas19.Infrastructure.Data.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "GuesthouseCompanion");
+                name: "GuesthouseCompanions");
 
             migrationBuilder.DropTable(
                 name: "GuesthouseRequests");
