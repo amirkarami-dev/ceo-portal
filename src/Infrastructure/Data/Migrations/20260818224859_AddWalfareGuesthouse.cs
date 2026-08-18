@@ -47,16 +47,16 @@ namespace Mabhas19.Infrastructure.Data.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     GuesthouseId = table.Column<int>(type: "int", nullable: false),
-                    UserId = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    UserId = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     CreatedByAdmin = table.Column<bool>(type: "bit", nullable: false),
                     Status = table.Column<int>(type: "int", nullable: false),
                     FullName = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    NationalCode = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: false),
+                    NationalCode = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
                     MembershipNumber = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    Mobile = table.Column<string>(type: "nvarchar(11)", maxLength: 11, nullable: false),
+                    Mobile = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
                     Gender = table.Column<int>(type: "int", nullable: true),
-                    CheckInDateJalali = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: false),
-                    CheckOutDateJalali = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: false),
+                    CheckInDateJalali = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
+                    CheckOutDateJalali = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
                     CheckInDate = table.Column<DateOnly>(type: "date", nullable: false),
                     CheckOutDate = table.Column<DateOnly>(type: "date", nullable: false),
                     AmountRials = table.Column<long>(type: "bigint", nullable: false),
@@ -125,6 +125,11 @@ namespace Mabhas19.Infrastructure.Data.Migrations
                 name: "IX_GuesthouseRequests_Status_CheckInDate",
                 table: "GuesthouseRequests",
                 columns: new[] { "Status", "CheckInDate" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_GuesthouseRequests_UserId",
+                table: "GuesthouseRequests",
+                column: "UserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_WelfareGuesthouses_ServiceId",

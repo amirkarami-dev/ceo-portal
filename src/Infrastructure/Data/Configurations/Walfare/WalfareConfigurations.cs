@@ -102,6 +102,8 @@ public class WelfareGuesthouseConfiguration : IEntityTypeConfiguration<WelfareGu
 {
     public void Configure(EntityTypeBuilder<WelfareGuesthouse> b)
     {
+        b.ToTable("WelfareGuesthouses");
+
         b.Property(x => x.Name).HasMaxLength(200).IsRequired();
         b.Property(x => x.City).HasMaxLength(100).IsRequired();
         b.Property(x => x.ManagerName).HasMaxLength(200);
@@ -118,15 +120,27 @@ public class GuesthouseRequestConfiguration : IEntityTypeConfiguration<Guesthous
 {
     public void Configure(EntityTypeBuilder<GuesthouseRequest> b)
     {
+        b.ToTable("GuesthouseRequests");
+
         b.Property(x => x.FullName).HasMaxLength(200).IsRequired();
-        b.Property(x => x.NationalCode).HasMaxLength(10).IsRequired();
+        // Width is deliberate: digit-count validation is a form concern, not a column
+        // constraint. An admin recording a walk-in stay may type a national code with
+        // stray formatting; the column must not turn that into a 500.
+        b.Property(x => x.NationalCode).HasMaxLength(20).IsRequired();
         b.Property(x => x.MembershipNumber).HasMaxLength(50);
-        b.Property(x => x.Mobile).HasMaxLength(11).IsRequired();
-        b.Property(x => x.CheckInDateJalali).HasMaxLength(10).IsRequired();
-        b.Property(x => x.CheckOutDateJalali).HasMaxLength(10).IsRequired();
+        // Width is deliberate: "+989121234567" or "0912 345 6789" must fit. Exact digit
+        // count is a validation concern, not a column constraint — the column must not
+        // turn a typo or an international prefix into a 500.
+        b.Property(x => x.Mobile).HasMaxLength(20).IsRequired();
+        b.Property(x => x.CheckInDateJalali).HasMaxLength(30).IsRequired();
+        b.Property(x => x.CheckOutDateJalali).HasMaxLength(30).IsRequired();
         b.Property(x => x.AdminNote).HasMaxLength(1000);
         b.Property(x => x.ReceiptNumber).HasMaxLength(50);
         b.Property(x => x.PaymentToken).HasMaxLength(64);
+
+        // nvarchar(max) cannot be an index key, and "my requests" filters on this.
+        b.Property(x => x.UserId).HasMaxLength(100);
+        b.HasIndex(x => x.UserId);
 
         // Derived, never stored — see the entity.
         b.Ignore(x => x.Nights);

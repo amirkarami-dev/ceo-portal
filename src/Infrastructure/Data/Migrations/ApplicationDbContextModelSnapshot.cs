@@ -2301,16 +2301,16 @@ namespace Mabhas19.Infrastructure.Data.Migrations
 
                     b.Property<string>("CheckInDateJalali")
                         .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
 
                     b.Property<DateOnly>("CheckOutDate")
                         .HasColumnType("date");
 
                     b.Property<string>("CheckOutDateJalali")
                         .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
 
                     b.Property<DateTimeOffset>("Created")
                         .HasColumnType("datetimeoffset");
@@ -2345,13 +2345,13 @@ namespace Mabhas19.Infrastructure.Data.Migrations
 
                     b.Property<string>("Mobile")
                         .IsRequired()
-                        .HasMaxLength(11)
-                        .HasColumnType("nvarchar(11)");
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<string>("NationalCode")
                         .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<DateTimeOffset?>("PaidAtUtc")
                         .HasColumnType("datetimeoffset");
@@ -2375,7 +2375,8 @@ namespace Mabhas19.Infrastructure.Data.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("UserId")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.HasKey("Id");
 
@@ -2385,9 +2386,11 @@ namespace Mabhas19.Infrastructure.Data.Migrations
                         .IsUnique()
                         .HasFilter("[PaymentToken] IS NOT NULL");
 
+                    b.HasIndex("UserId");
+
                     b.HasIndex("Status", "CheckInDate");
 
-                    b.ToTable("GuesthouseRequests");
+                    b.ToTable("GuesthouseRequests", (string)null);
                 });
 
             modelBuilder.Entity("Mabhas19.Domain.Walfare.PaymentTransaction", b =>
@@ -2541,7 +2544,7 @@ namespace Mabhas19.Infrastructure.Data.Migrations
 
                     b.HasIndex("ServiceId");
 
-                    b.ToTable("WelfareGuesthouses");
+                    b.ToTable("WelfareGuesthouses", (string)null);
                 });
 
             modelBuilder.Entity("Mabhas19.Domain.Walfare.WelfarePool", b =>
