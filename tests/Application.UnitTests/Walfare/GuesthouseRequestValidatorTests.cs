@@ -85,4 +85,19 @@ public class GuesthouseRequestValidatorTests
     [Test]
     public void Accepts_persian_digits_in_the_national_code()
         => _validator.Validate(Valid() with { NationalCode = "۱۲۳۴۵۶۷۸۹۰" }).IsValid.ShouldBeTrue();
+
+    // Accepts_a_well_formed_request above already covers a solo applicant: Valid() with no
+    // arguments binds Companions to an empty array, not null, so there is no separate
+    // "empty companion list" case to add here.
+
+    [Test]
+    public void Refuses_a_null_companion_list_with_a_sentence_rather_than_throwing()
+    {
+        var input = Valid() with { Companions = null! };
+
+        var result = _validator.Validate(input);
+
+        result.IsValid.ShouldBeFalse();
+        result.Errors.ShouldContain(e => e.PropertyName == nameof(input.Companions));
+    }
 }

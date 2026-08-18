@@ -54,6 +54,10 @@ public class GuesthouseRequestInputValidator : AbstractValidator<GuesthouseReque
             .Must(m => Digits(m).Length == 11)
             .WithMessage("شماره همراه باید ۱۱ رقم باشد.");
 
+        RuleFor(x => x.MembershipNumber)
+            .Must(m => Digits(m).Length <= 50)
+            .WithMessage("شماره عضویت نامعتبر است.");
+
         RuleFor(x => x.CheckInDate)
             .Must(d => JalaliDate.Parse(d) is not null)
             .WithMessage("تاریخ ورود معتبر نیست.");
@@ -71,12 +75,18 @@ public class GuesthouseRequestInputValidator : AbstractValidator<GuesthouseReque
             })
             .WithMessage("تاریخ خروج باید بعد از تاریخ ورود باشد.");
 
+        // A body that omits "companions" binds this to null, and a solo applicant is the
+        // commonest request of all. Without this the count rules below dereference null and
+        // the caller gets a 500 instead of a sentence they can read.
         RuleFor(x => x.Companions)
-            .Must(c => c.Count(p => !p.IsInfant) <= 5)
+            .NotNull().WithMessage("فهرست همراهان نامعتبر است.");
+
+        RuleFor(x => x.Companions)
+            .Must(c => c is null || c.Count(p => !p.IsInfant) <= 5)
             .WithMessage("حداکثر ۵ همراه می‌توانید ثبت کنید.");
 
         RuleFor(x => x.Companions)
-            .Must(c => c.Count(p => p.IsInfant) <= 2)
+            .Must(c => c is null || c.Count(p => p.IsInfant) <= 2)
             .WithMessage("حداکثر ۲ کودک زیر دو سال می‌توانید ثبت کنید.");
 
         RuleForEach(x => x.Companions).ChildRules(c =>
@@ -221,7 +231,7 @@ internal static class GuesthouseRequestFactory
             CheckOutDate = checkOut
         };
 
-        foreach (var c in input.Companions)
+        foreach (var c in input.Companions ?? [])
         {
             entity.Companions.Add(new GuesthouseCompanion
             {
@@ -308,6 +318,11 @@ public class GetMyGuesthouseRequestsQueryHandler(IApplicationDbContext context, 
     public async Task<IReadOnlyList<GuesthouseRequestDto>> Handle(
         GetMyGuesthouseRequestsQuery request, CancellationToken cancellationToken)
     {
+        // Never drop the ?? string.Empty. EF translates Where(r => r.UserId == userId) to
+        // UserId = '' when userId is empty, and SQL's three-valued logic never matches NULL.
+        // Admin-created requests for non-members have UserId == null and carry a live
+        // PaymentToken; if userId were null here EF would emit UserId IS NULL instead, and
+        // every non-member's payment token would leak to any caller of this query.
         var userId = user.Id ?? string.Empty;
 
         var rows = await context.GuesthouseRequests
