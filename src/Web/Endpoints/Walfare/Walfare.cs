@@ -1,4 +1,5 @@
 using Mabhas19.Application.Walfare;
+using Mabhas19.Application.Walfare.Guesthouses;
 using Mabhas19.Application.Walfare.Payments;
 using Mabhas19.Application.Walfare.Pools;
 using Mabhas19.Application.Walfare.Reservations;
@@ -188,4 +189,44 @@ public class WalfarePayments : Mabhas19.Web.Infrastructure.IEndpointGroup
     /// <summary>Admin manual verify for a payment the automatic callback left unverified.</summary>
     public static async Task<Ok<PaymentTransactionDto>> ConfirmWalfarePayment(ISender sender, int id)
         => TypedResults.Ok(await sender.Send(new ConfirmPaymentCommand(id)));
+}
+
+/// <summary>Guesthouses (مهمانسراها): active list for members, CRUD for admins.</summary>
+public class WalfareGuesthouses : Mabhas19.Web.Infrastructure.IEndpointGroup
+{
+    public static string? RoutePrefix => "/api/walfare/guesthouses";
+
+    public static void Map(RouteGroupBuilder groupBuilder)
+    {
+        groupBuilder.MapGet(GetWalfareActiveGuesthouses, string.Empty).RequireAuthorization();
+        groupBuilder.MapGet(GetWalfareGuesthousesAdmin, "admin").RequireAdmin();
+        groupBuilder.MapPost(CreateWalfareGuesthouse, string.Empty).RequireAdmin();
+        groupBuilder.MapPut(UpdateWalfareGuesthouse, "{id:int}").RequireAdmin();
+        groupBuilder.MapDelete(DeleteWalfareGuesthouse, "{id:int}").RequireAdmin();
+    }
+
+    public static async Task<Ok<IReadOnlyList<GuesthouseDto>>> GetWalfareActiveGuesthouses(
+        ISender sender, int serviceId)
+        => TypedResults.Ok(await sender.Send(new GetActiveGuesthousesQuery(serviceId)));
+
+    public static async Task<Ok<IReadOnlyList<GuesthouseDto>>> GetWalfareGuesthousesAdmin(ISender sender)
+        => TypedResults.Ok(await sender.Send(new GetGuesthousesAdminQuery()));
+
+    public static async Task<Created<int>> CreateWalfareGuesthouse(ISender sender, GuesthouseInput body)
+    {
+        var id = await sender.Send(new CreateGuesthouseCommand(body));
+        return TypedResults.Created($"/api/walfare/guesthouses/{id}", id);
+    }
+
+    public static async Task<NoContent> UpdateWalfareGuesthouse(ISender sender, int id, GuesthouseInput body)
+    {
+        await sender.Send(new UpdateGuesthouseCommand(id, body));
+        return TypedResults.NoContent();
+    }
+
+    public static async Task<NoContent> DeleteWalfareGuesthouse(ISender sender, int id)
+    {
+        await sender.Send(new DeleteGuesthouseCommand(id));
+        return TypedResults.NoContent();
+    }
 }
