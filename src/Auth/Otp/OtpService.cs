@@ -77,7 +77,16 @@ public class OtpService : IOtpService
     public async Task<bool> VerifyAsync(string phoneNumber, string code, CancellationToken ct = default)
     {
         var stored = await _cache.GetStringAsync(Key(phoneNumber), ct);
-        if (string.IsNullOrEmpty(stored)) return false;
+        if (string.IsNullOrEmpty(stored))
+        {
+            // Expired, already used, or never issued — indistinguishable here, and all three look
+            // identical to the person on the screen. Saying which is the difference between a
+            // one-minute diagnosis and an afternoon of it.
+            _logger.LogInformation(
+                "OTP verify for {Phone} failed: no active code (expired, already used, or never sent).",
+                phoneNumber);
+            return false;
+        }
 
         // Brute-force guard: too many wrong guesses invalidate the active code.
         var attempts = int.TryParse(await _cache.GetStringAsync(AttemptsKey(phoneNumber), ct), out var a) ? a : 0;
@@ -99,6 +108,13 @@ public class OtpService : IOtpService
         }
         else
         {
+            // Lengths, never the codes themselves. A mismatch in LENGTH alone is the signature of
+            // invisible characters riding along with a paste — the bug that made a correct code
+            // unusable for anyone who copied it out of their SMS app.
+            _logger.LogInformation(
+                "OTP verify for {Phone} failed: code did not match (stored {StoredLength} chars, supplied {SuppliedLength}). Attempt {Attempt}.",
+                phoneNumber, stored.Length, code.Trim().Length, attempts + 1);
+
             await _cache.SetStringAsync(AttemptsKey(phoneNumber), (attempts + 1).ToString(), new DistributedCacheEntryOptions
             {
                 AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(_options.TtlSeconds)

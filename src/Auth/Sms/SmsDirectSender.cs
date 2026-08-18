@@ -67,9 +67,21 @@ public class SmsDirectSender : ISmsSender
             request.Headers.TryAddWithoutValidation("accept-language", "en-IR");
 
             using var response = await _http.SendAsync(request, ct);
+
+            // msgway answers 200 and puts its real verdict in the body, so the status alone cannot
+            // tell a delivered message from a refused one. Reading it is the difference between
+            // "the SMS never arrived and nothing said so" and a one-line answer.
+            var body = await response.Content.ReadAsStringAsync(ct);
+            var summary = body.Length > 500 ? body[..500] : body;
+
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogWarning("msgway send failed ({Status}) for {Phone}", response.StatusCode, phoneNumber);
+                _logger.LogWarning(
+                    "msgway send failed ({Status}) for {Phone}: {Body}", response.StatusCode, phoneNumber, summary);
+            }
+            else
+            {
+                _logger.LogInformation("msgway accepted the send for {Phone}: {Body}", phoneNumber, summary);
             }
         }
         catch (Exception ex)

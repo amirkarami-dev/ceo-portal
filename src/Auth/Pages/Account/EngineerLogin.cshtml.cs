@@ -1,3 +1,4 @@
+using System.Text;
 using Mabhas19.Auth.Data;
 using Mabhas19.Auth.External;
 using Mabhas19.Auth.Otp;
@@ -197,22 +198,49 @@ public class EngineerLoginModel(
         return (user, phone, null);
     }
 
-    /// <summary>Persian/Arabic digits arrive from fa keyboards; the DB and OTP store hold Latin.</summary>
+    /// <summary>
+    /// Reduces what was typed or pasted to Latin digits, and <b>only</b> Latin digits.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Persian/Arabic digits arrive from fa keyboards; the DB and OTP store hold Latin. That much was
+    /// always handled. What was not: everything else used to pass through untouched.
+    /// </para>
+    /// <para>
+    /// Copying five digits out of a Persian SMS app very often brings an invisible right-to-left mark
+    /// (U+200F) with them. «۴۴۶۵۵» and «۴۴۶۵۵‏» are indistinguishable on screen, but one is five
+    /// characters and the other six — and <c>FixedTimeEquals</c> refuses arrays of different lengths
+    /// before it compares a single byte. So a correct, fresh, unexpired code was rejected as «اشتباه یا
+    /// منقضی», for exactly the people who paste rather than type. Same trap on the national code field,
+    /// where it read as «کد ملی باید ۱۰ رقم باشد».
+    /// </para>
+    /// <para>
+    /// Dropping non-digits is safe for both callers: a national code is validated as ten ASCII digits
+    /// straight after this, and an OTP is digits by construction.
+    /// </para>
+    /// </remarks>
     private static string NormalizeDigits(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return string.Empty;
-        Span<char> buffer = stackalloc char[value.Length];
-        var n = 0;
-        foreach (var ch in value.Trim())
+
+        // Deliberately not stackalloc'd on `value.Length`: this is caller-controlled input, and a
+        // pasted megabyte would take the stack with it. See GOTCHAS.
+        var digits = new StringBuilder(Math.Min(value.Length, 32));
+
+        foreach (var ch in value)
         {
-            buffer[n++] = ch switch
+            var latin = ch switch
             {
+                >= '0' and <= '9' => ch,
                 >= '۰' and <= '۹' => (char)('0' + (ch - '۰')), // ۰-۹
                 >= '٠' and <= '٩' => (char)('0' + (ch - '٠')), // ٠-٩
-                _ => ch
+                _ => ' ',
             };
+
+            if (latin != ' ') digits.Append(latin);
         }
-        return new string(buffer[..n]);
+
+        return digits.ToString();
     }
 
     /// <summary>"09189981803" → "0918•••1803" — enough to recognise, not enough to harvest.</summary>
