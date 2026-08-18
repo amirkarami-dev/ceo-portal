@@ -38,6 +38,26 @@ public class GuesthouseInputValidator : AbstractValidator<GuesthouseInput>
     }
 }
 
+/// <summary>
+/// Bridges the input validator onto the command.
+/// </summary>
+/// <remarks>
+/// Without this the rules above are DEAD CODE: ValidationBehaviour resolves
+/// IValidator&lt;TRequest&gt; where TRequest is the command, so an AbstractValidator&lt;GuesthouseInput&gt;
+/// is never found and never runs. WelfarePools.cs bridges the same way.
+/// </remarks>
+public class CreateGuesthouseCommandValidator : AbstractValidator<CreateGuesthouseCommand>
+{
+    public CreateGuesthouseCommandValidator()
+        => RuleFor(x => x.Input).SetValidator(new GuesthouseInputValidator());
+}
+
+public class UpdateGuesthouseCommandValidator : AbstractValidator<UpdateGuesthouseCommand>
+{
+    public UpdateGuesthouseCommandValidator()
+        => RuleFor(x => x.Input).SetValidator(new GuesthouseInputValidator());
+}
+
 /// <summary>Shared projection so the member list and the admin list cannot drift apart.</summary>
 internal static class GuesthouseDtoProjection
 {
@@ -66,7 +86,11 @@ public class GetActiveGuesthousesQueryHandler(IApplicationDbContext context)
     {
         var rows = await context.WelfareGuesthouses
             .AsNoTracking()
-            .Where(g => g.ServiceId == request.ServiceId && g.IsActive)
+            // The parent service's on/off switch must be honoured here too, exactly as WelfarePool
+            // does: switching a service off must pull its guesthouses out of the member list, not
+            // just IsActive on the guesthouse row itself.
+            .Where(g => g.ServiceId == request.ServiceId && g.IsActive
+                        && g.Service!.IsAccessible)
             .OrderBy(g => g.City).ThenBy(g => g.Name)
             .ToListAsync(cancellationToken);
 
