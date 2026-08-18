@@ -1,16 +1,23 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { theme } from "antd";
-import { Excalidraw } from "@excalidraw/excalidraw";
+import { Excalidraw, reconcileElements } from "@excalidraw/excalidraw";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
+import type { OrderedExcalidrawElement } from "@excalidraw/excalidraw/element/types";
+import type { RemoteExcalidrawElement } from "@excalidraw/excalidraw/data/reconcile";
 import "@excalidraw/excalidraw/index.css";
 import { useThemeMode } from "../../theme/useThemeMode";
+import { useWhiteboardSync } from "./useWhiteboardSync";
+import type { BoardElement } from "./wire";
+
+/** Local edits are gathered for this long before going out, so a stroke is one message not fifty. */
+const CHANGE_DEBOUNCE_MS = 150;
 
 /**
  * The shared whiteboard, on the meeting stage.
  *
  * <b>Not lazy in itself</b> — the whole module is lazy from `MeetingScreen`, so Excalidraw and its
  * 145 KB stylesheet live in this file's chunk and are fetched the first time somebody opens the
- * board. A second `lazy()` around `<Excalidraw>` would add a spinner and buy nothing.
+ * board.
  *
  * <b>`dir="ltr"` on the wrapper, on purpose.</b> The app is `dir="rtl"`, and Excalidraw positions its
  * toolbars and islands absolutely with transforms — the exact shape that breaks under RTL, where the
@@ -21,9 +28,45 @@ import { useThemeMode } from "../../theme/useThemeMode";
 export function WhiteboardStage({ canDraw }: { canDraw: boolean }) {
   const { token } = theme.useToken();
   const { mode } = useThemeMode();
-  const [, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
+  const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
+  const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
+  apiRef.current = api;
 
-  const onApi = useCallback((api: ExcalidrawImperativeAPI) => setApi(api), []);
+  const getScene = useCallback(
+    () => (apiRef.current?.getSceneElementsIncludingDeleted() ?? []) as unknown as BoardElement[],
+    [],
+  );
+
+  /** Excalidraw's own merge: newest version of each element wins, ordering preserved. */
+  const onRemote = useCallback((elements: BoardElement[]) => {
+    const current = apiRef.current;
+    if (!current) return;
+
+    const merged = reconcileElements(
+      current.getSceneElementsIncludingDeleted() as OrderedExcalidrawElement[],
+      elements as unknown as RemoteExcalidrawElement[],
+      current.getAppState(),
+    );
+    current.updateScene({ elements: merged });
+  }, []);
+
+  const { broadcastChanged } = useWhiteboardSync({ canDraw, onRemote, getScene });
+
+  // One timer for the component's life, cleared on unmount — an uncancelled debounce firing after
+  // the board closes was one of the old implementation's leaks.
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
+
+  const onChange = useCallback(() => {
+    if (!canDraw) return;
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(broadcastChanged, CHANGE_DEBOUNCE_MS);
+  }, [canDraw, broadcastChanged]);
 
   return (
     <div
@@ -39,7 +82,8 @@ export function WhiteboardStage({ canDraw }: { canDraw: boolean }) {
       }}
     >
       <Excalidraw
-        excalidrawAPI={onApi}
+        excalidrawAPI={setApi}
+        onChange={onChange}
         theme={mode}
         langCode="fa-IR"
         // An audience member watches. Excalidraw's own read-only mode, so there are no tools to
