@@ -149,7 +149,7 @@ export function MeetingScreen({
                     </div>
                   }
                 >
-                  <WhiteboardStage canDraw={result.canPublish} />
+                  <WhiteboardStage roomId={result.roomId} canDraw={result.canPublish} />
                 </Suspense>
               </BoardBoundary>
             ) : (
