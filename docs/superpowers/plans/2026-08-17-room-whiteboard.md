@@ -831,7 +831,7 @@ export function useWhiteboardSync({
 Replace `room-web/src/features/whiteboard/WhiteboardStage.tsx` in full:
 
 ```tsx
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { theme } from "antd";
 import { Excalidraw, reconcileElements } from "@excalidraw/excalidraw";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
