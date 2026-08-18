@@ -230,3 +230,34 @@ public class WalfareGuesthouses : Mabhas19.Web.Infrastructure.IEndpointGroup
         return TypedResults.NoContent();
     }
 }
+
+/// <summary>Guesthouse requests (درخواست مهمانسرا).</summary>
+public class WalfareGuesthouseRequests : Mabhas19.Web.Infrastructure.IEndpointGroup
+{
+    public static string? RoutePrefix => "/api/walfare/guesthouse-requests";
+
+    public static void Map(RouteGroupBuilder groupBuilder)
+    {
+        groupBuilder.MapPost(CreateWalfareGuesthouseRequest, string.Empty).RequireAuthorization();
+        groupBuilder.MapGet(GetWalfareMyGuesthouseRequests, "mine").RequireAuthorization();
+        groupBuilder.MapPost(CreateWalfareGuesthouseRequestAdmin, "admin").RequireAdmin();
+    }
+
+    public static async Task<Created<int>> CreateWalfareGuesthouseRequest(
+        ISender sender, GuesthouseRequestInput body)
+    {
+        var id = await sender.Send(new CreateGuesthouseRequestCommand(body));
+        return TypedResults.Created($"/api/walfare/guesthouse-requests/{id}", id);
+    }
+
+    public static async Task<Ok<IReadOnlyList<GuesthouseRequestDto>>> GetWalfareMyGuesthouseRequests(
+        ISender sender)
+        => TypedResults.Ok(await sender.Send(new GetMyGuesthouseRequestsQuery()));
+
+    public static async Task<Created<int>> CreateWalfareGuesthouseRequestAdmin(
+        ISender sender, GuesthouseRequestInput body)
+    {
+        var id = await sender.Send(new CreateGuesthouseRequestAdminCommand(body));
+        return TypedResults.Created($"/api/walfare/guesthouse-requests/{id}", id);
+    }
+}
