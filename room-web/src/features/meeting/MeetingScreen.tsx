@@ -7,6 +7,7 @@ import { ChatPanel } from "./ChatPanel";
 import { MeetingBar } from "./MeetingBar";
 import { MeetingStage } from "./MeetingStage";
 import { ParticipantsPanel } from "./ParticipantsPanel";
+import { BoardBoundary } from "../whiteboard/BoardBoundary";
 import { setRoomToken } from "../../lib/api";
 import { RoomType, TYPE_LABELS, type RoomJoinResult } from "../../lib/types";
 
@@ -140,15 +141,17 @@ export function MeetingScreen({
                 <Typography.Text type="secondary">در حال اتصال به جلسه…</Typography.Text>
               </div>
             ) : boardOpen ? (
-              <Suspense
-                fallback={
-                  <div style={{ display: "grid", placeItems: "center", height: "100%" }}>
-                    <Typography.Text type="secondary">در حال بارگذاری تخته…</Typography.Text>
-                  </div>
-                }
-              >
-                <WhiteboardStage canDraw={result.canPublish} />
-              </Suspense>
+              <BoardBoundary>
+                <Suspense
+                  fallback={
+                    <div style={{ display: "grid", placeItems: "center", height: "100%" }}>
+                      <Typography.Text type="secondary">در حال بارگذاری تخته…</Typography.Text>
+                    </div>
+                  }
+                >
+                  <WhiteboardStage canDraw={result.canPublish} />
+                </Suspense>
+              </BoardBoundary>
             ) : (
               <MeetingStage />
             )}
