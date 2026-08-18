@@ -240,6 +240,17 @@ export interface ChatWireMessage {
   sentAtUtc: string;
 }
 
+// ── whiteboard ───────────────────────────────────────────────────────────────
+
+/**
+ * The saved board. `scene` is opaque — whatever the editor serialised — and is handed straight back
+ * to it. Nothing in this app reads inside it.
+ */
+export interface RoomBoard {
+  scene: string;
+  updatedAtUtc: string;
+}
+
 // ── wire helpers ─────────────────────────────────────────────────────────────
 
 /** The picker gives "08:00"; TimeOnly on the wire wants "08:00:00". */

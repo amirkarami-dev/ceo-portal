@@ -72,6 +72,8 @@ public interface IApplicationDbContext
 
     DbSet<RoomMessage> RoomMessages { get; }
 
+    DbSet<RoomBoard> RoomBoards { get; }
+
     DbSet<VmsCity> VmsCities { get; }
 
     DbSet<Camera> VmsCameras { get; }

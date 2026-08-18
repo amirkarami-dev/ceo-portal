@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiDelete, apiGet, apiPost, apiPut } from "./api";
 import type {
   MyRoom,
+  RoomBoard,
   RoomDetail,
   RoomInput,
   RoomJoinResult,
@@ -21,6 +22,7 @@ export const roomKeys = {
   person: (code: string) => ["room-person", code] as const,
   landing: (token: string) => ["room-landing", token] as const,
   messages: (id: number) => ["room-messages", id] as const,
+  board: (id: number) => ["room-board", id] as const,
 };
 
 /**
@@ -218,6 +220,32 @@ export function useJoinByLink() {
   return useMutation({
     mutationFn: ({ joinToken, fullName }: { joinToken: string; fullName?: string }) =>
       apiPost<RoomJoinResult>(`${ATTENDEE}/j/${joinToken}`, { fullName: fullName ?? null }),
+    retry: false,
+  });
+}
+
+// ── whiteboard ───────────────────────────────────────────────────────────────
+
+/**
+ * The saved board for one meeting.
+ *
+ * Fetched once when the board opens; after that changes arrive over the data channel. Same reasoning
+ * as chat history — a meeting that polled would cost every participant a request every few seconds
+ * against a rate limit they share with everyone behind their NAT.
+ */
+export function useRoomBoard(roomId: number, enabled: boolean) {
+  return useQuery({
+    queryKey: roomKeys.board(roomId),
+    queryFn: () => apiGet<RoomBoard | undefined>(`${ATTENDEE}/${roomId}/board`),
+    enabled: !!roomId && enabled,
+    staleTime: Infinity,
+  });
+}
+
+/** Replaces the board. The whole scene, because any drawer's copy is already everyone's merged board. */
+export function useSaveRoomBoard(roomId: number) {
+  return useMutation({
+    mutationFn: (scene: string) => apiPut<void>(`${ATTENDEE}/${roomId}/board`, { scene }),
     retry: false,
   });
 }

@@ -48,7 +48,11 @@
 
 ### Task 1: A board on the meeting stage
 
-Deliverable: in a real meeting, a button opens an Excalidraw board that fills the stage with the cameras in a strip above it; an audience member gets it read-only; the entry chunk has not grown.
+Deliverable: in a real meeting, a button opens an Excalidraw board that fills the stage; an audience
+member gets it read-only; the entry chunk has not grown.
+
+The board **replaces** the video grid rather than sitting above a camera strip — see this plan's
+Self-Review for why the strip is deferred to a possible seventh task.
 
 No unit tests in this task, deliberately: the app has no test harness until Task 2, and a canvas cannot be judged in jsdom (`docs/ai/GOTCHAS.md:494`). The verification is the browser plus the bundle measurement, which is this repo's stated bar (`docs/ai/OPERATIONS.md:115`).
 
@@ -306,7 +310,7 @@ transforms, which is the shape that breaks under dir=rtl and doubles on drag."
 Deliverable: `npx vitest run` passes in `room-web` against a pure module that decides what to send, how to split it, what to accept, and from whom.
 
 **Files:**
-- Modify: `room-web/package.json` (2 scripts, 1 dev dependency)
+- Modify: `room-web/package.json` (2 scripts, 1 dev dependency — `vitest@^3.2.7`)
 - Modify: `room-web/vite.config.ts` (import from `vitest/config`, add a `test` block)
 - Create: `room-web/src/features/whiteboard/wire.ts`
 - Create: `room-web/src/features/whiteboard/wire.test.ts`
@@ -331,8 +335,15 @@ Deliverable: `npx vitest run` passes in `room-web` against a pure module that de
 - [ ] **Step 1: Add vitest**
 
 ```bash
-npm --prefix /c/Projects/ceo-portal/room-web install --legacy-peer-deps -D vitest@^2.1.0
+npm --prefix /c/Projects/ceo-portal/room-web install --legacy-peer-deps -D vitest@^3.2.7
 ```
+
+**Version 3, not the 2.1.0 the other apps pin.** `vitest@2` depends on `vite ^5.0.0` and `room-web`
+is on `vite ^6`, so installing 2 puts a second Vite in the tree and `tsc` then type-checks
+`vite.config.ts` against the wrong one. `vitest@3` declares `vite ^6 || ^7 || ^8`. `analytics-web`
+pins 2 alongside vite 6 and carries a `react() as AnyPlugin` cast in its config with a comment about
+the resulting "dual-instance mismatch" — that is the workaround for this same collision, and there is
+no reason to inherit it here. `room-web` is not a workspace member, so its dependency tree is its own.
 
 Then in `room-web/package.json`, add two scripts after `"lint"`:
 
@@ -427,7 +438,13 @@ describe("chunkByBytes", () => {
    * the wire, over LiveKit's reliable ceiling, and dropped with no error anywhere.
    */
   it("splits Persian text by bytes, not characters", () => {
-    const persian = "سلام".repeat(1500); // 6,000 chars ⇒ ~12,000 bytes each
+    // Sized so the two elements only exceed the cap when counted as BYTES. Each is 6,051 bytes
+    // (3,051 chars): one fits comfortably, two do not — 12,139 > 12,000. Count characters instead
+    // and the pair measures 6,139, which fits, so the buggy version produces a single chunk and
+    // this test fails on `chunks.length`. That is what makes it a discriminator rather than a
+    // decoration. Do not "round it up" — at 1,500 repeats a single element already exceeds the cap
+    // and both implementations split, proving nothing.
+    const persian = "سلام".repeat(750); // 3,000 chars ⇒ 6,000 bytes of text
     const chunks = chunkByBytes([el("a", 1, { text: persian }), el("b", 1, { text: persian })]);
 
     expect(chunks.length).toBeGreaterThan(1);
@@ -814,7 +831,7 @@ export function useWhiteboardSync({
 Replace `room-web/src/features/whiteboard/WhiteboardStage.tsx` in full:
 
 ```tsx
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { theme } from "antd";
 import { Excalidraw, reconcileElements } from "@excalidraw/excalidraw";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
@@ -878,14 +895,11 @@ export function WhiteboardStage({ canDraw }: { canDraw: boolean }) {
     [],
   );
 
-  const onChange = useMemo(
-    () => () => {
-      if (!canDraw) return;
-      if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(broadcastChanged, CHANGE_DEBOUNCE_MS);
-    },
-    [canDraw, broadcastChanged],
-  );
+  const onChange = useCallback(() => {
+    if (!canDraw) return;
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(broadcastChanged, CHANGE_DEBOUNCE_MS);
+  }, [canDraw, broadcastChanged]);
 
   return (
     <div
@@ -1603,23 +1617,20 @@ Then extend `onChange` so it schedules the save as well as the broadcast:
 ```tsx
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const onChange = useMemo(
-    () => () => {
-      if (!canDraw) return;
+  const onChange = useCallback(() => {
+    if (!canDraw) return;
 
-      if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(broadcastChanged, CHANGE_DEBOUNCE_MS);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(broadcastChanged, CHANGE_DEBOUNCE_MS);
 
-      // Only somebody who actually drew saves, and only once they have stopped. Ten people watching
-      // cost nothing; three people sketching cost about eighteen requests a minute between them.
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(() => {
-        const elements = apiRef.current?.getSceneElementsIncludingDeleted() ?? [];
-        save.mutate(JSON.stringify({ type: "excalidraw", elements }));
-      }, SAVE_DEBOUNCE_MS);
-    },
-    [canDraw, broadcastChanged, save],
-  );
+    // Only somebody who actually drew saves, and only once they have stopped. Ten people watching
+    // cost nothing; three people sketching cost about eighteen requests a minute between them.
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      const elements = apiRef.current?.getSceneElementsIncludingDeleted() ?? [];
+      save.mutate(JSON.stringify({ type: "excalidraw", elements }));
+    }, SAVE_DEBOUNCE_MS);
+  }, [canDraw, broadcastChanged, save]);
 ```
 
 Extend the unmount cleanup to cover both timers and to flush a final save:
@@ -1722,7 +1733,14 @@ Candidates, if they turned out to be true in practice: Excalidraw under `dir="rt
 - [ ] **Step 6: Commit**
 
 ```bash
-cd /c/Projects/ceo-portal && git add docs/ && git commit -m "docs(room): the whiteboard worklog"
+cd /c/Projects/ceo-portal && git add docs/worklog/ docs/ai/ && git commit -m "docs(room): the whiteboard worklog"
+```
+
+Path-scoped on purpose: `git add docs/` would sweep the untracked reference PDFs in
+`docs/mabhas19/` (12 MB) into this commit.
+
+```bash
+git status --porcelain   # confirm nothing unrelated was staged
 ```
 
 ---

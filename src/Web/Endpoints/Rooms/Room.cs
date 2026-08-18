@@ -49,6 +49,11 @@ public class Room : Mabhas19.Web.Infrastructure.IEndpointGroup
         // in `X-Room-Token`, and it is verified. See RoomChatAccess.
         groupBuilder.MapGet(GetRoomMessages, "{id:int}/messages").AllowAnonymous();
         groupBuilder.MapPost(SendRoomMessage, "{id:int}/messages").AllowAnonymous();
+
+        // The whiteboard. Anonymous and credentialled exactly like chat — and the write is gated on
+        // the same predicate as the microphone, inside the handler.
+        groupBuilder.MapGet(GetRoomBoard, "{id:int}/board").AllowAnonymous();
+        groupBuilder.MapPut(SaveRoomBoard, "{id:int}/board").AllowAnonymous();
     }
 
     /// <summary>
@@ -120,4 +125,29 @@ public class Room : Mabhas19.Web.Infrastructure.IEndpointGroup
             await sender.Send(
                 new SendRoomMessageCommand(
                     id, http.Headers[RoomTokenHeader].FirstOrDefault(), request.Text)));
+
+    /// <summary>The saved whiteboard, or 204 when nobody has drawn yet.</summary>
+    public static async Task<Results<Ok<RoomBoardDto>, NoContent>> GetRoomBoard(
+        ISender sender, HttpRequest http, int id)
+    {
+        var board = await sender.Send(
+            new GetRoomBoardQuery(id, http.Headers[RoomTokenHeader].FirstOrDefault()));
+
+        return board is null ? TypedResults.NoContent() : TypedResults.Ok(board);
+    }
+
+    public sealed record SaveBoardRequest(string Scene);
+
+    /// <summary>
+    /// Replaces the board. Named <c>SaveRoomBoard</c>, not <c>SaveBoard</c>: two endpoint handlers
+    /// sharing a method name once made the WHOLE API return 500, including routes nobody had touched.
+    /// </summary>
+    public static async Task<NoContent> SaveRoomBoard(
+        ISender sender, HttpRequest http, int id, SaveBoardRequest request)
+    {
+        await sender.Send(
+            new SaveRoomBoardCommand(id, http.Headers[RoomTokenHeader].FirstOrDefault(), request.Scene));
+
+        return TypedResults.NoContent();
+    }
 }

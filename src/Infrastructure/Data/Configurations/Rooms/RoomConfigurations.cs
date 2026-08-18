@@ -111,3 +111,25 @@ public class RoomMessageConfiguration : IEntityTypeConfiguration<RoomMessage>
             .OnDelete(DeleteBehavior.Cascade);
     }
 }
+
+public class RoomBoardConfiguration : IEntityTypeConfiguration<RoomBoard>
+{
+    public void Configure(EntityTypeBuilder<RoomBoard> b)
+    {
+        b.ToTable("RoomBoards");
+
+        // nvarchar(max): a scene has no useful upper bound in schema terms. The cap that matters is
+        // RoomBoardRules.MaxSceneLength, enforced where the write happens so it can be REFUSED —
+        // a silently truncated scene is corrupt JSON.
+        b.Property(x => x.Scene).IsRequired();
+        b.Property(x => x.UpdatedBy).HasMaxLength(64).IsRequired();
+
+        // One board per meeting, guaranteed by the database rather than by the handler remembering.
+        b.HasIndex(x => x.RoomId).IsUnique();
+
+        b.HasOne(x => x.Room)
+            .WithMany()
+            .HasForeignKey(x => x.RoomId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}
