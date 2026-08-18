@@ -3,6 +3,7 @@ import {
   AudioMutedOutlined,
   AudioOutlined,
   DesktopOutlined,
+  HighlightOutlined,
   LogoutOutlined,
   TeamOutlined,
   VideoCameraAddOutlined,
@@ -25,11 +26,15 @@ export function MeetingBar({
   canPublish,
   participantsOpen,
   onToggleParticipants,
+  boardOpen,
+  onToggleBoard,
   onLeave,
 }: {
   canPublish: boolean;
   participantsOpen: boolean;
   onToggleParticipants: () => void;
+  boardOpen: boolean;
+  onToggleBoard: () => void;
   onLeave: () => void;
 }) {
   const { token } = theme.useToken();
@@ -99,6 +104,19 @@ export function MeetingBar({
       </Space>
 
       <Space size={8}>
+        {/* Everyone can OPEN the board, including an audience member — watching the presenter draw is
+            the point. Whether they may draw on it is `canPublish`, decided inside the board itself. */}
+        <Tooltip title={boardOpen ? "بستن تخته" : "تخته اشتراکی"}>
+          <Button
+            shape="circle"
+            size="large"
+            type={boardOpen ? "primary" : "default"}
+            aria-label={boardOpen ? "بستن تخته" : "تخته اشتراکی"}
+            icon={<HighlightOutlined />}
+            onClick={onToggleBoard}
+          />
+        </Tooltip>
+
         <Tooltip title="شرکت‌کنندگان">
           <Badge count={participants.length} size="small" offset={[-4, 4]}>
             <Button

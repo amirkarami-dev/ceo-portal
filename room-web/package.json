@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@ant-design/icons": "^5.5.0",
+    "@excalidraw/excalidraw": "^0.18.1",
     "@fontsource/vazirmatn": "^5.2.8",
     "@livekit/components-react": "^2.9.23",
     "@livekit/components-styles": "^1.2.0",

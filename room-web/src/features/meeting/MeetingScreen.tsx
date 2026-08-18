@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Alert, Button, Drawer, Result, Space, Tabs, Tag, Typography, theme } from "antd";
 import { ReloadOutlined } from "@ant-design/icons";
 import { LiveKitRoom, RoomAudioRenderer } from "@livekit/components-react";
@@ -9,6 +9,11 @@ import { MeetingStage } from "./MeetingStage";
 import { ParticipantsPanel } from "./ParticipantsPanel";
 import { setRoomToken } from "../../lib/api";
 import { RoomType, TYPE_LABELS, type RoomJoinResult } from "../../lib/types";
+
+/** Lazy: Excalidraw and its stylesheet must not be in the chunk every guest downloads. */
+const WhiteboardStage = lazy(() =>
+  import("../whiteboard/WhiteboardStage").then((m) => ({ default: m.WhiteboardStage })),
+);
 
 type Phase = "connecting" | "connected" | "failed" | "left";
 
@@ -34,6 +39,7 @@ export function MeetingScreen({
   const { token } = theme.useToken();
   const [phase, setPhase] = useState<Phase>("connecting");
   const [panelOpen, setPanelOpen] = useState(false);
+  const [boardOpen, setBoardOpen] = useState(false);
 
   // A guest has no account, so chat is authenticated by the media token instead. Scoped to this
   // screen and cleared on the way out — a token left set would travel on requests that have nothing
@@ -133,6 +139,16 @@ export function MeetingScreen({
               <div style={{ display: "grid", placeItems: "center", height: "100%" }}>
                 <Typography.Text type="secondary">در حال اتصال به جلسه…</Typography.Text>
               </div>
+            ) : boardOpen ? (
+              <Suspense
+                fallback={
+                  <div style={{ display: "grid", placeItems: "center", height: "100%" }}>
+                    <Typography.Text type="secondary">در حال بارگذاری تخته…</Typography.Text>
+                  </div>
+                }
+              >
+                <WhiteboardStage canDraw={result.canPublish} />
+              </Suspense>
             ) : (
               <MeetingStage />
             )}
@@ -150,6 +166,8 @@ export function MeetingScreen({
             canPublish={result.canPublish}
             participantsOpen={panelOpen}
             onToggleParticipants={() => setPanelOpen((o) => !o)}
+            boardOpen={boardOpen}
+            onToggleBoard={() => setBoardOpen((o) => !o)}
             onLeave={() => setPhase("left")}
           />
 
