@@ -48,7 +48,11 @@
 
 ### Task 1: A board on the meeting stage
 
-Deliverable: in a real meeting, a button opens an Excalidraw board that fills the stage with the cameras in a strip above it; an audience member gets it read-only; the entry chunk has not grown.
+Deliverable: in a real meeting, a button opens an Excalidraw board that fills the stage; an audience
+member gets it read-only; the entry chunk has not grown.
+
+The board **replaces** the video grid rather than sitting above a camera strip — see this plan's
+Self-Review for why the strip is deferred to a possible seventh task.
 
 No unit tests in this task, deliberately: the app has no test harness until Task 2, and a canvas cannot be judged in jsdom (`docs/ai/GOTCHAS.md:494`). The verification is the browser plus the bundle measurement, which is this repo's stated bar (`docs/ai/OPERATIONS.md:115`).
 
@@ -878,14 +882,11 @@ export function WhiteboardStage({ canDraw }: { canDraw: boolean }) {
     [],
   );
 
-  const onChange = useMemo(
-    () => () => {
-      if (!canDraw) return;
-      if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(broadcastChanged, CHANGE_DEBOUNCE_MS);
-    },
-    [canDraw, broadcastChanged],
-  );
+  const onChange = useCallback(() => {
+    if (!canDraw) return;
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(broadcastChanged, CHANGE_DEBOUNCE_MS);
+  }, [canDraw, broadcastChanged]);
 
   return (
     <div
@@ -1603,23 +1604,20 @@ Then extend `onChange` so it schedules the save as well as the broadcast:
 ```tsx
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const onChange = useMemo(
-    () => () => {
-      if (!canDraw) return;
+  const onChange = useCallback(() => {
+    if (!canDraw) return;
 
-      if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(broadcastChanged, CHANGE_DEBOUNCE_MS);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(broadcastChanged, CHANGE_DEBOUNCE_MS);
 
-      // Only somebody who actually drew saves, and only once they have stopped. Ten people watching
-      // cost nothing; three people sketching cost about eighteen requests a minute between them.
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(() => {
-        const elements = apiRef.current?.getSceneElementsIncludingDeleted() ?? [];
-        save.mutate(JSON.stringify({ type: "excalidraw", elements }));
-      }, SAVE_DEBOUNCE_MS);
-    },
-    [canDraw, broadcastChanged, save],
-  );
+    // Only somebody who actually drew saves, and only once they have stopped. Ten people watching
+    // cost nothing; three people sketching cost about eighteen requests a minute between them.
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      const elements = apiRef.current?.getSceneElementsIncludingDeleted() ?? [];
+      save.mutate(JSON.stringify({ type: "excalidraw", elements }));
+    }, SAVE_DEBOUNCE_MS);
+  }, [canDraw, broadcastChanged, save]);
 ```
 
 Extend the unmount cleanup to cover both timers and to flush a final save:
@@ -1722,7 +1720,14 @@ Candidates, if they turned out to be true in practice: Excalidraw under `dir="rt
 - [ ] **Step 6: Commit**
 
 ```bash
-cd /c/Projects/ceo-portal && git add docs/ && git commit -m "docs(room): the whiteboard worklog"
+cd /c/Projects/ceo-portal && git add docs/worklog/ docs/ai/ && git commit -m "docs(room): the whiteboard worklog"
+```
+
+Path-scoped on purpose: `git add docs/` would sweep the untracked reference PDFs in
+`docs/mabhas19/` (12 MB) into this commit.
+
+```bash
+git status --porcelain   # confirm nothing unrelated was staged
 ```
 
 ---
