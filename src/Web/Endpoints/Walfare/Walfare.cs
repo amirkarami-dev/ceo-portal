@@ -241,6 +241,9 @@ public class WalfareGuesthouseRequests : Mabhas19.Web.Infrastructure.IEndpointGr
         groupBuilder.MapPost(CreateWalfareGuesthouseRequest, string.Empty).RequireAuthorization();
         groupBuilder.MapGet(GetWalfareMyGuesthouseRequests, "mine").RequireAuthorization();
         groupBuilder.MapPost(CreateWalfareGuesthouseRequestAdmin, "admin").RequireAdmin();
+        groupBuilder.MapGet(GetWalfareGuesthouseRequestsAdmin, "admin/list").RequireAdmin();
+        groupBuilder.MapPost(PriceWalfareGuesthouseRequest, "{id:int}/price").RequireAdmin();
+        groupBuilder.MapPost(RejectWalfareGuesthouseRequest, "{id:int}/reject").RequireAdmin();
     }
 
     public static async Task<Created<int>> CreateWalfareGuesthouseRequest(
@@ -259,5 +262,27 @@ public class WalfareGuesthouseRequests : Mabhas19.Web.Infrastructure.IEndpointGr
     {
         var id = await sender.Send(new CreateGuesthouseRequestAdminCommand(body));
         return TypedResults.Created($"/api/walfare/guesthouse-requests/{id}", id);
+    }
+
+    public record PriceGuesthouseBody(long AmountRials, string AdminNote, ApplicantGender? Gender);
+
+    public record RejectGuesthouseBody(string Reason);
+
+    public static async Task<Ok<IReadOnlyList<GuesthouseRequestDto>>> GetWalfareGuesthouseRequestsAdmin(
+        ISender sender, GuesthouseRequestStatus? status, int? guesthouseId)
+        => TypedResults.Ok(await sender.Send(new GetGuesthouseRequestsAdminQuery(status, guesthouseId)));
+
+    public static async Task<NoContent> PriceWalfareGuesthouseRequest(
+        ISender sender, int id, PriceGuesthouseBody body)
+    {
+        await sender.Send(new PriceGuesthouseRequestCommand(id, body.AmountRials, body.AdminNote, body.Gender));
+        return TypedResults.NoContent();
+    }
+
+    public static async Task<NoContent> RejectWalfareGuesthouseRequest(
+        ISender sender, int id, RejectGuesthouseBody body)
+    {
+        await sender.Send(new RejectGuesthouseRequestCommand(id, body.Reason));
+        return TypedResults.NoContent();
     }
 }
