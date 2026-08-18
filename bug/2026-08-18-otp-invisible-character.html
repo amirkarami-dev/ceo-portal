@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>گزارش خطا — کد ورود پیامکی پذیرفته نمی‌شد</title>
+<style>
+  :root {
+    --blue:#326BFC; --orange:#FE8113; --yellow:#FCBB21;
+    --red:#FD411E; --green:#24AF7E; --cyan:#06B5F8;
+
+    --bg:#0a0f1c; --surface:#111a2e; --surface-2:#16203a;
+    --line:#22304f; --text:#eef2fb; --muted:#93a2c4; --faint:#64749a;
+    --radius:14px;
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; padding:0; }
+  body {
+    background:
+      radial-gradient(1100px 520px at 88% -8%, rgba(50,107,252,.16), transparent 60%),
+      radial-gradient(760px 420px at 8% 4%, rgba(253,65,30,.09), transparent 62%),
+      var(--bg);
+    color:var(--text);
+    font-family:"Vazirmatn","Segoe UI",Tahoma,system-ui,sans-serif;
+    font-size:16px; line-height:1.85;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap { max-width:1000px; margin:0 auto; padding:40px 20px 72px; }
+
+  /* ── header ─────────────────────────────────────────────── */
+  header { margin-bottom:34px; }
+  .eyebrow {
+    display:flex; flex-wrap:wrap; align-items:center; gap:8px;
+    font-size:13px; color:var(--muted); margin-bottom:14px;
+  }
+  .chip {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:5px 12px; border-radius:999px;
+    border:1px solid var(--line); background:var(--surface);
+    font-size:12.5px; color:var(--muted); white-space:nowrap;
+  }
+  .chip.service { border-color:rgba(50,107,252,.5); color:#a9c2ff; background:rgba(50,107,252,.11); }
+  .chip.fixed   { border-color:rgba(36,175,126,.5); color:#7ee0b8; background:rgba(36,175,126,.11); }
+  .chip.sev     { border-color:rgba(254,129,19,.5); color:#ffc290; background:rgba(254,129,19,.11); }
+  h1 { font-size:clamp(25px,4.4vw,38px); line-height:1.35; margin:0 0 12px; font-weight:800; letter-spacing:-.4px; }
+  .lede { font-size:18px; color:var(--muted); max-width:66ch; margin:0; }
+
+  /* ── layout ─────────────────────────────────────────────── */
+  section { margin-top:40px; }
+  h2 {
+    font-size:12.5px; text-transform:uppercase; letter-spacing:1.6px;
+    color:var(--faint); font-weight:700; margin:0 0 16px;
+    display:flex; align-items:center; gap:10px;
+  }
+  h2::after { content:""; height:1px; flex:1; background:var(--line); }
+  h3 { font-size:17px; margin:26px 0 8px; font-weight:700; }
+
+  .card {
+    background:var(--surface); border:1px solid var(--line);
+    border-radius:var(--radius); padding:22px 24px;
+  }
+  .card + .card { margin-top:14px; }
+  .grid { display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); }
+
+  .fact { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:18px 20px; }
+  .fact .k { font-size:12px; color:var(--faint); letter-spacing:.4px; }
+  .fact .v { font-size:19px; font-weight:700; margin-top:6px; }
+  .fact.bad  .v { color:#ff9d86; }
+  .fact.good .v { color:#7ee0b8; }
+
+  /* ── the one-line explanation ───────────────────────────── */
+  .headline {
+    border:1px solid rgba(253,65,30,.42);
+    background:linear-gradient(180deg, rgba(253,65,30,.13), rgba(253,65,30,.05));
+    border-radius:var(--radius); padding:26px;
+  }
+  .headline p { margin:0; font-size:19px; line-height:1.8; }
+  .headline strong { color:#ffb4a1; }
+
+  /* ── code ───────────────────────────────────────────────── */
+  code, pre, .mono {
+    font-family:"JetBrains Mono","Cascadia Code",Consolas,monospace;
+    direction:ltr; unicode-bidi:embed; text-align:left;
+  }
+  code { background:var(--surface-2); border:1px solid var(--line); padding:1.5px 7px; border-radius:6px; font-size:13.5px; }
+  pre {
+    background:#0a1122; border:1px solid var(--line); border-radius:12px;
+    padding:16px 18px; overflow-x:auto; font-size:13.5px; line-height:1.75; margin:12px 0 0;
+  }
+  pre .c { color:var(--faint); }
+  pre .r { color:#ff9d86; }
+  pre .g { color:#7ee0b8; }
+
+  /* ── timeline ───────────────────────────────────────────── */
+  .tl { list-style:none; margin:0; padding:0; position:relative; }
+  .tl::before { content:""; position:absolute; inset-inline-start:7px; top:8px; bottom:8px; width:2px; background:var(--line); }
+  .tl li { position:relative; padding-inline-start:32px; padding-bottom:20px; }
+  .tl li::before {
+    content:""; position:absolute; inset-inline-start:0; top:9px;
+    width:16px; height:16px; border-radius:50%;
+    background:var(--surface); border:2px solid var(--line);
+  }
+  .tl li.hit::before { border-color:var(--green); background:rgba(36,175,126,.25); }
+  .tl li.miss::before { border-color:var(--faint); }
+  .tl .t { font-size:12.5px; color:var(--faint); }
+  .tl .d { margin-top:2px; }
+
+  /* ── ruled-out table ────────────────────────────────────── */
+  .tbl { width:100%; border-collapse:collapse; font-size:15px; }
+  .tbl th, .tbl td { text-align:right; padding:11px 6px; border-bottom:1px solid var(--line); vertical-align:top; }
+  .tbl th { color:var(--faint); font-size:12px; text-transform:uppercase; letter-spacing:1px; font-weight:700; }
+  .tbl td:last-child { color:var(--muted); }
+  .no  { color:#ff9d86; font-weight:700; white-space:nowrap; }
+  .yes { color:#7ee0b8; font-weight:700; white-space:nowrap; }
+
+  ul.plain { margin:0; padding-inline-start:20px; }
+  ul.plain li { margin:7px 0; }
+  .muted { color:var(--muted); }
+
+  footer { margin-top:52px; padding-top:20px; border-top:1px solid var(--line); color:var(--faint); font-size:13px; }
+  footer .mono { font-size:12.5px; }
+
+  @media (max-width:560px) {
+    .wrap { padding:26px 15px 52px; }
+    .headline p { font-size:17px; }
+    body { font-size:15.5px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">
+    <span class="chip service">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 2 3 7v6c0 5 3.8 8.4 9 9 5.2-.6 9-4 9-9V7l-9-5Z"/></svg>
+      سامانه رفاهی مهندسین · refahi.kurdnezam.ir
+    </span>
+    <span class="chip">سرویس احراز هویت · auth.myceo.ir</span>
+    <span class="chip sev">اثر: یک مهندس، کاملاً بی‌راه‌حل</span>
+    <span class="chip fixed">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="m20 6-11 11-5-5"/></svg>
+      برطرف و منتشر شد
+    </span>
+  </div>
+
+  <h1>کد ورود درست بود، اما هرگز پذیرفته نمی‌شد</h1>
+  <p class="lede">
+    یک مهندس با کد ملی معتبر و شمارهٔ موبایل درست، پیامک کد ورود را دریافت می‌کرد و همان کد را وارد
+    می‌کرد؛ سامانه همیشه پاسخ می‌داد «کد وارد شده اشتباه یا منقضی شده است». برای بقیهٔ مهندسان
+    ورود بدون مشکل کار می‌کرد.
+  </p>
+</header>
+
+<section>
+  <h2>در یک جمله</h2>
+  <div class="headline">
+    <p>
+      وقتی کد را از برنامهٔ پیامک <strong>کپی</strong> می‌کنید، یک نویسهٔ <strong>نامرئی</strong>
+      (علامت راست‌به‌چپ، <code>U+200F</code>) همراه آن کپی می‌شود. روی صفحه هیچ فرقی دیده نمی‌شود،
+      اما برای سرور کد شما یک نویسه بلندتر است — و مقایسه، پیش از آنکه حتی یک رقم را بررسی کند،
+      به‌خاطر اختلاف طول رد می‌کند.
+    </p>
+  </div>
+
+  <div class="grid" style="margin-top:14px">
+    <div class="fact bad">
+      <div class="k">آنچه کاربر می‌بیند</div>
+      <div class="v mono">44655</div>
+    </div>
+    <div class="fact bad">
+      <div class="k">آنچه سرور دریافت می‌کرد</div>
+      <div class="v mono">44655‏ <span style="font-size:13px;color:var(--faint)">(۶ نویسه)</span></div>
+    </div>
+    <div class="fact good">
+      <div class="k">آنچه سرور ذخیره کرده بود</div>
+      <div class="v mono">44655 <span style="font-size:13px;color:var(--faint)">(۵ نویسه)</span></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>چرا فقط یک نفر</h2>
+  <div class="card">
+    <p style="margin:0">
+      بقیهٔ مهندسان کد را <strong>با دست تایپ می‌کنند</strong>؛ این مهندس آن را <strong>کپی</strong>
+      می‌کرد. تفاوت دقیقاً همین بود. به همین دلیل هم دادهٔ کاربر، شمارهٔ موبایل، وضعیت عضویت و
+      پیامک — همه سالم بودند و هیچ‌کدام سرنخی نمی‌دادند.
+    </p>
+  </div>
+</section>
+
+<section>
+  <h2>ریشهٔ فنی</h2>
+  <div class="card">
+    <p style="margin:0 0 4px">
+      تابع نرمال‌سازی، ارقام فارسی و عربی را به لاتین تبدیل می‌کرد، اما هر نویسهٔ دیگری را
+      دست‌نخورده عبور می‌داد. <code>Trim()</code> هم فاصله را حذف می‌کند، نه نویسهٔ نامرئی را.
+    </p>
+    <pre><span class="c">// مقایسه — پیش از بررسی محتوا، طول را می‌سنجد</span>
+CryptographicOperations.FixedTimeEquals(
+    Encoding.UTF8.GetBytes(stored),      <span class="g">// "44655"  → 5 بایت</span>
+    Encoding.UTF8.GetBytes(code.Trim())  <span class="r">// "44655‏" → 8 بایت</span>
+);                                       <span class="r">// ⇒ false، بدون هیچ پیامی</span></pre>
+    <p class="muted" style="margin-top:14px">
+      همین تله روی فیلد «کد ملی» هم وجود داشت و آنجا به شکل «کد ملی باید ۱۰ رقم باشد» دیده می‌شد.
+    </p>
+  </div>
+</section>
+
+<section>
+  <h2>مسیر تشخیص</h2>
+  <div class="card">
+    <ul class="tl">
+      <li class="miss"><div class="t">فرضیهٔ ۱</div><div class="d">رکورد مهندس در سامانهٔ نظام مهندسی ایراد دارد — <span class="no">رد شد:</span> وضعیت «فعال»، پروانه معتبر تا ۱۴۰۶/۱۱/۱۵.</div></li>
+      <li class="miss"><div class="t">فرضیهٔ ۲</div><div class="d">شمارهٔ موبایل قدیمی یا ناهماهنگ — <span class="no">رد شد:</span> هر دو پایگاه داده «۰۹۱۸۳۷۳۴۲۷۳» را داشتند.</div></li>
+      <li class="miss"><div class="t">فرضیهٔ ۳</div><div class="d">محدودیت ارسال یا قفل حساب — <span class="no">رد شد:</span> هیچ هشداری در لاگ نبود و حساب قفل نبود.</div></li>
+      <li class="miss"><div class="t">فرضیهٔ ۴</div><div class="d">پیامک نمی‌رسد یا سامانهٔ پیامک کد خودش را می‌فرستد — <span class="no">رد شد:</span> پیامک می‌رسید، ۵ رقمی و با همان متن.</div></li>
+      <li class="miss"><div class="t">فرضیهٔ ۵</div><div class="d">انقضای ۱۲۰ ثانیه‌ای — <span class="no">رد شد:</span> با ارسال یکبار و ورود سریع هم شکست خورد.</div></li>
+      <li class="hit"><div class="t">آزمایش قطعی</div><div class="d"><span class="yes">یافت شد:</span> همان کد، وقتی <strong>کپی</strong> شد رد شد و وقتی <strong>با دست تایپ</strong> شد پذیرفته شد.</div></li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2>اصلاح</h2>
+  <div class="card">
+    <ul class="plain">
+      <li><strong>ورودی فقط به ارقام تبدیل می‌شود.</strong> هر نویسهٔ دیگری — از جمله نامرئی‌ها — حذف می‌شود. هر دو فیلد «کد ملی» و «کد تأیید» را پوشش می‌دهد.</li>
+      <li><strong>دلیل ردشدن ثبت می‌شود.</strong> پیش‌تر «منقضی»، «اشتباه» و «اصلاً ارسال نشده» هر سه یک جملهٔ یکسان بودند و در لاگ هیچ اثری نداشتند. حالا طولِ دو مقدار ثبت می‌شود (نه خودِ کد).</li>
+      <li><strong>پاسخ سرویس پیامک خوانده می‌شود.</strong> پیش‌تر فقط وضعیت HTTP بررسی می‌شد و رد شدن یک شماره کاملاً نامرئی بود.</li>
+      <li><strong>عمر کد از ۱۲۰ به ۳۰۰ ثانیه.</strong> پیامک این مهندس بیش از یک دقیقه در راه بود؛ عملاً حدود ۴۵ ثانیه فرصت می‌ماند.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2>تأیید پس از انتشار</h2>
+  <div class="card">
+    <p style="margin:0 0 4px" class="muted">با یک کد عمداً نادرست به‌همراه همان نویسهٔ نامرئی، روی سرور واقعی:</p>
+    <pre>msgway accepted the send for 0918••••273:
+  {"status":"success","error":null,"referenceID":"1787048913621852686"}
+
+OTP verify ... failed: code did not match
+  (stored <span class="g">5</span> chars, supplied <span class="g">5</span>).  <span class="c">← مرورگر ۶ نویسه فرستاد، سرور ۵ دریافت کرد</span></pre>
+    <p style="margin-top:14px">
+      و «کد ملی» با نویسهٔ نامرئی این بار پذیرفته شد و به مرحلهٔ کد رسید.
+    </p>
+  </div>
+</section>
+
+<section>
+  <h2>درس قابل انتقال</h2>
+  <div class="card">
+    <p style="margin:0">
+      مقایسهٔ زمان‌ثابت، اختلاف طول را پیش از محتوا رد می‌کند. پس هر ورودی‌ای که کاربر ممکن است
+      «کپی» کند باید تا حدِ الفبای مورد انتظار خودش پاک شود — نه فقط <code>Trim</code>. و هر مسیری
+      که می‌تواند بی‌صدا شکست بخورد، باید <em>دلیل</em> شکست را جایی بنویسد؛ وگرنه تشخیصش از بیرون
+      به چند ساعت و چند آزمایش زنده نیاز پیدا می‌کند.
+    </p>
+  </div>
+</section>
+
+<footer>
+  <div>گزارش خطا — ۲۸ مرداد ۱۴۰۵ · <span class="mono">2026-08-18</span></div>
+  <div class="mono" style="margin-top:6px">
+    fix: ccb5b86 · auth image f5a31e84 · files: EngineerLogin.cshtml.cs, OtpService.cs, SmsDirectSender.cs, appsettings.json
+  </div>
+</footer>
+
+</div>
+</body>
+</html>
