@@ -47,6 +47,33 @@ and a payer told that stops paying. Every guesthouse screen now carries a commen
 
 ---
 
+### A paged endpoint SILENTLY clamps pageSize, so "fetch everything at once" exports a slice
+**Symptom.** An export, a report or a bulk action quietly covers only the first hundred rows. The
+file opens fine, the totals look plausible, and nobody notices until somebody counts.
+
+**Real cause.** `GetKurdnezamFormSubmissionsQueryHandler` does
+`Math.Clamp(request.PageSize, 1, 100)` and says nothing about it — `?pageSize=10000` answers with
+100 items and a `total` that admits there are more. Every paged query in this codebase clamps the
+same way. So the obvious "ask for all of it in one request" is not merely inefficient, it is wrong,
+and it fails in the direction that looks like success.
+
+**Fix.** Page until the rows run out, and treat three things as separate stop conditions:
+
+```ts
+if (result.items.length === 0) break;        // the real end — a wrong `total` cannot loop forever
+if (loaded >= result.total) break;           // the normal end
+if (loaded >= MAX_ROWS) { truncated = true; break; }   // and TELL the user when this bites
+```
+
+Dedupe by id as you go: these lists order by `Created DESC`, so a row inserted mid-export shifts
+every later page by one and repeats a row you already have.
+
+**Where.** `landing-panel/src/lib/submissionExport.ts` (`fetchAllSubmissions`), against
+`src/Application/Kurdnezam/Forms/KurdnezamFormsQueries.cs`. The same page's CSV button had shipped
+the one-page version for months, named `submissions-page-3.csv`, which is how it stayed invisible.
+
+---
+
 ### An anonymous flow must not land on a page inside the auth guard
 **Symptom.** Somebody pays real money and is then shown a login screen. They never learn whether
 the payment worked, and they cannot get past the login because they have no account.
