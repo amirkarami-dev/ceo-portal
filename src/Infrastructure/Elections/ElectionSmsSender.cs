@@ -111,6 +111,18 @@ internal sealed partial class ElectionSmsSender(
             return false;
         }
 
+        // The relay delivers a CODE, not a sentence. A message carrying a link is not a code, and
+        // silently posting some digit-run out of the middle of it would report success while
+        // delivering something meaningless. Refuse loudly instead so the caller can surface it.
+        if (message.Contains("http://", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogError(
+                "SMS relay was asked to send a message containing a link, but this relay only " +
+                "delivers numeric codes. Message not sent.");
+            return false;
+        }
+
         // The relay takes the code, not the sentence — same contract as the IdP's relay path.
         var match = CodePattern().Match(message);
         if (!match.Success)

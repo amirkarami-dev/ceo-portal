@@ -35,4 +35,12 @@ public class GuesthouseSmsTextTests
         text.ShouldNotContain("کد ملی");
         text.ShouldNotContain("عضویت");
     }
+
+    [Test]
+    public void MaxLifetime_is_thirty_days()
+    {
+        // The absolute ceiling a re-sent payment link may ever be pushed to, however many times
+        // it is re-sent. Pinned so nobody loosens it while touching Lifetime nearby.
+        GuesthouseTokens.MaxLifetime.ShouldBe(TimeSpan.FromDays(30));
+    }
 }

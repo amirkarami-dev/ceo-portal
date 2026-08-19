@@ -46,6 +46,12 @@ public static class GuesthouseTokens
     /// <summary>How long a payment link stays open.</summary>
     public static readonly TimeSpan Lifetime = TimeSpan.FromDays(7);
 
+    /// <summary>
+    /// The furthest out a link may ever be pushed, however many times it is re-sent. Without this
+    /// the 7-day expiry is not a bound at all — each re-send simply restarts it.
+    /// </summary>
+    public static readonly TimeSpan MaxLifetime = TimeSpan.FromDays(30);
+
     /// <summary>32 random bytes, base64url, unpadded — safe in an SMS and in a URL.</summary>
     public static string Mint()
     {
@@ -239,7 +245,25 @@ public class SendGuesthousePaymentSmsCommandHandler(
             throw Fail.With("Mobile", "شماره همراهی برای این درخواست ثبت نشده است.");
 
         entity.PaymentToken ??= GuesthouseTokens.Mint();
-        entity.PaymentTokenExpiresUtc = clock.GetUtcNow().Add(GuesthouseTokens.Lifetime);
+
+        // Re-sending extends the link by another Lifetime, but never past request-first-priced +
+        // MaxLifetime — otherwise repeated re-sends keep an anonymous, unauthenticated payment link
+        // alive forever. Nothing on the entity marks "first priced" directly, but the EXISTING
+        // PaymentTokenExpiresUtc does the job: the first pricing set it to priced + Lifetime, so
+        // subtracting Lifetime back out recovers that first-priced instant, and adding MaxLifetime
+        // to it gives the absolute ceiling. A first-ever send (no expiry set yet) has no ceiling to
+        // respect, so it just gets now + Lifetime.
+        var extended = clock.GetUtcNow().Add(GuesthouseTokens.Lifetime);
+        if (entity.PaymentTokenExpiresUtc is { } existing)
+        {
+            var ceiling = existing - GuesthouseTokens.Lifetime + GuesthouseTokens.MaxLifetime;
+            entity.PaymentTokenExpiresUtc = extended < ceiling ? extended : ceiling;
+        }
+        else
+        {
+            entity.PaymentTokenExpiresUtc = extended;
+        }
+
         await context.SaveChangesAsync(cancellationToken);
 
         // The welfare front end's own origin, e.g. https://refahi.kurdnezam.ir
