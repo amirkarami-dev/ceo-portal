@@ -2,8 +2,10 @@
 
 - **Date:** 2026-08-19
 - **Area:** welfare
-- **Branch / commits:** `feat/walfare-guesthouse` — `267abf9`…`235f5b3` (7 commits)
-- **Status:** **live** at refahi.kurdnezam.ir — but **never walked end to end by a human**
+- **Branch / commits:** `feat/walfare-guesthouse` — `267abf9`…`eec5396`, merged to `main` as
+  `396a8de` ([PR #1](https://github.com/amirkarami-dev/ceo-portal/pull/1))
+- **Status:** **live** at refahi.kurdnezam.ir and **merged to `main`** — but **never walked end
+  to end by a human**
 
 ## Goal
 
@@ -118,17 +120,18 @@ None was reported as a bug. Every one was found by measuring.
   tested; the redirect it produces has never been followed by a browser.
 - **No SMS has been sent through the app.** The channel was proven by direct curl to mihan on
   2026-08-19, but `send-payment-sms` has never been pressed against production.
-- The whole feature is deployed **from a branch**, not from `main`, and there is no PR yet.
+- Two fixes landed after the front end was written and are also live: expected refusals no
+  longer log user data (`d104c42`), and a guesthouse can no longer be attached to a pool
+  service (`eec5396`). The second one's **call sites are verified by build and by reading the
+  source, not through HTTP** — creating a guesthouse needs an admin token.
 
 ## Follow-ups
 
-- **Open the PR** for `feat/walfare-guesthouse` and merge to `main`.
 - **Have a human walk the flow**, especially the case the feature exists for: a کد ملی that is not
   in KurdNezam, entered by the admin, paid from the SMS link on a phone.
-- **The API does not enforce the service type.** A guesthouse can still be attached to a pool
-  service through the API; only the picker prevents it. A small server rule would close it.
-- **`ValidationException` is logged as an unhandled error with the full request.** Reported earlier
-  and still open: a member clicking an expired payment link writes their real payment token into the
-  API log, and a mistyped national code writes their name, کد ملی and mobile there too.
+- **Walfare has no functional tests.** The two new server rules are covered by unit tests over
+  their decision functions, but nothing exercises the handlers through the HTTP pipeline. The
+  functional project needs a real database via Aspire, so adding the first walfare test is a
+  piece of work rather than a line.
 - Member cancel — `GuesthouseTransitions.CanCancel` exists and is tested; nothing calls it.
 - The residual double-callback race from the backend record is unchanged.

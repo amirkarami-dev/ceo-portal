@@ -22,7 +22,7 @@ Also, when a task teaches something reusable:
 
 | Date | Record | Area | Status |
 |---|---|---|---|
-| 2026-08-19 | [مهمانسرا — the guesthouse service, front end](2026-08-19-walfare-guesthouse-frontend.md) | welfare | **live** at refahi.kurdnezam.ir — never walked end to end by a human |
+| 2026-08-19 | [مهمانسرا — the guesthouse service, front end](2026-08-19-walfare-guesthouse-frontend.md) | welfare | **live** + **merged** — never walked end to end by a human |
 | 2026-08-19 | [Guesthouse final review — a REJECTED request could be paid, and the 30-day link ceiling never bound](2026-08-19-walfare-guesthouse-final-review-fixes.md) | walfare / api | built and tested locally; **not merged, not deployed** |
 | 2026-08-19 | [The vote-SMS sender reported "sent" for every message while production silently dropped them](2026-08-19-election-sms-direct-provider.md) | infra / elections | built and tested locally, **not deployed** |
 | 2026-08-19 | [Guesthouse: three defects the whole-branch review found](2026-08-19-walfare-guesthouse-final-review-fixes.md) | walfare / api | fixed on the branch |
