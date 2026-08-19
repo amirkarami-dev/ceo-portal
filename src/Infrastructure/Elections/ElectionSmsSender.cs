@@ -192,6 +192,36 @@ internal sealed partial class ElectionSmsSender(
         }
     }
 
+    /// <summary>
+    /// Reads one element's text out of a SOAP body by LOCAL name, ignoring namespaces.
+    /// </summary>
+    /// <remarks>
+    /// Returns null when the element is absent or carries <c>xsi:nil="true"</c> — which is exactly
+    /// how Mihan reports a refused send, so the nil case must not read as an empty success.
+    /// </remarks>
+    private static string? ReadElement(string soap, string localName)
+    {
+        try
+        {
+            var element = System.Xml.Linq.XDocument.Parse(soap)
+                .Descendants()
+                .FirstOrDefault(e => e.Name.LocalName == localName);
+
+            if (element is null) return null;
+
+            var nil = element.Attribute(System.Xml.Linq.XName.Get(
+                "nil", "http://www.w3.org/2001/XMLSchema-instance"))?.Value;
+            if (string.Equals(nil, "true", StringComparison.OrdinalIgnoreCase)) return null;
+
+            var value = element.Value.Trim();
+            return value.Length == 0 ? null : value;
+        }
+        catch (System.Xml.XmlException)
+        {
+            return null;
+        }
+    }
+
     private async Task<bool> SendMihanAsync(string phone, string message, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(_options.MihanUsername)
@@ -214,12 +244,33 @@ internal sealed partial class ElectionSmsSender(
 
             if (!response.IsSuccessStatusCode)
             {
-                logger.LogWarning("Vote SMS via Mihan failed with {Status}.", (int)response.StatusCode);
+                logger.LogWarning("SMS via Mihan failed with {Status}.", (int)response.StatusCode);
                 return false;
             }
 
-            // A 200 from Mihan is acceptance, not proof of handset delivery — nothing here can prove
-            // that, which is exactly why the code also goes out over Bale.
+            // THE STATUS CODE IS NOT THE ANSWER. Mihan replies 200 with the verdict inside the
+            // envelope: a refused send comes back as 200 with <status>2</status>, a nil <identifier>
+            // and a Persian <status_message> such as «شماره فرستنده نا معتبر است». Trusting the 200
+            // reports every rejected message as delivered. Verified live against the real endpoint.
+            // Same shape as msgway — see docs/ai/GOTCHAS.md.
+            var body = await response.Content.ReadAsStringAsync(ct);
+
+            var identifier = ReadElement(body, "identifier");
+            var statusMessage = ReadElement(body, "status_message");
+
+            // The identifier is the queued message's id and exists only when Mihan accepted it;
+            // on refusal it comes back xsi:nil. That is a surer signal than guessing status codes.
+            if (string.IsNullOrWhiteSpace(identifier))
+            {
+                logger.LogWarning(
+                    "SMS via Mihan refused: status {Status}, {Message}",
+                    ReadElement(body, "status") ?? "?",
+                    statusMessage ?? "(no message)");
+                return false;
+            }
+
+            // Accepted by Mihan. Still not proof the handset received it — nothing here can prove
+            // that — but it is the difference between queued and refused.
             return true;
         }
         catch (Exception ex)
