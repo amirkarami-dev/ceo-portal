@@ -16,6 +16,8 @@ import { BookingPage } from "@/pages/BookingPage";
 import { GuesthouseRequestPage } from "@/pages/GuesthouseRequestPage";
 import { MyReservationsPage } from "@/pages/MyReservationsPage";
 import { PayResultPage } from "@/pages/PayResultPage";
+import { GuesthousePayPage } from "@/pages/GuesthousePayPage";
+import { GuesthousePayResultPage } from "@/pages/GuesthousePayResultPage";
 import { AdminServicesPage } from "@/pages/admin/AdminServicesPage";
 import { AdminPoolsPage } from "@/pages/admin/AdminPoolsPage";
 import { AdminReservationsPage } from "@/pages/admin/AdminReservationsPage";
@@ -44,6 +46,12 @@ export const router = createBrowserRouter([
               .MyGuesthouseRequestsHarness,
           }),
         },
+        {
+          path: "/dev/guesthouse-pay/:token",
+          lazy: async () => ({
+            Component: (await import("@/pages/dev/GuesthouseFormHarness")).GuesthousePayHarness,
+          }),
+        },
       ]
     : []),
 
@@ -52,6 +60,12 @@ export const router = createBrowserRouter([
   { path: "/auth/callback", element: <OidcCallback /> },
   { path: "/auth/silent", element: <OidcSilentCallback /> },
   { path: "/logout", element: <LogoutScreen /> },
+
+  // Guesthouse payment — PUBLIC, and it must stay that way. The person opening the SMS link may
+  // have no account at all; that is the whole point of the feature. Inside RequireAuth they
+  // would be sent to a login they can never pass, and the feature would be dead.
+  { path: "/pay/guesthouse/result", element: <GuesthousePayResultPage /> },
+  { path: "/pay/guesthouse/:token", element: <GuesthousePayPage /> },
 
   // Engineer dashboard — any signed-in engineer.
   {

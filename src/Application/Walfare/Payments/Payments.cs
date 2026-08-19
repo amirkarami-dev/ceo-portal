@@ -173,11 +173,32 @@ public class HandleIrkCallbackCommandHandler(
     IConfiguration configuration,
     ILogger<HandleIrkCallbackCommandHandler> logger) : IRequestHandler<HandleIrkCallbackCommand, string>
 {
+    /// <summary>Front-end result page for a signed-in payer (inside its RequireAuth guard).</summary>
+    public const string SignedInResultPath = "/pay/result";
+
+    /// <summary>Front-end result page reachable WITHOUT a login, for guesthouse payers.</summary>
+    public const string PublicGuesthouseResultPath = "/pay/guesthouse/result";
+
+    /// <summary>
+    /// Which front-end result page a finished payment must land on.
+    /// </summary>
+    /// <remarks>
+    /// A guesthouse payer may have NO ACCOUNT — that is the entire point of the SMS link.
+    /// <see cref="SignedInResultPath"/> sits behind the front end's RequireAuth guard, so sending
+    /// them there bounces them to a login they can never pass, immediately after they paid, and
+    /// they never learn whether it worked or see their tracking code. Anything we cannot identify
+    /// as a guesthouse payment keeps the original signed-in page.
+    /// </remarks>
+    public static string ResultPathFor(string? targetType) =>
+        targetType == InitGuesthousePaymentCommandHandler.TargetType
+            ? PublicGuesthouseResultPath
+            : SignedInResultPath;
+
     public async Task<string> Handle(HandleIrkCallbackCommand request, CancellationToken cancellationToken)
     {
         var front = (configuration["Walfare:FrontBaseUrl"] ?? "https://refahi.kurdnezam.ir").TrimEnd('/');
-        string Result(string status, string? tracking = null) =>
-            $"{front}/pay/result?status={status}" +
+        string ResultAt(string path, string status, string? tracking = null) =>
+            $"{front}{path}?status={status}" +
             (tracking is null ? string.Empty : $"&tracking={Uri.EscapeDataString(tracking)}");
 
         var tx = await context.PaymentTransactions.FirstOrDefaultAsync(
@@ -185,8 +206,13 @@ public class HandleIrkCallbackCommandHandler(
         if (tx is null)
         {
             logger.LogWarning("IranKish callback for unknown payment {PaymentId}", request.PaymentId);
-            return Result("notfound");
+            // No transaction, so no way to know which front-end page fits. The signed-in one is
+            // the safe default: an unknown payment is not a guesthouse payer we can identify.
+            return ResultAt(SignedInResultPath, "notfound");
         }
+
+        var resultPath = ResultPathFor(tx.TargetType);
+        string Result(string status, string? tracking = null) => ResultAt(resultPath, status, tracking);
 
         // The gateway can retry the callback; a decided transaction stays decided.
         if (tx.Status == PaymentStatus.Succeeded)

@@ -1,6 +1,8 @@
 // Dev-only harnesses for the guesthouse member screens:
 //   /dev/guesthouse/:serviceId  -> the request form
 //   /dev/guesthouse-requests    -> «رزروهای من», the مهمانسرا tab
+//   /dev/guesthouse-pay/:token  -> the public payment page
+//        token "payable" shows the payable state, anything else shows a dead link
 // Lets the form and its phone layout be checked without the OIDC login; excluded from prod.
 //
 // Same idea as PickerHarness, one step further: this page reads three queries, so the harness
@@ -10,10 +12,12 @@ import { useRef, type ReactNode } from "react";
 import { useParams } from "react-router-dom";
 import { GuesthouseRequestPage } from "@/pages/GuesthouseRequestPage";
 import { MyReservationsPage } from "@/pages/MyReservationsPage";
+import { GuesthousePayPage } from "@/pages/GuesthousePayPage";
 import { queryClient } from "@/query/client";
 import { queryKeys } from "@/query";
 import type {
   Guesthouse,
+  GuesthousePaySummary,
   GuesthouseRequest,
   WalfareEngineer,
   WelfareService,
@@ -230,4 +234,47 @@ export function MyGuesthouseRequestsHarness() {
       <MyReservationsPage />
     </HarnessFrame>
   );
+}
+
+
+// ── the public payment page ─────────────────────────────────────────────────
+
+export function GuesthousePayHarness() {
+  const { token = "" } = useParams<{ token: string }>();
+
+  const seeded = useRef(false);
+  if (!seeded.current) {
+    const payable = token === "payable";
+    // Note how the unpayable shape carries NO stay fields. That is the API's real behaviour:
+    // a dead link must not keep telling a stranger where somebody is staying and when.
+    const summary: GuesthousePaySummary = payable
+      ? {
+          guesthouseName: "مهمانسرای دریا با نامی نسبتاً بلند برای آزمودن شکستن خط",
+          guesthouseCity: "بندرعباس",
+          checkInDateJalali: "1405/06/10",
+          checkOutDateJalali: "1405/06/14",
+          nights: 4,
+          guestCount: 3,
+          amountRials: 12_500_000,
+          payable: true,
+          reason: "",
+        }
+      : {
+          guesthouseName: "",
+          guesthouseCity: "",
+          checkInDateJalali: "",
+          checkOutDateJalali: "",
+          nights: 0,
+          guestCount: 0,
+          amountRials: 0,
+          payable: false,
+          reason: "این لینک پرداخت منقضی شده است. لطفاً با امور رفاهی تماس بگیرید.",
+        };
+    queryClient.setQueryData(queryKeys.guesthouseRequests.paySummary(token), summary);
+    seeded.current = true;
+  }
+
+  // NO HarnessFrame here, deliberately. This page is standalone in production too — it renders
+  // its own full-height shell precisely because it has no AppLayout around it.
+  return <GuesthousePayPage />;
 }
