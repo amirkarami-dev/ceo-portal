@@ -5,6 +5,7 @@
 //   /dev/admin-guesthouses      -> the admin CRUD page
 //   /dev/admin-services         -> the services page, to prove نوع survives an edit
 //   /dev/admin-requests         -> the office's main list, one row per status
+//   /dev/referral               -> the printable معرفی‌نامه
 //        token "payable" shows the payable state, anything else shows a dead link
 // Lets the form and its phone layout be checked without the OIDC login; excluded from prod.
 //
@@ -19,11 +20,13 @@ import { GuesthousePayPage } from "@/pages/GuesthousePayPage";
 import { AdminGuesthousesPage } from "@/pages/admin/AdminGuesthousesPage";
 import { AdminServicesPage } from "@/pages/admin/AdminServicesPage";
 import { AdminGuesthouseRequestsPage } from "@/pages/admin/AdminGuesthouseRequestsPage";
+import { GuesthouseReferralPage } from "@/pages/admin/GuesthouseReferralPage";
 import { queryClient } from "@/query/client";
 import { queryKeys } from "@/query";
 import type {
   Guesthouse,
   GuesthousePaySummary,
+  GuesthouseReferral,
   GuesthouseRequest,
   Paged,
   WalfareEngineer,
@@ -406,6 +409,44 @@ export function AdminRequestsHarness() {
   return (
     <HarnessFrame>
       <AdminGuesthouseRequestsPage />
+    </HarnessFrame>
+  );
+}
+
+
+// ── the printable letter ────────────────────────────────────────────────────
+
+const REFERRAL_ID = 4;
+
+export function GuesthouseReferralHarness() {
+  const seeded = useRef(false);
+  if (!seeded.current) {
+    const referral: GuesthouseReferral = {
+      id: REFERRAL_ID,
+      guesthouseName: "مهمانسرای شماره یک",
+      guesthouseCity: "سنندج",
+      managerName: "مسئول آزمایشی",
+      // Built by the API, never by the front end — it refuses to build one at all when the
+      // office has not chosen «جناب آقای / سرکار خانم».
+      applicantTitle: "جناب آقای مهندس",
+      fullName: "کاربر آزمایشی",
+      checkInDateJalali: "1405/04/01",
+      checkOutDateJalali: "1405/04/03",
+      nights: 2,
+      guestCount: 2,
+      receiptNumber: "123456789",
+      companions: [
+        { fullName: "همراه آزمایشی", relation: 0, isInfant: false },
+        { fullName: "کودک آزمایشی", relation: null, isInfant: true },
+      ],
+    };
+    queryClient.setQueryData(queryKeys.guesthouseRequests.referral(REFERRAL_ID), referral);
+    seeded.current = true;
+  }
+
+  return (
+    <HarnessFrame>
+      <GuesthouseReferralPage />
     </HarnessFrame>
   );
 }

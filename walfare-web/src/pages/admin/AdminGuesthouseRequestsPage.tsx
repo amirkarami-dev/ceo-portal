@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Alert,
   Button,
@@ -15,7 +16,13 @@ import {
   Typography,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { CheckOutlined, CloseOutlined, MessageOutlined, NumberOutlined } from "@ant-design/icons";
+import {
+  CheckOutlined,
+  CloseOutlined,
+  MessageOutlined,
+  NumberOutlined,
+  PrinterOutlined,
+} from "@ant-design/icons";
 import {
   GUESTHOUSE_STATUS_LABELS,
   GuesthouseRequestStatus,
@@ -70,6 +77,7 @@ interface ReceiptFormValues {
 
 /** درخواست‌های مهمانسرا — the office's main screen: confirm, price, refuse, send the link. */
 export function AdminGuesthouseRequestsPage() {
+  const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [status, setStatus] = useState<GuesthouseRequestStatus | undefined>(undefined);
@@ -296,6 +304,17 @@ export function AdminGuesthouseRequestsPage() {
               />
             </Tooltip>
           </Popconfirm>
+        ) : null}
+
+        {r.status === GuesthouseRequestStatus.Paid ? (
+          <Tooltip title="معرفی‌نامه">
+            <Button
+              type="text"
+              aria-label="معرفی‌نامه"
+              icon={<PrinterOutlined />}
+              onClick={() => navigate(`/admin/guesthouse-requests/${r.id}/referral`)}
+            />
+          </Tooltip>
         ) : null}
 
         {r.status === GuesthouseRequestStatus.Paid ? (
