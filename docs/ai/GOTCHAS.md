@@ -19,6 +19,53 @@ Always confirm against the **server log** or the **database row** before changin
 
 ---
 
+## Front end (React)
+
+### React Query: a FAILED BACKGROUND REFETCH does not clear `data` — check data before error
+**Symptom.** A form the user is filling in, a good table, or a valid payment page is suddenly
+replaced by an error screen. Nothing was wrong with the request that fetched it; the network
+blinked once. On a phone this happens constantly.
+
+**Real cause.** `useQuery` keeps the last good `data` AND sets `error` when a *background*
+refetch fails. `refetchOnReconnect` is **on by default**, so a phone regaining signal triggers
+one. Code written as `if (error) return <ErrorScreen/>` therefore throws away perfectly good
+data, and everything the user had typed with it.
+
+**Fix.** Gate on `error && !data`, and say the list may be stale instead of hiding it:
+
+```tsx
+if (query.error && !query.data) return <ErrorState error={query.error} />;
+// ...then, above the content:
+{query.error ? <Alert type="warning" message="به‌روزرسانی ناموفق بود؛ ..." /> : null}
+```
+
+**Where.** This was written wrong **four times in one feature**, in four files, before the
+pattern was recognised — including `walfare-web/src/components/ui/CrudTable.tsx`, which backs
+*every* admin table in that app, so one blink blanked five pages at once. The worst instance was
+`GuesthousePayPage.tsx`: it told somebody holding a valid payment link that the link was invalid,
+and a payer told that stops paying. Every guesthouse screen now carries a comment at the gate.
+
+---
+
+### An anonymous flow must not land on a page inside the auth guard
+**Symptom.** Somebody pays real money and is then shown a login screen. They never learn whether
+the payment worked, and they cannot get past the login because they have no account.
+
+**Real cause.** `HandleIrkCallbackCommand` sent **every** finished payment to `/pay/result`, and
+walfare-web serves that route inside `RequireAuth`. That is fine for a pool ticket, which can only
+be booked while signed in — but the guesthouse payment link arrives by SMS and is aimed at people
+who are *not* in the system at all.
+
+**Fix.** `HandleIrkCallbackCommandHandler.ResultPathFor(targetType)` picks the page from the
+transaction's `TargetType`; guesthouse payments go to the public `/pay/guesthouse/result`.
+Anything unrecognised keeps the signed-in page, so adding a payment kind never exposes one by
+accident. Covered by `GuesthousePayRedirectTests`.
+
+**Where.** `src/Application/Walfare/Payments/Payments.cs`, `walfare-web/src/app/router.tsx`.
+When adding any anonymous flow, check where it *ends*, not just where it starts.
+
+---
+
 ## Back end (.NET)
 
 ### Analytics: a semantic model lives in TWO files, and `ValueLabels` cannot merge groups
@@ -256,6 +303,51 @@ used Newtonsoft (coerces `1`→`true`); this port uses STJ, which throws.
 **Fix:** a lenient converter (bool / number / quoted), and handle a parse failure separately so a
 real reply is never reported as a connection error.
 **Where:** `src/Infrastructure/Payments/IranKishGateway.cs`.
+
+### A completion handler re-derived legality instead of asking the transition table, and a REJECTED request could be paid
+**Symptom (found by review, not production):** the guesthouse payment-completion branch guarded only
+`if (req.Status == GuesthouseRequestStatus.Paid)` and settled everything else. `GuesthouseTransitions`
+(the single documented source of truth for legal moves — "Handlers ask; they do not re-derive") allows
+`CanReject` from `Priced`. Sequence: payer opens the SMS link and inits (a `PaymentTransaction` row
+exists, payer is at the bank) → admin rejects the request (`Status = Rejected`, token cleared) → payer
+finishes paying at the bank → the callback verifies, sees `Status != Paid`, and marks a REFUSED request
+`Paid` — unlocking its referral letter.
+**Cause:** the guard was written against one known-bad state (`Paid`, the duplicate case) instead of
+asking whether the request is still in a payable state at all. Any handler that inlines "is this the
+one state I'm worried about" instead of calling the transition table's own predicate silently drifts
+out of sync with that table the next time a new terminal/refused status is added.
+**Fix:** `if (!GuesthouseTransitions.CanPay(req.Status))` — ask, don't re-derive. A non-payable request
+(Rejected or an already-Paid duplicate) annotates its own ledger row for manual review instead of
+settling.
+**Same completion branch, a second money bug:** nothing compared what the payer was actually charged
+(`tx.AmountRials`) to what the request now says (`req.AmountRials`) before marking it Paid. An admin
+re-pricing while somebody is already at the bank (priced 1,000,000 → re-priced to 3,000,000 → payer
+pays the original 1,000,000) would settle the request at the NEW amount despite collecting the old one.
+Fixed by comparing the two and refusing to settle on a mismatch, same Persian-annotate-and-leave-alone
+pattern as the status guard.
+**Where:** `src/Application/Walfare/Payments/Payments.cs` (`PaymentCompletion.ApplyVerifiedAsync`,
+guesthouse branch).
+
+### An "absolute ceiling" measured from a field that gets overwritten never binds
+**Symptom (found by review):** the guesthouse SMS payment link is supposed to be re-sendable
+(extending its expiry) but never postponable past 30 days from when it was first priced. The ceiling
+was computed as `existing - Lifetime + MaxLifetime` from `PaymentTokenExpiresUtc` — but that field is
+the ONE THING every re-send overwrites. The "recovered first-priced instant" therefore moved forward
+with every send: priced day 0 (expiry day 7), re-send day 5 → expiry day 12, re-send day 11 → expiry
+day 18, forever. The clamp only ever bound when `now >= expiry + 16 days`, which cannot happen for a
+link anyone is actually still re-sending.
+**Cause:** deriving "when did this first happen" by doing arithmetic on a field whose whole job is to
+be replaced. Any "first X at" fact needs its own column, set once (`??=`), the moment X first happens
+— it cannot be reconstructed later from a value nothing preserves.
+**Fix:** added `FirstPricedAtUtc`, set once in the pricing handler (`entity.FirstPricedAtUtc ??=
+clock.GetUtcNow()`), and the send handler now measures the ceiling from that column instead of from
+`PaymentTokenExpiresUtc`. A request priced before the column existed (`null`) has no ceiling to
+respect, same as before. This also closed a second gap: a link already past 30 days now throws a
+Persian refusal on re-send instead of silently computing an expiry already in the past.
+**Where:** `src/Domain/Walfare/GuesthouseRequest.cs` (`FirstPricedAtUtc`),
+`src/Application/Walfare/Guesthouses/GuesthouseAdmin.cs`
+(`PriceGuesthouseRequestCommandHandler`, `SendGuesthousePaymentSmsCommandHandler`), migration
+`20260819052021_AddGuesthouseFirstPricedAt`.
 
 ---
 
@@ -594,6 +686,29 @@ wrote the token into the application log, which is less protected than the datab
 log can then read every update and post as the bot. Fix: `.RemoveAllLoggers()` on that client.
 Check any new typed client whose URL carries a credential.
 **Where:** `src/Infrastructure/DependencyInjection.cs`, `src/Infrastructure/Elections/BaleClient.cs`.
+
+### A provider-switch catch-all silently reported undelivered SMS as sent
+**Symptom:** none in the application — every vote-code SMS in production "succeeded", with no
+error, no warning, and no message ever arriving on the handset.
+**Cause:** `ElectionSmsSender.SendAsync` switched on `Sms:Provider` with `"mihan"`, `"relay"`, and
+a wildcard `_ => LogOnly(message)` — correct for the deliberate development value `"log"`, but the
+same wildcard also swallowed `"direct"`, which is what production actually sets
+(`SMS_PROVIDER=direct` in `deploy/.env`, fed through `Sms__Provider`). `LogOnly` writes the message
+to the log and **returns `true`**, so an unimplemented provider looked identical to a working one.
+The identity provider (`src/Auth/Sms/SmsDirectSender.cs`) already had a working `direct`
+implementation; this class simply never grew one.
+**Fix:** split the fallback — `"log"` still returns `true` (dev only), any other value hits a new
+`UnknownProvider()` that logs an ERROR naming the bad config and returns `false`. A channel that
+claims success it cannot deliver is worse than one that visibly fails.
+**Related, while implementing `direct`:** msgway answers **HTTP 200** even for a refused send and
+puts its real verdict in the response **body** — the same gap already recorded below for the IdP's
+OTP path. Checking `IsSuccessStatusCode` alone would have reintroduced a silent-success bug one
+layer deeper; the body's `status` field must be parsed and checked.
+**Where:** `src/Infrastructure/Elections/ElectionSmsSender.cs`;
+`docs/worklog/2026-08-19-election-sms-direct-provider.md`.
+**Rule:** a provider switch's wildcard arm is a promise that "anything not listed behaves like
+`_`". Before adding that arm, ask whether every currently-configured value is actually listed —
+`grep`-ing the deploy env for the option name would have caught this immediately.
 
 ### `stackalloc` sized by caller input is a remote kill switch
 `JalaliDate.NormalizeDigits` did `stackalloc char[value.Length]`. It is called on attacker-controlled
@@ -1543,3 +1658,49 @@ existing `html[data-theme="dark"]` selector list covers everything hand-written.
 `canJoinNow: true`, and any UI that reads that as "live" will say «در حال برگزاری» about it.
 Keep the two questions apart: `canJoinNow` answers *may I go in*, and the schedule
 (`room-web/src/lib/schedule.ts`) answers *is it now*. Both can be true at once.
+
+
+### Which SMS provider a host uses is NOT what appsettings.json says — read the whole chain
+`appsettings.json` is only the DEV default. Production comes from
+`deploy/docker-compose.newserver.yml`, whose values come from `deploy/.env`. Crucially the `Sms__*`
+block is set on the **`auth` service alone** — the `api` service receives none of it, so the API
+binds the appsettings default (`relay`) with an empty token and every send fails at the first guard.
+Reading `appsettings.json` to answer "what does production send with?" gives the wrong answer for the
+wrong host. The two hosts also implement DIFFERENT provider sets over the same shared `Sms` section:
+`src/Auth` knows `direct`, the API does not.
+
+**And `direct` (msgway) is template-only** — it posts `TemplateID` + `Param1 = code`, discarding the
+message body, so it can carry an OTP and never a link. `mihan` is the only provider in this codebase
+that sends free text.
+
+Separately: a provider `switch` whose fallback is `_ => LogOnly(message)` where `LogOnly` returns
+**true** is a channel that reports success it cannot deliver. Make an unrecognised provider return
+false.
+
+### A FluentValidation `AbstractValidator<SomeInput>` never runs on its own
+`ValidationBehaviour` resolves `IValidator<TRequest>` where `TRequest` is the **command**, so a
+validator written against the *input* type is never found. It is dead code that unit tests still pass,
+because tests construct the validator directly. Bridge it:
+`class XCommandValidator : AbstractValidator<XCommand> { public XCommandValidator() =>
+RuleFor(x => x.Input).SetValidator(new XInputValidator()); }` — `WelfarePools.cs` is the working
+example. The bridge class must be `public`, or the assembly scan will not register it.
+
+### Guarding a payment callback on the transaction id skips the legitimate first callback
+Where a payment link can be opened by more than one person, two `PaymentTransaction` rows exist by
+design and both can succeed — the bank really does capture both cards. The obvious duplicate guard,
+`request.PaymentTransactionId != tx.Id`, is WRONG: the id is assigned at **init**, so the second
+init overwrites it before either payment completes, and the guard then rejects the first callback and
+accepts the second. Guard on the terminal **status** instead, and annotate the duplicate's own ledger
+row so a human can refund it.
+
+### A positional record binds a missing JSON array to null, not to empty
+System.Text.Json binds a positional record through its constructor, so a body that omits an array
+property yields `null` — and `RuleFor(x => x.Items).Must(c => c.Count(...) <= 5)` then throws
+`NullReferenceException` inside the validator, producing a 500 with no field message. Add `NotNull()`
+before any rule that dereferences, make the count rules null-safe, and default the collection at the
+point of use. The omitted-array case is usually the COMMONEST request, not an edge case.
+
+### An inherited theme file describes the app it came from, not the one it is in
+room-web's `tokens.ts` justified its palette by calling the app "a background-job monitor" — copied
+wholesale from mun-sanandaj-web, along with a `.mun-live-dot` class. Before designing against a
+theme file, check whether its stated reasoning is about **this** product.

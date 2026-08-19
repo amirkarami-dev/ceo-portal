@@ -1,5 +1,5 @@
 import { useMemo, useState, type Key, type ReactNode } from "react";
-import { Button, Flex, Input, Popconfirm, Space, Table, Tooltip, Typography } from "antd";
+import { Alert, Button, Flex, Input, Popconfirm, Space, Table, Tooltip, Typography } from "antd";
 import type { ColumnsType, TableProps } from "antd/es/table";
 import { DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { EmptyState } from "./EmptyState";
@@ -45,6 +45,12 @@ export interface CrudTableProps<T extends object> {
   onEdit?: (record: T) => void;
   onDelete?: (record: T) => void | Promise<void>;
   deleteConfirmTitle?: string | ((record: T) => string);
+  /**
+   * Line under the confirm title. Defaults to "this cannot be undone", which is NOT true
+   * everywhere — a guesthouse with requests is deactivated rather than removed, and telling an
+   * admin otherwise would be a lie at the exact moment they decide.
+   */
+  deleteConfirmDescription?: string | ((record: T) => string);
   deleting?: boolean;
   /** Extra buttons rendered BEFORE edit/delete in the actions cell. */
   rowActions?: (record: T) => ReactNode;
@@ -100,6 +106,7 @@ export function CrudTable<T extends object>({
   onEdit,
   onDelete,
   deleteConfirmTitle = "حذف این مورد؟",
+  deleteConfirmDescription = "این عمل قابل بازگشت نیست.",
   deleting,
   rowActions,
   showActions = true,
@@ -154,7 +161,11 @@ export function CrudTable<T extends object>({
                       ? deleteConfirmTitle(record)
                       : deleteConfirmTitle
                   }
-                  description="این عمل قابل بازگشت نیست."
+                  description={
+                    typeof deleteConfirmDescription === "function"
+                      ? deleteConfirmDescription(record)
+                      : deleteConfirmDescription
+                  }
                   okText="حذف"
                   okButtonProps={{ danger: true, loading: deleting }}
                   cancelText="انصراف"
@@ -209,7 +220,12 @@ export function CrudTable<T extends object>({
       </Flex>
     ) : null;
 
-  if (error) {
+  // Only take over the screen when there is NOTHING to show. React Query keeps `data` and sets
+  // `error` when a BACKGROUND refetch fails, and refetchOnReconnect is on by default — so
+  // gating on `error` alone replaced a perfectly good table, on every admin page at once, the
+  // moment the network blinked. A stale list is still worth more than an error screen; the
+  // banner below says so out loud rather than hiding it.
+  if (error && !data) {
     return (
       <>
         {toolbar}
@@ -249,6 +265,14 @@ export function CrudTable<T extends object>({
   return (
     <>
       {toolbar}
+      {error ? (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message="به‌روزرسانی فهرست ناموفق بود؛ آنچه می‌بینید ممکن است تازه نباشد."
+        />
+      ) : null}
       <Table<T>
         columns={allColumns}
         dataSource={rows}

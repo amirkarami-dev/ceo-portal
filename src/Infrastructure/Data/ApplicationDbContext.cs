@@ -57,6 +57,10 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<WelfarePoolReservation> WelfarePoolReservations => Set<WelfarePoolReservation>();
 
+    public DbSet<WelfareGuesthouse> WelfareGuesthouses => Set<WelfareGuesthouse>();
+
+    public DbSet<GuesthouseRequest> GuesthouseRequests => Set<GuesthouseRequest>();
+
     public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
 
     public DbSet<Election> Elections => Set<Election>();

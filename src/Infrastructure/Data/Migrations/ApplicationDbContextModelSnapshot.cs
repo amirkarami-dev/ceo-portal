@@ -2251,6 +2251,151 @@ namespace Mabhas19.Infrastructure.Data.Migrations
                     b.ToTable("VmsCities", (string)null);
                 });
 
+            modelBuilder.Entity("Mabhas19.Domain.Walfare.GuesthouseCompanion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<bool>("IsInfant")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("Relation")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RequestId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RequestId");
+
+                    b.ToTable("GuesthouseCompanions", (string)null);
+                });
+
+            modelBuilder.Entity("Mabhas19.Domain.Walfare.GuesthouseRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AdminNote")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<long>("AmountRials")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateOnly>("CheckInDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("CheckInDateJalali")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateOnly>("CheckOutDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("CheckOutDateJalali")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTimeOffset>("Created")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("CreatedByAdmin")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset?>("FirstPricedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int?>("Gender")
+                        .HasColumnType("int");
+
+                    b.Property<int>("GuesthouseId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("LastModified")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("MembershipNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Mobile")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("NationalCode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTimeOffset?>("PaidAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("PaymentToken")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTimeOffset?>("PaymentTokenExpiresUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int?>("PaymentTransactionId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ReceiptNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UserId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GuesthouseId");
+
+                    b.HasIndex("PaymentToken")
+                        .IsUnique()
+                        .HasFilter("[PaymentToken] IS NOT NULL");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("Status", "CheckInDate");
+
+                    b.ToTable("GuesthouseRequests", (string)null);
+                });
+
             modelBuilder.Entity("Mabhas19.Domain.Walfare.PaymentTransaction", b =>
                 {
                     b.Property<int>("Id")
@@ -2347,6 +2492,62 @@ namespace Mabhas19.Infrastructure.Data.Migrations
                     b.HasIndex("TargetType", "TargetId");
 
                     b.ToTable("PaymentTransactions", (string)null);
+                });
+
+            modelBuilder.Entity("Mabhas19.Domain.Walfare.WelfareGuesthouse", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("Capacity")
+                        .HasColumnType("int");
+
+                    b.Property<string>("City")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTimeOffset>("Created")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset>("LastModified")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ManagerName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("ServiceId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ServiceId");
+
+                    b.ToTable("WelfareGuesthouses", (string)null);
                 });
 
             modelBuilder.Entity("Mabhas19.Domain.Walfare.WelfarePool", b =>
@@ -2767,6 +2968,39 @@ namespace Mabhas19.Infrastructure.Data.Migrations
                     b.Navigation("City");
                 });
 
+            modelBuilder.Entity("Mabhas19.Domain.Walfare.GuesthouseCompanion", b =>
+                {
+                    b.HasOne("Mabhas19.Domain.Walfare.GuesthouseRequest", "Request")
+                        .WithMany("Companions")
+                        .HasForeignKey("RequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Request");
+                });
+
+            modelBuilder.Entity("Mabhas19.Domain.Walfare.GuesthouseRequest", b =>
+                {
+                    b.HasOne("Mabhas19.Domain.Walfare.WelfareGuesthouse", "Guesthouse")
+                        .WithMany("Requests")
+                        .HasForeignKey("GuesthouseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Guesthouse");
+                });
+
+            modelBuilder.Entity("Mabhas19.Domain.Walfare.WelfareGuesthouse", b =>
+                {
+                    b.HasOne("Mabhas19.Domain.Walfare.WelfareService", "Service")
+                        .WithMany()
+                        .HasForeignKey("ServiceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Service");
+                });
+
             modelBuilder.Entity("Mabhas19.Domain.Walfare.WelfarePool", b =>
                 {
                     b.HasOne("Mabhas19.Domain.Walfare.WelfareService", "Service")
@@ -2860,6 +3094,16 @@ namespace Mabhas19.Infrastructure.Data.Migrations
             modelBuilder.Entity("Mabhas19.Domain.Vms.VmsCity", b =>
                 {
                     b.Navigation("Cameras");
+                });
+
+            modelBuilder.Entity("Mabhas19.Domain.Walfare.GuesthouseRequest", b =>
+                {
+                    b.Navigation("Companions");
+                });
+
+            modelBuilder.Entity("Mabhas19.Domain.Walfare.WelfareGuesthouse", b =>
+                {
+                    b.Navigation("Requests");
                 });
 
             modelBuilder.Entity("Mabhas19.Domain.Walfare.WelfarePool", b =>

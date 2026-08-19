@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml;
 using Microsoft.Extensions.Logging;
@@ -28,12 +29,13 @@ public sealed class ElectionSmsOptions
     public const string SectionName = "Sms";
 
     /// <summary>
-    /// <c>mihan</c>, <c>relay</c>, or anything else to log only.
+    /// <c>mihan</c>, <c>relay</c>, <c>direct</c> (msgway), or <c>log</c> to log only.
     /// </summary>
     /// <remarks>
-    /// Deliberately does NOT default to a real provider. An unrecognised value logs and reports
-    /// <b>false</b> — not delivered — so a misconfiguration shows up as "the SMS channel failed" rather
-    /// than as a code the voter never receives while the bot claims it was sent.
+    /// Deliberately does NOT default to a real provider. An unrecognised value is <b>refused</b> —
+    /// logged as an error and reported as <b>false</b>, not delivered — so a misconfiguration shows up
+    /// as "the SMS channel failed" rather than as a code the voter never receives while the bot claims
+    /// it was sent.
     /// </remarks>
     public string Provider { get; init; } = "log";
 
@@ -44,6 +46,22 @@ public sealed class ElectionSmsOptions
 
     public string RelayBaseUrl { get; init; } = "https://sms.kurdnezambargh.ir";
     public string RelayToken { get; init; } = string.Empty;
+
+    // --- Direct msgway.com sending (Provider = "direct") ---
+    // Names mirror src/Auth/Sms/SmsOptions.cs exactly: both hosts bind the same "Sms" section, so the
+    // environment already carries these values under these keys.
+
+    /// <summary>msgway API base URL.</summary>
+    public string MsgwayBaseUrl { get; init; } = "https://api.msgway.com";
+
+    /// <summary>msgway API key (sent as the "apiKey" header). Injected at deploy time; never hardcoded.</summary>
+    public string? MsgwayApiKey { get; init; }
+
+    /// <summary>msgway provider id. Default 0.</summary>
+    public int MsgwayProvider { get; init; }
+
+    /// <summary>msgway template id whose Param1 is the verification code.</summary>
+    public int MsgwayTemplateId { get; init; }
 }
 
 /// <summary>
@@ -66,7 +84,7 @@ public sealed class ElectionSmsOptions
 internal sealed partial class ElectionSmsSender(
     HttpClient http,
     IOptions<ElectionSmsOptions> options,
-    ILogger<ElectionSmsSender> logger) : IElectionSmsSender
+    ILogger<ElectionSmsSender> logger) : IElectionSmsSender, Mabhas19.Application.Common.Interfaces.ISmsSender
 {
     private const string SoapAction = "\"http://www.mihansmscenter.com/webservice/#send\"";
     private const string MihanNs = "http://www.mihansmscenter.com/webservice/";
@@ -88,7 +106,9 @@ internal sealed partial class ElectionSmsSender(
         {
             "mihan" => await SendMihanAsync(phone, message, cancellationToken),
             "relay" => await SendRelayAsync(phone, message, cancellationToken),
-            _ => LogOnly(message)
+            "direct" => await SendDirectAsync(phone, message, cancellationToken),
+            "log" => LogOnly(message),
+            _ => UnknownProvider()
         };
     }
 
@@ -103,11 +123,38 @@ internal sealed partial class ElectionSmsSender(
         return true;
     }
 
+    /// <remarks>
+    /// A configured value that matches none of the known providers used to fall through to
+    /// <see cref="LogOnly"/> and report <b>true</b> — a channel that claims success it cannot deliver is
+    /// worse than one that fails outright: the caller surfaces a <c>false</c> to a human who can act on
+    /// it, while a silent <c>true</c> hides the failure until someone notices the code or the link never
+    /// arrived. So an unrecognised provider is logged as an error, naming the configured value, and
+    /// reports <b>false</b>.
+    /// </remarks>
+    private bool UnknownProvider()
+    {
+        logger.LogError(
+            "Vote SMS: unrecognised Sms:Provider {Provider}. Refusing to report success.", _options.Provider);
+        return false;
+    }
+
     private async Task<bool> SendRelayAsync(string phone, string message, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(_options.RelayToken))
         {
             logger.LogWarning("Vote SMS relay is selected but no token is configured.");
+            return false;
+        }
+
+        // The relay delivers a CODE, not a sentence. A message carrying a link is not a code, and
+        // silently posting some digit-run out of the middle of it would report success while
+        // delivering something meaningless. Refuse loudly instead so the caller can surface it.
+        if (message.Contains("http://", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogError(
+                "SMS relay was asked to send a message containing a link, but this relay only " +
+                "delivers numeric codes. Message not sent.");
             return false;
         }
 
@@ -145,6 +192,36 @@ internal sealed partial class ElectionSmsSender(
         }
     }
 
+    /// <summary>
+    /// Reads one element's text out of a SOAP body by LOCAL name, ignoring namespaces.
+    /// </summary>
+    /// <remarks>
+    /// Returns null when the element is absent or carries <c>xsi:nil="true"</c> — which is exactly
+    /// how Mihan reports a refused send, so the nil case must not read as an empty success.
+    /// </remarks>
+    private static string? ReadElement(string soap, string localName)
+    {
+        try
+        {
+            var element = System.Xml.Linq.XDocument.Parse(soap)
+                .Descendants()
+                .FirstOrDefault(e => e.Name.LocalName == localName);
+
+            if (element is null) return null;
+
+            var nil = element.Attribute(System.Xml.Linq.XName.Get(
+                "nil", "http://www.w3.org/2001/XMLSchema-instance"))?.Value;
+            if (string.Equals(nil, "true", StringComparison.OrdinalIgnoreCase)) return null;
+
+            var value = element.Value.Trim();
+            return value.Length == 0 ? null : value;
+        }
+        catch (System.Xml.XmlException)
+        {
+            return null;
+        }
+    }
+
     private async Task<bool> SendMihanAsync(string phone, string message, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(_options.MihanUsername)
@@ -167,17 +244,135 @@ internal sealed partial class ElectionSmsSender(
 
             if (!response.IsSuccessStatusCode)
             {
-                logger.LogWarning("Vote SMS via Mihan failed with {Status}.", (int)response.StatusCode);
+                logger.LogWarning("SMS via Mihan failed with {Status}.", (int)response.StatusCode);
                 return false;
             }
 
-            // A 200 from Mihan is acceptance, not proof of handset delivery — nothing here can prove
-            // that, which is exactly why the code also goes out over Bale.
+            // THE STATUS CODE IS NOT THE ANSWER. Mihan replies 200 with the verdict inside the
+            // envelope: a refused send comes back as 200 with <status>2</status>, a nil <identifier>
+            // and a Persian <status_message> such as «شماره فرستنده نا معتبر است». Trusting the 200
+            // reports every rejected message as delivered. Verified live against the real endpoint.
+            // Same shape as msgway — see docs/ai/GOTCHAS.md.
+            var body = await response.Content.ReadAsStringAsync(ct);
+
+            var identifier = ReadElement(body, "identifier");
+            var statusMessage = ReadElement(body, "status_message");
+
+            // The identifier is the queued message's id and exists only when Mihan accepted it;
+            // on refusal it comes back xsi:nil. That is a surer signal than guessing status codes.
+            if (string.IsNullOrWhiteSpace(identifier))
+            {
+                logger.LogWarning(
+                    "SMS via Mihan refused: status {Status}, {Message}",
+                    ReadElement(body, "status") ?? "?",
+                    statusMessage ?? "(no message)");
+                return false;
+            }
+
+            // Accepted by Mihan. Still not proof the handset received it — nothing here can prove
+            // that — but it is the difference between queued and refused.
             return true;
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Vote SMS via Mihan threw.");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Sends the code directly through msgway.com, mirroring
+    /// <c>src/Auth/Sms/SmsDirectSender.SendAsync</c>.
+    /// </summary>
+    /// <remarks>
+    /// msgway answers HTTP 200 with its real verdict inside the response <b>body</b>
+    /// (<c>{"status":"success","error":null,"referenceID":"…"}</c> for an accepted send, some other
+    /// <c>status</c> for a refused one). Trusting <see cref="HttpResponseMessage.IsSuccessStatusCode"/>
+    /// alone reports success for a send msgway actually refused — that exact gap once locked an
+    /// engineer out of the welfare service with no error anywhere. The body is read and its
+    /// <c>status</c> field is what decides the return value here, not the HTTP status code.
+    /// </remarks>
+    private async Task<bool> SendDirectAsync(string phone, string message, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(_options.MsgwayApiKey) || _options.MsgwayTemplateId <= 0)
+        {
+            logger.LogWarning("Vote SMS: msgway (direct) is not configured (MsgwayApiKey/MsgwayTemplateId).");
+            return false;
+        }
+
+        // The direct path takes the code, not the sentence — same contract as the relay and as the
+        // IdP's own direct sender.
+        var match = CodePattern().Match(message);
+        if (!match.Success)
+        {
+            logger.LogWarning("Vote SMS direct: no code found in the message.");
+            return false;
+        }
+
+        try
+        {
+            using var request = new HttpRequestMessage(
+                HttpMethod.Post, $"{_options.MsgwayBaseUrl.TrimEnd('/')}/send")
+            {
+                // Field names/casing match the legacy msgway payload — same shape as the IdP's direct
+                // sender. No "Length" field — that would put msgway in generate-its-own-code mode and
+                // the delivered code would not match the one we stored.
+                Content = JsonContent.Create(new
+                {
+                    Method = "sms",
+                    provider = _options.MsgwayProvider,
+                    Smart = false,
+                    Mobile = phone,
+                    TemplateID = _options.MsgwayTemplateId,
+                    Param1 = match.Value,
+                }),
+            };
+            request.Headers.TryAddWithoutValidation("apiKey", _options.MsgwayApiKey);
+            request.Headers.TryAddWithoutValidation("accept-language", "en-IR");
+
+            using var response = await http.SendAsync(request, ct);
+
+            // Read the body before trusting anything — see the remarks above.
+            var body = await response.Content.ReadAsStringAsync(ct);
+            var summary = body.Length > 500 ? body[..500] : body;
+
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogWarning(
+                    "Vote SMS via msgway failed with {Status}: {Body}", (int)response.StatusCode, summary);
+                return false;
+            }
+
+            if (!IsMsgwaySuccess(body))
+            {
+                logger.LogWarning("Vote SMS via msgway was refused: {Body}", summary);
+                return false;
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Vote SMS via msgway threw.");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Parses the msgway response body and returns whether it reports <c>"status":"success"</c>.
+    /// Any other status, a missing field, or a body that is not valid JSON is treated as failure —
+    /// this method must never turn an unreadable body into a false "sent".
+    /// </summary>
+    private static bool IsMsgwaySuccess(string body)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(body);
+            return doc.RootElement.TryGetProperty("status", out var status)
+                && string.Equals(status.GetString(), "success", StringComparison.OrdinalIgnoreCase);
+        }
+        catch (JsonException)
+        {
             return false;
         }
     }

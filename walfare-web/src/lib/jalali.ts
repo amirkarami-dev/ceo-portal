@@ -37,6 +37,18 @@ export function faMoney(rials: number): string {
   return faDigits(rials.toLocaleString("en-US")) + " ریال";
 }
 
+/**
+ * Rials in, Tomans on screen.
+ *
+ * The API stores and expects RIALS everywhere. Tomans are only what a person reads, because
+ * that is the word people actually use for a price. Never send the result of this back.
+ * The division is exact — an amount that is not a round ten shows its decimal rather than
+ * quietly rounding the price the member is asked to pay.
+ */
+export function faToman(rials: number): string {
+  return faDigits((rials / 10).toLocaleString("en-US")) + " تومان";
+}
+
 export const JALALI_MONTHS = [
   "فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور",
   "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند",

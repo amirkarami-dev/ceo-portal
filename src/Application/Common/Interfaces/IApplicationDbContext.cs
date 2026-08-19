@@ -52,6 +52,10 @@ public interface IApplicationDbContext
 
     DbSet<WelfarePoolReservation> WelfarePoolReservations { get; }
 
+    DbSet<WelfareGuesthouse> WelfareGuesthouses { get; }
+
+    DbSet<GuesthouseRequest> GuesthouseRequests { get; }
+
     DbSet<PaymentTransaction> PaymentTransactions { get; }
 
     DbSet<Election> Elections { get; }

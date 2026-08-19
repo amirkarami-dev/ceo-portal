@@ -1,0 +1,150 @@
+# مهمانسرا — the guesthouse referral service, backend
+
+- **Date:** 2026-08-19
+- **Area:** walfare / api
+- **Branch / commits:** `feat/walfare-guesthouse` — `e78a997`…`2c2341d` (26 commits off `main@7b9b024`)
+- **Status:** built, tested and proven over HTTP locally; **not merged, not deployed**. One open
+  blocker: the API has no wired SMS channel, so the payment link cannot be delivered — see Root cause 1.
+
+## Goal
+
+> «i want full implement new service on @walfare-web as guestHouse : "مهمانسرا"»
+> — with two notes: after a member reserves, the admin confirms and enters the price; and when the
+> national code is not in KurdNezam, the admin fills the form themselves and then sends an SMS
+> payment link to the mobile already on the request.
+
+This record covers the **backend only**. The front end is a separate plan, not yet written.
+
+- Spec: [`docs/superpowers/specs/2026-08-19-walfare-guesthouse-design.md`](../superpowers/specs/2026-08-19-walfare-guesthouse-design.md)
+- Plan: [`docs/superpowers/plans/2026-08-19-walfare-guesthouse-backend.md`](../superpowers/plans/2026-08-19-walfare-guesthouse-backend.md)
+
+## What changed
+
+| File | What and why |
+|---|---|
+| `src/Domain/Walfare/WelfareGuesthouse.cs`, `GuesthouseRequest.cs` | Three entities. `WelfareServiceType.Guesthouse = 2` joins the existing enum. One companion table with an `IsInfant` flag rather than two — the form separates them but both are just a name. `Nights` and `GuestCount` are derived, never stored. |
+| `src/Infrastructure/Data/Configurations/Walfare/WalfareConfigurations.cs` | Three configurations. Filtered unique index on `PaymentToken` (`IS NOT NULL`), index on `UserId`, `Restrict` from request→guesthouse so a paid referral keeps pointing at its place. |
+| `src/Infrastructure/Data/Migrations/…AddWalfareGuesthouse` | One migration, applied and verified locally. |
+| `src/Application/Common/Interfaces/ISmsSender.cs` | Neutral SMS interface; `ElectionSmsSender` implements it, one DI line, no election code changed. |
+| `src/Infrastructure/Elections/ElectionSmsSender.cs` | **Now implements `direct` (msgway)** and refuses an unknown provider — see Root cause. |
+| `src/Application/Walfare/Guesthouses/*.cs` | Four files: guesthouse CRUD, request submission (member + admin), admin pricing/reject/list, token payment. |
+| `src/Application/Walfare/Payments/Payments.cs` | A second `TargetType` branch in the shared completion helper, with a duplicate-payment guard. |
+| `src/Web/Endpoints/Walfare/Walfare.cs` | Three endpoint groups; the two payment routes anonymous, everything else gated. |
+
+## Root cause (defects this uncovered)
+
+Every one was found by review or by measuring — none was reported as a bug.
+
+1. **The API has no working SMS channel, and this feature cannot deliver its link. STILL OPEN.**
+   ⚠️ **This entry was WRONG in the first version of this record; the final whole-branch review
+   corrected it and the correction matters more than the original claim.**
+   What I first wrote: that `deploy/.env`'s `SMS_PROVIDER=direct` reached the API, hit an
+   unimplemented arm, fell to `_ => LogOnly(message)` (which returns `true`) and so reported every
+   message as sent. **That is not what happens.** `Sms__*` is set on the **`auth` service only** in
+   `deploy/docker-compose.newserver.yml`; the api service receives none of it. The API therefore
+   binds `appsettings.json` → `Provider: "relay"` with an **empty `RelayToken`**, and
+   `SendRelayAsync` returns `false` at its first guard. The API was failing honestly, not lying.
+   The second thing I got wrong: implementing `direct` in the API does **not** fix it. msgway's
+   direct path is **template-based** — `TemplateID` + `Param1 = code` — so the message body is
+   discarded and it structurally cannot carry a link. `mihan` is the only provider here that sends
+   free text, and the api service is not wired for it.
+   **What is true:** the unknown-provider arm now returns `false` instead of `true`, and `log` is
+   explicit — a good change, but unreachable in every configured environment, so it fixes nothing
+   today. **Delivering the payment link needs a deploy change.** The compose wiring is now DONE:
+   the api service gets its own `Sms__Provider: "${API_SMS_PROVIDER:-mihan}"` plus the `Sms__Mihan*`
+   block, deliberately separate from the auth service's `SMS_PROVIDER` so the IdP's msgway OTP path
+   is untouched. **What remains is not code.** `deploy/.env` has `SMS_PROVIDER`, `SMS_RELAY_TOKEN`,
+   `SMS_MSGWAY_APIKEY` and `SMS_MSGWAY_TEMPLATE_ID` — and **no mihan credentials at all**. So of the
+   three providers this host implements: `relay` extracts a `\d{4,8}` code and drops the sentence,
+   `direct`/msgway posts `TemplateID` + `Param1` and drops the body, and `mihan` would carry the
+   whole message but has no username, password or sender configured.
+   **The organisation has no free-text SMS capability configured.** Someone must either obtain mihan
+   credentials, or register a msgway template that takes the link as a parameter (which also needs a
+   small code change — only `Param1` is sent today), or extend the in-house relay at
+   sms.kurdnezambargh.ir to accept free text. Until one of those, `send-payment-sms` fails honestly
+   with «ارسال پیامک ناموفق بود» and the member's own pay button is the only working door.
+2. **A forwarded payment link could be paid twice.** Two people opening one SMS both init (two ledger
+   rows, by design) and both pay — the bank really does capture both cards. The second callback
+   overwrote `PaidAtUtc` and `PaymentTransactionId` while keeping the first receipt number, destroying
+   the linkage an admin would need to spot it. The obvious guard is **wrong**: `PaymentTransactionId`
+   is assigned at *init*, so guarding on it skips the legitimate first callback. Guarded on `Status`;
+   a duplicate now annotates its own ledger row for refund and leaves the request alone.
+3. **An input validator that never ran.** `ValidationBehaviour` resolves `IValidator<TRequest>` where
+   `TRequest` is the *command*, so an `AbstractValidator<SomeInput>` is never found. The companion
+   limits, the date-order rule, the ten-digit national code and the invisible-mark paste handling were
+   dead code **while all ten unit tests passed**, because the tests construct the validator directly.
+4. **A solo applicant was a 500.** `GuesthouseRequestInput` is a positional record bound through its
+   constructor, so a body omitting `"companions"` gave null and the count rules dereferenced it — no
+   Persian message, for the commonest request there is.
+5. **An expired link disclosed the whole stay for ever.** The summary returned guesthouse, city, both
+   dates, party size and amount regardless of `Payable`, and nothing clears the token on expiry.
+6. **`Roles.Administrator` on 11 handlers** would have locked SuperUsers out of the entire admin
+   surface — the role check compares `role == x` without trimming. `Roles.cs` documents it.
+7. **`nvarchar(max)` on `UserId`** cannot be an index key; `Mobile` at 11 chars would have thrown
+   SqlException 8152 on `+989121234567`, a 500 with no field message in the admin-entry flow.
+
+## Decisions
+
+- **The token is minted at pricing, never at submission** — a token on an unpriced request is a
+  payable link for an amount nobody set. Re-sending reuses it (`??=`) and only extends the expiry,
+  now clamped to `FirstPricedAtUtc + 30 days`. The first attempt at this clamp was **broken** —
+  it derived the ceiling from `PaymentTokenExpiresUtc`, the very field each re-send overwrites, so
+  the ceiling ratcheted forward and never bound. Caught by the final review; fixed with a stored
+  `FirstPricedAtUtc` column.
+- **The anonymous payment payload carries no identifiers.** Enforced by a reflection test listing its
+  nine allowed property names, which fails if a tenth is added.
+- **Payment is gateway-only.** The spec originally said a payment could arrive as a bank transfer the
+  admin entered by hand; review traced every write to `Status` and found none reachable without a
+  verified gateway transaction, so the admin could type a receipt and never print the letter. The
+  claim was dropped rather than half-built — recording an offline payment would need a command marking
+  a request paid with no gateway record, which is money-adjacent and explicitly out of scope.
+- **`Sms:Provider` was NOT switched to `mihan`**, although that was asked for. That value is shared
+  with the identity provider, whose `direct`/msgway path is the OTP login flow fixed earlier the same
+  day; moving it would have risked a working login. **However**, my stated alternative — "teaching
+  the API the provider already in use achieves the same intent with no deploy change" — was wrong on
+  both counts: the API is not wired for any `Sms__*`, and msgway's direct path is template-only.
+  A deploy change is required and is still outstanding. See Root cause 1.
+
+## Verification
+
+- **491 unit tests pass** (453 pre-existing + 38 new); `dotnet build src/Web` 0 errors.
+- Migration applied to the local database; all three tables present and **plural**.
+- Proven over real HTTP against a running API, with rows seeded directly into SQL Server (then
+  deleted), because minting an admin token needs a human login:
+  - **The privacy claim, with no credentials at all.** The seeded row held national code
+    `0000000000`, the name «کاربر آزمایشی» and two companion names. The anonymous summary returned
+    exactly nine fields and **none of them**; `nights: 2` and `guestCount: 2` both correct, the infant
+    properly uncounted.
+  - **Expiry is a server control, not a hidden button.** With the expiry pushed into the past, the
+    summary blanked all seven stay fields and returned only the Persian reason, and `POST …/init`
+    answered **400**, not a redirect.
+  - **Admin routes exist and are gated** — `admin/list`, `guesthouses/admin`, `{id}/referral` and
+    `mine` all **401**, against **404** for a route that genuinely does not exist.
+  - Incidental proof: the first seed failed with `Msg 1934 … QUOTED_IDENTIFIER`, which only a
+    **filtered index** raises — so the `PaymentToken` filtered unique index is live and enforced.
+
+**Corrected after the final review.** Three further defects were found only by looking at the whole
+branch at once, and all three are now fixed (`fa3ed0d`): a **rejected** request could be driven to
+`Paid` — the payer inits, the admin refuses, the payer completes, and the callback settled it because
+it re-derived `Status == Paid` instead of asking `GuesthouseTransitions.CanPay`; the link-lifetime
+ceiling never bound (above); and re-pricing while a payer was at the bank recorded the *new* amount
+as paid while the *old* one was collected. The completion branch now compares `tx.AmountRials` to
+`req.AmountRials` and refuses to settle a mismatch.
+
+**Not verified.** No request was created or priced *through the API* — that needs an admin token from
+the IdP, and no OTP or password was entered. **No real card payment was made**, so the Iran Kish
+round trip, the callback, and therefore the duplicate-payment guard and the receipt auto-fill are
+unproven against the live gateway. **No SMS was actually sent** — the `direct` provider path is
+mirrored from the IdP's working one and compiles, but has never delivered a message from this host.
+Nothing is merged or deployed.
+
+## Follow-ups
+
+- The front-end plan: member request form, the anonymous payment page, admin screens, referral print.
+- **Residual race:** two gateway callbacks whose SELECTs both land before either COMMITs could still
+  both settle a request (last-write-wins). Needs serializable isolation or a DB constraint. Same shape
+  as the room-whiteboard first-save race.
+- A member cancel endpoint — `GuesthouseTransitions.CanCancel` exists and is tested, but nothing calls
+  it yet; it ships with the member UI.
+- `CheckInDateJalali` stores the user's raw text, so `1405-5-1` and `۱۴۰۵/۰۵/۰۱` both persist as typed.
+- The companion→DTO mapping is duplicated in two files; a future enum edit could desync them.

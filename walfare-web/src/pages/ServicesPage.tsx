@@ -32,6 +32,31 @@ function PoolBadge() {
   );
 }
 
+/** Warm lodge tile, so a مهمانسرا never reads as another pool at a glance. */
+function GuesthouseBadge() {
+  return (
+    <div
+      style={{
+        width: 56,
+        height: 56,
+        borderRadius: 16,
+        display: "grid",
+        placeItems: "center",
+        background: "linear-gradient(135deg,#f59e0b,#b45309)",
+        color: "#fff",
+        flex: "none",
+      }}
+    >
+      {/* lodge */}
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M3 10.5 12 4l9 6.5" />
+        <path d="M5 9.8V20h14V9.8" />
+        <path d="M9.5 20v-5h5v5" />
+      </svg>
+    </div>
+  );
+}
+
 export function ServicesPage() {
   const navigate = useNavigate();
 
@@ -67,10 +92,10 @@ export function ServicesPage() {
             <Col key={s.id} xs={24} sm={24} md={12} xl={8}>
               <Card
                 hoverable
-                onClick={() => navigate(`/book/${s.id}`)}
+                onClick={() => navigate(s.type === 2 ? `/guesthouse/${s.id}` : `/book/${s.id}`)}
                 styles={{ body: { display: "flex", gap: 12, alignItems: "center" } }}
               >
-                <PoolBadge />
+                {s.type === 2 ? <GuesthouseBadge /> : <PoolBadge />}
                 <div style={{ minWidth: 0, flex: 1, overflowWrap: "anywhere" }}>
                   <Typography.Text strong style={{ fontSize: 16, display: "block" }}>
                     {s.title}
@@ -78,9 +103,15 @@ export function ServicesPage() {
                   <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginTop: 4 }}>
                     <CalendarOutlined /> از {faDigits(s.startDate)} تا {faDigits(s.endDate)}
                   </Typography.Text>
-                  <Tag color="blue" style={{ marginTop: 8 }}>
-                    {faDigits(s.poolCount)} استخر فعال
-                  </Tag>
+                  {s.type === 2 ? (
+                    <Tag color="orange" style={{ marginTop: 8 }}>
+                      مهمانسرا
+                    </Tag>
+                  ) : (
+                    <Tag color="blue" style={{ marginTop: 8 }}>
+                      {faDigits(s.poolCount)} استخر فعال
+                    </Tag>
+                  )}
                 </div>
                 <RightOutlined style={{ transform: "rotate(180deg)", color: "#999" }} />
               </Card>

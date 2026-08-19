@@ -13,10 +13,16 @@ import { EngineerGate } from "@/auth/EngineerGate";
 import { AppLayout } from "@/layout/AppLayout";
 import { ServicesPage } from "@/pages/ServicesPage";
 import { BookingPage } from "@/pages/BookingPage";
+import { GuesthouseRequestPage } from "@/pages/GuesthouseRequestPage";
 import { MyReservationsPage } from "@/pages/MyReservationsPage";
 import { PayResultPage } from "@/pages/PayResultPage";
+import { GuesthousePayPage } from "@/pages/GuesthousePayPage";
+import { GuesthousePayResultPage } from "@/pages/GuesthousePayResultPage";
 import { AdminServicesPage } from "@/pages/admin/AdminServicesPage";
 import { AdminPoolsPage } from "@/pages/admin/AdminPoolsPage";
+import { AdminGuesthousesPage } from "@/pages/admin/AdminGuesthousesPage";
+import { AdminGuesthouseRequestsPage } from "@/pages/admin/AdminGuesthouseRequestsPage";
+import { GuesthouseReferralPage } from "@/pages/admin/GuesthouseReferralPage";
 import { AdminReservationsPage } from "@/pages/admin/AdminReservationsPage";
 import { AdminPaymentsPage } from "@/pages/admin/AdminPaymentsPage";
 
@@ -30,6 +36,51 @@ export const router = createBrowserRouter([
             Component: (await import("@/pages/dev/PickerHarness")).PickerHarness,
           }),
         },
+        {
+          path: "/dev/guesthouse/:serviceId",
+          lazy: async () => ({
+            Component: (await import("@/pages/dev/GuesthouseFormHarness")).GuesthouseFormHarness,
+          }),
+        },
+        {
+          path: "/dev/guesthouse-requests",
+          lazy: async () => ({
+            Component: (await import("@/pages/dev/GuesthouseFormHarness"))
+              .MyGuesthouseRequestsHarness,
+          }),
+        },
+        {
+          path: "/dev/guesthouse-pay/:token",
+          lazy: async () => ({
+            Component: (await import("@/pages/dev/GuesthouseFormHarness")).GuesthousePayHarness,
+          }),
+        },
+        {
+          path: "/dev/admin-guesthouses",
+          lazy: async () => ({
+            Component: (await import("@/pages/dev/GuesthouseFormHarness"))
+              .AdminGuesthousesHarness,
+          }),
+        },
+        {
+          path: "/dev/admin-services",
+          lazy: async () => ({
+            Component: (await import("@/pages/dev/GuesthouseFormHarness")).AdminServicesHarness,
+          }),
+        },
+        {
+          path: "/dev/admin-requests",
+          lazy: async () => ({
+            Component: (await import("@/pages/dev/GuesthouseFormHarness")).AdminRequestsHarness,
+          }),
+        },
+        {
+          path: "/dev/referral/:id",
+          lazy: async () => ({
+            Component: (await import("@/pages/dev/GuesthouseFormHarness"))
+              .GuesthouseReferralHarness,
+          }),
+        },
       ]
     : []),
 
@@ -38,6 +89,12 @@ export const router = createBrowserRouter([
   { path: "/auth/callback", element: <OidcCallback /> },
   { path: "/auth/silent", element: <OidcSilentCallback /> },
   { path: "/logout", element: <LogoutScreen /> },
+
+  // Guesthouse payment — PUBLIC, and it must stay that way. The person opening the SMS link may
+  // have no account at all; that is the whole point of the feature. Inside RequireAuth they
+  // would be sent to a login they can never pass, and the feature would be dead.
+  { path: "/pay/guesthouse/result", element: <GuesthousePayResultPage /> },
+  { path: "/pay/guesthouse/:token", element: <GuesthousePayPage /> },
 
   // Engineer dashboard — any signed-in engineer.
   {
@@ -54,6 +111,7 @@ export const router = createBrowserRouter([
             children: [
               { index: true, element: <ServicesPage /> },
               { path: "book/:serviceId", element: <BookingPage /> },
+              { path: "guesthouse/:serviceId", element: <GuesthouseRequestPage /> },
               { path: "reservations", element: <MyReservationsPage /> },
             ],
           },
@@ -66,6 +124,12 @@ export const router = createBrowserRouter([
             children: [
               { index: true, element: <AdminServicesPage /> },
               { path: "pools", element: <AdminPoolsPage /> },
+              { path: "guesthouses", element: <AdminGuesthousesPage /> },
+              { path: "guesthouse-requests", element: <AdminGuesthouseRequestsPage /> },
+              {
+                path: "guesthouse-requests/:id/referral",
+                element: <GuesthouseReferralPage />,
+              },
               { path: "reservations", element: <AdminReservationsPage /> },
               { path: "payments", element: <AdminPaymentsPage /> },
             ],

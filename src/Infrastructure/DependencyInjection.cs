@@ -208,6 +208,19 @@ public static class DependencyInjection
         services.AddHttpClient<IElectionSmsSender, ElectionSmsSender>()
             .RemoveAllLoggers();
 
+        // One implementation, two names. The election module keeps its own interface; everything
+        // else asks for ISmsSender. Resolving through the typed client reuses that single
+        // HttpClient and its policies rather than constructing a second one.
+        // The cast is checked rather than blind: nothing validates the container at build time
+        // here, so an unchecked one would surface as InvalidCastException at the first SMS a
+        // guesthouse admin tries to send, long after whoever swapped the election registration
+        // had moved on. This says what actually went wrong.
+        services.AddScoped<Mabhas19.Application.Common.Interfaces.ISmsSender>(sp =>
+            sp.GetRequiredService<IElectionSmsSender>() as Mabhas19.Application.Common.Interfaces.ISmsSender
+            ?? throw new InvalidOperationException(
+                "The registered IElectionSmsSender does not implement ISmsSender. Both names must " +
+                "resolve to one implementation — see the registration directly above."));
+
         // The vote OTP store needs IMemoryCache and nothing else in this host registers it.
         services.AddMemoryCache();
         services.AddSingleton<IVoteOtpStore, VoteOtpStore>();

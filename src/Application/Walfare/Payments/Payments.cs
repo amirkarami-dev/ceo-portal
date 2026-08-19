@@ -1,5 +1,6 @@
 using Mabhas19.Application.Common.Interfaces;
 using Mabhas19.Application.Common.Security;
+using Mabhas19.Application.Walfare.Guesthouses;
 using Mabhas19.Domain.Constants;
 using Mabhas19.Domain.Walfare;
 using Microsoft.EntityFrameworkCore;
@@ -39,6 +40,47 @@ file static class PaymentCompletion
                 reservation.Status = ReservationStatus.Paid;
                 reservation.PaymentTransactionId = tx.Id;
                 reservation.TrackingCode = tx.SystemTraceAuditNumber;
+            }
+        }
+
+        if (tx.TargetType == InitGuesthousePaymentCommandHandler.TargetType)
+        {
+            var req = await context.GuesthouseRequests
+                .FirstOrDefaultAsync(r => r.Id == tx.TargetId, ct);
+            if (req is not null)
+            {
+                // Ask the transition table rather than re-deriving. Only a request that is still
+                // payable may be settled: a REJECTED one can reach here because the payer was
+                // already at the bank when the admin refused it, and an already-Paid one is the
+                // duplicate case. Both must annotate their own ledger row and leave the request be.
+                if (!GuesthouseTransitions.CanPay(req.Status))
+                {
+                    tx.Description =
+                        $"پرداخت برای درخواستی که قابل پرداخت نیست (وضعیت {(int)req.Status})؛ نیازمند بررسی و احتمالاً بازگشت وجه.";
+                }
+                // What the payer was charged is what the ledger row says, not what the request
+                // says now — an admin can re-price while somebody is at the bank. Settling on a
+                // mismatch would record a stay as paid in full for an amount never collected.
+                else if (tx.AmountRials != req.AmountRials)
+                {
+                    tx.Description =
+                        $"مبلغ پرداخت‌شده ({tx.AmountRials}) با مبلغ فعلی درخواست ({req.AmountRials}) یکسان نیست؛ نیازمند بررسی.";
+                }
+                else
+                {
+                    req.Status = GuesthouseRequestStatus.Paid;
+                    req.PaidAtUtc = tx.VerifiedAt ?? DateTimeOffset.UtcNow;
+                    req.PaymentTransactionId = tx.Id;
+
+                    // شماره فیش, pre-filled from the gateway and editable afterwards so a wrong or
+                    // missing reference can be corrected before the letter is printed.
+                    if (string.IsNullOrWhiteSpace(req.ReceiptNumber))
+                        req.ReceiptNumber = tx.RetrievalReferenceNumber ?? tx.PaymentId;
+
+                    // The link has done its job. Clearing it stops a forwarded SMS opening a live page.
+                    req.PaymentToken = null;
+                    req.PaymentTokenExpiresUtc = null;
+                }
             }
         }
     }
@@ -131,11 +173,32 @@ public class HandleIrkCallbackCommandHandler(
     IConfiguration configuration,
     ILogger<HandleIrkCallbackCommandHandler> logger) : IRequestHandler<HandleIrkCallbackCommand, string>
 {
+    /// <summary>Front-end result page for a signed-in payer (inside its RequireAuth guard).</summary>
+    public const string SignedInResultPath = "/pay/result";
+
+    /// <summary>Front-end result page reachable WITHOUT a login, for guesthouse payers.</summary>
+    public const string PublicGuesthouseResultPath = "/pay/guesthouse/result";
+
+    /// <summary>
+    /// Which front-end result page a finished payment must land on.
+    /// </summary>
+    /// <remarks>
+    /// A guesthouse payer may have NO ACCOUNT — that is the entire point of the SMS link.
+    /// <see cref="SignedInResultPath"/> sits behind the front end's RequireAuth guard, so sending
+    /// them there bounces them to a login they can never pass, immediately after they paid, and
+    /// they never learn whether it worked or see their tracking code. Anything we cannot identify
+    /// as a guesthouse payment keeps the original signed-in page.
+    /// </remarks>
+    public static string ResultPathFor(string? targetType) =>
+        targetType == InitGuesthousePaymentCommandHandler.TargetType
+            ? PublicGuesthouseResultPath
+            : SignedInResultPath;
+
     public async Task<string> Handle(HandleIrkCallbackCommand request, CancellationToken cancellationToken)
     {
         var front = (configuration["Walfare:FrontBaseUrl"] ?? "https://refahi.kurdnezam.ir").TrimEnd('/');
-        string Result(string status, string? tracking = null) =>
-            $"{front}/pay/result?status={status}" +
+        string ResultAt(string path, string status, string? tracking = null) =>
+            $"{front}{path}?status={status}" +
             (tracking is null ? string.Empty : $"&tracking={Uri.EscapeDataString(tracking)}");
 
         var tx = await context.PaymentTransactions.FirstOrDefaultAsync(
@@ -143,8 +206,13 @@ public class HandleIrkCallbackCommandHandler(
         if (tx is null)
         {
             logger.LogWarning("IranKish callback for unknown payment {PaymentId}", request.PaymentId);
-            return Result("notfound");
+            // No transaction, so no way to know which front-end page fits. The signed-in one is
+            // the safe default: an unknown payment is not a guesthouse payer we can identify.
+            return ResultAt(SignedInResultPath, "notfound");
         }
+
+        var resultPath = ResultPathFor(tx.TargetType);
+        string Result(string status, string? tracking = null) => ResultAt(resultPath, status, tracking);
 
         // The gateway can retry the callback; a decided transaction stays decided.
         if (tx.Status == PaymentStatus.Succeeded)

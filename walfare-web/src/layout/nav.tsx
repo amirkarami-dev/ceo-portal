@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import {
   BankOutlined,
+  HomeOutlined,
+  SolutionOutlined,
   CalendarOutlined,
   CreditCardOutlined,
   GiftOutlined,
@@ -23,6 +25,8 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "/reservations", label: "رزروهای من", icon: <CalendarOutlined /> },
   { key: "/admin", label: "مدیریت خدمات", icon: <TagsOutlined />, adminOnly: true },
   { key: "/admin/pools", label: "مدیریت استخرها", icon: <BankOutlined />, adminOnly: true },
+  { key: "/admin/guesthouses", label: "مدیریت مهمانسراها", icon: <HomeOutlined />, adminOnly: true },
+  { key: "/admin/guesthouse-requests", label: "درخواست‌های مهمانسرا", icon: <SolutionOutlined />, adminOnly: true },
   { key: "/admin/reservations", label: "همه رزروها", icon: <OrderedListOutlined />, adminOnly: true },
   { key: "/admin/payments", label: "پرداخت‌ها", icon: <CreditCardOutlined />, adminOnly: true },
 ];

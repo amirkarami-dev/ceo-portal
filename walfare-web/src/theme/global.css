@@ -34,3 +34,73 @@ body {
 .ant-table-cell {
   font-variant-numeric: tabular-nums;
 }
+
+/* ── printing ──────────────────────────────────────────────────────────────
+   Used by the معرفی‌نامه page. Only the letter reaches the paper: the sider,
+   the header, the buttons and every floating layer are dropped.
+
+   The colour rules are not decoration. This panel has a dark theme, and a
+   browser does not print background colours by default — so without forcing
+   ink to black, an admin printing from dark mode gets pale text on white
+   paper, i.e. a blank sheet that looked fine on screen.                     */
+@media print {
+  .no-print,
+  .ant-layout-sider,
+  .ant-layout-header,
+  .ant-drawer,
+  .ant-modal-root,
+  .ant-modal-mask,
+  .ant-message,
+  .ant-notification,
+  .ant-back-top,
+  .ant-float-btn-group {
+    display: none !important;
+  }
+
+  html,
+  body,
+  #root {
+    height: auto;
+    background: #fff !important;
+  }
+
+  .ant-layout,
+  .ant-layout-content {
+    background: #fff !important;
+  }
+
+  /* AppLayout frames its content with margin, padding, a radius and a scroll
+     box. On paper those only waste the page. */
+  .ant-layout-content {
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }
+
+  .print-area,
+  .print-area * {
+    color: #000 !important;
+    background: transparent !important;
+  }
+
+  .print-area {
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Keep the table rules visible; the ink override above would otherwise
+     leave the bordered description grid with invisible lines. */
+  .print-area .ant-descriptions-bordered .ant-descriptions-item-label,
+  .print-area .ant-descriptions-bordered .ant-descriptions-item-content,
+  .print-area .ant-descriptions-bordered .ant-descriptions-view,
+  .print-area .ant-descriptions-bordered .ant-descriptions-row {
+    border-color: #000 !important;
+  }
+
+  /* One letter, one sheet. */
+  .print-area {
+    page-break-inside: avoid;
+  }
+}

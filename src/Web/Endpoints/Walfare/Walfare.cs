@@ -1,4 +1,5 @@
 using Mabhas19.Application.Walfare;
+using Mabhas19.Application.Walfare.Guesthouses;
 using Mabhas19.Application.Walfare.Payments;
 using Mabhas19.Application.Walfare.Pools;
 using Mabhas19.Application.Walfare.Reservations;
@@ -188,4 +189,157 @@ public class WalfarePayments : Mabhas19.Web.Infrastructure.IEndpointGroup
     /// <summary>Admin manual verify for a payment the automatic callback left unverified.</summary>
     public static async Task<Ok<PaymentTransactionDto>> ConfirmWalfarePayment(ISender sender, int id)
         => TypedResults.Ok(await sender.Send(new ConfirmPaymentCommand(id)));
+}
+
+/// <summary>Guesthouses (مهمانسراها): active list for members, CRUD for admins.</summary>
+public class WalfareGuesthouses : Mabhas19.Web.Infrastructure.IEndpointGroup
+{
+    public static string? RoutePrefix => "/api/walfare/guesthouses";
+
+    public static void Map(RouteGroupBuilder groupBuilder)
+    {
+        groupBuilder.MapGet(GetWalfareActiveGuesthouses, string.Empty).RequireAuthorization();
+        groupBuilder.MapGet(GetWalfareGuesthousesAdmin, "admin").RequireAdmin();
+        groupBuilder.MapPost(CreateWalfareGuesthouse, string.Empty).RequireAdmin();
+        groupBuilder.MapPut(UpdateWalfareGuesthouse, "{id:int}").RequireAdmin();
+        groupBuilder.MapDelete(DeleteWalfareGuesthouse, "{id:int}").RequireAdmin();
+    }
+
+    public static async Task<Ok<IReadOnlyList<GuesthouseDto>>> GetWalfareActiveGuesthouses(
+        ISender sender, int serviceId)
+        => TypedResults.Ok(await sender.Send(new GetActiveGuesthousesQuery(serviceId)));
+
+    public static async Task<Ok<IReadOnlyList<GuesthouseDto>>> GetWalfareGuesthousesAdmin(ISender sender)
+        => TypedResults.Ok(await sender.Send(new GetGuesthousesAdminQuery()));
+
+    public static async Task<Created<int>> CreateWalfareGuesthouse(ISender sender, GuesthouseInput body)
+    {
+        var id = await sender.Send(new CreateGuesthouseCommand(body));
+        return TypedResults.Created($"/api/walfare/guesthouses/{id}", id);
+    }
+
+    public static async Task<NoContent> UpdateWalfareGuesthouse(ISender sender, int id, GuesthouseInput body)
+    {
+        await sender.Send(new UpdateGuesthouseCommand(id, body));
+        return TypedResults.NoContent();
+    }
+
+    public static async Task<NoContent> DeleteWalfareGuesthouse(ISender sender, int id)
+    {
+        await sender.Send(new DeleteGuesthouseCommand(id));
+        return TypedResults.NoContent();
+    }
+}
+
+/// <summary>Guesthouse requests (درخواست مهمانسرا).</summary>
+public class WalfareGuesthouseRequests : Mabhas19.Web.Infrastructure.IEndpointGroup
+{
+    public static string? RoutePrefix => "/api/walfare/guesthouse-requests";
+
+    public static void Map(RouteGroupBuilder groupBuilder)
+    {
+        groupBuilder.MapPost(CreateWalfareGuesthouseRequest, string.Empty).RequireAuthorization();
+        groupBuilder.MapGet(GetWalfareMyGuesthouseRequests, "me").RequireAuthorization();
+        groupBuilder.MapPost(CreateWalfareGuesthouseRequestAdmin, "admin").RequireAdmin();
+        groupBuilder.MapGet(GetWalfareGuesthouseRequestsAdmin, "admin/list").RequireAdmin();
+        groupBuilder.MapPost(PriceWalfareGuesthouseRequest, "{id:int}/price").RequireAdmin();
+        groupBuilder.MapPost(RejectWalfareGuesthouseRequest, "{id:int}/reject").RequireAdmin();
+        groupBuilder.MapPost(SendWalfareGuesthousePaymentSms, "{id:int}/send-payment-sms").RequireAdmin();
+        groupBuilder.MapGet(GetWalfareGuesthouseReferral, "{id:int}/referral").RequireAdmin();
+        groupBuilder.MapPut(UpdateWalfareGuesthouseReceipt, "{id:int}/receipt").RequireAdmin();
+    }
+
+    public static async Task<Created<int>> CreateWalfareGuesthouseRequest(
+        ISender sender, GuesthouseRequestInput body)
+    {
+        var id = await sender.Send(new CreateGuesthouseRequestCommand(body));
+        return TypedResults.Created($"/api/walfare/guesthouse-requests/{id}", id);
+    }
+
+    public static async Task<Ok<IReadOnlyList<GuesthouseRequestDto>>> GetWalfareMyGuesthouseRequests(
+        ISender sender)
+        => TypedResults.Ok(await sender.Send(new GetMyGuesthouseRequestsQuery()));
+
+    public static async Task<Created<int>> CreateWalfareGuesthouseRequestAdmin(
+        ISender sender, GuesthouseRequestInput body)
+    {
+        var id = await sender.Send(new CreateGuesthouseRequestAdminCommand(body));
+        return TypedResults.Created($"/api/walfare/guesthouse-requests/{id}", id);
+    }
+
+    public record PriceGuesthouseBody(long AmountRials, string AdminNote, ApplicantGender? Gender);
+
+    public record RejectGuesthouseBody(string Reason);
+
+    public static async Task<Ok<WalfarePagedResult<GuesthouseRequestDto>>> GetWalfareGuesthouseRequestsAdmin(
+        ISender sender, GuesthouseRequestStatus? status = null, int? guesthouseId = null,
+        int page = 1, int pageSize = 20)
+        => TypedResults.Ok(await sender.Send(new GetGuesthouseRequestsAdminQuery(status, guesthouseId, page, pageSize)));
+
+    public static async Task<NoContent> PriceWalfareGuesthouseRequest(
+        ISender sender, int id, PriceGuesthouseBody body)
+    {
+        await sender.Send(new PriceGuesthouseRequestCommand(id, body.AmountRials, body.AdminNote, body.Gender));
+        return TypedResults.NoContent();
+    }
+
+    public static async Task<NoContent> RejectWalfareGuesthouseRequest(
+        ISender sender, int id, RejectGuesthouseBody body)
+    {
+        await sender.Send(new RejectGuesthouseRequestCommand(id, body.Reason));
+        return TypedResults.NoContent();
+    }
+
+    public static async Task<NoContent> SendWalfareGuesthousePaymentSms(ISender sender, int id)
+    {
+        await sender.Send(new SendGuesthousePaymentSmsCommand(id));
+        return TypedResults.NoContent();
+    }
+
+    public record ReceiptBody(string ReceiptNumber);
+
+    public static async Task<Ok<GuesthouseReferralDto>> GetWalfareGuesthouseReferral(ISender sender, int id)
+        => TypedResults.Ok(await sender.Send(new GetGuesthouseReferralQuery(id)));
+
+    public static async Task<NoContent> UpdateWalfareGuesthouseReceipt(
+        ISender sender, int id, ReceiptBody body)
+    {
+        await sender.Send(new UpdateGuesthouseReceiptCommand(id, body.ReceiptNumber));
+        return TypedResults.NoContent();
+    }
+}
+
+/// <summary>
+/// The SMS payment link. ANONYMOUS on purpose — the payer may have no account at all.
+/// </summary>
+/// <remarks>
+/// The GET summary sits on the shared 120/min platform limiter — it creates nothing. The POST init
+/// is on <see cref="RateLimitPolicies.PublicSubmission"/> (10/10min per IP) instead: it creates a
+/// PaymentTransaction row and calls the Iran Kish gateway, so the generous shared limiter would let
+/// one token behind one NAT mint far too many of both.
+/// </remarks>
+public class WalfareGuesthousePay : Mabhas19.Web.Infrastructure.IEndpointGroup
+{
+    public static string? RoutePrefix => "/api/walfare/guesthouse/pay";
+
+    public static void Map(RouteGroupBuilder groupBuilder)
+    {
+        groupBuilder.MapGet(GetWalfareGuesthousePaySummary, "{token}").AllowAnonymous();
+        // The GET summary creates nothing and stays on the default limiter. The POST creates a
+        // PaymentTransaction row and calls out to Iran Kish, so it gets the same stricter,
+        // per-IP policy as other public-write routes (e.g. KurdnezamForms' SubmitKurdnezamForm) —
+        // without it, one valid token and one IP could mint thousands of transactions and outbound
+        // gateway calls per hour.
+        groupBuilder.MapPost(InitWalfareGuesthousePayment, "{token}/init")
+            .AllowAnonymous()
+            .RequireRateLimiting(RateLimitPolicies.PublicSubmission);
+    }
+
+    public static async Task<Ok<GuesthousePaymentSummaryDto>> GetWalfareGuesthousePaySummary(
+        ISender sender, string token)
+        => TypedResults.Ok(await sender.Send(new GetGuesthousePaymentSummaryQuery(token)));
+
+    public static async Task<Ok<PaymentRedirectDto>> InitWalfareGuesthousePayment(
+        ISender sender, string token)
+        => TypedResults.Ok(await sender.Send(new InitGuesthousePaymentCommand(token)));
 }
