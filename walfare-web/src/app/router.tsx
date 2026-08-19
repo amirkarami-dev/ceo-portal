@@ -37,6 +37,13 @@ export const router = createBrowserRouter([
             Component: (await import("@/pages/dev/GuesthouseFormHarness")).GuesthouseFormHarness,
           }),
         },
+        {
+          path: "/dev/guesthouse-requests",
+          lazy: async () => ({
+            Component: (await import("@/pages/dev/GuesthouseFormHarness"))
+              .MyGuesthouseRequestsHarness,
+          }),
+        },
       ]
     : []),
 

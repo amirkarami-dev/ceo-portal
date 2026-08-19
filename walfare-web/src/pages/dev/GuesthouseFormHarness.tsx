@@ -1,15 +1,36 @@
-// Dev-only harness for the guesthouse request form (route: /dev/guesthouse/:serviceId).
+// Dev-only harnesses for the guesthouse member screens:
+//   /dev/guesthouse/:serviceId  -> the request form
+//   /dev/guesthouse-requests    -> «رزروهای من», the مهمانسرا tab
 // Lets the form and its phone layout be checked without the OIDC login; excluded from prod.
 //
 // Same idea as PickerHarness, one step further: this page reads three queries, so the harness
 // seeds the shared cache with FAKE rows first. Nothing here ever calls the API, and every value
 // is invented — no real person's کد ملی belongs in a dev fixture.
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 import { useParams } from "react-router-dom";
 import { GuesthouseRequestPage } from "@/pages/GuesthouseRequestPage";
+import { MyReservationsPage } from "@/pages/MyReservationsPage";
 import { queryClient } from "@/query/client";
 import { queryKeys } from "@/query";
-import type { Guesthouse, WalfareEngineer, WelfareService } from "@/api/walfareApi";
+import type {
+  Guesthouse,
+  GuesthouseRequest,
+  WalfareEngineer,
+  WelfareService,
+} from "@/api/walfareApi";
+
+/**
+ * Mirrors AppLayout's <Content> box on a phone (margin 8, padding 12, overflowX auto).
+ *
+ * Without it a harness measures a LIE: these dev routes sit outside AppLayout, so antd's
+ * `List grid` gutter — a real `margin: 0 -8px` on its row — has no padding to sit inside and
+ * reads as 16px of page overflow that the signed-in app never has.
+ */
+function HarnessFrame({ children }: { children: ReactNode }) {
+  return (
+    <div style={{ margin: 8, padding: 12, overflowX: "auto", minHeight: 280 }}>{children}</div>
+  );
+}
 
 function seed(serviceId: number) {
   const me: WalfareEngineer = {
@@ -66,5 +87,147 @@ export function GuesthouseFormHarness() {
     seeded.current = true;
   }
 
-  return <GuesthouseRequestPage />;
+  return (
+    <HarnessFrame>
+      <GuesthouseRequestPage />
+    </HarnessFrame>
+  );
+}
+
+
+// ── the member's own list ───────────────────────────────────────────────────
+
+/** One row per status, so every branch of the card is on screen at once. */
+const FAKE_REQUESTS: GuesthouseRequest[] = [
+  {
+    id: 1,
+    guesthouseId: 1,
+    guesthouseName: "مهمانسرای شماره یک",
+    guesthouseCity: "سنندج",
+    fullName: "کاربر آزمایشی",
+    nationalCode: "0000000000",
+    membershipNumber: "",
+    mobile: "09000000000",
+    gender: null,
+    checkInDateJalali: "1405/06/01",
+    checkOutDateJalali: "1405/06/03",
+    nights: 2,
+    guestCount: 2,
+    amountRials: 0,
+    adminNote: "",
+    status: 0, // Submitted — no price yet, so no pay button
+    receiptNumber: "",
+    createdByAdmin: false,
+    paymentToken: null,
+    paidAtUtc: null,
+    companions: [],
+  },
+  {
+    id: 2,
+    guesthouseId: 2,
+    guesthouseName: "مهمانسرای دریا با نامی نسبتاً بلند برای آزمودن شکستن خط",
+    guesthouseCity: "بندرعباس",
+    fullName: "کاربر آزمایشی",
+    nationalCode: "0000000000",
+    membershipNumber: "",
+    mobile: "09000000000",
+    gender: null,
+    checkInDateJalali: "1405/06/10",
+    checkOutDateJalali: "1405/06/14",
+    nights: 4,
+    guestCount: 3,
+    amountRials: 12_500_000,
+    adminNote: "اتاق سه‌تخته در طبقه دوم.",
+    status: 1, // Priced + token — the ONLY row that may show a pay button
+    receiptNumber: "",
+    createdByAdmin: false,
+    paymentToken: "dev-token-not-a-real-one",
+    paidAtUtc: null,
+    companions: [],
+  },
+  {
+    id: 3,
+    guesthouseId: 1,
+    guesthouseName: "مهمانسرای شماره یک",
+    guesthouseCity: "سنندج",
+    fullName: "کاربر آزمایشی",
+    nationalCode: "0000000000",
+    membershipNumber: "",
+    mobile: "09000000000",
+    gender: null,
+    checkInDateJalali: "1405/05/02",
+    checkOutDateJalali: "1405/05/05",
+    nights: 3,
+    guestCount: 1,
+    amountRials: 9_000_000,
+    adminNote: "",
+    // Priced but the token is gone. Proves the pay button needs BOTH, not either.
+    status: 1,
+    receiptNumber: "",
+    createdByAdmin: false,
+    paymentToken: null,
+    paidAtUtc: null,
+    companions: [],
+  },
+  {
+    id: 4,
+    guesthouseId: 1,
+    guesthouseName: "مهمانسرای شماره یک",
+    guesthouseCity: "سنندج",
+    fullName: "کاربر آزمایشی",
+    nationalCode: "0000000000",
+    membershipNumber: "",
+    mobile: "09000000000",
+    gender: 0,
+    checkInDateJalali: "1405/04/01",
+    checkOutDateJalali: "1405/04/03",
+    nights: 2,
+    guestCount: 2,
+    amountRials: 8_000_000,
+    adminNote: "",
+    status: 2, // Paid
+    receiptNumber: "123456789",
+    createdByAdmin: false,
+    paymentToken: null,
+    paidAtUtc: "2026-07-01T09:00:00Z",
+    companions: [],
+  },
+  {
+    id: 5,
+    guesthouseId: 2,
+    guesthouseName: "مهمانسرای دریا",
+    guesthouseCity: "بندرعباس",
+    fullName: "کاربر آزمایشی",
+    nationalCode: "0000000000",
+    membershipNumber: "",
+    mobile: "09000000000",
+    gender: null,
+    checkInDateJalali: "1405/03/01",
+    checkOutDateJalali: "1405/03/04",
+    nights: 3,
+    guestCount: 5,
+    adminNote: "در این بازه ظرفیت تکمیل است. لطفاً تاریخ دیگری انتخاب کنید.",
+    amountRials: 0,
+    status: 3, // Rejected — the reason must be readable
+    receiptNumber: "",
+    createdByAdmin: false,
+    paymentToken: null,
+    paidAtUtc: null,
+    companions: [],
+  },
+];
+
+export function MyGuesthouseRequestsHarness() {
+  const seeded = useRef(false);
+  if (!seeded.current) {
+    // Empty pool list so the other tab renders its empty state instead of calling the API.
+    queryClient.setQueryData(queryKeys.reservations.mine(), []);
+    queryClient.setQueryData(queryKeys.guesthouseRequests.mine(), FAKE_REQUESTS);
+    seeded.current = true;
+  }
+  return (
+    <HarnessFrame>
+      <MyReservationsPage />
+    </HarnessFrame>
+  );
 }
