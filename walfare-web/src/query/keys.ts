@@ -28,6 +28,19 @@ export const queryKeys = {
     all: () => ["payments"] as const,
     admin: (params: object) => ["payments", "admin", params] as const,
   },
+  guesthouses: {
+    all: () => ["guesthouses"] as const,
+    active: (serviceId: number) => ["guesthouses", "active", serviceId] as const,
+    admin: () => ["guesthouses", "admin"] as const,
+  },
+  guesthouseRequests: {
+    all: () => ["guesthouse-requests"] as const,
+    mine: () => ["guesthouse-requests", "mine"] as const,
+    admin: (params: object) => ["guesthouse-requests", "admin", params] as const,
+    referral: (id: number) => ["guesthouse-requests", "referral", id] as const,
+    /** The public payment page. Keyed by token because there is no user to key by. */
+    paySummary: (token: string) => ["guesthouse-pay", token] as const,
+  },
 } as const;
 
 export type QueryKey = readonly unknown[];

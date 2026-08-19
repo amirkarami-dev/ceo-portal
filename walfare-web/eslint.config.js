@@ -29,6 +29,14 @@ export default [
       ...reactHooks.configs.recommended.rules,
       "no-undef": "off",
       "no-unused-vars": "off",
+      // A const object plus a type of the SAME name is how we model every wire enum:
+      // the API sends numbers, so we need the value map AND the type, and one name for
+      // both reads best at the call site. They live in different spaces (value vs type),
+      // so this is not a redeclaration. Neither the base rule nor the TS one can express
+      // it — ignoreDeclarationMerge only covers interface/class/namespace merges. Turning
+      // it off loses nothing: tsc catches a REAL redeclaration itself (TS2451 / TS2300),
+      // and typecheck runs before every build.
+      "no-redeclare": "off",
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
       "@typescript-eslint/no-explicit-any": "error",
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
