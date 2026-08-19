@@ -66,8 +66,8 @@ file static class PaymentCompletion
                     req.PaidAtUtc = tx.VerifiedAt ?? DateTimeOffset.UtcNow;
                     req.PaymentTransactionId = tx.Id;
 
-                    // شماره فیش, pre-filled from the gateway and editable afterwards — some payments
-                    // still arrive as a bank transfer the admin enters by hand.
+                    // شماره فیش, pre-filled from the gateway and editable afterwards so a wrong or
+                    // missing reference can be corrected before the letter is printed.
                     if (string.IsNullOrWhiteSpace(req.ReceiptNumber))
                         req.ReceiptNumber = tx.RetrievalReferenceNumber ?? tx.PaymentId;
 

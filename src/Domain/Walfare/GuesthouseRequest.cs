@@ -111,8 +111,9 @@ public class GuesthouseRequest : BaseAuditableEntity
     public DateTimeOffset? PaidAtUtc { get; set; }
 
     /// <summary>
-    /// شماره فیش. Filled from the gateway's retrieval reference on success, and editable — some
-    /// payments still arrive as a bank transfer the admin enters by hand.
+    /// شماره فیش. Filled from the gateway's retrieval reference on success, and editable so a wrong
+    /// or missing reference can be corrected before the letter is printed. Editing it does NOT record
+    /// a payment: only a verified gateway transaction moves a request to Paid.
     /// </summary>
     public string ReceiptNumber { get; set; } = string.Empty;
 

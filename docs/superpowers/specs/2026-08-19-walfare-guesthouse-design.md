@@ -166,8 +166,15 @@ It fills in the bottom half of the paper form: the guesthouse name and manager, 
 خانم» from `Gender`, the engineer's name, the receipt number, and the dates. The office prints it and
 stamps it, exactly as today.
 
-`ReceiptNumber` is auto-filled from the gateway's tracking code and left **editable**, because some
-payments will still arrive as a bank transfer the admin enters by hand.
+`ReceiptNumber` is auto-filled from the gateway's tracking code and left **editable**, so a wrong or
+missing reference can be corrected before the letter is printed.
+
+**Payment is gateway-only.** An earlier draft of this spec said a payment could arrive as a bank
+transfer the admin entered by hand. It cannot: nothing moves a request to `Paid` except a verified
+gateway transaction, so a hand-typed receipt on an unpaid request would let the admin fill the field
+and still never print the letter. Recording an offline payment would mean a command that marks a
+request paid with no gateway record — a money-adjacent capability that is deliberately **out of
+scope** here rather than half-built.
 
 ## API surface
 

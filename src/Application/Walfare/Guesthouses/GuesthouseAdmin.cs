@@ -367,8 +367,11 @@ public class GetGuesthouseReferralQueryHandler(IApplicationDbContext context)
 }
 
 /// <summary>
-/// Overrides شماره فیش by hand — for a payment that arrived as a bank transfer rather than through
-/// the gateway.
+/// Corrects شماره فیش by hand, when the gateway's reference is wrong or missing.
+///
+/// This does NOT record a payment. Only a verified gateway transaction moves a request to Paid, so
+/// editing this on an unpaid request changes the number and nothing else — the referral letter still
+/// refuses to print. Recording an offline payment is deliberately out of scope; see the spec.
 /// </summary>
 [Authorize(Roles = Roles.AdminOrSuper)]
 public record UpdateGuesthouseReceiptCommand(int Id, string ReceiptNumber) : IRequest;
