@@ -45,6 +45,12 @@ export interface CrudTableProps<T extends object> {
   onEdit?: (record: T) => void;
   onDelete?: (record: T) => void | Promise<void>;
   deleteConfirmTitle?: string | ((record: T) => string);
+  /**
+   * Line under the confirm title. Defaults to "this cannot be undone", which is NOT true
+   * everywhere — a guesthouse with requests is deactivated rather than removed, and telling an
+   * admin otherwise would be a lie at the exact moment they decide.
+   */
+  deleteConfirmDescription?: string | ((record: T) => string);
   deleting?: boolean;
   /** Extra buttons rendered BEFORE edit/delete in the actions cell. */
   rowActions?: (record: T) => ReactNode;
@@ -100,6 +106,7 @@ export function CrudTable<T extends object>({
   onEdit,
   onDelete,
   deleteConfirmTitle = "حذف این مورد؟",
+  deleteConfirmDescription = "این عمل قابل بازگشت نیست.",
   deleting,
   rowActions,
   showActions = true,
@@ -154,7 +161,11 @@ export function CrudTable<T extends object>({
                       ? deleteConfirmTitle(record)
                       : deleteConfirmTitle
                   }
-                  description="این عمل قابل بازگشت نیست."
+                  description={
+                    typeof deleteConfirmDescription === "function"
+                      ? deleteConfirmDescription(record)
+                      : deleteConfirmDescription
+                  }
                   okText="حذف"
                   okButtonProps={{ danger: true, loading: deleting }}
                   cancelText="انصراف"

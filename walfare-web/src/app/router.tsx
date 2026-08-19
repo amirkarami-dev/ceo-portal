@@ -20,6 +20,7 @@ import { GuesthousePayPage } from "@/pages/GuesthousePayPage";
 import { GuesthousePayResultPage } from "@/pages/GuesthousePayResultPage";
 import { AdminServicesPage } from "@/pages/admin/AdminServicesPage";
 import { AdminPoolsPage } from "@/pages/admin/AdminPoolsPage";
+import { AdminGuesthousesPage } from "@/pages/admin/AdminGuesthousesPage";
 import { AdminReservationsPage } from "@/pages/admin/AdminReservationsPage";
 import { AdminPaymentsPage } from "@/pages/admin/AdminPaymentsPage";
 
@@ -50,6 +51,19 @@ export const router = createBrowserRouter([
           path: "/dev/guesthouse-pay/:token",
           lazy: async () => ({
             Component: (await import("@/pages/dev/GuesthouseFormHarness")).GuesthousePayHarness,
+          }),
+        },
+        {
+          path: "/dev/admin-guesthouses",
+          lazy: async () => ({
+            Component: (await import("@/pages/dev/GuesthouseFormHarness"))
+              .AdminGuesthousesHarness,
+          }),
+        },
+        {
+          path: "/dev/admin-services",
+          lazy: async () => ({
+            Component: (await import("@/pages/dev/GuesthouseFormHarness")).AdminServicesHarness,
           }),
         },
       ]
@@ -95,6 +109,7 @@ export const router = createBrowserRouter([
             children: [
               { index: true, element: <AdminServicesPage /> },
               { path: "pools", element: <AdminPoolsPage /> },
+              { path: "guesthouses", element: <AdminGuesthousesPage /> },
               { path: "reservations", element: <AdminReservationsPage /> },
               { path: "payments", element: <AdminPaymentsPage /> },
             ],

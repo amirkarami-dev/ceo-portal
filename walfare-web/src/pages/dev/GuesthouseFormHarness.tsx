@@ -2,6 +2,8 @@
 //   /dev/guesthouse/:serviceId  -> the request form
 //   /dev/guesthouse-requests    -> «رزروهای من», the مهمانسرا tab
 //   /dev/guesthouse-pay/:token  -> the public payment page
+//   /dev/admin-guesthouses      -> the admin CRUD page
+//   /dev/admin-services         -> the services page, to prove نوع survives an edit
 //        token "payable" shows the payable state, anything else shows a dead link
 // Lets the form and its phone layout be checked without the OIDC login; excluded from prod.
 //
@@ -13,6 +15,8 @@ import { useParams } from "react-router-dom";
 import { GuesthouseRequestPage } from "@/pages/GuesthouseRequestPage";
 import { MyReservationsPage } from "@/pages/MyReservationsPage";
 import { GuesthousePayPage } from "@/pages/GuesthousePayPage";
+import { AdminGuesthousesPage } from "@/pages/admin/AdminGuesthousesPage";
+import { AdminServicesPage } from "@/pages/admin/AdminServicesPage";
 import { queryClient } from "@/query/client";
 import { queryKeys } from "@/query";
 import type {
@@ -78,6 +82,35 @@ function seed(serviceId: number) {
   queryClient.setQueryData(queryKeys.services.active(), [service]);
   queryClient.setQueryData(queryKeys.guesthouses.active(serviceId), guesthouses);
 }
+
+/**
+ * One service of each kind, shared by both admin harnesses.
+ *
+ * The pool one earns its place: it is what proves the guesthouse page's service picker
+ * filters it out, and that editing the مهمانسرا service does not flip it back to a pool.
+ */
+const SEED_SERVICES: WelfareService[] = [
+      {
+        id: 7,
+        type: 1,
+        title: "بلیط استخر — تابستان ۱۴۰۵",
+        startDate: "1405/04/01",
+        endDate: "1405/06/31",
+        activationDate: "1405/03/25",
+        isAccessible: true,
+        poolCount: 3,
+      },
+      {
+        id: 8,
+        type: 2,
+        title: "مهمانسرا — تابستان ۱۴۰۵",
+        startDate: "1405/04/01",
+        endDate: "1405/06/31",
+        activationDate: "1405/03/25",
+        isAccessible: true,
+        poolCount: 0,
+      },
+];
 
 export function GuesthouseFormHarness() {
   const { serviceId: param } = useParams<{ serviceId: string }>();
@@ -277,4 +310,57 @@ export function GuesthousePayHarness() {
   // NO HarnessFrame here, deliberately. This page is standalone in production too — it renders
   // its own full-height shell precisely because it has no AppLayout around it.
   return <GuesthousePayPage />;
+}
+
+
+// ── the admin CRUD page ─────────────────────────────────────────────────────
+
+export function AdminGuesthousesHarness() {
+  const seeded = useRef(false);
+  if (!seeded.current) {
+    const services: WelfareService[] = SEED_SERVICES;
+    const rows: Guesthouse[] = [
+      {
+        id: 1,
+        serviceId: 8,
+        name: "مهمانسرای شماره یک",
+        city: "سنندج",
+        managerName: "مسئول آزمایشی",
+        description: "",
+        isActive: true,
+      },
+      {
+        id: 2,
+        serviceId: 8,
+        name: "مهمانسرای دریا با نامی نسبتاً بلند برای آزمودن شکستن خط",
+        city: "بندرعباس",
+        managerName: "",
+        description: "",
+        isActive: false,
+      },
+    ];
+    queryClient.setQueryData(queryKeys.services.admin(), services);
+    queryClient.setQueryData(queryKeys.guesthouses.admin(), rows);
+    seeded.current = true;
+  }
+
+  return (
+    <HarnessFrame>
+      <AdminGuesthousesPage />
+    </HarnessFrame>
+  );
+}
+
+
+export function AdminServicesHarness() {
+  const seeded = useRef(false);
+  if (!seeded.current) {
+    queryClient.setQueryData(queryKeys.services.admin(), SEED_SERVICES);
+    seeded.current = true;
+  }
+  return (
+    <HarnessFrame>
+      <AdminServicesPage />
+    </HarnessFrame>
+  );
 }

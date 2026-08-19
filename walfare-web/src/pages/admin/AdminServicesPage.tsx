@@ -1,12 +1,18 @@
 import { useState } from "react";
-import { Button, Form, Input, Switch, Tag } from "antd";
+import { Button, Form, Input, Select, Switch, Tag } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { walfareApi, type WelfareService, type WelfareServiceInput } from "@/api/walfareApi";
+import {
+  walfareApi,
+  type WelfareService,
+  type WelfareServiceInput,
+  type WelfareServiceType,
+} from "@/api/walfareApi";
 import { queryKeys, useCrud } from "@/query";
 import { CrudTable, FormDrawer, JalaliDateField, PageHeader } from "@/components/ui";
 import { faDigits } from "@/lib/jalali";
 
 interface ServiceFormValues {
+  type: WelfareServiceType;
   title: string;
   startDate: string;
   endDate: string;
@@ -14,7 +20,17 @@ interface ServiceFormValues {
   isAccessible: boolean;
 }
 
-/** خدمات رفاهی — the offering + its window. Only pool tickets exist today (type = 1). */
+/**
+ * The kind decides which screen a member lands on: type 1 opens the pool calendar, type 2 opens
+ * the guesthouse request form. Getting it wrong makes the service unreachable, so it is a real
+ * field on the form rather than a constant.
+ */
+const TYPE_OPTIONS: { value: WelfareServiceType; label: string }[] = [
+  { value: 1, label: "بلیط استخر" },
+  { value: 2, label: "مهمانسرا" },
+];
+
+/** خدمات رفاهی — the offering + its window. Two kinds: pool tickets (1) and guesthouses (2). */
 export function AdminServicesPage() {
   const [form] = Form.useForm<ServiceFormValues>();
   const [open, setOpen] = useState(false);
@@ -32,6 +48,14 @@ export function AdminServicesPage() {
 
   const columns: ColumnsType<WelfareService> = [
     { title: "عنوان", dataIndex: "title", key: "title" },
+    {
+      title: "نوع",
+      dataIndex: "type",
+      key: "type",
+      width: 110,
+      render: (v: WelfareServiceType) =>
+        v === 2 ? <Tag color="orange">مهمانسرا</Tag> : <Tag color="blue">بلیط استخر</Tag>,
+    },
     {
       title: "بازه",
       key: "window",
@@ -51,7 +75,9 @@ export function AdminServicesPage() {
       key: "poolCount",
       width: 100,
       align: "center",
-      render: (v: number) => faDigits(v),
+      // A guesthouse service has no pools, so its count is always 0. Printing «۰» would read
+      // as something broken; a dash says "does not apply".
+      render: (v: number, r) => (r.type === 2 ? "—" : faDigits(v)),
     },
     {
       title: "وضعیت",
@@ -73,14 +99,17 @@ export function AdminServicesPage() {
   };
 
   const handleSubmit = async (values: ServiceFormValues) => {
-    const input: WelfareServiceInput = { type: 1, ...values };
+    // `values.type` — NEVER a constant here. It used to be hardcoded to 1, which made a
+    // guesthouse service impossible to create AND silently turned an existing one back into a
+    // pool the first time somebody edited its title.
+    const input: WelfareServiceInput = { ...values };
     if (editing) await crud.update.mutateAsync({ id: editing.id, input });
     else await crud.create.mutateAsync(input);
   };
 
   return (
     <>
-      <PageHeader title="مدیریت خدمات رفاهی" subtitle="تعریف خدمت (بلیط استخر) و بازه فعال بودن آن" />
+      <PageHeader title="مدیریت خدمات رفاهی" subtitle="تعریف خدمت (بلیط استخر یا مهمانسرا) و بازه فعال بودن آن" />
 
       <CrudTable<WelfareService>
         columns={columns}
@@ -111,18 +140,27 @@ export function AdminServicesPage() {
         initialValues={
           editing
             ? {
+                type: editing.type,
                 title: editing.title,
                 startDate: editing.startDate,
                 endDate: editing.endDate,
                 activationDate: editing.activationDate,
                 isAccessible: editing.isAccessible,
               }
-            : { isAccessible: true }
+            : { isAccessible: true, type: 1 as WelfareServiceType }
         }
         submitting={crud.saving}
         onClose={() => setOpen(false)}
         onSubmit={handleSubmit}
       >
+        <Form.Item
+          name="type"
+          label="نوع خدمت"
+          rules={[{ required: true, message: "نوع خدمت الزامی است" }]}
+          extra="نوع تعیین می‌کند مهندس به کدام صفحه هدایت شود و پس از ثبت درخواست قابل تغییر نیست."
+        >
+          <Select<WelfareServiceType> options={TYPE_OPTIONS} />
+        </Form.Item>
         <Form.Item name="title" label="عنوان" rules={[{ required: true, message: "عنوان الزامی است" }]}>
           <Input placeholder="بلیط استخر" maxLength={300} />
         </Form.Item>
