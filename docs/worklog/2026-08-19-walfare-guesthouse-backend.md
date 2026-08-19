@@ -3,7 +3,8 @@
 - **Date:** 2026-08-19
 - **Area:** walfare / api
 - **Branch / commits:** `feat/walfare-guesthouse` — `e78a997`…`2c2341d` (26 commits off `main@7b9b024`)
-- **Status:** built, tested and proven over HTTP locally; **not merged, not deployed**
+- **Status:** built, tested and proven over HTTP locally; **not merged, not deployed**. One open
+  blocker: the API has no wired SMS channel, so the payment link cannot be delivered — see Root cause 1.
 
 ## Goal
 
@@ -34,14 +35,23 @@ This record covers the **backend only**. The front end is a separate plan, not y
 
 Every one was found by review or by measuring — none was reported as a bug.
 
-1. **The API could not send SMS at all, and said it could.** `deploy/.env` pins `SMS_PROVIDER=direct`;
-   `ElectionSmsSender` implemented only `mihan` and `relay`, so `direct` fell to `_ => LogOnly(message)`
-   — **which returns `true`**. Every SMS the API attempted in production was logged and reported as
-   sent while nothing was delivered. This affected the **election channel too**, not just this feature.
-   Fixed by implementing `direct` here, mirroring `src/Auth/Sms/SmsDirectSender` — including the part
-   that matters: msgway answers HTTP 200 with the verdict in the **body**, so the body is parsed and
-   `IsSuccessStatusCode` is never trusted alone. An unknown provider now logs an error and returns
-   `false`; `log` is an explicit arm.
+1. **The API has no working SMS channel, and this feature cannot deliver its link. STILL OPEN.**
+   ⚠️ **This entry was WRONG in the first version of this record; the final whole-branch review
+   corrected it and the correction matters more than the original claim.**
+   What I first wrote: that `deploy/.env`'s `SMS_PROVIDER=direct` reached the API, hit an
+   unimplemented arm, fell to `_ => LogOnly(message)` (which returns `true`) and so reported every
+   message as sent. **That is not what happens.** `Sms__*` is set on the **`auth` service only** in
+   `deploy/docker-compose.newserver.yml`; the api service receives none of it. The API therefore
+   binds `appsettings.json` → `Provider: "relay"` with an **empty `RelayToken`**, and
+   `SendRelayAsync` returns `false` at its first guard. The API was failing honestly, not lying.
+   The second thing I got wrong: implementing `direct` in the API does **not** fix it. msgway's
+   direct path is **template-based** — `TemplateID` + `Param1 = code` — so the message body is
+   discarded and it structurally cannot carry a link. `mihan` is the only provider here that sends
+   free text, and the api service is not wired for it.
+   **What is true:** the unknown-provider arm now returns `false` instead of `true`, and `log` is
+   explicit — a good change, but unreachable in every configured environment, so it fixes nothing
+   today. **Delivering the payment link needs a deploy change**: wire `Sms__*` into the *api*
+   service with `mihan` credentials, independently of the IdP's value. Not done here.
 2. **A forwarded payment link could be paid twice.** Two people opening one SMS both init (two ledger
    rows, by design) and both pay — the bank really does capture both cards. The second callback
    overwrote `PaidAtUtc` and `PaymentTransactionId` while keeping the first receipt number, destroying
@@ -66,7 +76,10 @@ Every one was found by review or by measuring — none was reported as a bug.
 
 - **The token is minted at pricing, never at submission** — a token on an unpriced request is a
   payable link for an amount nobody set. Re-sending reuses it (`??=`) and only extends the expiry,
-  now clamped to first-priced + 30 days so repeated sends cannot keep a link alive for ever.
+  now clamped to `FirstPricedAtUtc + 30 days`. The first attempt at this clamp was **broken** —
+  it derived the ceiling from `PaymentTokenExpiresUtc`, the very field each re-send overwrites, so
+  the ceiling ratcheted forward and never bound. Caught by the final review; fixed with a stored
+  `FirstPricedAtUtc` column.
 - **The anonymous payment payload carries no identifiers.** Enforced by a reflection test listing its
   nine allowed property names, which fails if a tenth is added.
 - **Payment is gateway-only.** The spec originally said a payment could arrive as a bank transfer the
@@ -76,8 +89,10 @@ Every one was found by review or by measuring — none was reported as a bug.
   a request paid with no gateway record, which is money-adjacent and explicitly out of scope.
 - **`Sms:Provider` was NOT switched to `mihan`**, although that was asked for. That value is shared
   with the identity provider, whose `direct`/msgway path is the OTP login flow fixed earlier the same
-  day; moving it would have risked a working login. Teaching the API the provider already in use
-  achieves the same intent with no deploy change and no shared-config edit.
+  day; moving it would have risked a working login. **However**, my stated alternative — "teaching
+  the API the provider already in use achieves the same intent with no deploy change" — was wrong on
+  both counts: the API is not wired for any `Sms__*`, and msgway's direct path is template-only.
+  A deploy change is required and is still outstanding. See Root cause 1.
 
 ## Verification
 
@@ -96,6 +111,14 @@ Every one was found by review or by measuring — none was reported as a bug.
     `mine` all **401**, against **404** for a route that genuinely does not exist.
   - Incidental proof: the first seed failed with `Msg 1934 … QUOTED_IDENTIFIER`, which only a
     **filtered index** raises — so the `PaymentToken` filtered unique index is live and enforced.
+
+**Corrected after the final review.** Three further defects were found only by looking at the whole
+branch at once, and all three are now fixed (`fa3ed0d`): a **rejected** request could be driven to
+`Paid` — the payer inits, the admin refuses, the payer completes, and the callback settled it because
+it re-derived `Status == Paid` instead of asking `GuesthouseTransitions.CanPay`; the link-lifetime
+ceiling never bound (above); and re-pricing while a payer was at the bank recorded the *new* amount
+as paid while the *old* one was collected. The completion branch now compares `tx.AmountRials` to
+`req.AmountRials` and refuses to settle a mismatch.
 
 **Not verified.** No request was created or priced *through the API* — that needs an admin token from
 the IdP, and no OTP or password was entered. **No real card payment was made**, so the Iran Kish

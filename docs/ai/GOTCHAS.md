@@ -1613,15 +1613,22 @@ Keep the two questions apart: `canJoinNow` answers *may I go in*, and the schedu
 (`room-web/src/lib/schedule.ts`) answers *is it now*. Both can be true at once.
 
 
-### The API reports every SMS as sent, because an unknown provider falls through to a logger
-`ElectionSmsSender` selects on `Sms:Provider` with `_ => LogOnly(message)` as the fallback, and
-`LogOnly` **returns true**. Production pins `SMS_PROVIDER=direct` (deploy/.env -> `Sms__Provider` via
-docker-compose), a value that class did not implement — so every SMS the API attempted was written to
-the log and reported as delivered. `appsettings.json` says `relay`, which is only the dev default and
-misleads anyone who reads it to answer "what does production send with?". **Read the chain:
-appsettings -> compose -> deploy/.env.** Note the two hosts implement DIFFERENT provider sets over the
-same shared `Sms` section: `src/Auth` knows `direct`, the API did not. A fallback that reports
-success is worse than one that throws.
+### Which SMS provider a host uses is NOT what appsettings.json says — read the whole chain
+`appsettings.json` is only the DEV default. Production comes from
+`deploy/docker-compose.newserver.yml`, whose values come from `deploy/.env`. Crucially the `Sms__*`
+block is set on the **`auth` service alone** — the `api` service receives none of it, so the API
+binds the appsettings default (`relay`) with an empty token and every send fails at the first guard.
+Reading `appsettings.json` to answer "what does production send with?" gives the wrong answer for the
+wrong host. The two hosts also implement DIFFERENT provider sets over the same shared `Sms` section:
+`src/Auth` knows `direct`, the API does not.
+
+**And `direct` (msgway) is template-only** — it posts `TemplateID` + `Param1 = code`, discarding the
+message body, so it can carry an OTP and never a link. `mihan` is the only provider in this codebase
+that sends free text.
+
+Separately: a provider `switch` whose fallback is `_ => LogOnly(message)` where `LogOnly` returns
+**true** is a channel that reports success it cannot deliver. Make an unrecognised provider return
+false.
 
 ### A FluentValidation `AbstractValidator<SomeInput>` never runs on its own
 `ValidationBehaviour` resolves `IValidator<TRequest>` where `TRequest` is the **command**, so a
