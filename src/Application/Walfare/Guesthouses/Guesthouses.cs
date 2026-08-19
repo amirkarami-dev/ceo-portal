@@ -5,8 +5,52 @@ using Mabhas19.Application.Common.Security;
 using Mabhas19.Domain.Constants;
 using Mabhas19.Domain.Walfare;
 using Microsoft.EntityFrameworkCore;
+using ValidationException = Mabhas19.Application.Common.Exceptions.ValidationException;
 
 namespace Mabhas19.Application.Walfare.Guesthouses;
+
+file static class Fail
+{
+    public static ValidationException With(string property, string message) =>
+        new([new FluentValidation.Results.ValidationFailure(property, message)]);
+}
+
+/// <summary>
+/// A guesthouse may only hang off a service of type <see cref="WelfareServiceType.Guesthouse"/>.
+/// </summary>
+/// <remarks>
+/// The member's services page routes by <c>WelfareService.Type</c>: a guesthouse attached to a pool
+/// service is simply unreachable — the member is sent to the booking calendar and never sees it, and
+/// nothing anywhere reports a problem. The admin picker filters the list, but a picker is a
+/// convenience, not a rule; this is the rule.
+///
+/// The null case earns its place too. A ServiceId that matches nothing used to reach the database
+/// and come back as a foreign-key violation: a 500 with no field message, where the admin deserved
+/// one sentence next to the box they got wrong.
+/// </remarks>
+public static class GuesthouseServiceRule
+{
+    /// <summary>The Persian reason this service cannot hold a guesthouse, or null when it can.</summary>
+    /// <param name="serviceType">The service's type, or <c>null</c> when no such service exists.</param>
+    public static string? Reject(WelfareServiceType? serviceType) => serviceType switch
+    {
+        null => "خدمت انتخاب‌شده یافت نشد.",
+        WelfareServiceType.Guesthouse => null,
+        _ => "مهمانسرا فقط زیر خدمتی از نوع «مهمانسرا» تعریف می‌شود."
+    };
+
+    /// <summary>Looks the service up and throws a field-level 400 when it may not hold a guesthouse.</summary>
+    public static async Task EnsureCanHoldGuesthouseAsync(
+        IApplicationDbContext context, int serviceId, CancellationToken cancellationToken)
+    {
+        var type = await context.WelfareServices
+            .Where(s => s.Id == serviceId)
+            .Select(s => (WelfareServiceType?)s.Type)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (Reject(type) is { } reason) throw Fail.With("ServiceId", reason);
+    }
+}
 
 public sealed record GuesthouseDto
 {
@@ -133,6 +177,9 @@ public class CreateGuesthouseCommandHandler(IApplicationDbContext context)
 {
     public async Task<int> Handle(CreateGuesthouseCommand request, CancellationToken cancellationToken)
     {
+        await GuesthouseServiceRule.EnsureCanHoldGuesthouseAsync(
+            context, request.Input.ServiceId, cancellationToken);
+
         var entity = new WelfareGuesthouse
         {
             ServiceId = request.Input.ServiceId,
@@ -160,6 +207,11 @@ public class UpdateGuesthouseCommandHandler(IApplicationDbContext context)
         var entity = await context.WelfareGuesthouses
             .FirstOrDefaultAsync(g => g.Id == request.Id, cancellationToken);
         Guard.Against.NotFound(request.Id, entity);
+
+        // Checked on the INCOMING ServiceId, never the stored one: a row already pointing at the
+        // wrong service must stay repairable by moving it to the right one.
+        await GuesthouseServiceRule.EnsureCanHoldGuesthouseAsync(
+            context, request.Input.ServiceId, cancellationToken);
 
         entity.ServiceId = request.Input.ServiceId;
         entity.Name = request.Input.Name.Trim();
