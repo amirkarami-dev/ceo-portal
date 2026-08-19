@@ -86,8 +86,9 @@ None was reported as a bug. Every one was found by measuring.
 - **DEV-only harnesses instead of a test login.** Every screen except the payment page sits behind
   OIDC, and no password or OTP was entered at any point. `PickerHarness` already established this
   pattern in this app.
-- **The service-type rule is enforced only in the picker.** The API still accepts a guesthouse under
-  a pool service. See Follow-ups.
+- **The service-type rule is enforced in BOTH places.** The picker filters the list so the mistake
+  is hard to make; `GuesthouseServiceRule` (added later, `eec5396`) refuses it on create and update
+  so it cannot be made at all. A picker is a convenience; the server rule is the rule.
 
 ## Verification
 
