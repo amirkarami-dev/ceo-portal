@@ -272,7 +272,11 @@ public class SendGuesthousePaymentSmsCommandHandler(
         await context.SaveChangesAsync(cancellationToken);
 
         // The welfare front end's own origin, e.g. https://refahi.kurdnezam.ir
-        var baseUrl = (configuration["Walfare:WebBaseUrl"] ?? string.Empty).TrimEnd('/');
+        // Walfare:FrontBaseUrl, the SAME key the payment callback redirects to — one origin,
+        // one setting. A second key (WebBaseUrl) existed and was never wired into the deploy
+        // environment, so the link would have been built from an appsettings default that only
+        // happened to be right.
+        var baseUrl = (configuration["Walfare:FrontBaseUrl"] ?? string.Empty).TrimEnd('/');
         if (baseUrl.Length == 0)
             throw Fail.With("Configuration", "آدرس سامانه رفاهی تنظیم نشده است.");
 

@@ -50,8 +50,19 @@ Every one was found by review or by measuring — none was reported as a bug.
    free text, and the api service is not wired for it.
    **What is true:** the unknown-provider arm now returns `false` instead of `true`, and `log` is
    explicit — a good change, but unreachable in every configured environment, so it fixes nothing
-   today. **Delivering the payment link needs a deploy change**: wire `Sms__*` into the *api*
-   service with `mihan` credentials, independently of the IdP's value. Not done here.
+   today. **Delivering the payment link needs a deploy change.** The compose wiring is now DONE:
+   the api service gets its own `Sms__Provider: "${API_SMS_PROVIDER:-mihan}"` plus the `Sms__Mihan*`
+   block, deliberately separate from the auth service's `SMS_PROVIDER` so the IdP's msgway OTP path
+   is untouched. **What remains is not code.** `deploy/.env` has `SMS_PROVIDER`, `SMS_RELAY_TOKEN`,
+   `SMS_MSGWAY_APIKEY` and `SMS_MSGWAY_TEMPLATE_ID` — and **no mihan credentials at all**. So of the
+   three providers this host implements: `relay` extracts a `\d{4,8}` code and drops the sentence,
+   `direct`/msgway posts `TemplateID` + `Param1` and drops the body, and `mihan` would carry the
+   whole message but has no username, password or sender configured.
+   **The organisation has no free-text SMS capability configured.** Someone must either obtain mihan
+   credentials, or register a msgway template that takes the link as a parameter (which also needs a
+   small code change — only `Param1` is sent today), or extend the in-house relay at
+   sms.kurdnezambargh.ir to accept free text. Until one of those, `send-payment-sms` fails honestly
+   with «ارسال پیامک ناموفق بود» and the member's own pay button is the only working door.
 2. **A forwarded payment link could be paid twice.** Two people opening one SMS both init (two ledger
    rows, by design) and both pay — the bank really does capture both cards. The second callback
    overwrote `PaidAtUtc` and `PaymentTransactionId` while keeping the first receipt number, destroying

@@ -283,6 +283,23 @@ services:
       IranKish__PassPhrase: "${IRK_PASSPHRASE:-}"
       IranKish__CallbackUrl: "https://${API_DOMAIN}/api/walfare/payments/irk-return"
       Walfare__FrontBaseUrl: "https://${WALFARE_DOMAIN}"
+      # SMS for the API — the guesthouse payment link. This service had NO Sms__* at all, so it
+      # fell back to appsettings' "relay" with an empty token and every send failed at the first
+      # guard. Note the api and auth hosts implement DIFFERENT provider sets over this same
+      # "Sms" section name.
+      #
+      # Its OWN provider variable, deliberately NOT the auth service's SMS_PROVIDER. That one is
+      # "direct" (msgway), which is TEMPLATE-based — it posts TemplateID + Param1 and discards the
+      # message body, so it can carry an OTP and never a link. Of the three providers this host
+      # implements, only mihan sends free text.
+      #
+      # REQUIRES MIHAN_SMS_USERNAME / _PASSWORD / _SENDER in deploy/.env. They are NOT set today,
+      # and without all three SendMihanAsync refuses and the admin sees «ارسال پیامک ناموفق بود».
+      Sms__Provider: "${API_SMS_PROVIDER:-mihan}"
+      Sms__MihanEndpoint: "http://www.mihansmscenter.com/webservice/index.php"
+      Sms__MihanUsername: "${MIHAN_SMS_USERNAME:-}"
+      Sms__MihanPassword: "${MIHAN_SMS_PASSWORD:-}"
+      Sms__MihanSender: "${MIHAN_SMS_SENDER:-}"
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik"
