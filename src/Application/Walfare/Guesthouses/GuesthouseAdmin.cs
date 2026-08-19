@@ -5,6 +5,7 @@ using Mabhas19.Application.Common.Security;
 using Mabhas19.Domain.Constants;
 using Mabhas19.Domain.Walfare;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using ValidationException = Mabhas19.Application.Common.Exceptions.ValidationException;
 
 namespace Mabhas19.Application.Walfare.Guesthouses;
@@ -173,5 +174,87 @@ public class GetGuesthouseRequestsAdminQueryHandler(IApplicationDbContext contex
         {
             Items = rows.Select(GuesthouseProjection.ToDto).ToList(), Total = total, Page = page, PageSize = pageSize
         };
+    }
+}
+
+// ── admin: send the payment link by SMS ─────────────────────────────────────
+
+public static class GuesthouseSmsText
+{
+    /// <summary>
+    /// The message body. Short on purpose: Persian is two bytes per character in UTF-8 and a long
+    /// message bills as several parts.
+    /// </summary>
+    /// <remarks>
+    /// Carries no personal detail. Anyone can read an SMS over a shoulder, and the link behind it
+    /// already shows only the stay and the amount.
+    /// </remarks>
+    public static string Build(string guesthouseName, long amountRials, string url)
+    {
+        var tomans = ToPersianDigits((amountRials / 10).ToString("#,##0"));
+        return $"درخواست {guesthouseName} تأیید شد.\nمبلغ: {tomans} تومان\nپرداخت:\n{url}";
+    }
+
+    private static string ToPersianDigits(string value)
+    {
+        var sb = new System.Text.StringBuilder(value.Length);
+        foreach (var ch in value)
+        {
+            if (ch is >= '0' and <= '9') sb.Append((char)('۰' + (ch - '0')));
+            else if (ch == ',') sb.Append('٬');   // Persian thousands separator
+            else sb.Append(ch);
+        }
+        return sb.ToString();
+    }
+}
+
+/// <summary>
+/// Sends — or re-sends — the payment link to the mobile already on the request.
+/// </summary>
+/// <remarks>
+/// Re-sending re-uses the same token and only extends its life. A second live link for one request
+/// is how somebody pays twice.
+/// </remarks>
+[Authorize(Roles = Roles.AdminOrSuper)]
+public record SendGuesthousePaymentSmsCommand(int Id) : IRequest;
+
+public class SendGuesthousePaymentSmsCommandHandler(
+    IApplicationDbContext context,
+    ISmsSender sms,
+    TimeProvider clock,
+    IConfiguration configuration) : IRequestHandler<SendGuesthousePaymentSmsCommand>
+{
+    public async Task Handle(SendGuesthousePaymentSmsCommand request, CancellationToken cancellationToken)
+    {
+        var entity = await context.GuesthouseRequests
+            .Include(r => r.Guesthouse)
+            .FirstOrDefaultAsync(r => r.Id == request.Id, cancellationToken);
+        Guard.Against.NotFound(request.Id, entity);
+
+        if (entity.Status != GuesthouseRequestStatus.Priced)
+            throw Fail.With(nameof(request.Id),
+                "فقط برای درخواستی که مبلغ آن تعیین شده می‌توان لینک پرداخت فرستاد.");
+
+        if (string.IsNullOrWhiteSpace(entity.Mobile))
+            throw Fail.With("Mobile", "شماره همراهی برای این درخواست ثبت نشده است.");
+
+        entity.PaymentToken ??= GuesthouseTokens.Mint();
+        entity.PaymentTokenExpiresUtc = clock.GetUtcNow().Add(GuesthouseTokens.Lifetime);
+        await context.SaveChangesAsync(cancellationToken);
+
+        // The welfare front end's own origin, e.g. https://refahi.kurdnezam.ir
+        var baseUrl = (configuration["Walfare:WebBaseUrl"] ?? string.Empty).TrimEnd('/');
+        if (baseUrl.Length == 0)
+            throw Fail.With("Configuration", "آدرس سامانه رفاهی تنظیم نشده است.");
+
+        var url = $"{baseUrl}/pay/guesthouse/{entity.PaymentToken}";
+        var text = GuesthouseSmsText.Build(entity.Guesthouse?.Name ?? "مهمانسرا", entity.AmountRials, url);
+
+        var accepted = await sms.SendAsync(entity.Mobile, text, cancellationToken);
+
+        // Reported, never assumed. A channel that fails silently tells the admin "sent" about a
+        // message nobody received.
+        if (!accepted)
+            throw Fail.With("Sms", "ارسال پیامک ناموفق بود. لطفاً دوباره تلاش کنید.");
     }
 }

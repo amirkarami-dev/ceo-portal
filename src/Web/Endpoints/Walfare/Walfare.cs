@@ -244,6 +244,7 @@ public class WalfareGuesthouseRequests : Mabhas19.Web.Infrastructure.IEndpointGr
         groupBuilder.MapGet(GetWalfareGuesthouseRequestsAdmin, "admin/list").RequireAdmin();
         groupBuilder.MapPost(PriceWalfareGuesthouseRequest, "{id:int}/price").RequireAdmin();
         groupBuilder.MapPost(RejectWalfareGuesthouseRequest, "{id:int}/reject").RequireAdmin();
+        groupBuilder.MapPost(SendWalfareGuesthousePaymentSms, "{id:int}/send-payment-sms").RequireAdmin();
     }
 
     public static async Task<Created<int>> CreateWalfareGuesthouseRequest(
@@ -284,6 +285,12 @@ public class WalfareGuesthouseRequests : Mabhas19.Web.Infrastructure.IEndpointGr
         ISender sender, int id, RejectGuesthouseBody body)
     {
         await sender.Send(new RejectGuesthouseRequestCommand(id, body.Reason));
+        return TypedResults.NoContent();
+    }
+
+    public static async Task<NoContent> SendWalfareGuesthousePaymentSms(ISender sender, int id)
+    {
+        await sender.Send(new SendGuesthousePaymentSmsCommand(id));
         return TypedResults.NoContent();
     }
 }
