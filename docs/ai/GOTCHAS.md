@@ -19,6 +19,53 @@ Always confirm against the **server log** or the **database row** before changin
 
 ---
 
+## Front end (React)
+
+### React Query: a FAILED BACKGROUND REFETCH does not clear `data` — check data before error
+**Symptom.** A form the user is filling in, a good table, or a valid payment page is suddenly
+replaced by an error screen. Nothing was wrong with the request that fetched it; the network
+blinked once. On a phone this happens constantly.
+
+**Real cause.** `useQuery` keeps the last good `data` AND sets `error` when a *background*
+refetch fails. `refetchOnReconnect` is **on by default**, so a phone regaining signal triggers
+one. Code written as `if (error) return <ErrorScreen/>` therefore throws away perfectly good
+data, and everything the user had typed with it.
+
+**Fix.** Gate on `error && !data`, and say the list may be stale instead of hiding it:
+
+```tsx
+if (query.error && !query.data) return <ErrorState error={query.error} />;
+// ...then, above the content:
+{query.error ? <Alert type="warning" message="به‌روزرسانی ناموفق بود؛ ..." /> : null}
+```
+
+**Where.** This was written wrong **four times in one feature**, in four files, before the
+pattern was recognised — including `walfare-web/src/components/ui/CrudTable.tsx`, which backs
+*every* admin table in that app, so one blink blanked five pages at once. The worst instance was
+`GuesthousePayPage.tsx`: it told somebody holding a valid payment link that the link was invalid,
+and a payer told that stops paying. Every guesthouse screen now carries a comment at the gate.
+
+---
+
+### An anonymous flow must not land on a page inside the auth guard
+**Symptom.** Somebody pays real money and is then shown a login screen. They never learn whether
+the payment worked, and they cannot get past the login because they have no account.
+
+**Real cause.** `HandleIrkCallbackCommand` sent **every** finished payment to `/pay/result`, and
+walfare-web serves that route inside `RequireAuth`. That is fine for a pool ticket, which can only
+be booked while signed in — but the guesthouse payment link arrives by SMS and is aimed at people
+who are *not* in the system at all.
+
+**Fix.** `HandleIrkCallbackCommandHandler.ResultPathFor(targetType)` picks the page from the
+transaction's `TargetType`; guesthouse payments go to the public `/pay/guesthouse/result`.
+Anything unrecognised keeps the signed-in page, so adding a payment kind never exposes one by
+accident. Covered by `GuesthousePayRedirectTests`.
+
+**Where.** `src/Application/Walfare/Payments/Payments.cs`, `walfare-web/src/app/router.tsx`.
+When adding any anonymous flow, check where it *ends*, not just where it starts.
+
+---
+
 ## Back end (.NET)
 
 ### Analytics: a semantic model lives in TWO files, and `ValueLabels` cannot merge groups

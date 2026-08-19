@@ -52,6 +52,35 @@ Clean Architecture. A feature normally touches all four layers.
 | **Rooms** | `Application/Rooms` | `/api/RoomAdmin`, `/api/Room` | `room-web/` (dev port 5277) |
 | **VMS** | `Application/Vms` | `/api/VmsAdmin`, `/api/VmsGateway`, `/api/VmsMedia` | `vms-web/` (dev port 5278) |
 
+## Welfare — مهمانسرا (guesthouse referrals) — **live** at `refahi.kurdnezam.ir`
+
+A second `WelfareServiceType` beside pool tickets: `PoolTicket = 1`, **`Guesthouse = 2`**. The
+member's services page routes by that number, so a service with the wrong type is simply
+unreachable — and the picker on `AdminServicesPage` is what sets it.
+
+| Screen | Route | Who |
+|---|---|---|
+| Request a stay | `/guesthouse/:serviceId` | member |
+| My requests (مهمانسرا tab) | `/reservations` | member |
+| **Pay** | `/pay/guesthouse/:token` | **anonymous — outside `RequireAuth`** |
+| **Payment result** | `/pay/guesthouse/result` | **anonymous** |
+| Manage guesthouses | `/admin/guesthouses` | admin |
+| Requests, pricing, SMS | `/admin/guesthouse-requests` | admin |
+| Printed معرفی‌نامه | `/admin/guesthouse-requests/:id/referral` | admin |
+
+**The two anonymous routes are load-bearing.** The payment link is sent by SMS to somebody who may
+have no account at all — that is the point of the feature. Putting either inside the auth guard
+kills it. The API picks the result page by `PaymentTransaction.TargetType`
+(`HandleIrkCallbackCommandHandler.ResultPathFor`).
+
+Money is **Rials in the API, Tomans on screen** (÷ 10). Server code: `Application/Walfare/Guesthouses`.
+Records: [guesthouse backend](../worklog/2026-08-19-walfare-guesthouse-backend.md),
+[guesthouse front end](../worklog/2026-08-19-walfare-guesthouse-frontend.md).
+
+**Dev-only harnesses** at `/dev/guesthouse*`, `/dev/admin-*`, `/dev/referral/:id`
+(`walfare-web/src/pages/dev/GuesthouseFormHarness.tsx`) render each screen with a seeded cache, so
+they can be checked without an OIDC login. Excluded from production builds.
+
 ## VMS — camera viewing — **live** at `vms.myceo.ir`
 
 Live camera viewing at `vms.myceo.ir`, cameras classified by city. Design:
