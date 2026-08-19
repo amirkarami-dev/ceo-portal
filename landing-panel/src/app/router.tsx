@@ -26,6 +26,18 @@ import { MessagesPage } from "@/pages/MessagesPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 
 export const router = createBrowserRouter([
+  // Dev-only checks for the submissions export (never bundled in production builds).
+  ...(import.meta.env.DEV
+    ? [
+        {
+          path: "/dev/export-check",
+          lazy: async () => ({
+            Component: (await import("@/pages/dev/ExportCheck")).ExportCheck,
+          }),
+        },
+      ]
+    : []),
+
   // Public auth surface — everything else sits behind <RequireAdmin>.
   { path: "/login", element: <LoginScreen /> },
   { path: "/auth/callback", element: <OidcCallback /> },

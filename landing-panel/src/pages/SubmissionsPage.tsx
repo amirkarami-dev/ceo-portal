@@ -2,13 +2,26 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { App, Button, Descriptions, Select, Space, Tag, Tooltip, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { CheckOutlined, DownloadOutlined, PaperClipOutlined, UndoOutlined } from "@ant-design/icons";
+import {
+  CheckOutlined,
+  DownloadOutlined,
+  FileExcelOutlined,
+  PaperClipOutlined,
+  UndoOutlined,
+} from "@ant-design/icons";
 import { formsApi, submissionsApi } from "@/api/endpoints";
 import type { FormSubmission, Paged, SiteForm, SubmissionListParams } from "@/api/types";
 import { CrudTable, PageHeader } from "@/components/ui";
 import { queryKeys, useApiMutation, useApiQuery } from "@/query";
 import { errorMessage } from "@/api/client";
 import { formatBytes, formatDateTime, formatNumber, truncate } from "@/lib/format";
+import {
+  buildExportTable,
+  downloadCsv,
+  downloadXlsx,
+  fetchAllSubmissions,
+  MAX_EXPORT_ROWS,
+} from "@/lib/submissionExport";
 
 type HandledFilter = "all" | "handled" | "pending";
 
@@ -17,22 +30,6 @@ const HANDLED_OPTIONS: { value: HandledFilter; label: string }[] = [
   { value: "pending", label: "در انتظار رسیدگی" },
   { value: "handled", label: "رسیدگی‌شده" },
 ];
-
-const CSV_HEADERS = ["فرم", "پاسخ‌ها", "فایل‌ها", "تاریخ ثبت", "وضعیت"];
-
-/** Every form has its own fields, so a submission flattens to "label: value" pairs. */
-function answersText(record: FormSubmission): string {
-  return (record.answers ?? []).map((a) => a.fieldLabel + ": " + a.text).join(" | ");
-}
-
-function filesText(record: FormSubmission): string {
-  return (record.attachments ?? []).map((a) => a.fileName).join(" | ");
-}
-
-/** RFC-4180 cell: wrap in quotes, double any inner quote. */
-function csvCell(value: string): string {
-  return `"${(value ?? "").replace(/"/g, '""')}"`;
-}
 
 function handledToParam(filter: HandledFilter): boolean | undefined {
   if (filter === "handled") return true;
@@ -126,39 +123,58 @@ export function SubmissionsPage() {
     setPage(1);
   };
 
-  const exportCsv = () => {
-    if (!rows.length) {
+  /**
+   * Exports EVERY row the current filters match, not the page on screen.
+   *
+   * The old CSV button exported `rows` — one page — and named the file `submissions-page-3.csv`,
+   * so an administrator who had paged through 400 registrations got the 20 they were looking at.
+   * `fetchAllSubmissions` pages the API instead, because the server clamps pageSize to 100 and
+   * says nothing about it.
+   */
+  const [exporting, setExporting] = useState<"csv" | "xlsx" | null>(null);
+
+  const runExport = async (kind: "csv" | "xlsx") => {
+    if (total === 0) {
       message.warning("موردی برای خروجی گرفتن وجود ندارد");
       return;
     }
 
-    const lines = [
-      CSV_HEADERS.map(csvCell).join(","),
-      ...rows.map((r) =>
-        [
-          formTitleOf(r),
-          answersText(r),
-          filesText(r),
-          formatDateTime(r.created),
-          r.isHandled ? "رسیدگی‌شده" : "در انتظار",
-        ]
-          .map(csvCell)
-          .join(","),
-      ),
-    ];
+    setExporting(kind);
+    const hide = message.loading("در حال آماده‌سازی خروجی…", 0);
+    try {
+      const { submissions, truncated } = await fetchAllSubmissions({
+        formId,
+        handled: handledToParam(handled),
+      });
 
-    // Leading BOM (U+FEFF) so Excel opens the Persian text as UTF-8.
-    const csv = "\uFEFF" + lines.join("\r\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `submissions-page-${page}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-    message.success(`${formatNumber(rows.length)} ردیف در خروجی CSV ذخیره شد`);
+      if (submissions.length === 0) {
+        message.warning("موردی برای خروجی گرفتن وجود ندارد");
+        return;
+      }
+
+      const table = buildExportTable(submissions, forms, formTitleOf);
+      const stamp = new Date().toISOString().slice(0, 10);
+      const name = `submissions-${formId ? `form-${formId}-` : ""}${stamp}`;
+
+      if (kind === "xlsx") await downloadXlsx(table, `${name}.xlsx`);
+      else downloadCsv(table, `${name}.csv`);
+
+      // Say how many rows are really in the file. Silence here is what let the old button look
+      // like it had exported everything.
+      if (truncated) {
+        message.warning(
+          `${formatNumber(submissions.length)} ردیف ذخیره شد — به دلیل حجم زیاد، ` +
+            `خروجی به ${formatNumber(MAX_EXPORT_ROWS)} ردیف محدود شد.`,
+        );
+      } else {
+        message.success(`${formatNumber(submissions.length)} ردیف در خروجی ذخیره شد`);
+      }
+    } catch (err) {
+      message.error(errorMessage(err, "تهیه خروجی ناموفق بود"));
+    } finally {
+      hide();
+      setExporting(null);
+    }
   };
 
   const columns: ColumnsType<FormSubmission> = [
@@ -324,7 +340,21 @@ export function SubmissionsPage() {
               onChange={changeHandled}
               options={HANDLED_OPTIONS}
             />
-            <Button icon={<DownloadOutlined />} onClick={exportCsv} disabled={!rows.length}>
+            <Button
+              type="primary"
+              icon={<FileExcelOutlined />}
+              loading={exporting === "xlsx"}
+              disabled={exporting !== null || total === 0}
+              onClick={() => void runExport("xlsx")}
+            >
+              خروجی اکسل
+            </Button>
+            <Button
+              icon={<DownloadOutlined />}
+              loading={exporting === "csv"}
+              disabled={exporting !== null || total === 0}
+              onClick={() => void runExport("csv")}
+            >
               خروجی CSV
             </Button>
           </Space>
