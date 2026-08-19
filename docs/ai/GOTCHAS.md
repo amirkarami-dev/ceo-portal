@@ -257,6 +257,51 @@ used Newtonsoft (coerces `1`→`true`); this port uses STJ, which throws.
 real reply is never reported as a connection error.
 **Where:** `src/Infrastructure/Payments/IranKishGateway.cs`.
 
+### A completion handler re-derived legality instead of asking the transition table, and a REJECTED request could be paid
+**Symptom (found by review, not production):** the guesthouse payment-completion branch guarded only
+`if (req.Status == GuesthouseRequestStatus.Paid)` and settled everything else. `GuesthouseTransitions`
+(the single documented source of truth for legal moves — "Handlers ask; they do not re-derive") allows
+`CanReject` from `Priced`. Sequence: payer opens the SMS link and inits (a `PaymentTransaction` row
+exists, payer is at the bank) → admin rejects the request (`Status = Rejected`, token cleared) → payer
+finishes paying at the bank → the callback verifies, sees `Status != Paid`, and marks a REFUSED request
+`Paid` — unlocking its referral letter.
+**Cause:** the guard was written against one known-bad state (`Paid`, the duplicate case) instead of
+asking whether the request is still in a payable state at all. Any handler that inlines "is this the
+one state I'm worried about" instead of calling the transition table's own predicate silently drifts
+out of sync with that table the next time a new terminal/refused status is added.
+**Fix:** `if (!GuesthouseTransitions.CanPay(req.Status))` — ask, don't re-derive. A non-payable request
+(Rejected or an already-Paid duplicate) annotates its own ledger row for manual review instead of
+settling.
+**Same completion branch, a second money bug:** nothing compared what the payer was actually charged
+(`tx.AmountRials`) to what the request now says (`req.AmountRials`) before marking it Paid. An admin
+re-pricing while somebody is already at the bank (priced 1,000,000 → re-priced to 3,000,000 → payer
+pays the original 1,000,000) would settle the request at the NEW amount despite collecting the old one.
+Fixed by comparing the two and refusing to settle on a mismatch, same Persian-annotate-and-leave-alone
+pattern as the status guard.
+**Where:** `src/Application/Walfare/Payments/Payments.cs` (`PaymentCompletion.ApplyVerifiedAsync`,
+guesthouse branch).
+
+### An "absolute ceiling" measured from a field that gets overwritten never binds
+**Symptom (found by review):** the guesthouse SMS payment link is supposed to be re-sendable
+(extending its expiry) but never postponable past 30 days from when it was first priced. The ceiling
+was computed as `existing - Lifetime + MaxLifetime` from `PaymentTokenExpiresUtc` — but that field is
+the ONE THING every re-send overwrites. The "recovered first-priced instant" therefore moved forward
+with every send: priced day 0 (expiry day 7), re-send day 5 → expiry day 12, re-send day 11 → expiry
+day 18, forever. The clamp only ever bound when `now >= expiry + 16 days`, which cannot happen for a
+link anyone is actually still re-sending.
+**Cause:** deriving "when did this first happen" by doing arithmetic on a field whose whole job is to
+be replaced. Any "first X at" fact needs its own column, set once (`??=`), the moment X first happens
+— it cannot be reconstructed later from a value nothing preserves.
+**Fix:** added `FirstPricedAtUtc`, set once in the pricing handler (`entity.FirstPricedAtUtc ??=
+clock.GetUtcNow()`), and the send handler now measures the ceiling from that column instead of from
+`PaymentTokenExpiresUtc`. A request priced before the column existed (`null`) has no ceiling to
+respect, same as before. This also closed a second gap: a link already past 30 days now throws a
+Persian refusal on re-send instead of silently computing an expiry already in the past.
+**Where:** `src/Domain/Walfare/GuesthouseRequest.cs` (`FirstPricedAtUtc`),
+`src/Application/Walfare/Guesthouses/GuesthouseAdmin.cs`
+(`PriceGuesthouseRequestCommandHandler`, `SendGuesthousePaymentSmsCommandHandler`), migration
+`20260819052021_AddGuesthouseFirstPricedAt`.
+
 ---
 
 ## Iran Kish payment gateway

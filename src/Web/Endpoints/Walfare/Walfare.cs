@@ -239,7 +239,7 @@ public class WalfareGuesthouseRequests : Mabhas19.Web.Infrastructure.IEndpointGr
     public static void Map(RouteGroupBuilder groupBuilder)
     {
         groupBuilder.MapPost(CreateWalfareGuesthouseRequest, string.Empty).RequireAuthorization();
-        groupBuilder.MapGet(GetWalfareMyGuesthouseRequests, "mine").RequireAuthorization();
+        groupBuilder.MapGet(GetWalfareMyGuesthouseRequests, "me").RequireAuthorization();
         groupBuilder.MapPost(CreateWalfareGuesthouseRequestAdmin, "admin").RequireAdmin();
         groupBuilder.MapGet(GetWalfareGuesthouseRequestsAdmin, "admin/list").RequireAdmin();
         groupBuilder.MapPost(PriceWalfareGuesthouseRequest, "{id:int}/price").RequireAdmin();

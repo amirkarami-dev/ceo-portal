@@ -25,6 +25,7 @@ public class GuesthouseTransitionTests
     [TestCase(GuesthouseRequestStatus.Priced, true)]
     [TestCase(GuesthouseRequestStatus.Submitted, false)]   // nothing to pay yet
     [TestCase(GuesthouseRequestStatus.Paid, false)]        // already paid
+    [TestCase(GuesthouseRequestStatus.Rejected, false)]    // refused — a payer already at the bank must not settle it
     [TestCase(GuesthouseRequestStatus.Cancelled, false)]
     public void CanPay_only_from_priced(GuesthouseRequestStatus status, bool expected)
         => GuesthouseTransitions.CanPay(status).ShouldBe(expected);

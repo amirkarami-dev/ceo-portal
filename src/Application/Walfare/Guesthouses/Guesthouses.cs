@@ -71,6 +71,13 @@ internal static class GuesthouseDtoProjection
         Description = g.Description,
         IsActive = g.IsActive
     };
+
+    /// <summary>
+    /// The member-visible shape. Same fields as <see cref="From"/> except <see cref="GuesthouseDto.ManagerName"/>:
+    /// that is the guesthouse manager's name, meant only for the printed referral letter, and has no
+    /// member-facing purpose.
+    /// </summary>
+    public static GuesthouseDto ForMember(WelfareGuesthouse g) => From(g) with { ManagerName = string.Empty };
 }
 
 // ── member: the guesthouses they may ask for ────────────────────────────────
@@ -94,7 +101,7 @@ public class GetActiveGuesthousesQueryHandler(IApplicationDbContext context)
             .OrderBy(g => g.City).ThenBy(g => g.Name)
             .ToListAsync(cancellationToken);
 
-        return rows.Select(GuesthouseDtoProjection.From).ToList();
+        return rows.Select(GuesthouseDtoProjection.ForMember).ToList();
     }
 }
 

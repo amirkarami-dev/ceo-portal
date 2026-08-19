@@ -105,6 +105,9 @@ public class PriceGuesthouseRequestCommandHandler(IApplicationDbContext context,
 
         entity.PaymentToken ??= GuesthouseTokens.Mint();
         entity.PaymentTokenExpiresUtc = clock.GetUtcNow().Add(GuesthouseTokens.Lifetime);
+        // Set once. The re-send handler measures its absolute ceiling from THIS instant, not from
+        // whatever PaymentTokenExpiresUtc happens to hold — every re-send overwrites that field.
+        entity.FirstPricedAtUtc ??= clock.GetUtcNow();
         entity.Status = GuesthouseRequestStatus.Priced;
 
         await context.SaveChangesAsync(cancellationToken);
@@ -246,17 +249,19 @@ public class SendGuesthousePaymentSmsCommandHandler(
 
         entity.PaymentToken ??= GuesthouseTokens.Mint();
 
-        // Re-sending extends the link by another Lifetime, but never past request-first-priced +
+        // Re-sending extends the link by another Lifetime, but never past FirstPricedAtUtc +
         // MaxLifetime — otherwise repeated re-sends keep an anonymous, unauthenticated payment link
-        // alive forever. Nothing on the entity marks "first priced" directly, but the EXISTING
-        // PaymentTokenExpiresUtc does the job: the first pricing set it to priced + Lifetime, so
-        // subtracting Lifetime back out recovers that first-priced instant, and adding MaxLifetime
-        // to it gives the absolute ceiling. A first-ever send (no expiry set yet) has no ceiling to
-        // respect, so it just gets now + Lifetime.
+        // alive forever. The ceiling MUST be measured from FirstPricedAtUtc, not derived from
+        // PaymentTokenExpiresUtc: that field is overwritten by every send, so a ceiling computed
+        // from it moves forward with every re-send and never actually binds. A request priced
+        // before this column existed has no FirstPricedAtUtc and so no ceiling to respect.
         var extended = clock.GetUtcNow().Add(GuesthouseTokens.Lifetime);
-        if (entity.PaymentTokenExpiresUtc is { } existing)
+        if (entity.FirstPricedAtUtc is { } firstPriced)
         {
-            var ceiling = existing - GuesthouseTokens.Lifetime + GuesthouseTokens.MaxLifetime;
+            var ceiling = firstPriced + GuesthouseTokens.MaxLifetime;
+            if (ceiling <= clock.GetUtcNow())
+                throw Fail.With("Id",
+                    "این درخواست بیش از حد مجاز تمدید شده است. برای ارسال دوباره، مبلغ را از نو تعیین کنید.");
             entity.PaymentTokenExpiresUtc = extended < ceiling ? extended : ceiling;
         }
         else

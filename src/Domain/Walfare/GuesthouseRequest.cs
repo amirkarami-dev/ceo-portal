@@ -106,6 +106,12 @@ public class GuesthouseRequest : BaseAuditableEntity
 
     public DateTimeOffset? PaymentTokenExpiresUtc { get; set; }
 
+    /// <summary>
+    /// When this request was FIRST priced. The payment link's absolute expiry ceiling is measured
+    /// from here, so re-sending can extend a link but never ratchet it forward indefinitely.
+    /// </summary>
+    public DateTimeOffset? FirstPricedAtUtc { get; set; }
+
     public int? PaymentTransactionId { get; set; }
 
     public DateTimeOffset? PaidAtUtc { get; set; }

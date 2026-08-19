@@ -49,16 +49,22 @@ file static class PaymentCompletion
                 .FirstOrDefaultAsync(r => r.Id == tx.TargetId, ct);
             if (req is not null)
             {
-                // A forwarded link can be opened by two people, and the bank really does capture
-                // both cards. Guarding on Status, NOT on PaymentTransactionId: init assigns that
-                // eagerly, so the second init overwrites it before either payment completes and a
-                // guard on it would skip the legitimate first callback.
-                if (req.Status == GuesthouseRequestStatus.Paid)
+                // Ask the transition table rather than re-deriving. Only a request that is still
+                // payable may be settled: a REJECTED one can reach here because the payer was
+                // already at the bank when the admin refused it, and an already-Paid one is the
+                // duplicate case. Both must annotate their own ledger row and leave the request be.
+                if (!GuesthouseTransitions.CanPay(req.Status))
                 {
-                    // Leave the first payment's record intact and flag this row instead, so the
-                    // duplicate is visible on the admin payments report and can be refunded.
                     tx.Description =
-                        $"پرداخت تکراری برای درخواست {req.Id}؛ این درخواست قبلاً تسویه شده است.";
+                        $"پرداخت برای درخواستی که قابل پرداخت نیست (وضعیت {(int)req.Status})؛ نیازمند بررسی و احتمالاً بازگشت وجه.";
+                }
+                // What the payer was charged is what the ledger row says, not what the request
+                // says now — an admin can re-price while somebody is at the bank. Settling on a
+                // mismatch would record a stay as paid in full for an amount never collected.
+                else if (tx.AmountRials != req.AmountRials)
+                {
+                    tx.Description =
+                        $"مبلغ پرداخت‌شده ({tx.AmountRials}) با مبلغ فعلی درخواست ({req.AmountRials}) یکسان نیست؛ نیازمند بررسی.";
                 }
                 else
                 {
