@@ -292,8 +292,10 @@ public class WalfareGuesthouseRequests : Mabhas19.Web.Infrastructure.IEndpointGr
 /// The SMS payment link. ANONYMOUS on purpose — the payer may have no account at all.
 /// </summary>
 /// <remarks>
-/// Rate limited by the shared platform limiter. Note that limiter is 120/min for everyone behind a
-/// single NAT, which is already a known concern elsewhere on this platform.
+/// The GET summary sits on the shared 120/min platform limiter — it creates nothing. The POST init
+/// is on <see cref="RateLimitPolicies.PublicSubmission"/> (10/10min per IP) instead: it creates a
+/// PaymentTransaction row and calls the Iran Kish gateway, so the generous shared limiter would let
+/// one token behind one NAT mint far too many of both.
 /// </remarks>
 public class WalfareGuesthousePay : Mabhas19.Web.Infrastructure.IEndpointGroup
 {
@@ -302,7 +304,14 @@ public class WalfareGuesthousePay : Mabhas19.Web.Infrastructure.IEndpointGroup
     public static void Map(RouteGroupBuilder groupBuilder)
     {
         groupBuilder.MapGet(GetWalfareGuesthousePaySummary, "{token}").AllowAnonymous();
-        groupBuilder.MapPost(InitWalfareGuesthousePayment, "{token}/init").AllowAnonymous();
+        // The GET summary creates nothing and stays on the default limiter. The POST creates a
+        // PaymentTransaction row and calls out to Iran Kish, so it gets the same stricter,
+        // per-IP policy as other public-write routes (e.g. KurdnezamForms' SubmitKurdnezamForm) —
+        // without it, one valid token and one IP could mint thousands of transactions and outbound
+        // gateway calls per hour.
+        groupBuilder.MapPost(InitWalfareGuesthousePayment, "{token}/init")
+            .AllowAnonymous()
+            .RequireRateLimiting(RateLimitPolicies.PublicSubmission);
     }
 
     public static async Task<Ok<GuesthousePaymentSummaryDto>> GetWalfareGuesthousePaySummary(

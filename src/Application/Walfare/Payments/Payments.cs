@@ -49,18 +49,32 @@ file static class PaymentCompletion
                 .FirstOrDefaultAsync(r => r.Id == tx.TargetId, ct);
             if (req is not null)
             {
-                req.Status = GuesthouseRequestStatus.Paid;
-                req.PaidAtUtc = tx.VerifiedAt ?? DateTimeOffset.UtcNow;
-                req.PaymentTransactionId = tx.Id;
+                // A forwarded link can be opened by two people, and the bank really does capture
+                // both cards. Guarding on Status, NOT on PaymentTransactionId: init assigns that
+                // eagerly, so the second init overwrites it before either payment completes and a
+                // guard on it would skip the legitimate first callback.
+                if (req.Status == GuesthouseRequestStatus.Paid)
+                {
+                    // Leave the first payment's record intact and flag this row instead, so the
+                    // duplicate is visible on the admin payments report and can be refunded.
+                    tx.Description =
+                        $"پرداخت تکراری برای درخواست {req.Id}؛ این درخواست قبلاً تسویه شده است.";
+                }
+                else
+                {
+                    req.Status = GuesthouseRequestStatus.Paid;
+                    req.PaidAtUtc = tx.VerifiedAt ?? DateTimeOffset.UtcNow;
+                    req.PaymentTransactionId = tx.Id;
 
-                // شماره فیش, pre-filled from the gateway and editable afterwards — some payments
-                // still arrive as a bank transfer the admin enters by hand.
-                if (string.IsNullOrWhiteSpace(req.ReceiptNumber))
-                    req.ReceiptNumber = tx.RetrievalReferenceNumber ?? tx.PaymentId;
+                    // شماره فیش, pre-filled from the gateway and editable afterwards — some payments
+                    // still arrive as a bank transfer the admin enters by hand.
+                    if (string.IsNullOrWhiteSpace(req.ReceiptNumber))
+                        req.ReceiptNumber = tx.RetrievalReferenceNumber ?? tx.PaymentId;
 
-                // The link has done its job. Clearing it stops a forwarded SMS opening a live page.
-                req.PaymentToken = null;
-                req.PaymentTokenExpiresUtc = null;
+                    // The link has done its job. Clearing it stops a forwarded SMS opening a live page.
+                    req.PaymentToken = null;
+                    req.PaymentTokenExpiresUtc = null;
+                }
             }
         }
     }

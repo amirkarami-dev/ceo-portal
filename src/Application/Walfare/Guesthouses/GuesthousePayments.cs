@@ -64,23 +64,56 @@ public class GetGuesthousePaymentSummaryQueryHandler(IApplicationDbContext conte
     public async Task<GuesthousePaymentSummaryDto> Handle(
         GetGuesthousePaymentSummaryQuery request, CancellationToken cancellationToken)
     {
+        // Project instead of Include(r => r.Companions): this is an ANONYMOUS request and the only
+        // thing it needs from the companions is a count, so the full rows (names, relations) must
+        // never be materialised. The count is computed in SQL.
         var entity = await context.GuesthouseRequests
             .AsNoTracking()
-            .Include(r => r.Guesthouse)
-            .Include(r => r.Companions)
-            .FirstOrDefaultAsync(r => r.PaymentToken == request.Token, cancellationToken)
+            .Where(r => r.PaymentToken == request.Token)
+            .Select(r => new
+            {
+                r.Status,
+                r.PaymentTokenExpiresUtc,
+                GuesthouseName = r.Guesthouse != null ? r.Guesthouse.Name : null,
+                GuesthouseCity = r.Guesthouse != null ? r.Guesthouse.City : null,
+                r.CheckInDateJalali,
+                r.CheckOutDateJalali,
+                r.CheckInDate,
+                r.CheckOutDate,
+                GuestCount = 1 + r.Companions.Count(c => !c.IsInfant),
+                r.AmountRials
+            })
+            .FirstOrDefaultAsync(cancellationToken)
             ?? throw Fail.With("Token", "این لینک پرداخت معتبر نیست.");
+
+        // Same formula as GuesthouseRequest.Nights, computed here instead of via the entity's
+        // getter so the query above stays a single flat SQL projection (no computed-property
+        // translation to rely on).
+        var nights = Math.Max(0, entity.CheckOutDate.DayNumber - entity.CheckInDate.DayNumber);
 
         var (payable, reason) = GuesthousePaymentRules.Evaluate(
             entity.Status, entity.PaymentTokenExpiresUtc, clock.GetUtcNow());
 
+        // A dead link (expired, already paid, rejected...) must stop answering questions about
+        // somebody's stay. It travels by SMS and can be forwarded into a group chat, so once it is
+        // no longer payable we return only the refusal — no guesthouse, dates, guest count or
+        // amount — instead of leaving those readable forever.
+        if (!payable)
+        {
+            return new GuesthousePaymentSummaryDto
+            {
+                Payable = false,
+                Reason = reason
+            };
+        }
+
         return new GuesthousePaymentSummaryDto
         {
-            GuesthouseName = entity.Guesthouse?.Name ?? string.Empty,
-            GuesthouseCity = entity.Guesthouse?.City ?? string.Empty,
+            GuesthouseName = entity.GuesthouseName ?? string.Empty,
+            GuesthouseCity = entity.GuesthouseCity ?? string.Empty,
             CheckInDateJalali = entity.CheckInDateJalali,
             CheckOutDateJalali = entity.CheckOutDateJalali,
-            Nights = entity.Nights,
+            Nights = nights,
             GuestCount = entity.GuestCount,
             AmountRials = entity.AmountRials,
             Payable = payable,
