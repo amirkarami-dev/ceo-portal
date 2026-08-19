@@ -282,3 +282,110 @@ public class SendGuesthousePaymentSmsCommandHandler(
             throw Fail.With("Sms", "ارسال پیامک ناموفق بود. لطفاً دوباره تلاش کنید.");
     }
 }
+
+// ── admin: the referral letter's data, and a hand-editable receipt number ──
+
+public static class GuesthouseReferral
+{
+    /// <summary>«جناب آقای مهندس» / «سرکار خانم مهندس».</summary>
+    /// <exception cref="InvalidOperationException">
+    /// When gender is unset. Deliberate: a letter addressed with the wrong honorific is worse than
+    /// a letter that has not printed yet, and a first name is not evidence.
+    /// </exception>
+    public static string Title(ApplicantGender? gender) => gender switch
+    {
+        ApplicantGender.Male => "جناب آقای مهندس",
+        ApplicantGender.Female => "سرکار خانم مهندس",
+        _ => throw new InvalidOperationException("gender is not set")
+    };
+}
+
+/// <summary>Everything the printed معرفی‌نامه needs, and nothing else.</summary>
+public sealed record GuesthouseReferralDto
+{
+    public int Id { get; init; }
+    public string GuesthouseName { get; init; } = string.Empty;
+    public string GuesthouseCity { get; init; } = string.Empty;
+    public string ManagerName { get; init; } = string.Empty;
+
+    /// <summary>Already rendered — «جناب آقای مهندس» or «سرکار خانم مهندس».</summary>
+    public string ApplicantTitle { get; init; } = string.Empty;
+
+    public string FullName { get; init; } = string.Empty;
+    public string CheckInDateJalali { get; init; } = string.Empty;
+    public string CheckOutDateJalali { get; init; } = string.Empty;
+    public int Nights { get; init; }
+    public int GuestCount { get; init; }
+    public string ReceiptNumber { get; init; } = string.Empty;
+    public CompanionDto[] Companions { get; init; } = [];
+}
+
+[Authorize(Roles = Roles.AdminOrSuper)]
+public record GetGuesthouseReferralQuery(int Id) : IRequest<GuesthouseReferralDto>;
+
+public class GetGuesthouseReferralQueryHandler(IApplicationDbContext context)
+    : IRequestHandler<GetGuesthouseReferralQuery, GuesthouseReferralDto>
+{
+    public async Task<GuesthouseReferralDto> Handle(
+        GetGuesthouseReferralQuery request, CancellationToken cancellationToken)
+    {
+        var entity = await context.GuesthouseRequests
+            .AsNoTracking()
+            .Include(r => r.Guesthouse)
+            .Include(r => r.Companions)
+            .FirstOrDefaultAsync(r => r.Id == request.Id, cancellationToken);
+        Guard.Against.NotFound(request.Id, entity);
+
+        // The letter cites شماره فیش, so it exists only once money has actually arrived.
+        if (entity.Status != GuesthouseRequestStatus.Paid)
+            throw Fail.With(nameof(request.Id), "معرفی‌نامه فقط پس از پرداخت صادر می‌شود.");
+
+        if (entity.Gender is null)
+            throw Fail.With("Gender", "برای صدور معرفی‌نامه، «جناب آقای / سرکار خانم» را مشخص کنید.");
+
+        return new GuesthouseReferralDto
+        {
+            Id = entity.Id,
+            GuesthouseName = entity.Guesthouse?.Name ?? string.Empty,
+            GuesthouseCity = entity.Guesthouse?.City ?? string.Empty,
+            ManagerName = entity.Guesthouse?.ManagerName ?? string.Empty,
+            ApplicantTitle = GuesthouseReferral.Title(entity.Gender),
+            FullName = entity.FullName,
+            CheckInDateJalali = entity.CheckInDateJalali,
+            CheckOutDateJalali = entity.CheckOutDateJalali,
+            Nights = entity.Nights,
+            GuestCount = entity.GuestCount,
+            ReceiptNumber = entity.ReceiptNumber,
+            Companions = entity.Companions
+                .Select(c => new CompanionDto(
+                    c.FullName,
+                    c.Relation is null ? null : (CompanionRelationInput)(int)c.Relation,
+                    c.IsInfant))
+                .ToArray()
+        };
+    }
+}
+
+/// <summary>
+/// Overrides شماره فیش by hand — for a payment that arrived as a bank transfer rather than through
+/// the gateway.
+/// </summary>
+[Authorize(Roles = Roles.AdminOrSuper)]
+public record UpdateGuesthouseReceiptCommand(int Id, string ReceiptNumber) : IRequest;
+
+public class UpdateGuesthouseReceiptCommandHandler(IApplicationDbContext context)
+    : IRequestHandler<UpdateGuesthouseReceiptCommand>
+{
+    public async Task Handle(UpdateGuesthouseReceiptCommand request, CancellationToken cancellationToken)
+    {
+        var entity = await context.GuesthouseRequests
+            .FirstOrDefaultAsync(r => r.Id == request.Id, cancellationToken);
+        Guard.Against.NotFound(request.Id, entity);
+
+        if (string.IsNullOrWhiteSpace(request.ReceiptNumber))
+            throw Fail.With(nameof(request.ReceiptNumber), "شماره فیش را وارد کنید.");
+
+        entity.ReceiptNumber = request.ReceiptNumber.Trim();
+        await context.SaveChangesAsync(cancellationToken);
+    }
+}

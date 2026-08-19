@@ -245,6 +245,8 @@ public class WalfareGuesthouseRequests : Mabhas19.Web.Infrastructure.IEndpointGr
         groupBuilder.MapPost(PriceWalfareGuesthouseRequest, "{id:int}/price").RequireAdmin();
         groupBuilder.MapPost(RejectWalfareGuesthouseRequest, "{id:int}/reject").RequireAdmin();
         groupBuilder.MapPost(SendWalfareGuesthousePaymentSms, "{id:int}/send-payment-sms").RequireAdmin();
+        groupBuilder.MapGet(GetWalfareGuesthouseReferral, "{id:int}/referral").RequireAdmin();
+        groupBuilder.MapPut(UpdateWalfareGuesthouseReceipt, "{id:int}/receipt").RequireAdmin();
     }
 
     public static async Task<Created<int>> CreateWalfareGuesthouseRequest(
@@ -291,6 +293,18 @@ public class WalfareGuesthouseRequests : Mabhas19.Web.Infrastructure.IEndpointGr
     public static async Task<NoContent> SendWalfareGuesthousePaymentSms(ISender sender, int id)
     {
         await sender.Send(new SendGuesthousePaymentSmsCommand(id));
+        return TypedResults.NoContent();
+    }
+
+    public record ReceiptBody(string ReceiptNumber);
+
+    public static async Task<Ok<GuesthouseReferralDto>> GetWalfareGuesthouseReferral(ISender sender, int id)
+        => TypedResults.Ok(await sender.Send(new GetGuesthouseReferralQuery(id)));
+
+    public static async Task<NoContent> UpdateWalfareGuesthouseReceipt(
+        ISender sender, int id, ReceiptBody body)
+    {
+        await sender.Send(new UpdateGuesthouseReceiptCommand(id, body.ReceiptNumber));
         return TypedResults.NoContent();
     }
 }
