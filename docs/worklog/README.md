@@ -23,6 +23,7 @@ Also, when a task teaches something reusable:
 | Date | Record | Area | Status |
 |---|---|---|---|
 | 2026-08-19 | [The vote-SMS sender reported "sent" for every message while production silently dropped them](2026-08-19-election-sms-direct-provider.md) | infra / elections | built and tested locally, **not deployed** |
+| 2026-08-19 | [مهمانسرا — the guesthouse referral service, backend](2026-08-19-walfare-guesthouse-backend.md) | walfare / api | built and proven over HTTP locally; **not merged, not deployed** |
 | 2026-08-18 | [room-web redesign — visual and motion language](2026-08-18-room-web-redesign.md) | room | **live** at room.myceo.ir — signed-in screens still unseen |
 | 2026-08-18 | [The meeting whiteboard](2026-08-18-room-whiteboard.md) | room | **live** at room.myceo.ir — but never opened in a browser |
 | 2026-08-18 | [An OTP copied out of an SMS could never be accepted](2026-08-18-otp-invisible-character.md) | auth / welfare | **live** on auth.myceo.ir |

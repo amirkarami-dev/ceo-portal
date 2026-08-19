@@ -1566,3 +1566,42 @@ existing `html[data-theme="dark"]` selector list covers everything hand-written.
 `canJoinNow: true`, and any UI that reads that as "live" will say «در حال برگزاری» about it.
 Keep the two questions apart: `canJoinNow` answers *may I go in*, and the schedule
 (`room-web/src/lib/schedule.ts`) answers *is it now*. Both can be true at once.
+
+
+### The API reports every SMS as sent, because an unknown provider falls through to a logger
+`ElectionSmsSender` selects on `Sms:Provider` with `_ => LogOnly(message)` as the fallback, and
+`LogOnly` **returns true**. Production pins `SMS_PROVIDER=direct` (deploy/.env -> `Sms__Provider` via
+docker-compose), a value that class did not implement — so every SMS the API attempted was written to
+the log and reported as delivered. `appsettings.json` says `relay`, which is only the dev default and
+misleads anyone who reads it to answer "what does production send with?". **Read the chain:
+appsettings -> compose -> deploy/.env.** Note the two hosts implement DIFFERENT provider sets over the
+same shared `Sms` section: `src/Auth` knows `direct`, the API did not. A fallback that reports
+success is worse than one that throws.
+
+### A FluentValidation `AbstractValidator<SomeInput>` never runs on its own
+`ValidationBehaviour` resolves `IValidator<TRequest>` where `TRequest` is the **command**, so a
+validator written against the *input* type is never found. It is dead code that unit tests still pass,
+because tests construct the validator directly. Bridge it:
+`class XCommandValidator : AbstractValidator<XCommand> { public XCommandValidator() =>
+RuleFor(x => x.Input).SetValidator(new XInputValidator()); }` — `WelfarePools.cs` is the working
+example. The bridge class must be `public`, or the assembly scan will not register it.
+
+### Guarding a payment callback on the transaction id skips the legitimate first callback
+Where a payment link can be opened by more than one person, two `PaymentTransaction` rows exist by
+design and both can succeed — the bank really does capture both cards. The obvious duplicate guard,
+`request.PaymentTransactionId != tx.Id`, is WRONG: the id is assigned at **init**, so the second
+init overwrites it before either payment completes, and the guard then rejects the first callback and
+accepts the second. Guard on the terminal **status** instead, and annotate the duplicate's own ledger
+row so a human can refund it.
+
+### A positional record binds a missing JSON array to null, not to empty
+System.Text.Json binds a positional record through its constructor, so a body that omits an array
+property yields `null` — and `RuleFor(x => x.Items).Must(c => c.Count(...) <= 5)` then throws
+`NullReferenceException` inside the validator, producing a 500 with no field message. Add `NotNull()`
+before any rule that dereferences, make the count rules null-safe, and default the collection at the
+point of use. The omitted-array case is usually the COMMONEST request, not an edge case.
+
+### An inherited theme file describes the app it came from, not the one it is in
+room-web's `tokens.ts` justified its palette by calling the app "a background-job monitor" — copied
+wholesale from mun-sanandaj-web, along with a `.mun-live-dot` class. Before designing against a
+theme file, check whether its stated reasoning is about **this** product.
