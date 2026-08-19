@@ -21,6 +21,7 @@ import { GuesthousePayResultPage } from "@/pages/GuesthousePayResultPage";
 import { AdminServicesPage } from "@/pages/admin/AdminServicesPage";
 import { AdminPoolsPage } from "@/pages/admin/AdminPoolsPage";
 import { AdminGuesthousesPage } from "@/pages/admin/AdminGuesthousesPage";
+import { AdminGuesthouseRequestsPage } from "@/pages/admin/AdminGuesthouseRequestsPage";
 import { AdminReservationsPage } from "@/pages/admin/AdminReservationsPage";
 import { AdminPaymentsPage } from "@/pages/admin/AdminPaymentsPage";
 
@@ -64,6 +65,12 @@ export const router = createBrowserRouter([
           path: "/dev/admin-services",
           lazy: async () => ({
             Component: (await import("@/pages/dev/GuesthouseFormHarness")).AdminServicesHarness,
+          }),
+        },
+        {
+          path: "/dev/admin-requests",
+          lazy: async () => ({
+            Component: (await import("@/pages/dev/GuesthouseFormHarness")).AdminRequestsHarness,
           }),
         },
       ]
@@ -110,6 +117,7 @@ export const router = createBrowserRouter([
               { index: true, element: <AdminServicesPage /> },
               { path: "pools", element: <AdminPoolsPage /> },
               { path: "guesthouses", element: <AdminGuesthousesPage /> },
+              { path: "guesthouse-requests", element: <AdminGuesthouseRequestsPage /> },
               { path: "reservations", element: <AdminReservationsPage /> },
               { path: "payments", element: <AdminPaymentsPage /> },
             ],

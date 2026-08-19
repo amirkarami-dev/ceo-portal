@@ -1,5 +1,5 @@
 import { useMemo, useState, type Key, type ReactNode } from "react";
-import { Button, Flex, Input, Popconfirm, Space, Table, Tooltip, Typography } from "antd";
+import { Alert, Button, Flex, Input, Popconfirm, Space, Table, Tooltip, Typography } from "antd";
 import type { ColumnsType, TableProps } from "antd/es/table";
 import { DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { EmptyState } from "./EmptyState";
@@ -220,7 +220,12 @@ export function CrudTable<T extends object>({
       </Flex>
     ) : null;
 
-  if (error) {
+  // Only take over the screen when there is NOTHING to show. React Query keeps `data` and sets
+  // `error` when a BACKGROUND refetch fails, and refetchOnReconnect is on by default — so
+  // gating on `error` alone replaced a perfectly good table, on every admin page at once, the
+  // moment the network blinked. A stale list is still worth more than an error screen; the
+  // banner below says so out loud rather than hiding it.
+  if (error && !data) {
     return (
       <>
         {toolbar}
@@ -260,6 +265,14 @@ export function CrudTable<T extends object>({
   return (
     <>
       {toolbar}
+      {error ? (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message="به‌روزرسانی فهرست ناموفق بود؛ آنچه می‌بینید ممکن است تازه نباشد."
+        />
+      ) : null}
       <Table<T>
         columns={allColumns}
         dataSource={rows}

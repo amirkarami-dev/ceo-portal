@@ -4,6 +4,7 @@
 //   /dev/guesthouse-pay/:token  -> the public payment page
 //   /dev/admin-guesthouses      -> the admin CRUD page
 //   /dev/admin-services         -> the services page, to prove نوع survives an edit
+//   /dev/admin-requests         -> the office's main list, one row per status
 //        token "payable" shows the payable state, anything else shows a dead link
 // Lets the form and its phone layout be checked without the OIDC login; excluded from prod.
 //
@@ -17,12 +18,14 @@ import { MyReservationsPage } from "@/pages/MyReservationsPage";
 import { GuesthousePayPage } from "@/pages/GuesthousePayPage";
 import { AdminGuesthousesPage } from "@/pages/admin/AdminGuesthousesPage";
 import { AdminServicesPage } from "@/pages/admin/AdminServicesPage";
+import { AdminGuesthouseRequestsPage } from "@/pages/admin/AdminGuesthouseRequestsPage";
 import { queryClient } from "@/query/client";
 import { queryKeys } from "@/query";
 import type {
   Guesthouse,
   GuesthousePaySummary,
   GuesthouseRequest,
+  Paged,
   WalfareEngineer,
   WelfareService,
 } from "@/api/walfareApi";
@@ -109,6 +112,28 @@ const SEED_SERVICES: WelfareService[] = [
         activationDate: "1405/03/25",
         isAccessible: true,
         poolCount: 0,
+      },
+];
+
+/** Two guesthouses under the مهمانسرا service, shared by the admin harnesses. */
+const SEED_GUESTHOUSES: Guesthouse[] = [
+      {
+        id: 1,
+        serviceId: 8,
+        name: "مهمانسرای شماره یک",
+        city: "سنندج",
+        managerName: "مسئول آزمایشی",
+        description: "",
+        isActive: true,
+      },
+      {
+        id: 2,
+        serviceId: 8,
+        name: "مهمانسرای دریا با نامی نسبتاً بلند برای آزمودن شکستن خط",
+        city: "بندرعباس",
+        managerName: "",
+        description: "",
+        isActive: false,
       },
 ];
 
@@ -319,26 +344,7 @@ export function AdminGuesthousesHarness() {
   const seeded = useRef(false);
   if (!seeded.current) {
     const services: WelfareService[] = SEED_SERVICES;
-    const rows: Guesthouse[] = [
-      {
-        id: 1,
-        serviceId: 8,
-        name: "مهمانسرای شماره یک",
-        city: "سنندج",
-        managerName: "مسئول آزمایشی",
-        description: "",
-        isActive: true,
-      },
-      {
-        id: 2,
-        serviceId: 8,
-        name: "مهمانسرای دریا با نامی نسبتاً بلند برای آزمودن شکستن خط",
-        city: "بندرعباس",
-        managerName: "",
-        description: "",
-        isActive: false,
-      },
-    ];
+    const rows: Guesthouse[] = SEED_GUESTHOUSES;
     queryClient.setQueryData(queryKeys.services.admin(), services);
     queryClient.setQueryData(queryKeys.guesthouses.admin(), rows);
     seeded.current = true;
@@ -361,6 +367,45 @@ export function AdminServicesHarness() {
   return (
     <HarnessFrame>
       <AdminServicesPage />
+    </HarnessFrame>
+  );
+}
+
+
+// ── the office's main list ──────────────────────────────────────────────────
+
+export function AdminRequestsHarness() {
+  const seeded = useRef(false);
+  if (!seeded.current) {
+    // Every row carries a mobile, because the send-SMS confirm prints the number it will use.
+    const items: GuesthouseRequest[] = FAKE_REQUESTS.map((r) => ({
+      ...r,
+      mobile: "09000000000",
+    }));
+    const paged: Paged<GuesthouseRequest> = {
+      items,
+      total: items.length,
+      page: 1,
+      pageSize: 20,
+      totalPages: 1,
+    };
+    // Same param object the page builds on its first render, so the keys hash identically.
+    queryClient.setQueryData(
+      queryKeys.guesthouseRequests.admin({
+        status: undefined,
+        guesthouseId: undefined,
+        page: 1,
+        pageSize: 20,
+      }),
+      paged,
+    );
+    queryClient.setQueryData(queryKeys.guesthouses.admin(), SEED_GUESTHOUSES);
+    seeded.current = true;
+  }
+
+  return (
+    <HarnessFrame>
+      <AdminGuesthouseRequestsPage />
     </HarnessFrame>
   );
 }
