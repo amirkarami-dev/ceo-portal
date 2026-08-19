@@ -1,5 +1,6 @@
 using Mabhas19.Application.Common.Interfaces;
 using Mabhas19.Application.Common.Security;
+using Mabhas19.Application.Walfare.Guesthouses;
 using Mabhas19.Domain.Constants;
 using Mabhas19.Domain.Walfare;
 using Microsoft.EntityFrameworkCore;
@@ -39,6 +40,27 @@ file static class PaymentCompletion
                 reservation.Status = ReservationStatus.Paid;
                 reservation.PaymentTransactionId = tx.Id;
                 reservation.TrackingCode = tx.SystemTraceAuditNumber;
+            }
+        }
+
+        if (tx.TargetType == InitGuesthousePaymentCommandHandler.TargetType)
+        {
+            var req = await context.GuesthouseRequests
+                .FirstOrDefaultAsync(r => r.Id == tx.TargetId, ct);
+            if (req is not null)
+            {
+                req.Status = GuesthouseRequestStatus.Paid;
+                req.PaidAtUtc = tx.VerifiedAt ?? DateTimeOffset.UtcNow;
+                req.PaymentTransactionId = tx.Id;
+
+                // شماره فیش, pre-filled from the gateway and editable afterwards — some payments
+                // still arrive as a bank transfer the admin enters by hand.
+                if (string.IsNullOrWhiteSpace(req.ReceiptNumber))
+                    req.ReceiptNumber = tx.RetrievalReferenceNumber ?? tx.PaymentId;
+
+                // The link has done its job. Clearing it stops a forwarded SMS opening a live page.
+                req.PaymentToken = null;
+                req.PaymentTokenExpiresUtc = null;
             }
         }
     }

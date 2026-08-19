@@ -287,3 +287,29 @@ public class WalfareGuesthouseRequests : Mabhas19.Web.Infrastructure.IEndpointGr
         return TypedResults.NoContent();
     }
 }
+
+/// <summary>
+/// The SMS payment link. ANONYMOUS on purpose — the payer may have no account at all.
+/// </summary>
+/// <remarks>
+/// Rate limited by the shared platform limiter. Note that limiter is 120/min for everyone behind a
+/// single NAT, which is already a known concern elsewhere on this platform.
+/// </remarks>
+public class WalfareGuesthousePay : Mabhas19.Web.Infrastructure.IEndpointGroup
+{
+    public static string? RoutePrefix => "/api/walfare/guesthouse/pay";
+
+    public static void Map(RouteGroupBuilder groupBuilder)
+    {
+        groupBuilder.MapGet(GetWalfareGuesthousePaySummary, "{token}").AllowAnonymous();
+        groupBuilder.MapPost(InitWalfareGuesthousePayment, "{token}/init").AllowAnonymous();
+    }
+
+    public static async Task<Ok<GuesthousePaymentSummaryDto>> GetWalfareGuesthousePaySummary(
+        ISender sender, string token)
+        => TypedResults.Ok(await sender.Send(new GetGuesthousePaymentSummaryQuery(token)));
+
+    public static async Task<Ok<PaymentRedirectDto>> InitWalfareGuesthousePayment(
+        ISender sender, string token)
+        => TypedResults.Ok(await sender.Send(new InitGuesthousePaymentCommand(token)));
+}
