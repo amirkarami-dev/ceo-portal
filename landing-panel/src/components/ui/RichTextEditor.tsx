@@ -28,7 +28,7 @@ export interface RichTextEditorProps {
 }
 
 /** True when the stored body already looks like HTML rather than typed plain text. */
-export function looksLikeHtml(value: string): boolean {
+function looksLikeHtml(value: string): boolean {
   return /<\/?(p|div|br|h[1-6]|ul|ol|li|strong|em|u|s|a|blockquote)\b/i.test(value);
 }
 
