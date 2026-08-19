@@ -595,6 +595,29 @@ log can then read every update and post as the bot. Fix: `.RemoveAllLoggers()` o
 Check any new typed client whose URL carries a credential.
 **Where:** `src/Infrastructure/DependencyInjection.cs`, `src/Infrastructure/Elections/BaleClient.cs`.
 
+### A provider-switch catch-all silently reported undelivered SMS as sent
+**Symptom:** none in the application — every vote-code SMS in production "succeeded", with no
+error, no warning, and no message ever arriving on the handset.
+**Cause:** `ElectionSmsSender.SendAsync` switched on `Sms:Provider` with `"mihan"`, `"relay"`, and
+a wildcard `_ => LogOnly(message)` — correct for the deliberate development value `"log"`, but the
+same wildcard also swallowed `"direct"`, which is what production actually sets
+(`SMS_PROVIDER=direct` in `deploy/.env`, fed through `Sms__Provider`). `LogOnly` writes the message
+to the log and **returns `true`**, so an unimplemented provider looked identical to a working one.
+The identity provider (`src/Auth/Sms/SmsDirectSender.cs`) already had a working `direct`
+implementation; this class simply never grew one.
+**Fix:** split the fallback — `"log"` still returns `true` (dev only), any other value hits a new
+`UnknownProvider()` that logs an ERROR naming the bad config and returns `false`. A channel that
+claims success it cannot deliver is worse than one that visibly fails.
+**Related, while implementing `direct`:** msgway answers **HTTP 200** even for a refused send and
+puts its real verdict in the response **body** — the same gap already recorded below for the IdP's
+OTP path. Checking `IsSuccessStatusCode` alone would have reintroduced a silent-success bug one
+layer deeper; the body's `status` field must be parsed and checked.
+**Where:** `src/Infrastructure/Elections/ElectionSmsSender.cs`;
+`docs/worklog/2026-08-19-election-sms-direct-provider.md`.
+**Rule:** a provider switch's wildcard arm is a promise that "anything not listed behaves like
+`_`". Before adding that arm, ask whether every currently-configured value is actually listed —
+`grep`-ing the deploy env for the option name would have caught this immediately.
+
 ### `stackalloc` sized by caller input is a remote kill switch
 `JalaliDate.NormalizeDigits` did `stackalloc char[value.Length]`. It is called on attacker-controlled
 text (a Bale message arrives through an anonymous webhook), so one POST with a megabyte of text asks
