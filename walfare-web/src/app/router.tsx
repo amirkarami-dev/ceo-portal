@@ -13,6 +13,7 @@ import { EngineerGate } from "@/auth/EngineerGate";
 import { AppLayout } from "@/layout/AppLayout";
 import { ServicesPage } from "@/pages/ServicesPage";
 import { BookingPage } from "@/pages/BookingPage";
+import { GuesthouseRequestPage } from "@/pages/GuesthouseRequestPage";
 import { MyReservationsPage } from "@/pages/MyReservationsPage";
 import { PayResultPage } from "@/pages/PayResultPage";
 import { AdminServicesPage } from "@/pages/admin/AdminServicesPage";
@@ -28,6 +29,12 @@ export const router = createBrowserRouter([
           path: "/dev/pickers",
           lazy: async () => ({
             Component: (await import("@/pages/dev/PickerHarness")).PickerHarness,
+          }),
+        },
+        {
+          path: "/dev/guesthouse/:serviceId",
+          lazy: async () => ({
+            Component: (await import("@/pages/dev/GuesthouseFormHarness")).GuesthouseFormHarness,
           }),
         },
       ]
@@ -54,6 +61,7 @@ export const router = createBrowserRouter([
             children: [
               { index: true, element: <ServicesPage /> },
               { path: "book/:serviceId", element: <BookingPage /> },
+              { path: "guesthouse/:serviceId", element: <GuesthouseRequestPage /> },
               { path: "reservations", element: <MyReservationsPage /> },
             ],
           },
