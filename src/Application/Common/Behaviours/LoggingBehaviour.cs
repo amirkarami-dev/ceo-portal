@@ -31,6 +31,17 @@ public class LoggingBehaviour<TRequest> : IRequestPreProcessor<TRequest>
         var userId = _user.Id ?? string.Empty;
         var userName = _user.Name ?? string.Empty;
 
+        // Who did what, but not with which values. The line still shows the request happened and
+        // who made it — that is the audit trail — while the payload stays out, because for these
+        // it IS the secret: a کد ملی, a mobile, or a payment token that is a bearer credential.
+        if (request is ISensitivePayloadRequest)
+        {
+            _logger.LogInformation("Mabhas19 Request: {Name} {@UserId} {@UserName}",
+                requestName, userId, userName);
+
+            return Task.CompletedTask;
+        }
+
         _logger.LogInformation("Mabhas19 Request: {Name} {@UserId} {@UserName} {@Request}",
             requestName, userId, userName, request);
 

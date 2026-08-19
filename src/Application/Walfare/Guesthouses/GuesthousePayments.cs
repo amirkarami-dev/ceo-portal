@@ -1,4 +1,5 @@
 using Mabhas19.Application.Common.Interfaces;
+using Mabhas19.Application.Common.Security;
 using Mabhas19.Application.Walfare.Payments;
 using Mabhas19.Domain.Walfare;
 using Microsoft.EntityFrameworkCore;
@@ -56,7 +57,8 @@ public static class GuesthousePaymentRules
 // ── anonymous: what am I paying for? ────────────────────────────────────────
 
 /// <summary>Resolved by token alone — the payer may have no account, which is the whole point.</summary>
-public record GetGuesthousePaymentSummaryQuery(string Token) : IRequest<GuesthousePaymentSummaryDto>;
+public record GetGuesthousePaymentSummaryQuery(string Token)
+    : IRequest<GuesthousePaymentSummaryDto>, ISensitivePayloadRequest;
 
 public class GetGuesthousePaymentSummaryQueryHandler(IApplicationDbContext context, TimeProvider clock)
     : IRequestHandler<GetGuesthousePaymentSummaryQuery, GuesthousePaymentSummaryDto>
@@ -124,7 +126,8 @@ public class GetGuesthousePaymentSummaryQueryHandler(IApplicationDbContext conte
 
 // ── anonymous: start the payment ────────────────────────────────────────────
 
-public record InitGuesthousePaymentCommand(string Token) : IRequest<PaymentRedirectDto>;
+public record InitGuesthousePaymentCommand(string Token)
+    : IRequest<PaymentRedirectDto>, ISensitivePayloadRequest;
 
 public class InitGuesthousePaymentCommandHandler(
     IApplicationDbContext context,

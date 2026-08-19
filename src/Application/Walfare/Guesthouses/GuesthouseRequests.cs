@@ -249,7 +249,8 @@ internal static class GuesthouseRequestFactory
 // ── member submits ──────────────────────────────────────────────────────────
 
 [Authorize]
-public record CreateGuesthouseRequestCommand(GuesthouseRequestInput Input) : IRequest<int>;
+public record CreateGuesthouseRequestCommand(GuesthouseRequestInput Input)
+    : IRequest<int>, ISensitivePayloadRequest;
 
 public class CreateGuesthouseRequestCommandHandler(IApplicationDbContext context, IUser user)
     : IRequestHandler<CreateGuesthouseRequestCommand, int>
@@ -287,7 +288,8 @@ public class CreateGuesthouseRequestCommandHandler(IApplicationDbContext context
 /// the SMS link is that person's only door.
 /// </remarks>
 [Authorize(Roles = Roles.AdminOrSuper)]
-public record CreateGuesthouseRequestAdminCommand(GuesthouseRequestInput Input) : IRequest<int>;
+public record CreateGuesthouseRequestAdminCommand(GuesthouseRequestInput Input)
+    : IRequest<int>, ISensitivePayloadRequest;
 
 public class CreateGuesthouseRequestAdminCommandHandler(IApplicationDbContext context)
     : IRequestHandler<CreateGuesthouseRequestAdminCommand, int>
