@@ -19,6 +19,17 @@ import { MainMenu } from "@excalidraw/excalidraw";
  *
  * Every label here comes from Excalidraw's own Persian locale, which the Vite plugin in
  * `vite.config.ts` re-enables — see that file for why it was showing English.
+ *
+ * <b>`SearchMenu` is left out because it is the one item the locale cannot translate.</b> fa-IR is
+ * 84% complete, and «Find on canvas» is in the missing 16%: the shipped Persian locale contains not
+ * one occurrence of «جستجو», so that entry fell back to English and sat there as the only English
+ * word in a Persian menu.
+ *
+ * <b>This hides the entry; it does NOT remove the feature.</b> Excalidraw binds the same panel to
+ * `CtrlOrCmd+F` in its own keymap, which no prop reaches, so anyone pressing Ctrl+F still gets the
+ * search panel — and that panel is English too («Find text on canvas…», «No matches found…»). The
+ * choice was to hide it or to break it: hiding a menu entry leaves a working shortcut, while hiding
+ * the panel would leave a shortcut that appears to do nothing, which is worse than an English label.
  */
 export function whiteboardMenu() {
   return (
@@ -26,7 +37,6 @@ export function whiteboardMenu() {
       <MainMenu.DefaultItems.LoadScene />
       <MainMenu.DefaultItems.SaveToActiveFile />
       <MainMenu.DefaultItems.SaveAsImage />
-      <MainMenu.DefaultItems.SearchMenu />
       <MainMenu.DefaultItems.Help />
       <MainMenu.DefaultItems.ClearCanvas />
       <MainMenu.Separator />

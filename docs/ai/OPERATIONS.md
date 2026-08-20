@@ -77,6 +77,13 @@ runs `MigrateAsync()` and **rethrows** on failure — so the process would not s
 that comes up healthy has already applied every pending migration. EF's migration log line sits below
 the container's log level, so *absence* of a log line proves nothing; container health does.
 
+**A recreate takes the site OFF the internet for as long as the health check takes.** Recreating
+`room-web` gave `https://room.myceo.ir/` a plain **404 for about 40 seconds** — Traefik removes a
+backend that is not yet `healthy`, and a 404 is what a request with no backend gets. It is not a
+broken deploy and it is not a Traefik fault; it is real user-visible downtime on every single-replica
+service. So: **do not judge a deploy until `docker ps` says `(healthy)`**, and expect the first
+public check after a recreate to fail. Deploy one service at a time, and prefer a quiet hour.
+
 **`MSSQL_SA_PASSWORD` in `deploy/.env` does NOT log in to the running SQL Server.** The database
 volume predates the current file. Do not go hunting: verify schema changes through the API instead
 (a route that queries the new table answering 404-not-found rather than 500 is proof it exists).
