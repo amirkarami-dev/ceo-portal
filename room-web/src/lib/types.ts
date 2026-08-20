@@ -168,6 +168,50 @@ export interface MyRoom {
   /** The server's verdict. Never re-derived here — a browser clock is not the authority. */
   canJoinNow: boolean;
   isPresenter: boolean;
+  /** How many files are attached. The card offers them without opening anything. */
+  fileCount: number;
+  /**
+   * Whether this person may add or remove files.
+   *
+   * Not the same as `isPresenter`: in a جلسه everyone may add a handout and nobody is the presenter.
+   * The server decides it with the same rule that decides the microphone, so this only mirrors what
+   * the upload endpoint would already allow — it is never the gate.
+   */
+  canManageFiles: boolean;
+}
+
+// ── the meeting's files ──────────────────────────────────────────────────────
+
+/**
+ * One file attached to a meeting.
+ *
+ * No uploader name, on purpose: the server records who added it, but for an engineer that identity is
+ * their کد ملی, and this list is read by the whole audience.
+ */
+export interface RoomFile {
+  id: number;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  uploadedAtUtc: string;
+}
+
+/** What the server refuses above. Checked here first so a phone does not upload 20MB to be told no. */
+export const MAX_FILE_BYTES = 20 * 1024 * 1024;
+
+const UNITS = ["بایت", "کیلوبایت", "مگابایت"] as const;
+
+/** A file size in Persian, at most one decimal. */
+export function fileSize(bytes: number): string {
+  let n = bytes;
+  let unit = 0;
+  while (n >= 1024 && unit < UNITS.length - 1) {
+    n /= 1024;
+    unit += 1;
+  }
+  // Bytes are whole things; kilo- and megabytes read better with one decimal.
+  const rounded = unit === 0 ? Math.round(n) : Math.round(n * 10) / 10;
+  return `${rounded.toLocaleString("fa-IR")} ${UNITS[unit]}`;
 }
 
 // ── the link landing page ────────────────────────────────────────────────────

@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiDelete, apiGet, apiPost, apiPut } from "./api";
+import { apiDelete, apiDownload, apiGet, apiPost, apiPut, apiUpload } from "./api";
 import type {
   MyRoom,
   RoomBoard,
   RoomDetail,
+  RoomFile,
   RoomInput,
   RoomJoinResult,
   RoomLanding,
@@ -23,6 +24,7 @@ export const roomKeys = {
   landing: (token: string) => ["room-landing", token] as const,
   messages: (id: number) => ["room-messages", id] as const,
   board: (id: number) => ["room-board", id] as const,
+  files: (id: number) => ["room-files", id] as const,
 };
 
 /**
@@ -246,6 +248,66 @@ export function useRoomBoard(roomId: number, enabled: boolean) {
 export function useSaveRoomBoard(roomId: number) {
   return useMutation({
     mutationFn: (scene: string) => apiPut<void>(`${ATTENDEE}/${roomId}/board`, { scene }),
+    retry: false,
+  });
+}
+
+// ── the meeting's files ──────────────────────────────────────────────────────
+
+/**
+ * The files attached to one meeting.
+ *
+ * Fetched when the panel opens, and not polled: a handout list changes when somebody presses a
+ * button, and the mutations below invalidate it themselves.
+ */
+export function useRoomFiles(roomId: number | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: roomKeys.files(roomId ?? 0),
+    queryFn: () => apiGet<RoomFile[]>(`${ATTENDEE}/${roomId}/files`),
+    enabled: !!roomId && enabled,
+    staleTime: 0,
+  });
+}
+
+/**
+ * Invalidate the list AND «جلسات من».
+ *
+ * The count on the meeting card comes from the MyRooms row, not from this list, so refreshing only
+ * the panel would leave the button saying «۲ فایل» over a panel showing three. That list polls every
+ * thirty seconds, which would fix it eventually — "eventually" is not a state to ship.
+ */
+function useFileMutation<TArgs>(roomId: number, fn: (args: TArgs) => Promise<unknown>) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: fn,
+    retry: false,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: roomKeys.files(roomId) });
+      void qc.invalidateQueries({ queryKey: roomKeys.mine });
+    },
+  });
+}
+
+export function useUploadRoomFile(roomId: number) {
+  return useFileMutation(roomId, (file: File) =>
+    apiUpload<number>(`${ATTENDEE}/${roomId}/files`, file));
+}
+
+export function useDeleteRoomFile(roomId: number) {
+  return useFileMutation(roomId, (fileId: number) =>
+    apiDelete<void>(`${ATTENDEE}/files/${fileId}`));
+}
+
+/**
+ * Saves one file to the device.
+ *
+ * A mutation rather than a query because it is an action with a result the cache has no use for —
+ * and because `isPending` is exactly the per-row spinner the panel needs.
+ */
+export function useDownloadRoomFile() {
+  return useMutation({
+    mutationFn: (file: RoomFile) =>
+      apiDownload(`${ATTENDEE}/files/${file.id}/content`, file.fileName),
     retry: false,
   });
 }
