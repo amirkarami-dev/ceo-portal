@@ -112,6 +112,28 @@ public class RoomMessageConfiguration : IEntityTypeConfiguration<RoomMessage>
     }
 }
 
+public class RoomFileConfiguration : IEntityTypeConfiguration<RoomFile>
+{
+    public void Configure(EntityTypeBuilder<RoomFile> b)
+    {
+        b.ToTable("RoomFiles");
+
+        // 260 is Windows' own path limit and comfortably longer than anything a person names a
+        // handout; the key is ours and bounded by the room id plus a guid plus an extension.
+        b.Property(x => x.FileName).HasMaxLength(260).IsRequired();
+        b.Property(x => x.StoredKey).HasMaxLength(400).IsRequired();
+        b.Property(x => x.ContentType).HasMaxLength(150).IsRequired();
+
+        // The list is always "the files of ONE meeting, newest first".
+        b.HasIndex(x => new { x.RoomId, x.Created });
+
+        b.HasOne(x => x.Room)
+            .WithMany()
+            .HasForeignKey(x => x.RoomId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
 public class RoomBoardConfiguration : IEntityTypeConfiguration<RoomBoard>
 {
     public void Configure(EntityTypeBuilder<RoomBoard> b)

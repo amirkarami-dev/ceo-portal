@@ -83,6 +83,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     public DbSet<RoomBoard> RoomBoards => Set<RoomBoard>();
 
+    public DbSet<RoomFile> RoomFiles => Set<RoomFile>();
+
     public DbSet<VmsCity> VmsCities => Set<VmsCity>();
 
     public DbSet<Camera> VmsCameras => Set<Camera>();
