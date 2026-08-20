@@ -31,7 +31,18 @@ export function ExcalidrawLangProbe() {
           `persian hint present: ${persian}`,
           `english hint present: ${english}`,
           `any Persian anywhere: ${anyPersian}`,
-          `library trigger: ${document.querySelectorAll(".sidebar-trigger").length} (want 0)`,
+          // VISIBILITY, not presence. The trigger is hidden with `display: none`, and a hidden
+          // element still matches a selector — an earlier version of this line counted the DOM and
+          // reported "1 (want 0)" for a board where the button was correctly invisible, which is
+          // exactly the report that sends somebody off to fix a bug that is not there.
+          `library trigger visible: ${
+            [...document.querySelectorAll(".sidebar-trigger, .default-sidebar-trigger")].filter(
+              (e) => {
+                const box = e.getBoundingClientRect();
+                return getComputedStyle(e).display !== "none" && box.width > 0 && box.height > 0;
+              },
+            ).length
+          } (want 0, of ${document.querySelectorAll(".sidebar-trigger").length} in the DOM)`,
           `menu/library labels: ${
             [...document.querySelectorAll(".sidebar-trigger__label")]
               .map((e) => e.textContent)
