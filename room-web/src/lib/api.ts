@@ -97,6 +97,64 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return (text ? JSON.parse(text) : undefined) as T;
 }
 
+/**
+ * Uploads one file as multipart.
+ *
+ * `Content-Type` is deliberately NOT set. `fetch` writes it itself for a `FormData` body, including
+ * the boundary it generated — supplying our own would send a header whose boundary does not match the
+ * body, and the server would parse zero parts and answer "no file" for a request that had one.
+ *
+ * The field name must stay `file`: the endpoint binds an `IFormFile file` parameter by name.
+ */
+export async function apiUpload<T>(path: string, file: File): Promise<T> {
+  const form = new FormData();
+  form.append("file", file);
+
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: "POST",
+    headers: await authHeaders(false),
+    body: form,
+  });
+
+  if (!response.ok) throw await toError(response);
+
+  const text = await response.text();
+  return (text ? JSON.parse(text) : undefined) as T;
+}
+
+/**
+ * Fetches a protected file and hands it to the browser to save.
+ *
+ * <b>This cannot be an `<a href>`.</b> A plain navigation carries no `Authorization` header and no
+ * `X-Room-Token`, so the request would arrive uncredentialled and be refused — and the browser would
+ * show that refusal as a broken page instead of an error we wrote. So the bytes are fetched with the
+ * same headers as every other call, wrapped in an object URL, and saved through a link we click
+ * ourselves.
+ *
+ * The object URL is revoked afterwards; without that the whole file stays in memory until reload.
+ */
+export async function apiDownload(path: string, fileName: string): Promise<void> {
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: "GET",
+    headers: await authHeaders(false),
+  });
+
+  if (!response.ok) throw await toError(response);
+
+  const url = URL.createObjectURL(await response.blob());
+  try {
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  } finally {
+    // A moment's grace: revoking in the same tick can cancel the save in some browsers.
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }
+}
+
 export const apiGet = <T,>(path: string) => request<T>("GET", path);
 export const apiPost = <T,>(path: string, body?: unknown) => request<T>("POST", path, body);
 export const apiPut = <T,>(path: string, body?: unknown) => request<T>("PUT", path, body);

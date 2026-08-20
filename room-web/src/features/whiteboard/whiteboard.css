@@ -1,0 +1,26 @@
+/* Board chrome this product does not want. Imported AFTER @excalidraw/excalidraw/index.css so
+   these rules win on order as well as on specificity. */
+
+/*
+ * The Library button.
+ *
+ * There is no prop for it. `renderTopRightUI` does not cover it — the trigger is rendered as a
+ * SIBLING of that slot, out of a tunnel:
+ *
+ *     renderTopRightUI?.(device.editor.isMobile, appState),
+ *     !appState.viewModeEnabled && … && <DefaultSidebarTriggerTunnel.Out />
+ *
+ * and the only supported way to stop that tunnel being filled is to replace the whole
+ * `DefaultSidebar` — which also owns the canvas-search tab, so «Find on canvas» would break with it.
+ * Hiding the trigger is the smaller, safer change.
+ *
+ * `display: none` rather than `visibility`/opacity on purpose: it takes the control out of the
+ * layout AND out of the tab order, so it cannot be reached by keyboard either. A hidden-but-
+ * focusable button is a trap for anyone not using a mouse.
+ *
+ * If a library is ever wanted, delete this rule — nothing else here depends on it.
+ */
+.excalidraw .sidebar-trigger,
+.excalidraw .default-sidebar-trigger {
+  display: none !important;
+}

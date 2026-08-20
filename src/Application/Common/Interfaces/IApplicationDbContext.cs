@@ -78,6 +78,8 @@ public interface IApplicationDbContext
 
     DbSet<RoomBoard> RoomBoards { get; }
 
+    DbSet<RoomFile> RoomFiles { get; }
+
     DbSet<VmsCity> VmsCities { get; }
 
     DbSet<Camera> VmsCameras { get; }

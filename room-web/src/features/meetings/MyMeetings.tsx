@@ -2,11 +2,14 @@ import { Button, Card, Col, Empty, Row, Skeleton, Space, Tag, Typography, theme 
 import {
   ArrowLeftOutlined,
   ClockCircleOutlined,
+  PaperClipOutlined,
   TeamOutlined,
   VideoCameraOutlined,
 } from "@ant-design/icons";
+import { useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import { RoomFilesPanel } from "../files/RoomFilesPanel";
 import { PageHeader } from "../../components/PageHeader";
 import { PhaseChip } from "../../components/PhaseChip";
 import { TimeRail } from "../../components/TimeRail";
@@ -31,6 +34,7 @@ function MeetingCard({ room, now, delay }: { room: MyRoom; now: number; delay: n
   const navigate = useNavigate();
   const schedule = describeSchedule(room, now);
   const startsAt = new Date(room.startsAtUtc);
+  const [filesOpen, setFilesOpen] = useState(false);
 
   return (
     <Card
@@ -98,6 +102,30 @@ function MeetingCard({ room, now, delay }: { room: MyRoom; now: number; delay: n
             is hidden rather than disabled before then: the card already says when it starts, so a
             greyed button adds nothing but something to press at. A meeting whose time has passed can
             still show this — the server keeps the door open, and the chip above says so plainly. */}
+        {/* Shown when there is something to open, or when this person may put something there.
+            Nothing at all otherwise: a button that opens an empty panel to somebody who cannot fill
+            it is a wasted tap, and the card is already long.
+
+            Quiet on purpose. «ورود به جلسه» below is the card's one primary action, and a second
+            solid button beside it would leave neither of them looking like the main thing. */}
+        {(room.fileCount > 0 || room.canManageFiles) && (
+          <Button
+            type="text"
+            icon={<PaperClipOutlined />}
+            onClick={() => setFilesOpen(true)}
+            style={{
+              // 44px is the touch floor; the negative inline start pulls the icon back into line
+              // with the metadata rows above, which carry no button padding of their own.
+              height: 44,
+              paddingInline: 8,
+              marginInlineStart: -8,
+              fontSize: 13,
+            }}
+          >
+            {room.fileCount > 0 ? `فایل‌ها (${fa(room.fileCount)})` : "افزودن فایل"}
+          </Button>
+        )}
+
         {room.canJoinNow && (
           <Button
             type="primary"
@@ -110,6 +138,14 @@ function MeetingCard({ room, now, delay }: { room: MyRoom; now: number; delay: n
           </Button>
         )}
       </Space>
+
+      <RoomFilesPanel
+        roomId={room.id}
+        roomName={room.name}
+        canManage={room.canManageFiles}
+        open={filesOpen}
+        onClose={() => setFilesOpen(false)}
+      />
     </Card>
   );
 }

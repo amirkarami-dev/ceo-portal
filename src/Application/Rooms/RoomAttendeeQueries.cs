@@ -131,7 +131,18 @@ public sealed record MyRoomDto(
     int LiveCount,
     bool CanJoinNow,
     /// <summary>True when this person is the one who may speak.</summary>
-    bool IsPresenter);
+    bool IsPresenter,
+    /// <summary>How many files are attached. Lets the card offer them without opening anything.</summary>
+    int FileCount,
+    /// <summary>
+    /// Whether this person may add or remove files.
+    /// </summary>
+    /// <remarks>
+    /// This is <c>Room.MayPublish</c> — the same predicate as the microphone and the pen, which is
+    /// what the upload endpoint checks. It is not <see cref="IsPresenter"/>: in a جلسه everyone is
+    /// equal and may add a handout, and there nobody is the presenter.
+    /// </remarks>
+    bool CanManageFiles);
 
 /// <summary>
 /// Meetings this person may attend: ones they were invited to, and any they are presenting.
@@ -174,6 +185,17 @@ public class GetMyRoomsQueryHandler(
         // One call for the whole page. Fail-soft, so an unreachable media server shows zeros rather
         // than turning the list into an error.
         var counts = await liveKit.LiveCountsAsync(rooms.Select(r => r.Slug), cancellationToken);
+
+        // Likewise one query for the page, not one per card. This list polls every thirty seconds,
+        // so a per-row count would be a request multiplier on a shared box.
+        var ids = rooms.Select(r => r.Id).ToList();
+        var fileCounts = await context.RoomFiles
+            .AsNoTracking()
+            .Where(f => ids.Contains(f.RoomId))
+            .GroupBy(f => f.RoomId)
+            .Select(g => new { RoomId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.RoomId, x => x.Count, cancellationToken);
+
         var now = clock.GetUtcNow();
 
         return rooms.Select(r => new MyRoomDto(
@@ -188,7 +210,9 @@ public class GetMyRoomsQueryHandler(
                 r.DurationMinutes,
                 counts.TryGetValue(r.Slug, out var n) ? n : 0,
                 CanJoinNow: r.IsOpenAt(now),
-                IsPresenter: r.MayPublish(identity) && r.Type == RoomType.Presentation))
+                IsPresenter: r.MayPublish(identity) && r.Type == RoomType.Presentation,
+                FileCount: fileCounts.TryGetValue(r.Id, out var files) ? files : 0,
+                CanManageFiles: r.MayPublish(identity)))
             .ToList();
     }
 }

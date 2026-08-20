@@ -34,6 +34,25 @@ import { RoomForm } from "../features/rooms/RoomForm";
  * sidebar next to a video grid is pixels taken from the thing people came to look at.
  */
 export const router = createBrowserRouter([
+  // Dev-only probes (never bundled in production builds).
+  ...(import.meta.env.DEV
+    ? [
+        {
+          path: "/dev/excalidraw-lang",
+          lazy: async () => ({
+            Component: (await import("@/features/whiteboard/dev/ExcalidrawLangProbe"))
+              .ExcalidrawLangProbe,
+          }),
+        },
+        {
+          path: "/dev/room-files",
+          lazy: async () => ({
+            Component: (await import("@/features/files/dev/RoomFilesProbe")).RoomFilesProbe,
+          }),
+        },
+      ]
+    : []),
+
   { path: "/j/:joinToken", element: <JoinPage /> },
   { path: "/login", element: <LoginScreen /> },
   { path: "/auth/callback", element: <OidcCallback /> },
