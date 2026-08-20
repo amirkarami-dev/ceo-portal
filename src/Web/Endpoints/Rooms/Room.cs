@@ -1,3 +1,4 @@
+using Mabhas19.Application.Common.Interfaces;
 using Mabhas19.Application.Rooms;
 using Microsoft.AspNetCore.Http.HttpResults;
 
@@ -54,6 +55,14 @@ public class Room : Mabhas19.Web.Infrastructure.IEndpointGroup
         // the same predicate as the microphone, inside the handler.
         groupBuilder.MapGet(GetRoomBoard, "{id:int}/board").AllowAnonymous();
         groupBuilder.MapPut(SaveRoomBoard, "{id:int}/board").AllowAnonymous();
+
+        // The meeting's files. Anonymous for the same reason the board and the chat are: an audience
+        // member on a public link has no account, and the handouts are for them. Every one of these
+        // still runs the same access gate inside the handler.
+        groupBuilder.MapGet(GetRoomFiles, "{id:int}/files").AllowAnonymous();
+        groupBuilder.MapPost(UploadRoomFile, "{id:int}/files").AllowAnonymous().DisableAntiforgery();
+        groupBuilder.MapGet(GetRoomFileContent, "files/{fileId:int}/content").AllowAnonymous();
+        groupBuilder.MapDelete(DeleteRoomFile, "files/{fileId:int}").AllowAnonymous();
     }
 
     /// <summary>
@@ -150,4 +159,89 @@ public class Room : Mabhas19.Web.Infrastructure.IEndpointGroup
 
         return TypedResults.NoContent();
     }
+    // ── the meeting's files ──────────────────────────────────────────────────
+    //
+    // These live in this group rather than a group of their own, because a meeting's files are a
+    // sub-resource of the meeting exactly as its board and its chat are — same guest credential,
+    // same access gate, same anonymous routes. A second group would have had to repeat all three.
+    //
+    // Every handler name carries the Room prefix. Two endpoint handlers anywhere in the application
+    // sharing a method name make the WHOLE API return 500, including endpoints nobody touched.
+
+    /// <summary>The files attached to a meeting. Anyone who may be in it may read them.</summary>
+    public static async Task<Ok<IReadOnlyList<RoomFileDto>>> GetRoomFiles(
+        ISender sender, HttpRequest http, int id)
+        => TypedResults.Ok(await sender.Send(
+            new GetRoomFilesQuery(id, http.Headers[RoomTokenHeader].FirstOrDefault())));
+
+    /// <summary>Attaches one file. The gate is the same predicate that decides the microphone.</summary>
+    public static async Task<Created<int>> UploadRoomFile(
+        ISender sender, HttpRequest http, int id, IFormFile file, CancellationToken ct)
+    {
+        var fileId = await sender.Send(
+            new UploadRoomFileCommand(id, http.Headers[RoomTokenHeader].FirstOrDefault(), new RoomUpload(file)),
+            ct);
+
+        return TypedResults.Created($"/api/Room/files/{fileId}/content", fileId);
+    }
+
+    /// <summary>
+    /// Streams one file back.
+    /// </summary>
+    /// <remarks>
+    /// The bytes go through the API rather than a storage URL, because the audience for a meeting is
+    /// controlled and a presigned link would outlive that control. A browser will not put a token on
+    /// a plain navigation either, so the client fetches this and saves the blob.
+    /// </remarks>
+    public static async Task<Results<FileStreamHttpResult, NotFound>> GetRoomFileContent(
+        ISender sender, IFileStorage storage, HttpContext http, int fileId, CancellationToken ct)
+    {
+        var file = await sender.Send(
+            new GetRoomFileForDownloadQuery(fileId, http.Request.Headers[RoomTokenHeader].FirstOrDefault()),
+            ct);
+
+        Stream stream;
+        try
+        {
+            stream = await storage.GetAsync(file.StoredKey, ct);
+        }
+        catch (Exception)
+        {
+            // Storage throws provider-specific "no such key" exceptions; a missing object is a 404.
+            return TypedResults.NotFound();
+        }
+
+        // Not cached: this belongs to one meeting's audience, not to the browser cache.
+        http.Response.Headers.CacheControl = "no-store";
+
+        // filename* (RFC 5987) so Persian names survive; plain `filename` would mangle them.
+        http.Response.Headers.ContentDisposition =
+            $"attachment; filename*=UTF-8''{Uri.EscapeDataString(file.FileName)}";
+
+        return TypedResults.Stream(stream, file.ContentType);
+    }
+
+    /// <summary>Removes one file, and its bytes.</summary>
+    public static async Task<NoContent> DeleteRoomFile(
+        ISender sender, HttpRequest http, int fileId, CancellationToken ct)
+    {
+        await sender.Send(
+            new DeleteRoomFileCommand(fileId, http.Headers[RoomTokenHeader].FirstOrDefault()), ct);
+
+        return TypedResults.NoContent();
+    }
+
+    /// <summary>Adapts one uploaded part to the Application layer's view of a file.</summary>
+    private sealed class RoomUpload(IFormFile file) : IRoomFileUpload
+    {
+        // Browsers may send a full path on some platforms; keep only the name.
+        public string FileName => Path.GetFileName(file.FileName);
+
+        public string ContentType => file.ContentType;
+
+        public long SizeBytes => file.Length;
+
+        public Stream OpenRead() => file.OpenReadStream();
+    }
+
 }
