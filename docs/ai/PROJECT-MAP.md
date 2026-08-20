@@ -221,6 +221,25 @@ Online meetings at `room.myceo.ir`. Design: `docs/superpowers/specs/2026-07-31-r
   on the server. Sender name and `IsGuest` come out of that signature, never from the request body.
 - **Chat is saved by the API and delivered live over the media data channel.** Not polling — every
   participant polling would burn the shared per-IP rate limit. De-duplicated on the database row id.
+- **A meeting carries files** — `RoomFile` + `dbo.RoomFiles`, four routes on the **same** `/api/Room`
+  group as the board and the chat (`{id}/files` list and upload, `files/{fileId}/content` download,
+  `files/{fileId}` delete). Not a group of its own: a meeting's files are a sub-resource of the
+  meeting exactly as its board is, and a second group would have duplicated the anonymous routing,
+  the `X-Room-Token` credential and the access gate.
+  - **Reading** uses `RoomChatAccess.ResolveAsync`, the chat/board gate. **Writing** uses
+    `Room.MayPublish`, the microphone/pen gate — so in an ارائه only the presenter may attach, and in
+    a جلسه everyone may. `MyRoomDto.CanManageFiles` is that predicate, and it is deliberately **not**
+    `IsPresenter`.
+  - **Bytes live in MinIO** at `rooms/{roomId}/{guid}{ext}`, beside `kurdnezam/` and `reports/` in the
+    one `mabhas19` bucket. The caller's filename **never** reaches the key; it is kept in the row.
+  - **Download streams through the API**, never a presigned URL — a meeting's audience is controlled
+    and a link would outlive that control. The browser cannot put a token on a plain navigation, so
+    `apiDownload` fetches and saves a blob.
+  - Front end: `room-web/src/features/files/RoomFilesPanel.tsx`, opened by a button on the meeting
+    card in `features/meetings/MyMeetings.tsx`.
+- **The whiteboard is Persian only because of a build-time patch.** See the Excalidraw threshold entry
+  in `GOTCHAS.md` before touching `room-web/vite.config.ts` — the plugin there fails the build on
+  purpose if the patch stops applying.
 
 ## Welfare service
 

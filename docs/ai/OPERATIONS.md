@@ -53,13 +53,33 @@ and recreating just those containers.
 ```bash
 # 1. package exactly what the commit changed
 tar -czf changes.tgz $(git diff-tree --no-commit-id --name-only -r HEAD)
+#    for a whole branch, not one commit:
+#    tar -czf changes.tgz $(git diff --name-only main...HEAD)
 
 # 2. copy it up, then on the server:
-cd /data/apps/ceo-portal && tar -xzf /tmp/changes.tgz -C /data/apps/ceo-portal
+cd /data/apps/ceo-portal && sudo tar -xzf /tmp/changes.tgz --overwrite -C /data/apps/ceo-portal
 C="docker compose -f deploy/docker-compose.newserver.yml --env-file deploy/.env"
 $C build <service>                       # one at a time
 $C up -d --no-deps --force-recreate <service>
 ```
+
+**`sudo` and `--overwrite` are both required.** `src/` and the web app trees are owned by **root**
+(a previous full `deploy.ps1` run left them that way), so a plain `tar` as `ubuntu` fails with a wall
+of `Permission denied` / `File exists` and applies **nothing**. That failure is at least loud; the
+danger is assuming it worked. `ubuntu` has **passwordless** sudo on this box, so there is no need to
+pipe the password the way `scripts/deploy.ps1` does.
+
+**The host key** is pinned in `scripts/deploy.ps1` (`-hostkey SHA256:avswocM1nU3e0FnKQsQDoKSfs6mb/dkRG/8r7iTLEps`).
+Pass the same `-hostkey` to ad-hoc `plink`/`pscp` calls; `-batch` alone refuses an uncached key.
+
+**A migration needs no separate step.** `src/Web/Program.cs` calls `InitialiseDatabaseAsync()`, which
+runs `MigrateAsync()` and **rethrows** on failure — so the process would not start. An `api` container
+that comes up healthy has already applied every pending migration. EF's migration log line sits below
+the container's log level, so *absence* of a log line proves nothing; container health does.
+
+**`MSSQL_SA_PASSWORD` in `deploy/.env` does NOT log in to the running SQL Server.** The database
+volume predates the current file. Do not go hunting: verify schema changes through the API instead
+(a route that queries the new table answering 404-not-found rather than 500 is proof it exists).
 
 **A change to an analytics semantic model is always TWO services.** The backend store grounds the AI
 and builds the SQL; `analytics-web/src/semantic/models/*.ts` is a mirror bundled into the front end at

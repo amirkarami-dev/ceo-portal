@@ -22,6 +22,7 @@ Also, when a task teaches something reusable:
 
 | Date | Record | Area | Status |
 |---|---|---|---|
+| 2026-08-20 | [Meeting files, and the whiteboard in Persian](2026-08-20-room-files.md) | room / api | **live** at room.myceo.ir — upload/download/delete proven end to end; **not merged** |
 | 2026-08-20 | [Submissions export: Excel, and every row the filter matches](2026-08-20-submissions-xlsx-export.md) | landing-panel | **live** — buttons not clicked by a human |
 | 2026-08-19 | [مهمانسرا — the guesthouse service, front end](2026-08-19-walfare-guesthouse-frontend.md) | welfare | **live** + **merged** — never walked end to end by a human |
 | 2026-08-19 | [Guesthouse final review — a REJECTED request could be paid, and the 30-day link ceiling never bound](2026-08-19-walfare-guesthouse-final-review-fixes.md) | walfare / api | built and tested locally; **not merged, not deployed** |

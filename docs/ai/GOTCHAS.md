@@ -986,6 +986,12 @@ status belongs to `tail`, which succeeded at printing the error. A background ta
 you hand to `docker run`, not outside it — the outer shell is a different process), **and read the
 output anyway**. The same applies to `| grep`, `| head`, and `| tee`.
 
+**In a VERIFICATION check it fires the other way — a false ALARM.**
+`grep -rl 'Probe' dist/ | head -2 && echo "LEAKED"` printed LEAKED for a clean bundle, because the
+exit code came from `head`, which succeeded at printing nothing. A false pass gets shipped; a false
+alarm sends somebody off to fix a bug that is not there. Count instead of branching on status:
+`n=$(grep -rl … | wc -l); echo "$n (want 0)"`.
+
 ### Renaming a Compose project silently changes implicit volume names
 **Symptom:** services start successfully after a project rename but SQL/MinIO appear empty.
 **Cause:** top-level `name:` prefixes implicit volumes, so changing `mabhas19` to `ceo-portal`
@@ -1731,3 +1737,43 @@ point of use. The omitted-array case is usually the COMMONEST request, not an ed
 room-web's `tokens.ts` justified its palette by calling the app "a background-job monitor" — copied
 wholesale from mun-sanandaj-web, along with a `.mun-live-dot` class. Before designing against a
 theme file, check whether its stated reasoning is about **this** product.
+
+### A package can SHIP a translation and then refuse to use it
+**Symptom:** the whiteboard renders in English although `langCode="fa-IR"` is set. The locale file
+exists in `node_modules`, the strings are translated, and the chunk is served — so every obvious
+reading (missing locale, missing translation, chunk never loads) is wrong.
+**Cause:** Excalidraw only *offers* a language that is at least `COMPLETION_THRESHOLD = 85` percent
+translated, and it ships `percentages["fa-IR"] = 84`. One point short. Persian is filtered out of
+`languages`, `langCode` matches nothing, and it **falls back to English with no warning** — and never
+fetches the locale at all.
+**Fix:** patch the number at build time. `room-web/vite.config.ts` has an `excalidrawPersian()`
+plugin that rewrites `84` to `85` on **both** paths — Rollup `transform` for `vite build`, esbuild
+`optimizeDeps` for `vite dev` — and **fails the build** when the pattern is not found, so the next
+Excalidraw upgrade breaks loudly instead of silently shipping English again.
+**Do NOT hand-translate the UI.** The package already contains the translation; a hand-written copy
+would be large, permanent, and wrong at the next upgrade.
+**Where:** `room-web/vite.config.ts`, `docs/worklog/2026-08-20-room-files.md`.
+
+### A hidden element still matches a selector, so "count the DOM" is not "is it visible"
+**Symptom:** a check reports `library trigger: 1 (want 0)` for a button that is correctly invisible.
+**Cause:** `display: none` removes an element from the *layout*, not from the *document*.
+`querySelectorAll('.sidebar-trigger').length` counts it exactly as before, so a presence count can
+never prove a CSS hide worked — and it reports failure for the state you wanted.
+**Fix:** measure what you actually mean: `getComputedStyle(el).display !== 'none'` **and**
+`getBoundingClientRect()` having non-zero width and height. Report both numbers — "0 visible, of 1 in
+the DOM" — so the next reader is not misled either way.
+**Where:** `room-web/src/features/whiteboard/dev/ExcalidrawLangProbe.tsx`.
+
+### `error instanceof ApiError` misses a dropped connection, so the UI says NOTHING
+**Symptom:** on a phone that loses signal, tapping a button does nothing at all — no spinner, no
+message — so the person taps again.
+**Cause:** `ApiError` is only constructed from a `Response`. When `fetch` cannot reach the host it
+rejects with a plain `TypeError: Failed to fetch`, which is not an `ApiError`, so
+`{error instanceof ApiError && <Alert…/>}` renders nothing. The happy path and the server-refusal
+path both work, which is why this survives review.
+**Fix:** render on `error != null` and choose the *text* by type — the server's Persian sentence for an
+`ApiError`, a written fallback («ارتباط با سرور برقرار نشد…») otherwise. Never show a raw `TypeError.message`; it says
+"Failed to fetch".
+**Still present elsewhere:** `room-web/src/features/meeting/ChatPanel.tsx` gates its send error the
+old way, so a failed chat send is silent offline too.
+**Where:** `room-web/src/features/files/RoomFilesPanel.tsx` (`reason()`).
