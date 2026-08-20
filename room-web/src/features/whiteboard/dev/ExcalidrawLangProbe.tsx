@@ -6,6 +6,10 @@
 import { useEffect, useState } from "react";
 import { Excalidraw } from "@excalidraw/excalidraw";
 import "@excalidraw/excalidraw/index.css";
+// The same stylesheet the real board loads, in the same order — otherwise this probe would be
+// checking a board that is not the one we ship.
+import "../whiteboard.css";
+import { whiteboardMenu } from "../whiteboardMenu";
 
 /** The exact string the user quoted, and its Persian counterpart from the shipped locale. */
 const ENGLISH_HINT = "To move canvas";
@@ -27,6 +31,7 @@ export function ExcalidrawLangProbe() {
           `persian hint present: ${persian}`,
           `english hint present: ${english}`,
           `any Persian anywhere: ${anyPersian}`,
+          `library trigger: ${document.querySelectorAll(".sidebar-trigger").length} (want 0)`,
           `menu/library labels: ${
             [...document.querySelectorAll(".sidebar-trigger__label")]
               .map((e) => e.textContent)
@@ -48,7 +53,9 @@ export function ExcalidrawLangProbe() {
         {report}
       </pre>
       <div style={{ flex: 1, minHeight: 0 }}>
-        <Excalidraw langCode="fa-IR" />
+        <Excalidraw langCode="fa-IR" renderTopRightUI={() => null}>
+          {whiteboardMenu()}
+        </Excalidraw>
       </div>
     </div>
   );

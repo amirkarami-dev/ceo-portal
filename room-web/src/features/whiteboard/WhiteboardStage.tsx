@@ -5,9 +5,12 @@ import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import type { OrderedExcalidrawElement } from "@excalidraw/excalidraw/element/types";
 import type { RemoteExcalidrawElement } from "@excalidraw/excalidraw/data/reconcile";
 import "@excalidraw/excalidraw/index.css";
+// After Excalidraw's own stylesheet, so our rules win on order as well as specificity.
+import "./whiteboard.css";
 import { useThemeMode } from "../../theme/useThemeMode";
 import { useRoomBoard, useSaveRoomBoard } from "../../lib/queries";
 import { useWhiteboardSync } from "./useWhiteboardSync";
+import { whiteboardMenu } from "./whiteboardMenu";
 import type { BoardElement } from "./wire";
 
 /** Local edits are gathered for this long before going out, so a stroke is one message not fifty. */
@@ -149,7 +152,12 @@ export function WhiteboardStage({ roomId, canDraw }: { roomId: number; canDraw: 
         // An audience member watches. Excalidraw's own read-only mode, so there are no tools to
         // hunt for — the same choice the bottom bar makes by omitting the publish buttons.
         viewModeEnabled={!canDraw}
-      />
+        // Removes the whole top-right area, which is where the Library trigger lives. There is no
+        // prop for the Library alone, and nothing else of ours sits there.
+        renderTopRightUI={() => null}
+      >
+        {whiteboardMenu()}
+      </Excalidraw>
     </div>
   );
 }
